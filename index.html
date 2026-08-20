@@ -51,6 +51,9 @@
   .profile-list div { display: flex; justify-content: space-between; gap: 12px; border-bottom: 1px solid var(--border); padding-bottom: 8px; }
   .profile-list span { color: var(--muted); }
   .profile-chart { min-height: 360px; }
+  .profile-section { margin-top: 14px; }
+  .profile-section h3 { color: var(--accent); font: 11px Arial, sans-serif; letter-spacing: 1px; text-transform: uppercase; margin: 0 0 12px; }
+  .profile-charts { display: grid; grid-template-columns: repeat(2, 1fr); gap: 14px; margin-top: 14px; }
   #search-box { margin-bottom: 12px; }
   #search-box input { max-width: 350px; }
   #table-title { color: var(--muted); font-size: 16px; margin: 0 0 12px; }
@@ -61,7 +64,7 @@
   .tabulator-row.tabulator-row-even { background: #121920 !important; }
   .tabulator-row:hover { background: #263b40 !important; }
   #loading { color: var(--muted); font: 13px Arial, sans-serif; }
-  @media (max-width: 850px) { .workspace, .profile-grid { grid-template-columns: 1fr; } .record-grid { grid-template-columns: repeat(2, 1fr); } .intro { display: block; } .intro p { margin-top: 14px; } }
+  @media (max-width: 850px) { .workspace, .profile-grid, .profile-charts { grid-template-columns: 1fr; } .record-grid { grid-template-columns: repeat(2, 1fr); } .intro { display: block; } .intro p { margin-top: 14px; } }
   @media (max-width: 560px) { .summary { grid-template-columns: repeat(2, 1fr); } .panel-head { align-items: start; flex-direction: column; } }
 </style>
 </head>
@@ -91,7 +94,8 @@
   <section id="view-players" class="view">
     <section class="intro"><div><div class="eyebrow">One player at a time</div><h2>Player Profile</h2></div><p>Choose a player to see their all-time totals and season-by-season record.</p></section>
     <label style="max-width:280px">Player<select id="profile-player"></select></label>
-    <div class="profile-grid" style="margin-top:16px"><div class="panel"><h3 id="profile-name" class="profile-name"></h3><div id="profile-stats" class="profile-list"></div></div><div class="panel profile-chart"><div class="panel-head"><h3>Wins and rank by season</h3></div><div class="chart-wrap"><canvas id="profile-history-chart"></canvas></div></div></div>
+    <div class="profile-grid" style="margin-top:16px"><div class="panel"><h3 id="profile-name" class="profile-name"></h3><div id="profile-stats" class="profile-list"></div><div id="profile-extra-stats"></div></div><div class="panel profile-chart"><div class="panel-head"><h3>Wins and rank by season</h3></div><div class="chart-wrap"><canvas id="profile-history-chart"></canvas></div></div></div>
+    <div class="profile-charts"><div class="panel profile-chart"><div class="panel-head"><h3>Cumulative money won</h3></div><div class="chart-wrap"><canvas id="profile-money-chart"></canvas></div></div><div class="panel profile-chart"><div class="panel-head"><h3>Average finish by season</h3></div><div class="chart-wrap"><canvas id="profile-placement-chart"></canvas></div></div></div>
   </section>
   <section id="view-tables" class="view">
   <section class="table-section"><div id="search-box"><input type="text" id="global-search" placeholder="Search this table..." /></div><p id="table-title"></p><div id="loading">Loading...</div><div id="stats-table"></div></section>
@@ -99,7 +103,7 @@
 </main>
 <script>
 const DATA_DIR = "data";
-let table = null, chart = null, profileChart = null, manifest = [], dashboard = [], tableData = {};
+let table = null, chart = null, profileChart = null, profileMoneyChart = null, profilePlacementChart = null, manifest = [], dashboard = [], tableData = {};
 const colors = ["#54d6b2", "#ffb454", "#8ca7ff", "#ff7180", "#d79bff", "#f1e48b", "#65c7e8"];
 function moneyFormatter(cell) { const v = cell.getValue(); if (v === "" || v == null) return ""; const n = typeof v === "number" ? v : parseFloat(String(v).replace(/[^0-9.-]/g, "")); return isNaN(n) ? v : "$" + n.toLocaleString(); }
 function percentFormatter(cell) { const v = cell.getValue(); if (v === "" || v == null) return ""; const n = typeof v === "number" ? v : parseFloat(v); return isNaN(n) ? v : (n * 100).toFixed(2) + "%"; }
@@ -112,6 +116,35 @@ function showView(view) { document.querySelectorAll(".view").forEach(section => 
 function bestRecord(key, valueColumn, label) { const rows = tableData[key] || []; const winner = [...rows].sort((a, b) => Number(b[valueColumn] || 0) - Number(a[valueColumn] || 0))[0]; if (!winner) return ""; return `<div class="panel record-card"><h3>${label}</h3><strong>${winner[valueColumn] ?? ""}</strong><p>${winner.Name}</p></div>`; }
 function renderRecords() { document.getElementById("record-grid").innerHTML = [bestRecord("overall", "Wins", "Most wins"), bestRecord("overall", "Plus/Minus", "Best plus/minus"), bestRecord("money_won", "Total Money Won", "Most money won"), bestRecord("weekly_champs", "Weeks Won", "Most weekly wins"), bestRecord("playoff_champs", "Playoffs Won", "Most playoff wins"), bestRecord("season_champs", "Championships Won", "Most championships"), bestRecord("win_streak", "Win Streak", "Longest win streak"), bestRecord("losing_streak", "Losing Streak", "Longest losing streak"), bestRecord("top5_streak", "Top 5 Streak", "Longest Top 5 streak")].join(""); }
 function renderProfile(name) { const overall = (tableData.overall || []).find(row => row.Name === name); const money = (tableData.money_won || []).find(row => row.Name === name); const weekly = dashboard.filter(row => row.Name === name); document.getElementById("profile-name").textContent = name || "Choose a player"; if (!overall) { document.getElementById("profile-stats").innerHTML = ""; return; } const stats = [["Wins", overall.Wins], ["Losses", overall.Losses], ["Win percentage", (Number(overall["%"] || 0) * 100).toFixed(2) + "%"], ["Plus/minus", overall["Plus/Minus"]], ["Total money won", "$" + Number(money?.["Total Money Won"] || 0).toLocaleString()], ["Weeks won", money?.["Weeks Won"] || 0]]; document.getElementById("profile-stats").innerHTML = stats.map(([label, value]) => `<div><span>${label}</span><strong>${value}</strong></div>`).join(""); const seasons = [...new Set(weekly.map(row => row.Season))].sort(); if (profileChart) profileChart.destroy(); profileChart = new Chart(document.getElementById("profile-history-chart"), { type: "line", data: { labels: seasons, datasets: [{ label: "Wins", data: seasons.map(season => weekly.filter(row => row.Season === season).reduce((sum, row) => sum + Number(row.Wins || 0), 0)), borderColor: colors[0], backgroundColor: colors[0] + "55", tension: .25 }, { label: "Average rank", data: seasons.map(season => { const rows = weekly.filter(row => row.Season === season); return rows.reduce((sum, row) => sum + Number(row.Rank || 0), 0) / rows.length; }), borderColor: colors[1], backgroundColor: colors[1] + "55", tension: .25, yAxisID: "rank" }] }, options: { responsive: true, maintainAspectRatio: false, scales: { x: { ticks: { color: "#91a0ae" }, grid: { color: "#2a3744" } }, y: { beginAtZero: true, ticks: { color: "#91a0ae" }, grid: { color: "#2a3744" } }, rank: { position: "right", reverse: true, ticks: { color: "#91a0ae" }, grid: { drawOnChartArea: false } } }, plugins: { legend: { labels: { color: "#e8eef5" } } } } }); }
+function renderProfile(name) {
+  const overall = (tableData.overall || []).find(row => row.Name === name);
+  const money = (tableData.money_won || []).find(row => row.Name === name);
+  const weeklyChamps = (tableData.weekly_champs || []).find(row => row.Name === name);
+  const playoffChamps = (tableData.playoff_champs || []).find(row => row.Name === name);
+  const seasonChamps = (tableData.season_champs || []).find(row => row.Name === name);
+  const weekly = dashboard.filter(row => row.Name === name);
+  const regular = weekly.filter(row => row.Week !== "playoffs");
+  const playoffs = weekly.filter(row => row.Week === "playoffs");
+  const bestWeek = [...regular].sort((a, b) => Number(b.Wins || 0) - Number(a.Wins || 0) || Number(a.Rank || 99) - Number(b.Rank || 99))[0];
+  const streaks = [["Win streak", "win_streak", "Win Streak"], ["Losing streak", "losing_streak", "Losing Streak"], ["Top 5 streak", "top5_streak", "Top 5 Streak"], ["Top 10 streak", "top10_streak", "Top 10 Streak"], ["Best bet hit streak", "best_bet_hit_streak", "Best Bet Hit Streak"]];
+  document.getElementById("profile-name").textContent = name || "Choose a player";
+  if (!overall) { document.getElementById("profile-stats").innerHTML = ""; document.getElementById("profile-extra-stats").innerHTML = ""; return; }
+  const stats = [["Wins", overall.Wins], ["Losses", overall.Losses], ["Win percentage", (Number(overall["%"] || 0) * 100).toFixed(2) + "%"], ["Plus/minus", overall["Plus/Minus"]], ["Total money won", "$" + Number(money?.["Total Money Won"] || 0).toLocaleString()], ["Weeks won", money?.["Weeks Won"] || 0]];
+  document.getElementById("profile-stats").innerHTML = stats.map(([label, value]) => `<div><span>${label}</span><strong>${value}</strong></div>`).join("");
+  const extra = (title, values) => `<div class="profile-section"><h3>${title}</h3><div class="profile-list">${values.map(([label, value]) => `<div><span>${label}</span><strong>${value ?? "0"}</strong></div>`).join("")}</div></div>`;
+  const bestWeekLabel = bestWeek ? `${bestWeek.Wins}-${bestWeek.Losses} (${bestWeek.Season} W${bestWeek.Week})` : "0";
+  document.getElementById("profile-extra-stats").innerHTML = extra("Competition", [["Regular weeks", regular.length], ["Regular wins", regular.reduce((sum, row) => sum + Number(row.Wins || 0), 0)], ["Playoff weeks", playoffs.length], ["Playoff wins", playoffs.reduce((sum, row) => sum + Number(row.Wins || 0), 0)]]) + extra("Best weeks and titles", [["Best week", bestWeekLabel], ["Best weekly record", weeklyChamps?.["Best Week Record"]], ["Best playoff record", playoffChamps?.["Best Playoff Record"]], ["Season championships", seasonChamps?.["Championships Won"]], ["Season runner-ups", seasonChamps?.["2nd Place"]], ["Season best win %", seasonChamps ? (Number(seasonChamps["Best Season Win %"] || 0) * 100).toFixed(2) + "%" : "0"]]) + extra("Streak records", streaks.map(([label, key, column]) => [label, (tableData[key] || []).find(row => row.Name === name)?.[column]]));
+  const seasons = [...new Set(weekly.map(row => row.Season))].sort();
+  const chartOptions = { responsive: true, maintainAspectRatio: false, interaction: { mode: "index", intersect: false }, scales: { x: { ticks: { color: "#91a0ae" }, grid: { color: "#2a3744" } }, y: { beginAtZero: true, ticks: { color: "#91a0ae" }, grid: { color: "#2a3744" } } }, plugins: { legend: { labels: { color: "#e8eef5" } } } };
+  if (profileChart) profileChart.destroy();
+  profileChart = new Chart(document.getElementById("profile-history-chart"), { type: "line", data: { labels: seasons, datasets: [{ label: "Wins", data: seasons.map(season => weekly.filter(row => row.Season === season).reduce((sum, row) => sum + Number(row.Wins || 0), 0)), borderColor: colors[0], backgroundColor: colors[0] + "55", tension: .25 }, { label: "Average rank", data: seasons.map(season => { const rows = weekly.filter(row => row.Season === season); return rows.reduce((sum, row) => sum + Number(row.Rank || 0), 0) / rows.length; }), borderColor: colors[1], backgroundColor: colors[1] + "55", tension: .25, yAxisID: "rank" }] }, options: { ...chartOptions, scales: { ...chartOptions.scales, rank: { position: "right", reverse: true, ticks: { color: "#91a0ae" }, grid: { drawOnChartArea: false } } } } });
+  let runningMoney = 0;
+  const seasonMoney = seasons.map(season => { runningMoney += weekly.filter(row => row.Season === season).reduce((sum, row) => sum + Number(row.Winnings || 0), 0); return runningMoney; });
+  if (profileMoneyChart) profileMoneyChart.destroy();
+  profileMoneyChart = new Chart(document.getElementById("profile-money-chart"), { type: "line", data: { labels: seasons, datasets: [{ label: "Cumulative money", data: seasonMoney, borderColor: colors[2], backgroundColor: colors[2] + "44", fill: true, tension: .25 }] }, options: { ...chartOptions, scales: { ...chartOptions.scales, y: { ...chartOptions.scales.y, ticks: { color: "#91a0ae", callback: value => "$" + value.toLocaleString() } } } } });
+  if (profilePlacementChart) profilePlacementChart.destroy();
+  profilePlacementChart = new Chart(document.getElementById("profile-placement-chart"), { type: "bar", data: { labels: seasons, datasets: [{ label: "Average finish", data: seasons.map(season => { const rows = weekly.filter(row => row.Season === season); return rows.reduce((sum, row) => sum + Number(row.Rank || 0), 0) / rows.length; }), backgroundColor: colors[3] + "bb", borderColor: colors[3], borderWidth: 1 }] }, options: { ...chartOptions, scales: { ...chartOptions.scales, y: { ...chartOptions.scales.y, reverse: true, suggestedMin: 1, ticks: { color: "#91a0ae" } } } } });
+}
 function initViews() { document.querySelectorAll("#nav button[data-view]").forEach(btn => btn.onclick = () => showView(btn.dataset.view)); document.getElementById("profile-player").onchange = event => renderProfile(event.target.value); const requested = location.hash.slice(1); showView(["dashboard", "records", "players", "tables"].includes(requested) ? requested : "dashboard"); }
 function selectedPlayers() { return [...document.getElementById("player-filter").selectedOptions].map(o => o.value); }
 function filteredDashboard() { const from = document.getElementById("season-from").value, to = document.getElementById("season-to").value, competition = document.getElementById("competition-filter").value; const players = selectedPlayers(); return dashboard.filter(row => (!players.length || players.includes(row.Name)) && (!from || row.Season >= from) && (!to || row.Season <= to) && (competition === "all" || (competition === "playoffs" ? row.Week === "playoffs" : row.Week !== "playoffs"))); }
