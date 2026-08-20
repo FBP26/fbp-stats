@@ -59,6 +59,7 @@
   #view-weeks .explorer-controls { grid-template-columns: 1fr; max-width: 420px; }
   .wide-chart { min-height: 470px; }
   .race-chart-wrap { height: 620px; }
+  .chart-divider { border: none; border-top: 1px solid var(--border); margin: 56px 0 0; }
   #week-race-chart { min-height: 620px; }
   #search-box { margin-bottom: 12px; }
   #search-box input { max-width: 350px; }
@@ -72,10 +73,39 @@
   #loading { color: var(--muted); font: 13px Arial, sans-serif; }
   @media (max-width: 850px) { .workspace, .profile-grid, .profile-charts { grid-template-columns: 1fr; } .record-grid { grid-template-columns: repeat(2, 1fr); } .intro { display: block; } .intro p { margin-top: 14px; } }
   @media (max-width: 560px) { .summary { grid-template-columns: repeat(2, 1fr); } .panel-head { align-items: start; flex-direction: column; } .explorer-controls { grid-template-columns: 1fr; } #view-games .explorer-controls, #view-weeks .explorer-controls { max-width: none; } }
+  .picks-grid { border-collapse: collapse; font: 11px Arial, sans-serif; }
+  .picks-grid th, .picks-grid td { padding: 2px 5px; border: 1px solid var(--border); text-align: center; vertical-align: middle; white-space: nowrap; }
+  .pg-player { text-align: left !important; background: var(--panel-2); color: var(--text); min-width: 72px; font-weight: normal; }
+  .pg-game { background: #202c38; color: var(--muted); font-size: 10px; line-height: 1.4; }
+  .pg-game small { color: #4a6070; }
+  .pg-round { background: #192a36; color: var(--accent); font-size: 10px; letter-spacing: .5px; text-transform: uppercase; }
+  .pg-bb-hdr { background: #192a20; color: #7ee2b8; font-size: 10px; }
+  .pg-sum-hdr { background: #202c38; color: var(--muted); font-size: 10px; }
+  .pg-sum-cell { background: var(--panel-2); color: var(--text); }
+  .pg-pick-win { background: #1e5c3a; color: #7ee2b8; }
+  .pg-pick-loss { background: #6b1f1f; color: #ffaaaa; }
+  .pg-pick-push { background: #4a4a20; color: #d4d490; }
+  .pg-pick-pending { background: var(--panel); color: var(--muted); }
+  .pg-pick-none { background: var(--panel-2); color: #333; }
+  .pg-bb-win { background: #0d3d22; color: #54d6b2; font-weight: bold; }
+  .pg-bb-loss { background: #4a1010; color: #ff7180; font-weight: bold; }
+  .pg-bb-push { background: #363620; color: #d4d490; font-weight: bold; }
+  .pg-bb-none { background: var(--panel-2); color: #333; }
+  .pg-bb-pending { background: var(--panel-2); color: #444; }
+  .pg-w { color: #7ee2b8 !important; }
+  .pg-l { color: #ff7180 !important; }
+  .sg-win1 { background: #8a6d1f; color: #ffe9a8; font-weight: bold; }
+  .sg-top5 { background: #1e5c3a; color: #7ee2b8; }
+  .sg-top10 { background: #26405e; color: #a9c6ff; }
+  .sg-rest { background: var(--panel); color: var(--muted); }
+  .sg-none { background: var(--panel-2); color: #333; }
+  .grid-legend { display: flex; flex-wrap: wrap; gap: 16px; align-items: center; font: 11px Arial, sans-serif; color: var(--muted); margin: 0 0 10px; }
+  .grid-legend span { display: flex; align-items: center; gap: 6px; }
+  .grid-legend i { width: 15px; height: 15px; border: 1px solid var(--border); display: inline-block; }
 </style>
 </head>
 <body>
-<header><h1>FBP All-Time Stats</h1><nav id="nav"><button data-view="dashboard">Dashboard</button><button data-view="season">Season Explorer</button><button data-view="money">Money Map</button><button data-view="streaks">Streak Lab</button><button data-view="weeks">Week Browser</button><button data-view="games">Game Browser</button><button data-view="records">Record Book</button><button data-view="players">Player Profile</button><button data-view="tables">Tables</button></nav></header>
+<header><h1>FBP All-Time Stats</h1><nav id="nav"><button data-view="dashboard">Dashboard</button><button data-view="alltime">All Time</button><button data-view="season">Season Recap</button><button data-view="money">Money Map</button><button data-view="streaks">Streak Lab</button><button data-view="weeks">Weekly Recap</button><button data-view="games">Game Browser</button><button data-view="records">Record Book</button><button data-view="players">Player Profile</button><button data-view="tables">Tables</button></nav></header>
 <main>
   <section id="view-dashboard" class="view active">
   <section class="intro"><div><div class="eyebrow">The record book, in motion</div><h2>See the seasons unfold.</h2></div><p>Filter the history by player, season, and competition. Every chart is linked to the same weekly results behind the tables.</p></section>
@@ -97,9 +127,13 @@
     <section class="intro"><div><div class="eyebrow">All-time leaders</div><h2>Record Book</h2></div><p>The biggest totals and longest runs, collected in one place.</p></section>
     <div id="record-grid" class="record-grid"></div>
   </section>
+  <section id="view-alltime" class="view">
+    <section class="intro"><div><h2>All Time</h2></div><p>Seventeen seasons of results in one place: the career leaders, every champion, and how the long-timers built their records.</p></section>
+    <div class="panel"><div id="alltime-summary" class="summary"></div><div class="chart-wrap wide-chart race-chart-wrap"><canvas id="alltime-top-chart"></canvas></div><h3 style="margin:28px 0 8px;color:var(--accent);font:11px Arial,sans-serif;letter-spacing:1px;text-transform:uppercase">Hall of fame</h3><div id="alltime-cards" class="record-grid"></div><h3 style="margin:28px 0 8px;color:var(--accent);font:11px Arial,sans-serif;letter-spacing:1px;text-transform:uppercase">Hot streaks</h3><div class="grid-legend"><span>Longest run of correct picks against the spread, counted game by game across weeks and seasons</span></div><div class="chart-wrap wide-chart race-chart-wrap"><canvas id="alltime-streak-chart"></canvas></div><h3 style="margin:28px 0 8px;color:var(--accent);font:11px Arial,sans-serif;letter-spacing:1px;text-transform:uppercase">Champions by season</h3><div id="alltime-champions" style="overflow-x:auto;margin-bottom:4px"></div><hr class="chart-divider"><h3 style="margin:28px 0 8px;color:var(--accent);font:11px Arial,sans-serif;letter-spacing:1px;text-transform:uppercase">Season by season</h3><div class="grid-legend"><span>Where each player finished in every season they entered</span><span><i style="background:#8a6d1f"></i>Champion</span><span><i style="background:#1e5c3a"></i>Top 5</span><span><i style="background:#26405e"></i>Top 10</span><span><i style="background:#151c24"></i>Outside top 10</span><span><i style="background:#1b2530"></i>Did not enter</span></div><div id="alltime-seasons-grid" style="overflow-x:auto;margin-bottom:4px"></div><h3 style="margin:28px 0 8px;color:var(--accent);font:11px Arial,sans-serif;letter-spacing:1px;text-transform:uppercase">Money</h3><div class="chart-wrap wide-chart race-chart-wrap"><canvas id="alltime-money-chart"></canvas></div><h3 style="margin:28px 0 8px;color:var(--accent);font:11px Arial,sans-serif;letter-spacing:1px;text-transform:uppercase">Turnout</h3><div class="chart-wrap wide-chart"><canvas id="alltime-turnout-chart"></canvas></div></div>
+  </section>
   <section id="view-season" class="view">
-    <section class="intro"><div><div class="eyebrow">One season at a time</div><h2>Season Explorer</h2></div><p>Watch the standings move week by week. Select a season and players to isolate the race.</p></section>
-    <div class="panel"><div class="explorer-controls"><label>Season<select id="explorer-season"></select></label><label>Players<select id="explorer-players" multiple></select></label></div><div class="chart-wrap wide-chart"><canvas id="season-explorer-chart"></canvas></div></div>
+    <section class="intro"><div><h2>Season Recap</h2></div><p>Every player's week-by-week run through a season, where they finished, and the race between the top three.</p></section>
+    <div class="panel"><div class="explorer-controls"><label>Season<select id="season-choice"></select></label></div><div id="season-summary" class="summary"></div><div class="chart-wrap wide-chart"><canvas id="season-top-chart"></canvas></div><div id="season-notes" class="record-grid" style="margin-top:18px"></div><h3 style="margin:28px 0 8px;color:var(--accent);font:11px Arial,sans-serif;letter-spacing:1px;text-transform:uppercase">Weeks</h3><div class="grid-legend"><span><i style="background:#8a6d1f"></i>Won the week</span><span><i style="background:#1e5c3a"></i>Top 5</span><span><i style="background:#26405e"></i>Top 10</span><span><i style="background:#151c24"></i>Outside top 10</span><span><i style="background:#1b2530"></i>Did not play</span><span style="color:#4a6070">Cell shows wins that week</span></div><div id="season-weeks-grid" style="overflow-x:auto;margin-bottom:4px"></div><h3 style="margin:28px 0 8px;color:var(--accent);font:11px Arial,sans-serif;letter-spacing:1px;text-transform:uppercase">Standings</h3><div id="season-table"></div><hr class="chart-divider"><div class="explorer-controls" style="margin-top:24px"><label>Race metric<select id="season-race-metric"><option value="pct">Win percentage</option><option value="wins">Total wins</option></select></label></div><div class="chart-wrap wide-chart race-chart-wrap"><canvas id="season-race-chart"></canvas></div><h3 style="margin:28px 0 8px;color:var(--accent);font:11px Arial,sans-serif;letter-spacing:1px;text-transform:uppercase">Money</h3><div class="chart-wrap wide-chart race-chart-wrap"><canvas id="season-money-chart"></canvas></div><h3 style="margin:28px 0 8px;color:var(--accent);font:11px Arial,sans-serif;letter-spacing:1px;text-transform:uppercase">Consistency</h3><div class="chart-wrap wide-chart"><canvas id="season-consistency-chart"></canvas></div><h3 style="margin:28px 0 8px;color:var(--accent);font:11px Arial,sans-serif;letter-spacing:1px;text-transform:uppercase">Head to head</h3><div class="grid-legend"><span>Weeks each player finished ahead of the other, top 8 only</span><span><i style="background:#8a6d1f"></i>Dominant</span><span><i style="background:#1e5c3a"></i>Winning</span><span><i style="background:#26405e"></i>Losing</span><span><i style="background:#151c24"></i>Dominated</span></div><div id="season-h2h" style="overflow-x:auto;margin-bottom:4px"></div><h3 style="margin:28px 0 8px;color:var(--accent);font:11px Arial,sans-serif;letter-spacing:1px;text-transform:uppercase">Best bet accuracy</h3><div class="chart-wrap wide-chart"><canvas id="season-bb-chart"></canvas></div><div class="grid-legend" style="margin-top:14px"><span><i style="background:#1e5c3a"></i>Best bet hit</span><span><i style="background:#6b1f1f"></i>Best bet missed</span><span><i style="background:#4a4a20"></i>Push (counts as a miss)</span><span><i style="background:#1b2530"></i>No best bet</span></div><div id="season-bb-grid" style="overflow-x:auto;margin-bottom:4px"></div><h3 style="margin:28px 0 8px;color:var(--accent);font:11px Arial,sans-serif;letter-spacing:1px;text-transform:uppercase">Tiebreakers</h3><div class="grid-legend"><span>The tiebreaker is net passing yards in the last game of the week · lower miss is better</span></div><div class="chart-wrap wide-chart race-chart-wrap"><canvas id="season-tb-chart"></canvas></div><div class="grid-legend" style="margin-top:14px"><span>Each week shows the guess and how many yards off it was</span><span><i style="background:#8a6d1f"></i>Exact</span><span><i style="background:#1e5c3a"></i>Within 10</span><span><i style="background:#26405e"></i>Within 50</span><span><i style="background:#151c24"></i>Further off</span></div><div id="season-tb-grid" style="overflow-x:auto;margin-bottom:4px"></div><h3 style="margin:28px 0 8px;color:var(--accent);font:11px Arial,sans-serif;letter-spacing:1px;text-transform:uppercase">Team picks</h3><div class="chart-wrap wide-chart"><canvas id="season-teams-chart"></canvas></div><h3 style="margin:28px 0 8px;color:var(--accent);font:11px Arial,sans-serif;letter-spacing:1px;text-transform:uppercase">Contrarian index</h3><div class="chart-wrap wide-chart"><canvas id="season-contrarian-chart"></canvas></div><div class="explorer-controls" style="margin-top:28px"><label>Player<select id="season-player"></select></label></div><h3 style="margin:24px 0 10px">Week by week</h3><div class="grid-legend"><span><i style="background:#d4af37"></i>Won the week</span><span><i style="background:#238b68"></i>Top 5</span><span><i style="background:#3f6fb5"></i>Top 10</span><span><i style="background:#4c5a68"></i>Outside top 10</span><span style="color:#4a6070">Bars are games won that week</span></div><div class="chart-wrap wide-chart race-chart-wrap" style="margin-top:12px"><canvas id="season-player-chart"></canvas></div></div>
   </section>
   <section id="view-money" class="view">
     <section class="intro"><div><div class="eyebrow">Every dollar has a story</div><h2>Money Map</h2></div><p>See when weekly, playoff, and season championship money entered each player's career.</p></section>
@@ -114,8 +148,8 @@
     <div class="panel"><div class="explorer-controls"><label>Season<select id="game-season"></select></label><label>Week<select id="game-week"></select></label></div><label style="max-width:420px">Game<select id="game-choice"></select></label><div id="game-detail" class="profile-list" style="margin-top:16px"></div><div id="game-picks-table" style="margin-top:16px"></div></div>
   </section>
   <section id="view-weeks" class="view"><select id="week-race-players" hidden></select>
-    <section class="intro"><div><div class="eyebrow">Who owned the week?</div><h2>Week Browser</h2></div><p>Choose a season and week to see the winner, leaderboard, records, and money awarded.</p></section>
-    <div class="panel"><div class="explorer-controls"><label>Season<select id="week-season"></select></label><label>Week<select id="week-choice"></select></label></div><div id="week-summary" class="summary"></div><div class="chart-wrap wide-chart"><canvas id="week-chart"></canvas></div><div id="week-table" style="margin-top:16px"></div><div class="chart-wrap wide-chart" style="margin-top:24px"><canvas id="week-race-chart"></canvas></div><div class="explorer-controls" style="margin-top:24px"><label>Contribution player<select id="contribution-player"></select></label></div><h3 style="margin:24px 0 10px">Player's game contributions</h3><div class="chart-wrap wide-chart"><canvas id="winner-contribution-chart"></canvas></div></div>
+    <section class="intro"><div><h2>Weekly Recap</h2></div><p>Every player's picks against the spread, where they finished, and the game-by-game runs that separated the top three.</p></section>
+    <div class="panel"><div class="explorer-controls"><label>Season<select id="week-season"></select></label><label>Week<select id="week-choice"></select></label></div><div id="week-summary" class="summary"></div><div class="chart-wrap wide-chart"><canvas id="week-chart"></canvas></div><h3 style="margin:28px 0 8px;color:var(--accent);font:11px Arial,sans-serif;letter-spacing:1px;text-transform:uppercase">Picks</h3><div id="week-picks-grid" style="overflow-x:auto;margin-bottom:4px"></div><h3 style="margin:28px 0 8px;color:var(--accent);font:11px Arial,sans-serif;letter-spacing:1px;text-transform:uppercase">Standings</h3><div id="week-table"></div><hr class="chart-divider"><div class="chart-wrap wide-chart race-chart-wrap" style="margin-top:24px"><canvas id="week-race-chart"></canvas></div><div class="explorer-controls" style="margin-top:28px"><label>Contribution player<select id="contribution-player"></select></label></div><h3 style="margin:24px 0 10px">Pick by pick</h3><div class="chart-wrap wide-chart race-chart-wrap" style="margin-top:12px"><canvas id="winner-contribution-chart"></canvas></div></div>
   </section>
   <section id="view-players" class="view">
     <section class="intro"><div><div class="eyebrow">One player at a time</div><h2>Player Profile</h2></div><p>Choose a player to see their all-time totals and season-by-season record.</p></section>
@@ -129,10 +163,16 @@
 </main>
 <script>
 const DATA_DIR = "data";
-let table = null, chart = null, profileChart = null, profileMoneyChart = null, profilePlacementChart = null, explorerChart = null, moneyMapChart = null, streakLabChart = null, gamePicksTable = null, weekChart = null, weekTable = null, weekRaceChart = null, winnerContributionChart = null, manifest = [], dashboard = [], tableData = {}, websiteWeeks = [], websiteAwards = [], websiteSeasons = [], websitePlayers = [], websiteRecords = [], websiteStreaks = [], websiteGames = [], websitePicks = [];
+let table = null, chart = null, profileChart = null, profileMoneyChart = null, profilePlacementChart = null, explorerChart = null, moneyMapChart = null, streakLabChart = null, gamePicksTable = null, weekChart = null, weekTable = null, weekRaceChart = null, winnerContributionChart = null, seasonTopChart = null, seasonTable = null, seasonRaceChart = null, seasonPlayerChart = null, seasonMoneyChart = null, seasonConsistencyChart = null, seasonBbChart = null, seasonTeamsChart = null, seasonContrarianChart = null, seasonTbChart = null, allTimeTopChart = null, allTimeArcsChart = null, allTimeMoneyChart = null, allTimeTurnoutChart = null, allTimeStreakChart = null, manifest = [], dashboard = [], tableData = {}, websiteWeeks = [], websiteAwards = [], websiteSeasons = [], websitePlayers = [], websiteRecords = [], websiteStreaks = [], websiteGames = [], websitePicks = [];
 const colors = ["#54d6b2", "#ffb454", "#8ca7ff", "#ff7180", "#d79bff", "#f1e48b", "#65c7e8"];
-const weekBarLabels = { id: "weekBarLabels", afterDatasetsDraw(chart) { if (chart.canvas.id !== "week-chart") return; const context = chart.ctx; const meta = chart.getDatasetMeta(0); context.save(); context.font = "12px Arial"; context.fillStyle = "#0d1117"; context.textBaseline = "middle"; meta.data.forEach((bar, index) => { context.fillText(chart.data.labels[index], bar.x - bar.width + 8, bar.y); }); context.restore(); } };
+const weekBarLabels = { id: "weekBarLabels", afterDatasetsDraw(chart) { if (!["week-chart", "season-top-chart", "season-bb-chart", "season-money-chart", "season-tb-chart", "alltime-top-chart", "alltime-money-chart", "alltime-streak-chart"].includes(chart.canvas.id)) return; const context = chart.ctx; const meta = chart.getDatasetMeta(0); context.save(); context.font = "15px Arial"; context.textBaseline = "middle"; context.fillStyle = "#0d1117"; context.textAlign = "left"; meta.data.forEach((bar, index) => { context.fillText(chart.data.datasets[0].barText?.[index] ?? chart.data.labels[index], Math.max(chart.chartArea.left + 8, bar.x - bar.width + 8), bar.y); }); context.restore(); } };
 Chart.register(weekBarLabels);
+const contributionPickLabels = { id: "contributionPickLabels", afterDatasetsDraw(chart) { if (chart.canvas.id !== "winner-contribution-chart") return; const picks = chart.data.datasets[0]?.pickLabels; if (!picks) return; const context = chart.ctx; const sets = chart.data.datasets; const metas = [0, 1, 2, 3].map(i => chart.getDatasetMeta(i)); context.save(); context.textAlign = "center"; context.textBaseline = "middle"; picks.forEach((text, index) => { if (!text) return; const bar = Number(sets[0].data[index]) > 0 ? metas[0].data[index] : Number(sets[2].data[index]) < 0 ? metas[2].data[index] : null; if (bar) { context.font = "bold 12px Arial"; context.fillStyle = "#ffffff"; context.fillText(text, bar.x, (bar.y + bar.base) / 2); } const bbBar = Number(sets[1].data[index]) > 0 ? metas[1].data[index] : Number(sets[3].data[index]) < 0 ? metas[3].data[index] : null; if (bbBar) { context.font = "bold 12px Arial"; context.fillStyle = "#0d1117"; context.fillText("BB", bbBar.x, (bbBar.y + bbBar.base) / 2); } }); context.restore(); } };
+Chart.register(contributionPickLabels);
+const podiumPickLabels = { id: "podiumPickLabels", afterDatasetsDraw(chart) { if (chart.canvas.id !== "week-race-chart" && chart.canvas.id !== "season-race-chart") return; const context = chart.ctx; context.save(); context.font = "bold 10px Arial"; context.fillStyle = "#0d1117"; chart.data.datasets.forEach((dataset, datasetIndex) => { const labels = dataset.pickLabels; if (!labels) return; const meta = chart.getDatasetMeta(datasetIndex); if (meta.hidden) return; labels.forEach((text, index) => { const bar = meta.data[index]; if (!text || !bar) return; if (Math.abs(bar.base - bar.y) < context.measureText(text).width + 10) return; context.save(); context.translate(bar.x, bar.y + 5); context.rotate(Math.PI / 2); context.textAlign = "left"; context.textBaseline = "middle"; context.fillText(text, 0, 0); context.restore(); }); }); context.restore(); } };
+Chart.register(podiumPickLabels);
+const seasonPlayerBarLabels = { id: "seasonPlayerBarLabels", afterDatasetsDraw(chart) { if (chart.canvas.id !== "season-player-chart") return; const dataset = chart.data.datasets[0]; if (!dataset?.barText) return; const context = chart.ctx; const meta = chart.getDatasetMeta(0); context.save(); context.font = "bold 11px Arial"; context.textAlign = "center"; context.textBaseline = "top"; context.fillStyle = "#0d1117"; meta.data.forEach((bar, index) => { const text = dataset.barText[index]; if (!text || Math.abs(bar.base - bar.y) < 26) return; context.fillText(text, bar.x, bar.y + 5); }); context.restore(); } };
+Chart.register(seasonPlayerBarLabels);
 function moneyFormatter(cell) { const v = cell.getValue(); if (v === "" || v == null) return ""; const n = typeof v === "number" ? v : parseFloat(String(v).replace(/[^0-9.-]/g, "")); return isNaN(n) ? v : "$" + n.toLocaleString(); }
 function percentFormatter(cell) { const v = cell.getValue(); if (v === "" || v == null) return ""; const n = typeof v === "number" ? v : parseFloat(v); return isNaN(n) ? v : (n * 100).toFixed(2) + "%"; }
 function isMoneyColumn(name) { return /money|won\s*\$|streak.*money/i.test(name) && !/won during|weeks during/i.test(name); }
@@ -189,6 +229,636 @@ function renderStreakChart(rows) {
   if (profilePlacementChart) profilePlacementChart.destroy();
   profilePlacementChart = new Chart(document.getElementById("profile-placement-chart"), { type: "bar", data: { labels, datasets: [{ label: "Top 5 streak", data: labels.map(label => top5.some(row => `${row.Season} ${row.Week === "playoffs" ? "Playoffs" : `W${row.Week}`}` === label) ? 5 : null), backgroundColor: "#ff4f5e", borderColor: "#ff4f5e", borderWidth: 1 }, { label: "Top 10 streak", data: labels.map(label => top10.some(row => `${row.Season} ${row.Week === "playoffs" ? "Playoffs" : `W${row.Week}`}` === label) ? 10 : null), backgroundColor: "#ffb454", borderColor: "#ffb454", borderWidth: 1 }] }, options: { responsive: true, maintainAspectRatio: false, scales: { x: { ticks: { color: "#91a0ae", maxRotation: 65, minRotation: 45 }, grid: { color: "#2a3744" } }, y: { beginAtZero: true, max: 10, ticks: { color: "#91a0ae", stepSize: 1, callback: value => value === 5 ? "Top 5" : value === 10 ? "Top 10" : "" }, grid: { color: "#2a3744" } } }, plugins: { legend: { labels: { color: "#e8eef5" } }, tooltip: { callbacks: { label: context => `${context.dataset.label}: ${context.label}` } } } } });
 }
+function seasonStandings(season) {
+  const rows = websiteWeeks.filter(row => row.season === season && row.competition === "regular");
+  const byPlayer = {};
+  rows.forEach(row => {
+    const player = byPlayer[row.playerId] = byPlayer[row.playerId] || { playerId: row.playerId, name: row.name, wins: 0, losses: 0, weeks: 0, weeksWon: 0, money: 0, seasonRank: row.seasonRank, weekMap: {} };
+    player.wins += Number(row.displayWins || 0);
+    player.losses += Number(row.displayLosses || 0);
+    player.weeks += 1;
+    if (Number(row.rank) === 1) player.weeksWon += 1;
+    player.money += Number(row.moneyAward || 0);
+    player.weekMap[row.week] = row;
+  });
+  return Object.values(byPlayer)
+    .map(player => ({ ...player, winPct: player.wins + player.losses ? player.wins / (player.wins + player.losses) : 0, qualified: player.seasonRank != null }))
+    .sort((a, b) => (a.qualified === b.qualified ? 0 : a.qualified ? -1 : 1) || Number(a.seasonRank ?? 999) - Number(b.seasonRank ?? 999) || b.winPct - a.winPct);
+}
+function seasonWeekList(season) {
+  return [...new Set(websiteWeeks.filter(row => row.season === season && row.competition === "regular").map(row => row.week))].sort((a, b) => Number(a) - Number(b));
+}
+function populateSeasonChoices() {
+  const select = document.getElementById("season-choice");
+  select.innerHTML = "";
+  websiteSeasons.forEach(season => select.add(new Option(season.season, season.seasonId)));
+  select.value = websiteSeasons.at(-1)?.seasonId || "";
+  renderSeason(true);
+}
+function renderSeason(resetPlayer = false) {
+  const season = document.getElementById("season-choice").value;
+  const standings = seasonStandings(season);
+  const weeks = seasonWeekList(season);
+  if (!standings.length) return;
+  const champion = standings[0];
+  document.getElementById("season-summary").innerHTML = [
+    ["Champion", champion.name],
+    ["Record", `${champion.wins}-${champion.losses}`],
+    ["Win %", `${(champion.winPct * 100).toFixed(1)}%`],
+    ["Weeks won", champion.weeksWon]
+  ].map(([label, value]) => `<div class="metric"><span>${label}</span><strong>${value}</strong></div>`).join("");
+  const progress = seasonProgress(standings, weeks);
+  const playoffRows = {};
+  websiteWeeks.filter(row => row.season === season && row.competition === "playoffs").forEach(row => { playoffRows[row.playerId] = row; });
+  standings.forEach(player => {
+    player.weeksLed = progress.filter(step => step.leaderPct?.playerId === player.playerId).length;
+    player.top5Weeks = weeks.filter(week => { const rank = Number(player.weekMap[week]?.rank); return rank && rank <= 5; }).length;
+  });
+  const topRows = standings.slice(0, 10);
+  if (seasonTopChart) seasonTopChart.destroy();
+  seasonTopChart = new Chart(document.getElementById("season-top-chart"), { type: "bar", data: { labels: topRows.map(row => row.name), datasets: [{ label: "Win %", data: topRows.map(row => Number((row.winPct * 100).toFixed(2))), barText: topRows.map(row => `${row.name} ${row.wins}-${row.losses} · ${(row.winPct * 100).toFixed(1)}%`), backgroundColor: topRows.map((row, index) => ["#d4af37", "#c0c0c0", "#cd7f32"][index] || "#8ca7ffbb"), borderColor: topRows.map((row, index) => ["#d4af37", "#c0c0c0", "#cd7f32"][index] || "#8ca7ff"), borderWidth: 1 }] }, options: { indexAxis: "y", responsive: true, maintainAspectRatio: false, scales: { x: { beginAtZero: false, position: "top", suggestedMin: Math.max(0, Math.min(...topRows.map(row => row.winPct * 100)) - 3), ticks: { color: "#91a0ae", callback: value => value + "%" }, grid: { color: "#2a3744" } }, y: { ticks: { display: false }, grid: { color: "#2a3744" } } }, plugins: { legend: { display: false }, title: { display: true, text: "Top 10", color: "#e8eef5", font: { size: 15, weight: "normal" }, padding: { bottom: 12 } }, tooltip: { displayColors: false, callbacks: { label: context => { const row = topRows[context.dataIndex]; const lines = [`Record: ${row.wins}-${row.losses} (${(row.winPct * 100).toFixed(2)}%)`, `Season rank: ${row.seasonRank ?? "unranked"} of ${standings.filter(item => item.qualified).length}`, `Weeks played: ${row.weeks} of ${weeks.length}`, `Weeks won: ${row.weeksWon}`]; if (row.money) lines.push(`Money: $${row.money.toLocaleString()}`); return lines; } } } } } });
+  renderSeasonNotes(standings, weeks, progress);
+  renderSeasonWeeksGrid(standings, weeks, playoffRows);
+  if (seasonTable) seasonTable.destroy();
+  seasonTable = new Tabulator("#season-table", { data: standings.map((row, index) => ({ ...row, position: row.qualified ? row.seasonRank : "", winPctValue: row.winPct })), layout: "fitDataStretch", pagination: true, paginationSize: 50, columns: [{ title: "Rank", field: "position", sorter: "number" }, { title: "Player", field: "name", sorter: "string" }, { title: "Wins", field: "wins", sorter: "number" }, { title: "Losses", field: "losses", sorter: "number" }, { title: "Win %", field: "winPctValue", sorter: "number", formatter: cell => `${(Number(cell.getValue() || 0) * 100).toFixed(2)}%` }, { title: "Weeks", field: "weeks", sorter: "number" }, { title: "Weeks Won", field: "weeksWon", sorter: "number" }, { title: "Weeks Atop", field: "weeksLed", sorter: "number" }, { title: "Top 5", field: "top5Weeks", sorter: "number" }, { title: "Money", field: "money", sorter: "number", formatter: cell => "$" + Number(cell.getValue() || 0).toLocaleString() }], placeholder: "No results" });
+  renderSeasonRace(standings, weeks, progress);
+  renderSeasonMoney(standings, weeks, progress);
+  renderSeasonConsistency(standings, weeks);
+  renderSeasonHeadToHead(standings, weeks);
+  renderSeasonTiebreakers(standings, weeks);
+  renderSeasonTiebreakerGrid(standings, weeks);
+  renderSeasonPickCharts(standings, weeks);
+  if (!websitePicks.length) loadDrilldown().then(() => renderSeasonPickCharts(standings, weeks));
+  const playerSelect = document.getElementById("season-player");
+  const previous = playerSelect.value;
+  playerSelect.innerHTML = "";
+  [...standings].sort((a, b) => String(a.name).localeCompare(String(b.name))).forEach(row => playerSelect.add(new Option(row.name, row.playerId)));
+  playerSelect.value = resetPlayer || !standings.some(row => row.playerId === previous) ? champion.playerId : previous;
+  renderSeasonPlayer(standings, weeks);
+}
+function renderSeasonWeeksGrid(standings, weeks, playoffRows = {}) {
+  const element = document.getElementById("season-weeks-grid");
+  const hasPlayoffs = Object.keys(playoffRows).length > 0;
+  let html = '<table class="picks-grid"><thead><tr><th class="pg-player">Player</th>';
+  weeks.forEach(week => { html += `<th class="pg-game">W${week}</th>`; });
+  if (hasPlayoffs) html += '<th class="pg-round">PO</th>';
+  html += '<th class="pg-sum-hdr pg-w">W</th><th class="pg-sum-hdr pg-l">L</th><th class="pg-sum-hdr">Win%</th><th class="pg-sum-hdr">Won</th></tr></thead><tbody>';
+  standings.forEach(player => {
+    html += `<tr><td class="pg-player">${player.name}</td>`;
+    weeks.forEach(week => {
+      const row = player.weekMap[week];
+      if (!row) { html += '<td class="sg-none"></td>'; return; }
+      const rank = Number(row.rank);
+      const cls = rank === 1 ? "sg-win1" : rank <= 5 ? "sg-top5" : rank <= 10 ? "sg-top10" : "sg-rest";
+      html += `<td class="${cls}" title="Week ${week}: ${row.displayWins}-${row.displayLosses}, rank ${rank} of ${row.playerCount}">${row.displayWins}</td>`;
+    });
+    if (hasPlayoffs) {
+      const row = playoffRows[player.playerId];
+      if (!row) html += '<td class="sg-none"></td>';
+      else {
+        const rank = Number(row.rank);
+        const cls = rank === 1 ? "sg-win1" : rank <= 5 ? "sg-top5" : rank <= 10 ? "sg-top10" : "sg-rest";
+        html += `<td class="${cls}" title="Playoffs: ${row.displayWins}-${row.displayLosses}, rank ${rank} of ${row.playerCount}">${row.displayWins}</td>`;
+      }
+    }
+    html += `<td class="pg-sum-cell pg-w">${player.wins}</td><td class="pg-sum-cell pg-l">${player.losses}</td><td class="pg-sum-cell">${(player.winPct * 100).toFixed(1)}%</td><td class="pg-sum-cell">${player.weeksWon}</td></tr>`;
+  });
+  html += '</tbody></table>';
+  element.innerHTML = html;
+}
+function renderSeasonHeadToHead(standings, weeks) {
+  const players = standings.filter(player => player.qualified).slice(0, 8);
+  const element = document.getElementById("season-h2h");
+  if (players.length < 2) { element.innerHTML = ""; return; }
+  const record = (a, b) => {
+    let wins = 0, losses = 0, ties = 0;
+    weeks.forEach(week => {
+      const rowA = a.weekMap[week], rowB = b.weekMap[week];
+      if (!rowA || !rowB) return;
+      const scoreA = Number(rowA.displayWins || 0), scoreB = Number(rowB.displayWins || 0);
+      if (scoreA > scoreB) wins += 1; else if (scoreA < scoreB) losses += 1; else ties += 1;
+    });
+    return { wins, losses, ties };
+  };
+  let html = '<table class="picks-grid"><thead><tr><th class="pg-player">Beat \u2193 / vs \u2192</th>';
+  players.forEach(player => { html += `<th class="pg-game">${player.name}</th>`; });
+  html += '<th class="pg-sum-hdr">Total</th></tr></thead><tbody>';
+  players.forEach(rowPlayer => {
+    html += `<tr><td class="pg-player">${rowPlayer.name}</td>`;
+    let totalWins = 0, totalLosses = 0;
+    players.forEach(columnPlayer => {
+      if (rowPlayer.playerId === columnPlayer.playerId) { html += '<td class="sg-none">\u2014</td>'; return; }
+      const result = record(rowPlayer, columnPlayer);
+      totalWins += result.wins; totalLosses += result.losses;
+      const played = result.wins + result.losses;
+      const rate = played ? result.wins / played : .5;
+      const cls = rate >= .65 ? "sg-win1" : rate >= .5 ? "sg-top5" : rate >= .35 ? "sg-top10" : "sg-rest";
+      html += `<td class="${cls}" title="${rowPlayer.name} beat ${columnPlayer.name} in ${result.wins} of ${played} shared weeks${result.ties ? ` (${result.ties} tied)` : ""}">${result.wins}-${result.losses}</td>`;
+    });
+    html += `<td class="pg-sum-cell">${totalWins}-${totalLosses}</td></tr>`;
+  });
+  html += '</tbody></table>';
+  element.innerHTML = html;
+}
+function seasonProgress(standings, weeks) {
+  const totals = new Map(standings.map(player => [player.playerId, { wins: 0, losses: 0, money: 0, weeksPlayed: 0 }]));
+  return weeks.map(week => {
+    standings.forEach(player => {
+      const row = player.weekMap[week];
+      if (!row) return;
+      const total = totals.get(player.playerId);
+      total.wins += Number(row.displayWins || 0);
+      total.losses += Number(row.displayLosses || 0);
+      total.money += Number(row.moneyAward || 0);
+      total.weeksPlayed += 1;
+    });
+    const snapshot = new Map();
+    standings.forEach(player => {
+      const total = totals.get(player.playerId);
+      const games = total.wins + total.losses;
+      snapshot.set(player.playerId, { ...total, pct: games ? total.wins / games : 0 });
+    });
+    const eligible = standings.filter(player => player.qualified && snapshot.get(player.playerId).weeksPlayed > 0);
+    const byPct = [...eligible].sort((a, b) => snapshot.get(b.playerId).pct - snapshot.get(a.playerId).pct);
+    byPct.forEach((player, index) => { snapshot.get(player.playerId).rankPct = index + 1; });
+    const byWins = [...eligible].sort((a, b) => snapshot.get(b.playerId).wins - snapshot.get(a.playerId).wins);
+    byWins.forEach((player, index) => { snapshot.get(player.playerId).rankWins = index + 1; });
+    return { week, snapshot, leaderPct: byPct[0] || null, leaderWins: byWins[0] || null };
+  });
+}
+function splitStreakLabel(value) {
+  const text = String(value ?? "").trim();
+  const match = text.match(/^(\d+)\s*\[(.+)\]$/);
+  if (!match) return { count: text.replace(/[^\d]/g, "") || text, detail: "" };
+  const detail = match[2].replace(/(\d{4})(W|Playoffs|RD)/g, "$1 $2").replace(/-/g, " \u2192 ");
+  return { count: match[1], detail };
+}
+function ordinal(value) { const number = Number(value); const remainder = number % 100; if (remainder >= 11 && remainder <= 13) return `${number}th`; return `${number}${["th", "st", "nd", "rd"][number % 10] || "th"}`; }
+function bestTies(items, valueOf) {
+  if (!items.length) return [];
+  const best = Math.max(...items.map(valueOf));
+  return items.filter(item => valueOf(item) === best);
+}
+function joinTies(parts, limit = 4) {
+  return parts.length <= limit ? parts.join(" · ") : `${parts.slice(0, limit).join(" · ")} · +${parts.length - limit} more`;
+}
+function renderSeasonNotes(standings, weeks, progress) {
+  const cards = [];
+  const winningWeeks = [];
+  standings.forEach(player => weeks.forEach(week => {
+    const row = player.weekMap[week];
+    if (!row || Number(row.rank) !== 1) return;
+    const wins = Number(row.displayWins || 0), losses = Number(row.displayLosses || 0);
+    if (wins + losses) winningWeeks.push({ player, week, wins, losses, pct: wins / (wins + losses), pctKey: Number((wins / (wins + losses)).toFixed(4)) });
+  }));
+  const bestWeeks = bestTies(winningWeeks, item => item.pctKey);
+  if (bestWeeks.length) cards.push(["Best winning week by win %", `${(bestWeeks[0].pct * 100).toFixed(1)}%`, joinTies(bestWeeks.map(item => `${item.player.name} (W${item.week} ${item.wins}-${item.losses})`))]);
+  const playedWeeks = [];
+  standings.forEach(player => weeks.forEach(week => {
+    const row = player.weekMap[week];
+    if (!row) return;
+    const wins = Number(row.displayWins || 0), losses = Number(row.displayLosses || 0);
+    if (wins + losses) playedWeeks.push({ player, week, wins, losses, pct: wins / (wins + losses), pctKey: Number((wins / (wins + losses)).toFixed(4)) });
+  }));
+  const worstWeeks = bestTies(playedWeeks, item => -item.pctKey);
+  if (worstWeeks.length) cards.push(["Worst week by win %", `${(worstWeeks[0].pct * 100).toFixed(1)}%`, joinTies(worstWeeks.map(item => `${item.player.name} (W${item.week} ${item.wins}-${item.losses})`))]);
+  const climbs = [], falls = [];
+  standings.filter(player => player.qualified).forEach(player => {
+    for (let index = 1; index < progress.length; index++) {
+      const before = progress[index - 1].snapshot.get(player.playerId)?.rankPct;
+      const after = progress[index].snapshot.get(player.playerId)?.rankPct;
+      if (before == null || after == null) continue;
+      if (before - after > 0) climbs.push({ player, climb: before - after, week: progress[index].week, before, after });
+      if (after - before > 0) falls.push({ player, fall: after - before, week: progress[index].week, before, after });
+    }
+  });
+  const bestClimbs = bestTies(climbs, item => item.climb);
+  if (bestClimbs.length) cards.push(["Biggest jump in standings", `+${bestClimbs[0].climb}`, joinTies(bestClimbs.map(item => `${item.player.name} (W${item.week} ${ordinal(item.before)}→${ordinal(item.after)})`))]);
+  const worstFalls = bestTies(falls, item => item.fall);
+  if (worstFalls.length) cards.push(["Biggest fall in standings", `-${worstFalls[0].fall}`, joinTies(worstFalls.map(item => `${item.player.name} (W${item.week} ${ordinal(item.before)}→${ordinal(item.after)})`))]);
+  const streaks = [];
+  standings.forEach(player => {
+    let current = 0, best = 0, currentStart = null, startWeek = null, endWeek = null;
+    weeks.forEach(week => {
+      const rank = Number(player.weekMap[week]?.rank);
+      if (rank && rank <= 5) { if (current === 0) currentStart = week; current += 1; if (current > best) { best = current; startWeek = currentStart; endWeek = week; } } else current = 0;
+    });
+    if (best) streaks.push({ player, best, startWeek, endWeek });
+  });
+  const bestStreaks = bestTies(streaks, item => item.best);
+  if (bestStreaks.length) cards.push(["Longest top 5 streak", `${bestStreaks[0].best} weeks`, joinTies(bestStreaks.map(item => `${item.player.name} (W${item.startWeek}\u2013${item.endWeek})`))]);
+  const leaders = bestTies(standings.filter(player => player.weeksLed > 0), player => player.weeksLed);
+  if (leaders.length) cards.push(["Most weeks atop the standings", `${leaders[0].weeksLed} of ${weeks.length}`, joinTies(leaders.map(player => `${player.name} (finished ${player.seasonRank != null ? ordinal(player.seasonRank) : "unranked"})`))]);
+  const changeWeeks = [];
+  progress.forEach((step, index) => { if (index && step.leaderPct && progress[index - 1].leaderPct && step.leaderPct.playerId !== progress[index - 1].leaderPct.playerId) changeWeeks.push(step.week); });
+  cards.push(["Lead changes", `${changeWeeks.length}`, changeWeeks.length ? `Changed hands at ${joinTies(changeWeeks.map(week => `W${week}`), 6)}` : "One player led all season"]);
+  const blowouts = [];
+  weeks.forEach(week => {
+    const scores = standings.map(player => player.weekMap[week]).filter(Boolean).map(row => Number(row.displayWins || 0)).sort((a, b) => b - a);
+    if (scores.length < 2) return;
+    const winners = standings.filter(player => Number(player.weekMap[week]?.displayWins) === scores[0] && player.weekMap[week]);
+    blowouts.push({ week, margin: scores[0] - scores[1], top: scores[0], second: scores[1], names: winners.map(player => player.name) });
+  });
+  const biggestBlowouts = bestTies(blowouts, item => item.margin);
+  if (biggestBlowouts.length) cards.push(["Biggest weekly blowout", `+${biggestBlowouts[0].margin}`, joinTies(biggestBlowouts.map(item => `${item.names.join(", ")} (W${item.week} ${item.top} vs ${item.second})`), 3)]);
+  const guesses = [];
+  standings.forEach(player => weeks.forEach(week => {
+    const row = player.weekMap[week];
+    const diff = tiebreakDiff(row);
+    if (diff !== "") guesses.push({ player, week, diff, guess: row.tiebreaker, actual: row.actualTiebreak });
+  }));
+  const closest = bestTies(guesses, item => -item.diff);
+  if (closest.length) cards.push(["Closest tiebreaker", closest[0].diff === 0 ? "Exact" : `${closest[0].diff} yds off`, joinTies(closest.map(item => `${item.player.name} (W${item.week} guessed ${formatTiebreak(item.guess)}, actual ${formatTiebreak(item.actual)} yds)`), 2)]);
+  const tiebreakWeeks = [];
+  weeks.forEach(week => {
+    const ordered = standings.map(player => player.weekMap[week]).filter(Boolean).sort((a, b) => Number(a.rank) - Number(b.rank));
+    if (ordered.length > 1 && Number(ordered[0].displayWins) === Number(ordered[1].displayWins)) tiebreakWeeks.push({ week, winner: ordered[0].name, runnerUp: ordered[1].name });
+  });
+  cards.push(["Weeks decided by tiebreaker", `${tiebreakWeeks.length} of ${weeks.length}`, tiebreakWeeks.length ? joinTies(tiebreakWeeks.map(item => `W${item.week} ${item.winner} over ${item.runnerUp}`), 3) : "Every week had an outright winner"]);
+  document.getElementById("season-notes").innerHTML = cards.map(([title, value, sub]) => `<div class="panel record-card"><h3>${title}</h3><strong>${value}</strong><p>${sub}</p></div>`).join("");
+}
+function renderSeasonMoney(standings, weeks, progress) {
+  const season = document.getElementById("season-choice").value;
+  const byPlayer = new Map();
+  websiteWeeks.filter(row => row.season === season).forEach(row => {
+    const entry = byPlayer.get(row.playerId) || { name: row.name, weekly: 0, playoff: 0, title: 0, weeksWon: [] };
+    entry.weekly += Number(row.weeklyAward || 0);
+    entry.playoff += Number(row.playoffAward || 0);
+    entry.title += Number(row.seasonAward || 0);
+    if (Number(row.weeklyAward || 0) > 0) entry.weeksWon.push(row.week === "playoffs" ? "Playoffs" : `W${row.week}`);
+    byPlayer.set(row.playerId, entry);
+  });
+  const earners = [...byPlayer.values()].map(entry => ({ ...entry, total: entry.weekly + entry.playoff + entry.title })).filter(entry => entry.total > 0).sort((a, b) => b.total - a.total);
+  const sources = [["Weekly wins", "weekly", "#54d6b2"], ["Playoffs", "playoff", "#a978e8"], ["Season title", "title", "#ffb454"]].filter(([, key]) => earners.some(entry => entry[key] > 0));
+  if (seasonMoneyChart) seasonMoneyChart.destroy();
+  seasonMoneyChart = new Chart(document.getElementById("season-money-chart"), { type: "bar", data: { labels: earners.map(entry => entry.name), datasets: sources.map(([label, key, color], index) => ({ label, data: earners.map(entry => entry[key]), barText: index === 0 ? earners.map(entry => `${entry.name} · $${entry.total.toLocaleString()}`) : undefined, backgroundColor: color, stack: "money" })) }, options: { indexAxis: "y", responsive: true, maintainAspectRatio: false, scales: { x: { stacked: true, beginAtZero: true, position: "top", ticks: { color: "#91a0ae", callback: value => "$" + value.toLocaleString() }, grid: { color: "#2a3744" } }, y: { stacked: true, ticks: { display: false }, grid: { color: "#2a3744" } } }, plugins: { legend: { labels: { color: "#e8eef5" } }, title: { display: true, text: earners.length ? "Money won this season" : "No money awarded this season", color: "#e8eef5", font: { size: 15, weight: "normal" }, padding: { bottom: 12 } }, tooltip: { callbacks: { title: items => earners[items[0].dataIndex].name, afterBody: items => { const entry = earners[items[0].dataIndex]; return [`Total $${entry.total.toLocaleString()}`, entry.weeksWon.length ? `Won ${entry.weeksWon.join(", ")}` : "No weekly wins"]; } } } } } });
+}
+function renderSeasonConsistency(standings, weeks) {
+  const points = standings.filter(player => player.qualified).map(player => {
+    const scores = weeks.map(week => player.weekMap[week]).filter(Boolean).map(row => Number(row.displayWins || 0));
+    const average = scores.reduce((sum, value) => sum + value, 0) / scores.length;
+    const variance = scores.reduce((sum, value) => sum + (value - average) ** 2, 0) / scores.length;
+    return { x: Number(average.toFixed(2)), y: Number(Math.sqrt(variance).toFixed(2)), name: player.name, rank: player.seasonRank, best: Math.max(...scores), worst: Math.min(...scores), weeks: scores.length };
+  });
+  if (seasonConsistencyChart) seasonConsistencyChart.destroy();
+  seasonConsistencyChart = new Chart(document.getElementById("season-consistency-chart"), { type: "scatter", data: { datasets: [{ label: "Top 3", data: points.filter(point => point.rank <= 3), backgroundColor: "#d4af37", borderColor: "#d4af37", pointRadius: 7 }, { label: "Everyone else", data: points.filter(point => point.rank > 3), backgroundColor: "#8ca7ffbb", borderColor: "#8ca7ff", pointRadius: 5 }] }, options: { responsive: true, maintainAspectRatio: false, scales: { x: { ticks: { color: "#91a0ae" }, grid: { color: "#2a3744" }, title: { display: true, text: "Average wins per week (higher is better)", color: "#91a0ae" } }, y: { ticks: { color: "#91a0ae" }, grid: { color: "#2a3744" }, title: { display: true, text: "Swing between weeks (lower is steadier)", color: "#91a0ae" } } }, plugins: { title: { display: true, text: "Scoring average vs week-to-week swing", color: "#e8eef5", font: { size: 15, weight: "normal" }, padding: { bottom: 12 } }, legend: { labels: { color: "#e8eef5" } }, tooltip: { displayColors: false, callbacks: { title: items => items[0].raw.name, label: context => [`Rank: ${context.raw.rank}`, `Average: ${context.raw.x} wins`, `Swing: ${context.raw.y}`, `Best week: ${context.raw.best} · worst: ${context.raw.worst}`, `Weeks played: ${context.raw.weeks}`] } } } } });
+}
+function seasonPickStats(season, weeks) {
+  const weekSet = new Set(weeks);
+  const gameIds = new Set(websiteGames.filter(game => game.season === season && weekSet.has(game.week)).map(game => game.gameId));
+  const picks = websitePicks.filter(pick => gameIds.has(pick.gameId));
+  const byPlayer = new Map(), byTeam = new Map(), byGame = new Map();
+  picks.forEach(pick => {
+    const player = byPlayer.get(pick.playerId) || { name: pick.name, bbWins: 0, bbTries: 0, picks: 0, offCrowd: 0, offCrowdWins: 0 };
+    player.picks += 1;
+    const attempts = Number(pick.bestBetWin || 0) + Number(pick.bestBetLoss || 0) + Number(pick.bestBetPush || 0);
+    player.bbTries += attempts;
+    player.bbWins += Number(pick.bestBetWin || 0);
+    byPlayer.set(pick.playerId, player);
+    const team = String(pick.pick || "").trim().toUpperCase();
+    if (team) {
+      const entry = byTeam.get(team) || { team, count: 0, wins: 0, losses: 0 };
+      entry.count += 1;
+      entry.wins += Number(pick.resultWin || 0);
+      entry.losses += Number(pick.resultLoss || 0);
+      byTeam.set(team, entry);
+    }
+    const counts = byGame.get(pick.gameId) || new Map();
+    counts.set(team, (counts.get(team) || 0) + 1);
+    byGame.set(pick.gameId, counts);
+  });
+  const majority = new Map();
+  byGame.forEach((counts, gameId) => {
+    let best = null, bestCount = -1;
+    counts.forEach((count, team) => { if (count > bestCount) { bestCount = count; best = team; } });
+    majority.set(gameId, best);
+  });
+  picks.forEach(pick => {
+    const team = String(pick.pick || "").trim().toUpperCase();
+    if (!team || majority.get(pick.gameId) === team) return;
+    const player = byPlayer.get(pick.playerId);
+    player.offCrowd += 1;
+    player.offCrowdWins += Number(pick.resultWin || 0);
+  });
+  return { picks, byPlayer, byTeam };
+}
+function renderSeasonPickCharts(standings, weeks) {
+  const season = document.getElementById("season-choice").value;
+  const ready = websitePicks.length > 0;
+  if (ready) renderSeasonBestBetGrid(standings, weeks);
+  const stats = ready ? seasonPickStats(season, weeks) : null;
+  const qualified = new Set(standings.filter(player => player.qualified).map(player => player.playerId));
+  const emptyTitle = ready ? "" : "Loading picks…";
+  const bbRows = ready ? [...stats.byPlayer.entries()].filter(([playerId, row]) => qualified.has(playerId) && row.bbTries >= 5).map(([, row]) => ({ ...row, rate: row.bbWins / row.bbTries })).sort((a, b) => b.rate - a.rate).slice(0, 12) : [];
+  if (seasonBbChart) seasonBbChart.destroy();
+  seasonBbChart = new Chart(document.getElementById("season-bb-chart"), { type: "bar", data: { labels: bbRows.map(row => row.name), datasets: [{ label: "Best bet hit rate", data: bbRows.map(row => Number((row.rate * 100).toFixed(1))), barText: bbRows.map(row => `${row.name} ${row.bbWins}/${row.bbTries} · ${(row.rate * 100).toFixed(1)}%`), backgroundColor: bbRows.map((row, index) => ["#d4af37", "#c0c0c0", "#cd7f32"][index] || "#7ee2b8bb"), borderColor: bbRows.map((row, index) => ["#d4af37", "#c0c0c0", "#cd7f32"][index] || "#7ee2b8"), borderWidth: 1 }] }, options: { indexAxis: "y", responsive: true, maintainAspectRatio: false, scales: { x: { beginAtZero: true, position: "top", ticks: { color: "#91a0ae", callback: value => value + "%" }, grid: { color: "#2a3744" } }, y: { ticks: { display: false }, grid: { color: "#2a3744" } } }, plugins: { legend: { display: false }, title: { display: true, text: emptyTitle || "Best bet hit rate (min 5 best bets)", color: "#e8eef5", font: { size: 15, weight: "normal" }, padding: { bottom: 12 } }, tooltip: { displayColors: false, callbacks: { label: context => { const row = bbRows[context.dataIndex]; return [`Hit ${row.bbWins} of ${row.bbTries}`, `A pushed best bet counts as a miss`]; } } } } } });
+  const teamRows = ready ? [...stats.byTeam.values()].filter(row => row.wins + row.losses > 0).sort((a, b) => b.count - a.count) : [];
+  const shown = teamRows;
+  if (seasonTeamsChart) seasonTeamsChart.destroy();
+  seasonTeamsChart = new Chart(document.getElementById("season-teams-chart"), { type: "bar", data: { labels: shown.map(row => row.team), datasets: [{ label: "Times picked", data: shown.map(row => row.count), backgroundColor: shown.map(row => { const rate = row.wins / (row.wins + row.losses); return rate >= .55 ? "#238b68" : rate >= .45 ? "#8ca7ffbb" : "#d94b5b"; }), borderWidth: 1 }] }, options: { responsive: true, maintainAspectRatio: false, scales: { x: { ticks: { color: "#91a0ae", autoSkip: false, font: { size: 10 } }, grid: { color: "#2a3744" } }, y: { beginAtZero: true, ticks: { color: "#91a0ae" }, grid: { color: "#2a3744" }, title: { display: true, text: "Times picked", color: "#91a0ae" } } }, plugins: { legend: { display: false }, title: { display: true, text: emptyTitle || "Every team by how often the pool picked it · green covered often, red rarely", color: "#e8eef5", font: { size: 15, weight: "normal" }, padding: { bottom: 12 } }, tooltip: { displayColors: false, callbacks: { label: context => { const row = shown[context.dataIndex]; const total = row.wins + row.losses; return [`Picked ${row.count} times`, `Record ${row.wins}-${row.losses} (${total ? ((row.wins / total) * 100).toFixed(1) : "0"}%)`]; } } } } } });
+  const contrarian = ready ? [...stats.byPlayer.entries()].filter(([playerId, row]) => qualified.has(playerId) && row.offCrowd >= 10).map(([playerId, row]) => ({ x: Number(((row.offCrowd / row.picks) * 100).toFixed(1)), y: Number(((row.offCrowdWins / row.offCrowd) * 100).toFixed(1)), name: row.name, offCrowd: row.offCrowd, offCrowdWins: row.offCrowdWins, picks: row.picks, rank: standings.find(player => player.playerId === playerId)?.seasonRank })) : [];
+  if (seasonContrarianChart) seasonContrarianChart.destroy();
+  seasonContrarianChart = new Chart(document.getElementById("season-contrarian-chart"), { type: "scatter", data: { datasets: [{ label: "Top 3", data: contrarian.filter(point => point.rank <= 3), backgroundColor: "#d4af37", pointRadius: 7 }, { label: "Everyone else", data: contrarian.filter(point => point.rank > 3), backgroundColor: "#8ca7ffbb", pointRadius: 5 }] }, options: { responsive: true, maintainAspectRatio: false, scales: { x: { ticks: { color: "#91a0ae", callback: value => value + "%" }, grid: { color: "#2a3744" }, title: { display: true, text: "Share of picks against the crowd", color: "#91a0ae" } }, y: { ticks: { color: "#91a0ae", callback: value => value + "%" }, grid: { color: "#2a3744" }, title: { display: true, text: "Win % on those picks", color: "#91a0ae" } } }, plugins: { legend: { labels: { color: "#e8eef5" } }, title: { display: true, text: emptyTitle || "How often players faded the crowd, and whether it paid", color: "#e8eef5", font: { size: 15, weight: "normal" }, padding: { bottom: 12 } }, tooltip: { displayColors: false, callbacks: { title: items => items[0].raw.name, label: context => [`Against the crowd on ${context.raw.offCrowd} of ${context.raw.picks} picks (${context.raw.x}%)`, `Won ${context.raw.offCrowdWins} of those (${context.raw.y}%)`, `Finished ${context.raw.rank != null ? ordinal(context.raw.rank) : "unranked"}`] } } } } });
+}
+function allTimeCareers() {
+  const byPlayer = new Map();
+  websiteWeeks.filter(row => row.competition === "regular").forEach(row => {
+    const player = byPlayer.get(row.playerId) || { playerId: row.playerId, name: row.name, wins: 0, losses: 0, weeks: 0, weeksWon: 0, money: 0, seasons: new Set(), bySeason: {} };
+    const wins = Number(row.displayWins || 0), losses = Number(row.displayLosses || 0);
+    player.wins += wins;
+    player.losses += losses;
+    player.weeks += 1;
+    if (Number(row.rank) === 1) player.weeksWon += 1;
+    player.money += Number(row.moneyAward || 0);
+    player.seasons.add(row.season);
+    player.bySeason[row.season] = (player.bySeason[row.season] || 0) + wins;
+    if (Number(row.seasonRank) === 1) player.titleSeasons = (player.titleSeasons || 0) + 0;
+    byPlayer.set(row.playerId, player);
+  });
+  return [...byPlayer.values()].map(player => ({ ...player, seasonCount: player.seasons.size, winPct: player.wins + player.losses ? player.wins / (player.wins + player.losses) : 0 }));
+}
+function renderAllTime() {
+  if (!websiteWeeks.length) return;
+  const careers = allTimeCareers();
+  const seasons = websiteSeasons.map(item => item.seasonId);
+  const champions = seasons.map(season => {
+    const rows = websiteWeeks.filter(row => row.season === season && row.competition === "regular" && row.seasonRank != null);
+    const byPlayer = new Map();
+    rows.forEach(row => {
+      const entry = byPlayer.get(row.playerId) || { name: row.name, wins: 0, losses: 0, rank: row.seasonRank, weeks: 0 };
+      entry.wins += Number(row.displayWins || 0);
+      entry.losses += Number(row.displayLosses || 0);
+      entry.weeks += 1;
+      byPlayer.set(row.playerId, entry);
+    });
+    const ordered = [...byPlayer.values()].sort((a, b) => Number(a.rank) - Number(b.rank));
+    return { season, champion: ordered[0], runnerUp: ordered[1], field: ordered.length };
+  }).filter(item => item.champion);
+  const totalMoney = websiteWeeks.reduce((sum, row) => sum + Number(row.moneyAward || 0), 0);
+  const weekCount = new Set(websiteWeeks.map(row => `${row.season}|${row.week}`)).size;
+  document.getElementById("alltime-summary").innerHTML = [
+    ["Seasons", seasons.length],
+    ["Players all time", careers.length],
+    ["Weeks recorded", weekCount],
+    ["Money awarded", "$" + totalMoney.toLocaleString()]
+  ].map(([label, value]) => `<div class="metric"><span>${label}</span><strong>${value}</strong></div>`).join("");
+  const qualified = careers.filter(player => player.weeks >= 50).sort((a, b) => b.winPct - a.winPct).slice(0, 15);
+  if (allTimeTopChart) allTimeTopChart.destroy();
+  allTimeTopChart = new Chart(document.getElementById("alltime-top-chart"), { type: "bar", data: { labels: qualified.map(player => player.name), datasets: [{ label: "Win %", data: qualified.map(player => Number((player.winPct * 100).toFixed(2))), barText: qualified.map(player => `${player.name} · ${player.wins}-${player.losses} · ${(player.winPct * 100).toFixed(1)}% · ${player.seasonCount} seasons`), backgroundColor: qualified.map((player, index) => ["#d4af37", "#c0c0c0", "#cd7f32"][index] || "#8ca7ffbb"), borderColor: qualified.map((player, index) => ["#d4af37", "#c0c0c0", "#cd7f32"][index] || "#8ca7ff"), borderWidth: 1 }] }, options: { indexAxis: "y", responsive: true, maintainAspectRatio: false, scales: { x: { position: "top", suggestedMin: Math.min(...qualified.map(player => player.winPct * 100)) - 2, ticks: { color: "#91a0ae", callback: value => value + "%" }, grid: { color: "#2a3744" } }, y: { ticks: { display: false }, grid: { color: "#2a3744" } } }, plugins: { legend: { display: false }, title: { display: true, text: "Career win % (50+ weeks played)", color: "#e8eef5", font: { size: 15, weight: "normal" }, padding: { bottom: 12 } }, tooltip: { displayColors: false, callbacks: { label: context => { const player = qualified[context.dataIndex]; return [`Record: ${player.wins}-${player.losses}`, `Seasons: ${player.seasonCount}`, `Weeks played: ${player.weeks}`, `Weeks won: ${player.weeksWon}`]; } } } } } });
+  const cards = [];
+  const weeklyRows = tableData.weekly_champs || [];
+  const mostWeeklyWins = bestTies(weeklyRows.map(row => ({ name: row.Name, value: Number(row["Weeks Won"] || 0), played: Number(row.Played || 0) })), row => row.value);
+  if (mostWeeklyWins.length) cards.push(["Most weekly wins", `${mostWeeklyWins[0].value}`, joinTies(mostWeeklyWins.map(row => `${row.name} (${row.played} weeks played)`))]);
+  const mostSeconds = bestTies(weeklyRows.map(row => ({ name: row.Name, value: Number(row["2nd Place"] || 0), wins: Number(row["Weeks Won"] || 0) })), row => row.value);
+  if (mostSeconds.length) cards.push(["Most weekly runner-ups", `${mostSeconds[0].value}`, joinTies(mostSeconds.map(row => `${row.name} (${row.wins} wins)`))]);
+  const veterans = careers.filter(player => player.weeks >= 50);
+  const bestCareers = bestTies(veterans, player => player.winPct);
+  if (bestCareers.length) cards.push(["Best career win %", `${(bestCareers[0].winPct * 100).toFixed(1)}%`, joinTies(bestCareers.map(player => `${player.name} (${player.wins}-${player.losses}, ${player.weeks} weeks)`))]);
+  const worstCareers = bestTies(veterans, player => -player.winPct);
+  if (worstCareers.length) cards.push(["Lowest career win %", `${(worstCareers[0].winPct * 100).toFixed(1)}%`, joinTies(worstCareers.map(player => `${player.name} (${player.wins}-${player.losses})`))]);
+  const mostGames = bestTies(careers, player => player.weeks);
+  if (mostGames.length) cards.push(["Most weeks played", `${mostGames[0].weeks}`, joinTies(mostGames.map(player => `${player.name} (${player.seasonCount} seasons)`))]);
+  const bestWeeks = [];
+  websiteWeeks.filter(row => row.competition === "regular").forEach(row => {
+    const wins = Number(row.displayWins || 0), losses = Number(row.displayLosses || 0);
+    if (wins + losses) bestWeeks.push({ name: row.name, season: row.season, week: row.week, wins, losses, pctKey: Number((wins / (wins + losses)).toFixed(4)), pct: wins / (wins + losses) });
+  });
+  const topWeeks = bestTies(bestWeeks, item => item.pctKey);
+  if (topWeeks.length) cards.push(["Best week ever", `${(topWeeks[0].pct * 100).toFixed(1)}%`, joinTies(topWeeks.map(item => `${item.name} (${item.season} W${item.week} ${item.wins}-${item.losses})`), 2)]);
+  const worstWeeks = bestTies(bestWeeks, item => -item.pctKey);
+  if (worstWeeks.length) cards.push(["Worst week ever", `${(worstWeeks[0].pct * 100).toFixed(1)}%`, joinTies(worstWeeks.map(item => `${item.name} (${item.season} W${item.week} ${item.wins}-${item.losses})`), 2)]);
+  const perfect = bestWeeks.filter(item => item.pct === 1);
+  if (perfect.length) cards.push(["Perfect weeks", `${perfect.length}`, joinTies(perfect.map(item => `${item.name} (${item.season} W${item.week} ${item.wins}-0)`), 3)]);
+  const droughts = [];
+  const chronological = [...websiteWeeks].sort((a, b) => String(a.season).localeCompare(String(b.season)) || Number(a.weekOrder) - Number(b.weekOrder));
+  const byPlayerWeeks = new Map();
+  chronological.forEach(row => { const list = byPlayerWeeks.get(row.playerId) || []; list.push(row); byPlayerWeeks.set(row.playerId, list); });
+  byPlayerWeeks.forEach(list => {
+    const firstWin = list.findIndex(row => Number(row.rank) === 1);
+    const name = list[0].name;
+    if (firstWin === -1) droughts.push({ name, weeks: list.length, stillWaiting: true });
+    else if (firstWin > 0) droughts.push({ name, weeks: firstWin, stillWaiting: false, when: `${list[firstWin].season} ${list[firstWin].week === "playoffs" ? "Playoffs" : `W${list[firstWin].week}`}` });
+  });
+  const slowStarts = bestTies(droughts.filter(item => !item.stillWaiting), item => item.weeks);
+  const seasonStreak = [...(tableData.season_win_streak || [])].map(row => ({ name: row.Name, label: String(row["Season Win Streak"] || ""), value: parseInt(String(row["Season Win Streak"] || "0"), 10) || 0 })).sort((a, b) => b.value - a.value);
+  const topSeasonStreak = bestTies(seasonStreak, row => row.value);
+  if (topSeasonStreak.length) cards.push(["Most seasons in a row with a weekly win", `${topSeasonStreak[0].value} seasons`, joinTies(topSeasonStreak.map(row => `${row.name} · ${splitStreakLabel(row.label).detail}`), 2)]);
+  const streakRow = [...(tableData.win_streak || [])].sort((a, b) => Number(b["Win Streak"] || 0) - Number(a["Win Streak"] || 0))[0];
+  if (streakRow) cards.push(["Longest run of correct picks", `${streakRow["Win Streak"]} games`, `${streakRow.Name} · ${streakRow["Win Streak Range"]}`]);
+  const losingRow = [...(tableData.losing_streak || [])].sort((a, b) => Number(b["Losing Streak"] || 0) - Number(a["Losing Streak"] || 0))[0];
+  if (losingRow) cards.push(["Longest run of wrong picks", `${losingRow["Losing Streak"]} games`, `${losingRow.Name} · ${losingRow["Losing Streak Range"]}`]);
+  const droughtRow = [...(tableData.no_first_streak || [])].sort((a, b) => Number(b["No-1st Streak (Weeks)"] || 0) - Number(a["No-1st Streak (Weeks)"] || 0))[0];
+  if (droughtRow) cards.push(["Longest drought between weekly wins", `${droughtRow["No-1st Streak (Weeks)"]} weeks`, droughtRow.Name]);
+  const blowout = (tableData.biggest_win_over_2nd || [])[0];
+  if (blowout) cards.push(["Biggest win over 2nd place", `+${blowout["Win Difference"]}`, `${blowout.Name} ${blowout.Record} over ${blowout["Runner-Up"]} ${blowout["Runner-Up Record"]} · ${blowout.Week}`]);
+  const tightest = (tableData.lowest_tiebreak_diff_win || [])[0];
+  if (tightest) cards.push(["Tightest tiebreaker win", `${tightest["Tiebreak Margin (Record)"]}`, `${tightest.Matchup} · ${tightest.Week}`]);
+  const club800 = bestTies(weeklyRows.map(row => ({ name: row.Name, value: Number(row["800 Club"] || 0) })), row => row.value);
+  if (club800.length && club800[0].value > 0) cards.push(["Most 800 club weeks", `${club800[0].value}`, joinTies(club800.map(row => row.name))]);
+  const bbHit = (tableData.best_bet_hit_streak || [])[0];
+  if (bbHit) cards.push(["Longest best bet hit streak", `${bbHit["Best Bet Hit Streak"]}`, bbHit.Name]);
+  const bbMiss = (tableData.best_bet_miss_streak || [])[0];
+  if (bbMiss) cards.push(["Longest best bet cold streak", `${bbMiss["Best Bet Miss Streak"]}`, bbMiss.Name]);
+  const topFive = (tableData.top5_streak || [])[0];
+  if (topFive) { const parsed = splitStreakLabel(topFive["Top 5 Streak"]); cards.push(["Longest top 5 streak", `${parsed.count} weeks`, `${topFive.Name}${parsed.detail ? ` · ${parsed.detail}` : ""}`]); }
+  const moneyStreak = (tableData.money_streak || [])[0];
+  if (moneyStreak) { const parsed = splitStreakLabel(moneyStreak["Money Streak"]); cards.push(["Longest money streak", `${parsed.count} weeks`, `${moneyStreak.Name}${parsed.detail ? ` · ${parsed.detail}` : ""} · ${moneyStreak["Money Won During Streak"]}`]); }
+  const teamPick = (tableData.best_team_pick_streak || [])[0];
+  if (teamPick) { const parsed = splitStreakLabel(teamPick["Best Team Pick Streak"]); cards.push(["Best run on one team", `${parsed.count} straight`, `${teamPick.Name}${parsed.detail ? ` · ${parsed.detail}` : ""}`]); }
+  const worstTeamPick = (tableData.worst_team_pick_streak || [])[0];
+  if (worstTeamPick) { const parsed = splitStreakLabel(worstTeamPick["Worst Team Pick Streak"]); cards.push(["Worst run on one team", `${parsed.count} straight`, `${worstTeamPick.Name}${parsed.detail ? ` · ${parsed.detail}` : ""}`]); }
+  const playoffRows = (tableData.playoff_champs || []).map(row => ({ name: row.Name, value: Number(row["Playoffs Won"] || 0), best: row["Best Playoff Record"] }));
+  const mostPlayoffs = bestTies(playoffRows, row => row.value);
+  if (mostPlayoffs.length && mostPlayoffs[0].value > 0) cards.push(["Most playoff titles", `${mostPlayoffs[0].value}`, joinTies(mostPlayoffs.map(row => `${row.name} (best ${row.best})`), 3)]);
+  const titleCounts = new Map();
+  champions.forEach(item => titleCounts.set(item.champion.name, (titleCounts.get(item.champion.name) || 0) + 1));
+  const mostTitles = bestTies([...titleCounts.entries()].map(([name, count]) => ({ name, count })), item => item.count);
+  if (mostTitles.length) cards.push(["Most season titles", `${mostTitles[0].count}`, joinTies(mostTitles.map(item => item.name))]);
+  const moneyRows = (tableData.money_won || []).map(row => ({ name: row.Name, total: Number(row["Total Money Won"] || 0) })).sort((a, b) => b.total - a.total);
+  if (moneyRows.length) cards.push(["Most money won", `$${moneyRows[0].total.toLocaleString()}`, moneyRows[0].name]);
+  const netRows = (tableData.money_won || []).map(row => ({ name: row.Name, net: Number(row["Total Net"] || 0), spent: Number(row["Total Money Spent"] || 0) })).filter(row => row.spent > 0);
+  const bestNet = bestTies(netRows, row => row.net);
+  if (bestNet.length) cards.push(["Biggest career profit", `${bestNet[0].net < 0 ? "-" : "+"}$${Math.abs(bestNet[0].net).toLocaleString()}`, joinTies(bestNet.map(row => row.name))]);
+  const ironPlayers = careers.filter(player => player.seasonCount === seasons.length);
+  if (ironPlayers.length) cards.push(["Never missed a season", `${ironPlayers.length}`, joinTies(ironPlayers.map(player => player.name), 5)]);
+  document.getElementById("alltime-cards").innerHTML = cards.map(([title, value, sub]) => `<div class="panel record-card"><h3>${title}</h3><strong>${value}</strong><p>${sub}</p></div>`).join("");
+  const streakRows = [...(tableData.win_streak || [])].map(row => ({ name: row.Name, streak: Number(row["Win Streak"] || 0), range: String(row["Win Streak Range"] || "") })).filter(row => row.streak > 0).sort((a, b) => b.streak - a.streak).slice(0, 15);
+  if (allTimeStreakChart) allTimeStreakChart.destroy();
+  allTimeStreakChart = new Chart(document.getElementById("alltime-streak-chart"), { type: "bar", data: { labels: streakRows.map(row => row.name), datasets: [{ label: "Games in a row", data: streakRows.map(row => row.streak), barText: streakRows.map(row => `${row.name} · ${row.streak} games · ${row.range.replace(" to ", " \u2192 ")}`), backgroundColor: streakRows.map((row, index) => ["#d4af37", "#c0c0c0", "#cd7f32"][index] || "#7ee2b8bb"), borderColor: streakRows.map((row, index) => ["#d4af37", "#c0c0c0", "#cd7f32"][index] || "#7ee2b8"), borderWidth: 1 }] }, options: { indexAxis: "y", responsive: true, maintainAspectRatio: false, scales: { x: { beginAtZero: true, position: "top", ticks: { color: "#91a0ae" }, grid: { color: "#2a3744" }, title: { display: true, text: "Consecutive correct picks against the spread", color: "#91a0ae" } }, y: { ticks: { display: false }, grid: { color: "#2a3744" } } }, plugins: { legend: { display: false }, title: { display: true, text: "Personal best run of correct picks", color: "#e8eef5", font: { size: 15, weight: "normal" }, padding: { bottom: 12 } }, tooltip: { displayColors: false, callbacks: { label: context => { const row = streakRows[context.dataIndex]; return [`${row.streak} straight correct picks`, row.range]; } } } } } });
+  let championHtml = '<table class="picks-grid"><thead><tr><th class="pg-player">Season</th><th class="pg-game">Champion</th><th class="pg-game">Record</th><th class="pg-game">Win%</th><th class="pg-game">Runner-up</th><th class="pg-game">Their record</th><th class="pg-game">Margin</th><th class="pg-sum-hdr">Field</th></tr></thead><tbody>';
+  [...champions].reverse().forEach(item => {
+    const championPct = item.champion.wins / (item.champion.wins + item.champion.losses);
+    const runnerPct = item.runnerUp ? item.runnerUp.wins / (item.runnerUp.wins + item.runnerUp.losses) : null;
+    const gap = runnerPct == null ? null : (championPct - runnerPct) * 100;
+    const margin = gap == null ? "" : gap === 0 ? "tie" : gap < 0.01 ? `${gap.toFixed(4)} pts` : `${gap.toFixed(2)} pts`;
+    const marginClass = gap == null ? "pg-sum-cell" : gap === 0 ? "sg-win1" : gap < 1 ? "sg-top5" : "pg-sum-cell";
+    const marginTitle = gap == null ? "" : gap === 0 ? `Dead heat: both finished ${item.champion.wins}-${item.champion.losses} (${(championPct * 100).toFixed(4)}%)` : `${(championPct * 100).toFixed(4)}% vs ${(runnerPct * 100).toFixed(4)}%`;
+    championHtml += `<tr><td class="pg-player">${item.season}</td><td class="sg-win1" title="${item.champion.name}: ${item.champion.wins}-${item.champion.losses} (${(championPct * 100).toFixed(2)}%)">${item.champion.name}</td><td class="pg-sum-cell">${item.champion.wins}-${item.champion.losses}</td><td class="pg-sum-cell">${(championPct * 100).toFixed(1)}%</td><td class="pg-sum-cell" title="${item.runnerUp ? `${item.runnerUp.name}: ${item.runnerUp.wins}-${item.runnerUp.losses} (${(runnerPct * 100).toFixed(2)}%)` : ""}">${item.runnerUp?.name || ""}</td><td class="pg-sum-cell">${item.runnerUp ? `${item.runnerUp.wins}-${item.runnerUp.losses}` : ""}</td><td class="${marginClass}" title="${marginTitle}">${margin}</td><td class="pg-sum-cell">${item.field}</td></tr>`;
+  });
+  championHtml += '</tbody></table>';
+  document.getElementById("alltime-champions").innerHTML = championHtml;
+  const seasonRankMap = new Map();
+  websiteWeeks.filter(row => row.competition === "regular").forEach(row => {
+    if (row.seasonRank == null) return;
+    const entry = seasonRankMap.get(row.playerId) || { name: row.name, ranks: {} };
+    entry.ranks[row.season] = Number(row.seasonRank);
+    seasonRankMap.set(row.playerId, entry);
+  });
+  const gridRows = [...seasonRankMap.entries()].map(([playerId, entry]) => {
+    const finishes = Object.values(entry.ranks);
+    return { playerId, name: entry.name, ranks: entry.ranks, seasons: finishes.length, titles: finishes.filter(rank => rank === 1).length, top5: finishes.filter(rank => rank <= 5).length, best: Math.min(...finishes) };
+  }).filter(row => row.seasons >= 3).sort((a, b) => b.titles - a.titles || b.top5 - a.top5 || b.seasons - a.seasons || a.best - b.best);
+  let seasonGridHtml = '<table class="picks-grid"><thead><tr><th class="pg-player">Player</th>';
+  seasons.forEach(season => { seasonGridHtml += `<th class="pg-game">${String(season).slice(2, 4)}<br><small>${String(season).slice(-2)}</small></th>`; });
+  seasonGridHtml += '<th class="pg-sum-hdr">Seasons</th><th class="pg-sum-hdr">Titles</th><th class="pg-sum-hdr">Top 5</th><th class="pg-sum-hdr">Best</th></tr></thead><tbody>';
+  gridRows.forEach(row => {
+    seasonGridHtml += `<tr><td class="pg-player">${row.name}</td>`;
+    seasons.forEach(season => {
+      const rank = row.ranks[season];
+      if (!rank) { seasonGridHtml += '<td class="sg-none"></td>'; return; }
+      const cls = rank === 1 ? "sg-win1" : rank <= 5 ? "sg-top5" : rank <= 10 ? "sg-top10" : "sg-rest";
+      seasonGridHtml += `<td class="${cls}" title="${season}: finished ${ordinal(rank)}">${rank}</td>`;
+    });
+    seasonGridHtml += `<td class="pg-sum-cell">${row.seasons}</td><td class="pg-sum-cell">${row.titles}</td><td class="pg-sum-cell">${row.top5}</td><td class="pg-sum-cell">${ordinal(row.best)}</td></tr>`;
+  });
+  seasonGridHtml += '</tbody></table>';
+  document.getElementById("alltime-seasons-grid").innerHTML = seasonGridHtml;
+  const moneyDetail = (tableData.money_won || []).map(row => ({ name: row.Name, weekly: Number(row["Weekly Money"] || 0), playoff: Number(row["Playoff Money"] || 0), title: Number(row["Season Money"] || 0), total: Number(row["Total Money Won"] || 0), net: Number(row["Total Net"] || 0), spent: Number(row["Total Money Spent"] || 0) })).filter(row => row.total > 0).sort((a, b) => b.total - a.total).slice(0, 15);
+  if (allTimeMoneyChart) allTimeMoneyChart.destroy();
+  allTimeMoneyChart = new Chart(document.getElementById("alltime-money-chart"), { type: "bar", data: { labels: moneyDetail.map(row => row.name), datasets: [{ label: "Weekly wins", data: moneyDetail.map(row => row.weekly), barText: moneyDetail.map(row => `${row.name} · $${row.total.toLocaleString()}`), backgroundColor: "#54d6b2", stack: "money" }, { label: "Playoffs", data: moneyDetail.map(row => row.playoff), backgroundColor: "#a978e8", stack: "money" }, { label: "Season titles", data: moneyDetail.map(row => row.title), backgroundColor: "#ffb454", stack: "money" }] }, options: { indexAxis: "y", responsive: true, maintainAspectRatio: false, scales: { x: { stacked: true, beginAtZero: true, position: "top", ticks: { color: "#91a0ae", callback: value => "$" + value.toLocaleString() }, grid: { color: "#2a3744" } }, y: { stacked: true, ticks: { display: false }, grid: { color: "#2a3744" } } }, plugins: { legend: { labels: { color: "#e8eef5" } }, title: { display: true, text: "Career money won by source", color: "#e8eef5", font: { size: 15, weight: "normal" }, padding: { bottom: 12 } }, tooltip: { callbacks: { title: items => moneyDetail[items[0].dataIndex].name, afterBody: items => { const row = moneyDetail[items[0].dataIndex]; return [`Total won $${row.total.toLocaleString()}`, `Entry fees $${row.spent.toLocaleString()}`, `Net ${row.net < 0 ? "-" : "+"}$${Math.abs(row.net).toLocaleString()}`]; } } } } } });
+  const turnout = seasons.map(season => new Set(websiteWeeks.filter(row => row.season === season && row.competition === "regular").map(row => row.playerId)).size);
+  if (allTimeTurnoutChart) allTimeTurnoutChart.destroy();
+  allTimeTurnoutChart = new Chart(document.getElementById("alltime-turnout-chart"), { type: "bar", data: { labels: seasons, datasets: [{ label: "Players", data: turnout, backgroundColor: "#8ca7ffbb", borderColor: "#8ca7ff", borderWidth: 1 }] }, options: { responsive: true, maintainAspectRatio: false, scales: { x: { ticks: { color: "#91a0ae", maxRotation: 60, minRotation: 45, font: { size: 10 } }, grid: { color: "#2a3744" } }, y: { beginAtZero: true, ticks: { color: "#91a0ae" }, grid: { color: "#2a3744" }, title: { display: true, text: "Players who entered", color: "#91a0ae" } } }, plugins: { legend: { display: false }, title: { display: true, text: "How many played each season", color: "#e8eef5", font: { size: 15, weight: "normal" }, padding: { bottom: 12 } } } } });
+}
+function renderSeasonBestBetGrid(standings, weeks) {
+  const element = document.getElementById("season-bb-grid");
+  if (!element) return;
+  const season = document.getElementById("season-choice").value;
+  const playoffOrder = ["round 1", "round 2", "round 3", "super bowl"];
+  const shortLabel = { "round 1": "R1", "round 2": "R2", "round 3": "R3", "super bowl": "SB" };
+  const gameWeek = new Map();
+  websiteGames.filter(game => game.season === season).forEach(game => gameWeek.set(game.gameId, game.week));
+  const columns = [...weeks, ...playoffOrder.filter(week => websiteGames.some(game => game.season === season && game.week === week))];
+  const byPlayer = new Map();
+  websitePicks.forEach(pick => {
+    const week = gameWeek.get(pick.gameId);
+    if (!week) return;
+    const player = byPlayer.get(pick.playerId) || { name: pick.name, cells: {} };
+    const cell = player.cells[week] || { team: "", result: "none" };
+    if (!cell.team && pick.bestBet) cell.team = pick.bestBet;
+    if (Number(pick.bestBetWin || 0)) cell.result = "win";
+    else if (Number(pick.bestBetLoss || 0)) cell.result = "loss";
+    else if (Number(pick.bestBetPush || 0)) cell.result = "push";
+    player.cells[week] = cell;
+    byPlayer.set(pick.playerId, player);
+  });
+  const rows = [...byPlayer.entries()].map(([playerId, player]) => {
+    const results = columns.map(week => player.cells[week]).filter(cell => cell && cell.result !== "none");
+    const wins = results.filter(cell => cell.result === "win").length;
+    const misses = results.length - wins;
+    return { playerId, name: player.name, cells: player.cells, wins, misses, total: results.length, rate: results.length ? wins / results.length : 0 };
+  }).filter(row => row.total > 0).sort((a, b) => b.rate - a.rate || b.wins - a.wins || String(a.name).localeCompare(String(b.name)));
+  let html = '<table class="picks-grid"><thead><tr><th class="pg-sum-hdr">#</th><th class="pg-player">Player</th>';
+  columns.forEach(week => { html += `<th class="pg-game">${shortLabel[week] || `W${week}`}</th>`; });
+  html += '<th class="pg-sum-hdr pg-w">W</th><th class="pg-sum-hdr pg-l">L</th><th class="pg-sum-hdr">Total</th><th class="pg-sum-hdr">Win%</th></tr></thead><tbody>';
+  rows.forEach((row, index) => {
+    html += `<tr><td class="pg-sum-cell">${index + 1}</td><td class="pg-player">${row.name}</td>`;
+    columns.forEach(week => {
+      const cell = row.cells[week];
+      if (!cell || !cell.team) { html += '<td class="pg-pick-none"></td>'; return; }
+      const cls = cell.result === "win" ? "pg-pick-win" : cell.result === "loss" ? "pg-pick-loss" : cell.result === "push" ? "pg-pick-push" : "pg-pick-pending";
+      html += `<td class="${cls}" title="${shortLabel[week] || `Week ${week}`}: ${cell.team} ${cell.result === "none" ? "pending" : cell.result}">${cell.team}</td>`;
+    });
+    html += `<td class="pg-sum-cell pg-w">${row.wins}</td><td class="pg-sum-cell pg-l">${row.misses}</td><td class="pg-sum-cell">${row.total}</td><td class="pg-sum-cell">${(row.rate * 100).toFixed(1)}%</td></tr>`;
+  });
+  html += '</tbody></table>';
+  element.innerHTML = html;
+}
+function renderSeasonTiebreakerGrid(standings, weeks) {
+  const element = document.getElementById("season-tb-grid");
+  if (!element) return;
+  const season = document.getElementById("season-choice").value;
+  const playoffRow = {};
+  websiteWeeks.filter(row => row.season === season && row.competition === "playoffs").forEach(row => { playoffRow[row.playerId] = row; });
+  const hasPlayoffs = Object.keys(playoffRow).length > 0;
+  const actualByWeek = {};
+  weeks.forEach(week => {
+    const row = standings.map(player => player.weekMap[week]).find(item => item && item.actualTiebreak != null);
+    actualByWeek[week] = row ? row.actualTiebreak : "";
+  });
+  const playoffActual = hasPlayoffs ? Object.values(playoffRow).find(row => row.actualTiebreak != null)?.actualTiebreak ?? "" : "";
+  const rows = standings.map(player => {
+    const diffs = weeks.map(week => tiebreakDiff(player.weekMap[week])).filter(diff => diff !== "");
+    const playoffDiff = hasPlayoffs ? tiebreakDiff(playoffRow[player.playerId]) : "";
+    const all = [...diffs, ...(playoffDiff === "" ? [] : [playoffDiff])];
+    return { player, diffs: all, average: all.length ? all.reduce((sum, value) => sum + value, 0) / all.length : null, total: all.reduce((sum, value) => sum + value, 0), count: all.length };
+  }).filter(row => row.count > 0).sort((a, b) => a.average - b.average);
+  const diffClass = diff => diff === "" ? "sg-none" : diff === 0 ? "sg-win1" : diff <= 10 ? "sg-top5" : diff <= 50 ? "sg-top10" : "sg-rest";
+  let html = '<table class="picks-grid"><thead><tr><th class="pg-sum-hdr" rowspan="2">#</th><th class="pg-player" rowspan="2">Player</th>';
+  weeks.forEach(week => { html += `<th class="pg-round" colspan="2">W${week}</th>`; });
+  if (hasPlayoffs) html += '<th class="pg-round" colspan="2">PO</th>';
+  html += '<th class="pg-sum-hdr" rowspan="2">Avg off</th><th class="pg-sum-hdr" rowspan="2">Weeks</th><th class="pg-sum-hdr" rowspan="2">Total off</th></tr><tr>';
+  weeks.forEach(week => { html += `<th class="pg-game">${formatTiebreak(actualByWeek[week])}</th><th class="pg-game">+/-</th>`; });
+  if (hasPlayoffs) html += `<th class="pg-game">${formatTiebreak(playoffActual)}</th><th class="pg-game">+/-</th>`;
+  html += '</tr></thead><tbody>';
+  rows.forEach((row, index) => {
+    html += `<tr><td class="pg-sum-cell">${index + 1}</td><td class="pg-player">${row.player.name}</td>`;
+    const render = weekRow => {
+      const diff = tiebreakDiff(weekRow);
+      const guess = weekRow?.tiebreaker;
+      html += `<td class="pg-sum-cell">${guess == null || guess === "" ? "" : formatTiebreak(guess)}</td><td class="${diffClass(diff)}">${diff === "" ? "" : diff}</td>`;
+    };
+    weeks.forEach(week => render(row.player.weekMap[week]));
+    if (hasPlayoffs) render(playoffRow[row.player.playerId]);
+    html += `<td class="pg-sum-cell">${row.average.toFixed(1)}</td><td class="pg-sum-cell">${row.count}</td><td class="pg-sum-cell">${row.total.toLocaleString()}</td></tr>`;
+  });
+  html += '</tbody></table>';
+  element.innerHTML = html;
+}
+function renderSeasonTiebreakers(standings, weeks) {
+  const rows = standings.map(player => {
+    const guesses = weeks.map(week => ({ week, diff: tiebreakDiff(player.weekMap[week]) })).filter(item => item.diff !== "");
+    if (!guesses.length) return null;
+    const best = Math.min(...guesses.map(item => item.diff));
+    return { name: player.name, average: guesses.reduce((sum, item) => sum + item.diff, 0) / guesses.length, best, bestWeeks: guesses.filter(item => item.diff === best).map(item => `W${item.week}`), count: guesses.length, exact: guesses.filter(item => item.diff === 0).length };
+  }).filter(Boolean).filter(row => row.count >= 5).sort((a, b) => a.average - b.average).slice(0, 12);
+  if (seasonTbChart) seasonTbChart.destroy();
+  seasonTbChart = new Chart(document.getElementById("season-tb-chart"), { type: "bar", data: { labels: rows.map(row => row.name), datasets: [{ label: "Average miss", data: rows.map(row => Number(row.average.toFixed(1))), barText: rows.map(row => `${row.name} · avg ${row.average.toFixed(1)} yds off · closest ${row.best} yds ${joinTies(row.bestWeeks, 3)}`), backgroundColor: rows.map((row, index) => ["#d4af37", "#c0c0c0", "#cd7f32"][index] || "#8ca7ffbb"), borderColor: rows.map((row, index) => ["#d4af37", "#c0c0c0", "#cd7f32"][index] || "#8ca7ff"), borderWidth: 1 }] }, options: { indexAxis: "y", responsive: true, maintainAspectRatio: false, scales: { x: { beginAtZero: true, position: "top", ticks: { color: "#91a0ae" }, grid: { color: "#2a3744" }, title: { display: true, text: "Average yards off the tiebreaker", color: "#91a0ae" } }, y: { ticks: { display: false }, grid: { color: "#2a3744" } } }, plugins: { legend: { display: false }, title: { display: true, text: "Most accurate tiebreakers (min 5 weeks)", color: "#e8eef5", font: { size: 15, weight: "normal" }, padding: { bottom: 12 } }, tooltip: { displayColors: false, callbacks: { label: context => { const row = rows[context.dataIndex]; return [`Average miss: ${row.average.toFixed(1)} yards`, `Closest: ${row.best} yards off in ${row.bestWeeks.join(", ")}`, `Exact hits: ${row.exact}`, `Weeks with a guess: ${row.count}`]; } } } } } });
+}
+function renderSeasonRace(standings, weeks, progress) {
+  const podium = standings.slice(0, 3);
+  const usePct = (document.getElementById("season-race-metric")?.value || "pct") === "pct";
+  const leaderNames = [], leaderValues = [];
+  const totals = podium.map(() => []), gaps = podium.map(() => []);
+  progress.forEach(step => {
+    const leader = usePct ? step.leaderPct : step.leaderWins;
+    const leaderStat = leader ? step.snapshot.get(leader.playerId) : null;
+    const leaderValue = leaderStat ? (usePct ? leaderStat.pct : leaderStat.wins) : 0;
+    leaderNames.push(leader ? leader.name : "-");
+    leaderValues.push(usePct ? `${(leaderValue * 100).toFixed(1)}%` : leaderValue);
+    podium.forEach((player, index) => {
+      const stat = step.snapshot.get(player.playerId);
+      const value = usePct ? stat.pct : stat.wins;
+      totals[index].push(usePct ? Number((value * 100).toFixed(1)) : value);
+      gaps[index].push(usePct ? Number(((value - leaderValue) * 100).toFixed(1)) : value - leaderValue);
+    });
+  });
+  if (seasonRaceChart) seasonRaceChart.destroy();
+  seasonRaceChart = new Chart(document.getElementById("season-race-chart"), { type: "line", data: { labels: weeks.map(week => `W${week}`), datasets: podium.map((player, index) => ({ label: player.name, data: gaps[index], totals: totals[index], borderColor: ["#d4af37", "#c0c0c0", "#cd7f32"][index], backgroundColor: ["#d4af37", "#c0c0c0", "#cd7f32"][index], borderWidth: 2, pointRadius: 3, pointHoverRadius: 6, tension: .2 })) }, options: { responsive: true, maintainAspectRatio: false, interaction: { mode: "index", intersect: false }, scales: { x: { ticks: { color: "#91a0ae", autoSkip: false, font: { size: 10 } }, grid: { color: "#2a3744" } }, y: { suggestedMax: 0, ticks: { color: "#91a0ae", callback: value => value === 0 ? "lead" : value }, grid: { color: "#2a3744" }, title: { display: true, text: usePct ? "Win % points behind the leader" : "Wins behind the leader", color: "#91a0ae" } } }, plugins: { title: { display: true, text: usePct ? "Podium: Top 3 · win % behind the lead" : "Podium: Top 3 · wins behind the lead", color: "#e8eef5", font: { size: 15, weight: "normal" }, padding: { bottom: 12 } }, legend: { labels: { color: "#e8eef5" } }, tooltip: { callbacks: { title: items => `${items[0].label} · leader: ${leaderNames[items[0].dataIndex]} (${leaderValues[items[0].dataIndex]})`, label: context => { const total = context.dataset.totals[context.dataIndex]; const gap = context.raw; const unit = usePct ? "%" : " wins"; return `${context.dataset.label}: ${total}${unit} · ${gap === 0 ? "leading" : `${Math.abs(gap)}${usePct ? " pts" : ""} back`}`; } } } } } });
+}
+function renderSeasonPlayer(standings, weeks) {
+  const playerId = document.getElementById("season-player").value;
+  const player = standings.find(row => row.playerId === playerId) || standings[0];
+  if (!player) return;
+  const weekRows = weeks.map(week => player.weekMap[week]);
+  const poolAverage = weeks.map(week => {
+    const scores = standings.map(item => item.weekMap[week]).filter(Boolean).map(row => Number(row.displayWins || 0));
+    return scores.length ? Number((scores.reduce((sum, value) => sum + value, 0) / scores.length).toFixed(2)) : null;
+  });
+  const rankColor = row => { const rank = Number(row?.rank); if (!rank) return "#4c5a68"; return rank === 1 ? "#d4af37" : rank <= 5 ? "#238b68" : rank <= 10 ? "#3f6fb5" : "#4c5a68"; };
+  if (seasonPlayerChart) seasonPlayerChart.destroy();
+  seasonPlayerChart = new Chart(document.getElementById("season-player-chart"), { type: "bar", data: { labels: weeks.map(week => `W${week}`), datasets: [{ label: "Games won", data: weekRows.map(row => row ? Number(row.displayWins || 0) : null), barText: weekRows.map(row => row ? `${row.displayWins}-${row.displayLosses}` : ""), ranks: weekRows.map(row => row ? Number(row.rank) : null), backgroundColor: weekRows.map(rankColor), borderColor: weekRows.map(rankColor), borderWidth: 1, order: 2 }, { label: "Pool average", type: "line", data: poolAverage, borderColor: "#e8eef5", backgroundColor: "#e8eef5", borderWidth: 2, borderDash: [5, 4], pointRadius: 0, tension: .2, order: 1 }] }, options: { responsive: true, maintainAspectRatio: false, interaction: { mode: "index", intersect: false }, scales: { x: { ticks: { color: "#91a0ae", autoSkip: false, minRotation: 0, maxRotation: 0, font: { size: 10 } }, grid: { color: "#2a3744" } }, y: { beginAtZero: true, ticks: { color: "#91a0ae" }, grid: { color: "#2a3744" }, title: { display: true, text: "Games won that week", color: "#91a0ae" } } }, plugins: { legend: { labels: { color: "#e8eef5", filter: item => item.text === "Pool average" } }, title: { display: true, text: `${player.name}: ${player.wins}-${player.losses} (${(player.winPct * 100).toFixed(1)}%) · ${player.weeksWon} weeks won`, color: "#e8eef5" }, tooltip: { callbacks: { title: items => items[0].label, beforeBody: items => { const row = weekRows[items[0].dataIndex]; if (!row) return ["Did not play"]; const average = poolAverage[items[0].dataIndex]; const diff = Number(row.displayWins) - average; return [`Record: ${row.displayWins}-${row.displayLosses}`, `Rank: ${row.rank} of ${row.playerCount}`, `Pool average: ${average} (${diff >= 0 ? "+" : ""}${diff.toFixed(2)})`, Number(row.moneyAward) ? `Money: $${Number(row.moneyAward).toLocaleString()}` : null].filter(Boolean); }, label: () => "" } } } } });
+}
 function renderSeasonExplorer() {
   const season = document.getElementById("explorer-season").value;
   const selected = [...document.getElementById("explorer-players").selectedOptions].map(option => option.value);
@@ -207,8 +877,10 @@ function renderMoneyMap() {
   moneyMapChart = new Chart(document.getElementById("money-map-chart"), { type: "bar", data: { labels, datasets: types.map((type, index) => ({ label: `${type} money`, data: events.map(event => event.awardType === type ? event.amount : 0), backgroundColor: ["#54d6b2", "#a978e8", "#ffb454"][index], borderColor: ["#54d6b2", "#a978e8", "#ffb454"][index], borderWidth: 1 })) }, options: { responsive: true, maintainAspectRatio: false, scales: { x: { ticks: { color: "#91a0ae", maxRotation: 65, minRotation: 45 }, grid: { color: "#2a3744" } }, y: { beginAtZero: true, ticks: { color: "#91a0ae", callback: value => "$" + value.toLocaleString() }, grid: { color: "#2a3744" } } }, plugins: { legend: { labels: { color: "#e8eef5" } }, tooltip: { callbacks: { label: context => context.raw ? `$${context.raw.toLocaleString()}` : "" } } } } });
 }
 function populateWeekSeasons() { const select = document.getElementById("week-season"); select.innerHTML = ""; websiteSeasons.forEach(season => select.add(new Option(season.season, season.seasonId))); select.value = websiteSeasons.at(-1)?.seasonId || ""; populateWeekChoices(); }
-function populateWeekChoices() { const season = document.getElementById("week-season").value; const select = document.getElementById("week-choice"); select.innerHTML = ""; [...new Map(websiteWeeks.filter(row => row.season === season).map(row => [row.week, row.week])).entries()].sort((a, b) => Number(a[0]) - Number(b[0])).forEach(([value, label]) => select.add(new Option(label === "super bowl" ? "Super Bowl" : label.startsWith("round") ? label.replace("round", "Round") : label === "playoffs" ? "Playoffs" : `Week ${label}`, value))); select.value = select.options[select.options.length - 1]?.value || ""; renderWeek(); }
-function renderWeek() { const season = document.getElementById("week-season").value, week = document.getElementById("week-choice").value; const rows = websiteWeeks.filter(row => row.season === season && row.week === week).sort((a, b) => Number(a.rank) - Number(b.rank)); const winner = rows[0]; document.getElementById("week-summary").innerHTML = [["Winner", winner?.name || "-"], ["Record", winner ? `${winner.displayWins}-${winner.displayLosses}` : "-"], ["Games", winner?.games || "-"], ["Money", winner ? "$" + Number(winner.moneyAward || 0).toLocaleString() : "$0"]].map(([label, value]) => `<div class="metric"><span>${label}</span><strong>${value}</strong></div>`).join(""); const racePlayers = document.getElementById("week-race-players"); if (!racePlayers.options.length) rows.forEach(row => racePlayers.add(new Option(row.name, row.playerId))); if (weekChart) weekChart.destroy(); const topRows = rows.slice(0, 10); weekChart = new Chart(document.getElementById("week-chart"), { type: "bar", data: { labels: topRows.map(row => row.name), datasets: [{ label: "Wins", data: topRows.map(row => row.displayWins), backgroundColor: topRows.map((row, index) => index === 0 ? "#54d6b2" : "#8ca7ffbb"), borderColor: topRows.map((row, index) => index === 0 ? "#54d6b2" : "#8ca7ff"), borderWidth: 1 }] }, options: { indexAxis: "y", responsive: true, maintainAspectRatio: false, scales: { x: { beginAtZero: true, position: "top", ticks: { color: "#91a0ae", stepSize: 1 }, grid: { color: "#2a3744" } }, y: { ticks: { color: "#91a0ae" }, grid: { color: "#2a3744" } } }, plugins: { legend: { labels: { color: "#e8eef5" } }, tooltip: { callbacks: { label: context => { const row = topRows[context.dataIndex]; return `${row.displayWins}-${row.displayLosses} · ${row.tiebreakerDiff ?? ""}`; } } } } } }); if (weekTable) weekTable.destroy(); weekTable = new Tabulator("#week-table", { data: rows, layout: "fitDataStretch", pagination: true, paginationSize: 50, columns: [{ title: "Rank", field: "rank", sorter: "number" }, { title: "Player", field: "name", sorter: "string" }, { title: "Wins", field: "displayWins", sorter: "number" }, { title: "Losses", field: "displayLosses", sorter: "number" }, { title: "Games", field: "games", sorter: "number" }, { title: "Win %", field: "winPct", sorter: "number", formatter: cell => `${(Number(cell.getValue() || 0) * 100).toFixed(2)}%` }, { title: "Money", field: "moneyAward", sorter: "number", formatter: cell => "$" + Number(cell.getValue() || 0).toLocaleString() }, { title: "Tiebreak Diff", field: "tiebreakerDiff", sorter: "number" }, { title: "Tiebreaker", field: "tiebreaker", sorter: "number" }, { title: "Actual Tiebreaker", field: "actualTiebreak", sorter: "number" }], placeholder: "No results" }); }
+function formatTiebreak(value) { if (value == null || value === "") return ""; const num = Number(value); return Number.isFinite(num) ? String(num) : String(value); }
+function tiebreakDiff(row) { if (row?.tiebreaker == null || row.tiebreaker === "" || row?.actualTiebreak == null || row.actualTiebreak === "") return ""; const tiebreaker = Number(row.tiebreaker), actual = Number(row.actualTiebreak); return Number.isFinite(tiebreaker) && Number.isFinite(actual) ? Math.abs(tiebreaker - actual) : ""; }
+function populateWeekChoices() { const season = document.getElementById("week-season").value; const select = document.getElementById("week-choice"); select.innerHTML = ""; [...new Map(websiteWeeks.filter(row => row.season === season).map(row => [row.week, row.week])).entries()].sort((a, b) => Number(a[0]) - Number(b[0])).forEach(([value, label]) => select.add(new Option(label === "super bowl" ? "Super Bowl" : label.startsWith("round") ? label.replace("round", "Round") : label === "playoffs" ? "Playoffs" : `Week ${label}`, value))); select.value = select.options[select.options.length - 1]?.value || ""; renderWeek(); renderWeekRace(); }
+function renderWeek() { const season = document.getElementById("week-season").value, week = document.getElementById("week-choice").value; const rows = websiteWeeks.filter(row => row.season === season && row.week === week).sort((a, b) => Number(a.rank) - Number(b.rank)); const winner = rows[0]; document.getElementById("week-summary").innerHTML = [["Winner", winner?.name || "-"], ["Record", winner ? `${winner.displayWins}-${winner.displayLosses}` : "-"], ["Games", winner?.games || "-"], ["Money", winner ? "$" + Number(winner.moneyAward || 0).toLocaleString() : "$0"]].map(([label, value]) => `<div class="metric"><span>${label}</span><strong>${value}</strong></div>`).join(""); const racePlayers = document.getElementById("week-race-players"); if (!racePlayers.options.length) rows.forEach(row => racePlayers.add(new Option(row.name, row.playerId))); if (weekChart) weekChart.destroy(); const topRows = rows.slice(0, 10); weekChart = new Chart(document.getElementById("week-chart"), { type: "bar", data: { labels: topRows.map(row => row.name), datasets: [{ label: "Wins", data: topRows.map(row => row.displayWins), barText: topRows.map(row => `${row.name} ${row.displayWins}-${row.displayLosses}`), backgroundColor: topRows.map((row, index) => ["#d4af37", "#c0c0c0", "#cd7f32"][index] || "#8ca7ffbb"), borderColor: topRows.map((row, index) => ["#d4af37", "#c0c0c0", "#cd7f32"][index] || "#8ca7ff"), borderWidth: 1 }] }, options: { indexAxis: "y", responsive: true, maintainAspectRatio: false, scales: { x: { beginAtZero: true, position: "top", ticks: { color: "#91a0ae", stepSize: 1 }, grid: { color: "#2a3744" } }, y: { ticks: { color: "#91a0ae" }, grid: { color: "#2a3744" } } }, plugins: { legend: { display: false }, title: { display: true, text: "Top 10", color: "#e8eef5", font: { size: 15, weight: "normal" }, padding: { bottom: 12 } }, tooltip: { displayColors: false, callbacks: { label: context => { const row = topRows[context.dataIndex]; const lines = [`Record: ${row.displayWins}-${row.displayLosses}${Number(row.displayPushes) ? `-${row.displayPushes}` : ""} (${(Number(row.displayWinPct || 0) * 100).toFixed(1)}%)`, `Rank: ${row.rank} of ${row.playerCount}`]; const diff = tiebreakDiff(row); if (diff !== "") lines.push(`Tiebreaker: ${formatTiebreak(row.tiebreaker)} vs ${formatTiebreak(row.actualTiebreak)} actual`, `TB diff: ${diff}`); else lines.push("Tiebreaker: none submitted"); if (Number(row.moneyAward)) lines.push(`Money: $${Number(row.moneyAward).toLocaleString()}`); return lines; } } } } } }); if (weekTable) weekTable.destroy(); weekTable = new Tabulator("#week-table", { data: rows, layout: "fitDataStretch", pagination: true, paginationSize: 50, columns: [{ title: "Rank", field: "rank", sorter: "number" }, { title: "Player", field: "name", sorter: "string" }, { title: "Wins", field: "displayWins", sorter: "number" }, { title: "Losses", field: "displayLosses", sorter: "number" }, { title: "Win %", field: "displayWinPct", sorter: "number", formatter: cell => `${(Number(cell.getValue() || 0) * 100).toFixed(2)}%` }, { title: "Tiebreak Diff", field: "tiebreakerDiff", sorter: "number", mutator: (value, data) => tiebreakDiff(data) }, { title: "Tiebreaker", field: "tiebreaker", sorter: "number", formatter: cell => formatTiebreak(cell.getValue()) }, { title: "Actual Tiebreaker", field: "actualTiebreak", sorter: "number", formatter: cell => formatTiebreak(cell.getValue()) }], placeholder: "No results" }); renderPicksGrid(); }
 function renderWeekRace() { if (!websitePicks.length) return; const season = document.getElementById("week-season").value, week = document.getElementById("week-choice").value; const gameRows = websiteGames.filter(game => game.season === season && game.week === week).sort((a, b) => Number(a.gameNum) - Number(b.gameNum)); const weekRows = websiteWeeks.filter(row => row.season === season && row.week === week).sort((a, b) => Number(a.rank) - Number(b.rank)); const selected = [...document.getElementById("week-race-players").selectedOptions].map(option => option.value); const playerIds = selected.length ? selected : weekRows.slice(0, 10).map(row => row.playerId); const labels = gameRows.map(game => `G${game.gameNum}`); if (weekRaceChart) weekRaceChart.destroy(); weekRaceChart = new Chart(document.getElementById("week-race-chart"), { type: "line", data: { labels, datasets: playerIds.map((playerId, index) => { let total = 0; const player = websitePlayers.find(item => item.playerId === playerId); return { label: player?.name || playerId, data: gameRows.map(game => { const pick = websitePicks.find(item => item.gameId === game.gameId && item.playerId === playerId); total += Number(pick?.resultWin || 0); return total; }), borderColor: colors[index % colors.length], backgroundColor: colors[index % colors.length], tension: .2, pointRadius: 3 }; }) }, options: { responsive: true, maintainAspectRatio: false, interaction: { mode: "index", intersect: false }, scales: { x: { ticks: { color: "#91a0ae" }, grid: { color: "#2a3744" }, title: { display: true, text: "Game number", color: "#91a0ae" } }, y: { beginAtZero: true, ticks: { color: "#91a0ae", stepSize: 1 }, grid: { color: "#2a3744" }, title: { display: true, text: "Cumulative wins", color: "#91a0ae" } } }, plugins: { legend: { labels: { color: "#e8eef5" } } } } }); }
 async function loadDrilldown() {
   if (!websiteGames.length) [websiteGames, websitePicks] = await Promise.all(["games.json", "player_picks.json"].map(async file => await (await fetch(`${DATA_DIR}/${file}`)).json()));
@@ -235,7 +907,26 @@ function populateGameWeeks(latestGame = null) { const season = document.getEleme
 function teamDisplay(team, game) { return String(team || "").toUpperCase() === String(game.home || "").toUpperCase() ? String(team || "").toUpperCase() : String(team || "").toLowerCase(); }
 function favoriteScore(game) { return String(game.favorite || "").toUpperCase() === String(game.home || "").toUpperCase() ? game.homeScore : game.awayScore; }
 function underdogScore(game) { return String(game.underdog || "").toUpperCase() === String(game.home || "").toUpperCase() ? game.homeScore : game.awayScore; }
-function matchupLabel(game) { const spread = game.spread === "" || game.spread == null ? "" : `-${game.spread}`; return `${teamDisplay(game.favorite, game)} ${spread} ${teamDisplay(game.underdog, game)}`; }
+function matchupLabel(game) { const spread = game.spread === "" || game.spread == null ? "" : `${game.spread}`; return `${teamDisplay(game.favorite, game)} ${spread} ${teamDisplay(game.underdog, game)}`; }
+function gameTickLabel(game) { return matchupLabel(game); }
+function gameTickLines(game) { const spread = game.spread === "" || game.spread == null ? "" : String(game.spread); return [teamDisplay(game.favorite, game), spread, teamDisplay(game.underdog, game)]; }
+function buildPickSummary(playerId, game, pick) {
+  const lines = [];
+  const favScore = favoriteScore(game), dogScore = underdogScore(game);
+  if (favScore != null && favScore !== "" && dogScore != null && dogScore !== "") lines.push(`${teamDisplay(game.favorite, game)} ${favScore} - ${teamDisplay(game.underdog, game)} ${dogScore}`);
+  if (game?.atsResult) lines.push(game.atsResult);
+  if (pick?.pick) lines.push(`Pick: ${pick.pick}`);
+  const wins = Number(pick?.resultWin || 0) + Number(pick?.bestBetWin || 0);
+  const losses = Number(pick?.resultLoss || 0) + Number(pick?.bestBetLoss || 0);
+  const pushes = Number(pick?.resultPush || 0) + Number(pick?.bestBetPush || 0);
+  const resultParts = [];
+  if (wins) resultParts.push(`${wins} win${wins === 1 ? "" : "s"}`);
+  if (pushes) resultParts.push("push");
+  if (losses) resultParts.push(`${losses} loss${losses === 1 ? "" : "es"}`);
+  if (!resultParts.length) resultParts.push("no result");
+  lines.push(`Result: ${resultParts.join(", ")}`);
+  return lines;
+}
 function populateGameChoices(latestGame = null) { const season = document.getElementById("game-season").value, week = document.getElementById("game-week").value; const select = document.getElementById("game-choice"); select.innerHTML = ""; websiteGames.filter(game => game.season === season && game.week === week).forEach(game => select.add(new Option(`${game.gameNum}: ${matchupLabel(game)}`, game.gameId))); select.value = latestGame?.gameId || select.options[0]?.value || ""; renderGame(); }
 function renderGame() { const game = websiteGames.find(item => item.gameId === document.getElementById("game-choice").value); if (!game) return; document.getElementById("game-detail").innerHTML = [["Date", game.gameDate], ["Game time", game.gameTime], ["Matchup", matchupLabel(game)], ["Score", `${teamDisplay(game.favorite, game)} ${favoriteScore(game) ?? "?"} · ${teamDisplay(game.underdog, game)} ${underdogScore(game) ?? "?"}`], ["Result", game.atsResult]].map(([label, value]) => `<div><span>${label}</span><strong>${value ?? ""}</strong></div>`).join(""); const matchupTeams = [game.favorite, game.underdog].map(team => String(team || "").trim().toUpperCase()); const rows = websitePicks.filter(pick => pick.gameId === game.gameId).map(pick => ({ ...pick, bestBet: matchupTeams.includes(String(pick.bestBet || "").trim().toUpperCase()) ? pick.bestBet : "" })); if (gamePicksTable) gamePicksTable.destroy(); const columns = [{ title: "Player", field: "name", sorter: "string" }, { title: "Result", field: "result" }, { title: "Pick", field: "pick" }, { title: "Best Bet", field: "bestBet" }]; const showTiebreak = game.week === "super bowl" || (game.isFinalGame && !String(game.week).startsWith("round") && game.week !== "playoffs"); if (showTiebreak) columns.push({ title: "Tiebreak Diff", field: "tiebreakerDiff", sorter: "number" }, { title: "Tiebreaker", field: "tiebreaker", sorter: "number" }, { title: "Actual Tiebreaker", field: "actualTiebreak", sorter: "number" }); gamePicksTable = new Tabulator("#game-picks-table", { data: rows, layout: "fitDataStretch", pagination: true, paginationSize: 50, columns, placeholder: "No picks" }); }
 function renderProfile(name) {
@@ -269,13 +960,100 @@ function renderProfile(name) {
   if (profilePlacementChart) profilePlacementChart.destroy();
   renderStreakChart(weekly);
 }
-function initViews() { document.querySelectorAll("#nav button[data-view]").forEach(btn => btn.onclick = async () => { showView(btn.dataset.view); if (btn.dataset.view === "games" || btn.dataset.view === "weeks") await loadDrilldown(); if (btn.dataset.view === "weeks") renderWeekRace(); }); document.getElementById("profile-player").onchange = event => renderProfile(event.target.value); document.getElementById("explorer-season").onchange = renderSeasonExplorer; document.getElementById("explorer-players").onchange = renderSeasonExplorer; document.getElementById("money-player").onchange = renderMoneyMap; document.getElementById("streak-player").onchange = renderStreakLab; document.getElementById("streak-type").onchange = renderStreakLab; document.getElementById("game-season").onchange = populateGameWeeks; document.getElementById("game-week").onchange = populateGameChoices; document.getElementById("game-choice").onchange = renderGame; document.getElementById("week-season").onchange = populateWeekChoices; document.getElementById("week-choice").onchange = () => { renderWeek(); renderWeekRace(); }; document.getElementById("week-race-players").onchange = renderWeekRace; const requested = location.hash.slice(1); showView(["dashboard", "season", "money", "streaks", "weeks", "games", "records", "players", "tables"].includes(requested) ? requested : "dashboard"); }
+function initViews() { document.querySelectorAll("#nav button[data-view]").forEach(btn => btn.onclick = async () => { showView(btn.dataset.view); if (btn.dataset.view === "games" || btn.dataset.view === "weeks" || btn.dataset.view === "season") await loadDrilldown(); if (btn.dataset.view === "weeks") renderWeekRace(); }); document.getElementById("profile-player").onchange = event => renderProfile(event.target.value); document.getElementById("season-choice").onchange = () => renderSeason(true); document.getElementById("season-race-metric").onchange = () => { const season = document.getElementById("season-choice").value; const standings = seasonStandings(season); const weeks = seasonWeekList(season); renderSeasonRace(standings, weeks, seasonProgress(standings, weeks)); }; document.getElementById("season-player").onchange = () => { const season = document.getElementById("season-choice").value; renderSeasonPlayer(seasonStandings(season), seasonWeekList(season)); }; document.getElementById("money-player").onchange = renderMoneyMap; document.getElementById("streak-player").onchange = renderStreakLab; document.getElementById("streak-type").onchange = renderStreakLab; document.getElementById("game-season").onchange = populateGameWeeks; document.getElementById("game-week").onchange = populateGameChoices; document.getElementById("game-choice").onchange = renderGame; document.getElementById("week-season").onchange = populateWeekChoices; document.getElementById("week-choice").onchange = () => { renderWeek(); renderWeekRace(); }; document.getElementById("week-race-players").onchange = renderWeekRace; const requested = location.hash.slice(1); showView(["dashboard", "alltime", "season", "money", "streaks", "weeks", "games", "records", "players", "tables"].includes(requested) ? requested : "dashboard"); }
 function selectedPlayers() { return [...document.getElementById("player-filter").selectedOptions].map(o => o.value); }
 function filteredDashboard() { const from = document.getElementById("season-from").value, to = document.getElementById("season-to").value, competition = document.getElementById("competition-filter").value; const players = selectedPlayers(); return dashboard.filter(row => (!players.length || players.includes(row.Name)) && (!from || row.Season >= from) && (!to || row.Season <= to) && (competition === "all" || (competition === "playoffs" ? row.Week === "playoffs" : row.Week !== "playoffs"))); }
 function updateChart() { const rows = filteredDashboard(), metric = document.getElementById("chart-metric").value, style = document.getElementById("chart-style").value; const seasons = [...new Set(rows.map(r => r.Season))].sort(); const players = selectedPlayers().length ? selectedPlayers() : [...new Set(rows.map(r => r.Name))].slice(0, 8); const datasets = players.map((name, index) => { const points = seasons.map(season => { const matches = rows.filter(r => r.Name === name && r.Season === season); if (!matches.length) return null; if (metric === "wins") return matches.reduce((s, r) => s + Number(r.Wins || 0), 0); if (metric === "money") return matches.reduce((s, r) => s + Number(r.Winnings || 0), 0); if (metric === "rank") return matches.reduce((s, r) => s + Number(r.Rank || 0), 0) / matches.length; const games = matches.reduce((s, r) => s + Number(r.Wins || 0) + Number(r.Losses || 0), 0); return games ? matches.reduce((s, r) => s + Number(r.Wins || 0), 0) / games * 100 : 0; }); return { label: name, data: points, borderColor: colors[index % colors.length], backgroundColor: colors[index % colors.length] + "99", tension: .25, fill: false }; }); const labels = metric === "winPct" ? "Win percentage" : metric === "money" ? "Money won" : metric === "rank" ? "Average rank" : "Wins"; document.getElementById("chart-title").textContent = labels + " by season"; if (chart) chart.destroy(); chart = new Chart(document.getElementById("history-chart"), { type: style, data: { labels: seasons, datasets }, options: { responsive: true, maintainAspectRatio: false, interaction: { mode: "index", intersect: false }, plugins: { legend: { labels: { color: "#e8eef5" } } }, scales: { x: { ticks: { color: "#91a0ae" }, grid: { color: "#2a3744" } }, y: { beginAtZero: metric !== "rank", ticks: { color: "#91a0ae", callback: value => metric === "money" ? "$" + value : metric === "winPct" ? value + "%" : value }, grid: { color: "#2a3744" } } } } }); document.getElementById("weeks-count").textContent = rows.length.toLocaleString(); document.getElementById("wins-count").textContent = rows.reduce((s, r) => s + Number(r.Wins || 0), 0).toLocaleString(); document.getElementById("money-count").textContent = "$" + rows.reduce((s, r) => s + Number(r.Winnings || 0), 0).toLocaleString(); document.getElementById("players-count").textContent = new Set(rows.map(r => r.Name)).size; }
 function bindDashboard() { ["player-filter", "competition-filter", "season-from", "season-to", "chart-metric", "chart-style"].forEach(id => document.getElementById(id).onchange = updateChart); }
 async function initDashboard() { dashboard = await (await fetch(`${DATA_DIR}/dashboard.json`)).json(); const players = [...new Set(dashboard.map(r => r.Name))].sort(); const seasons = [...new Set(dashboard.map(r => r.Season))].sort(); const playerSelect = document.getElementById("player-filter"); players.forEach(name => playerSelect.add(new Option(name, name))); const from = document.getElementById("season-from"), to = document.getElementById("season-to"); seasons.forEach(season => { from.add(new Option(season, season)); to.add(new Option(season, season)); }); from.value = seasons[0] || ""; to.value = seasons[seasons.length - 1] || ""; bindDashboard(); updateChart(); }
-async function init() { manifest = await (await fetch(`${DATA_DIR}/manifest.json`)).json(); const nav = document.getElementById("nav"); for (const entry of manifest) { tableData[entry.key] = await (await fetch(`${DATA_DIR}/${entry.key}.json`)).json(); const btn = document.createElement("button"); btn.textContent = entry.title; btn.dataset.key = entry.key; btn.onclick = () => { showView("tables"); setActiveNav(entry.key); loadTable(entry.key, entry.title, entry.columns); }; nav.appendChild(btn); } [websitePlayers, websiteSeasons, websiteWeeks, websiteAwards, websiteRecords, websiteStreaks] = await Promise.all(["players.json", "seasons.json", "player_weeks.json", "awards.json", "records.json", "streaks.json"].map(async file => await (await fetch(`${DATA_DIR}/${file}`)).json())); const explorerSeason = document.getElementById("explorer-season"); websiteSeasons.forEach(season => explorerSeason.add(new Option(season.season, season.seasonId))); explorerSeason.value = websiteSeasons.at(-1)?.seasonId || ""; const explorerPlayers = document.getElementById("explorer-players"); websitePlayers.forEach(player => explorerPlayers.add(new Option(player.name, player.playerId))); const moneyPlayer = document.getElementById("money-player"); websitePlayers.forEach(player => moneyPlayer.add(new Option(player.name, player.playerId))); const streakPlayer = document.getElementById("streak-player"); websitePlayers.forEach(player => streakPlayer.add(new Option(player.name, player.playerId))); await initDashboard(); const players = [...new Set(dashboard.map(row => row.Name))].sort(); const profileSelect = document.getElementById("profile-player"); players.forEach(name => profileSelect.add(new Option(name, name))); const defaultPlayer = players.includes("RJ") ? "RJ" : players[0] || ""; profileSelect.value = defaultPlayer; const defaultId = websitePlayers.find(player => player.name === defaultPlayer)?.playerId || websitePlayers[0]?.playerId || ""; moneyPlayer.value = defaultId; streakPlayer.value = defaultId; initViews(); renderRecords(); renderProfile(profileSelect.value); renderSeasonExplorer(); renderMoneyMap(); renderStreakLab(); if (location.hash === "#games") await loadDrilldown(); }
+async function init() { manifest = await (await fetch(`${DATA_DIR}/manifest.json`)).json(); const nav = document.getElementById("nav"); for (const entry of manifest) { tableData[entry.key] = await (await fetch(`${DATA_DIR}/${entry.key}.json`)).json(); const btn = document.createElement("button"); btn.textContent = entry.title; btn.dataset.key = entry.key; btn.onclick = () => { showView("tables"); setActiveNav(entry.key); loadTable(entry.key, entry.title, entry.columns); }; nav.appendChild(btn); } [websitePlayers, websiteSeasons, websiteWeeks, websiteAwards, websiteRecords, websiteStreaks] = await Promise.all(["players.json", "seasons.json", "player_weeks.json", "awards.json", "records.json", "streaks.json"].map(async file => await (await fetch(`${DATA_DIR}/${file}`)).json())); const moneyPlayer = document.getElementById("money-player"); websitePlayers.forEach(player => moneyPlayer.add(new Option(player.name, player.playerId))); const streakPlayer = document.getElementById("streak-player"); websitePlayers.forEach(player => streakPlayer.add(new Option(player.name, player.playerId))); await initDashboard(); const players = [...new Set(dashboard.map(row => row.Name))].sort(); const profileSelect = document.getElementById("profile-player"); players.forEach(name => profileSelect.add(new Option(name, name))); const defaultPlayer = players.includes("RJ") ? "RJ" : players[0] || ""; profileSelect.value = defaultPlayer; const defaultId = websitePlayers.find(player => player.name === defaultPlayer)?.playerId || websitePlayers[0]?.playerId || ""; moneyPlayer.value = defaultId; streakPlayer.value = defaultId; initViews(); renderRecords(); renderProfile(profileSelect.value); renderMoneyMap(); renderStreakLab(); renderAllTime(); if (location.hash === "#games") await loadDrilldown(); }
+function renderPicksGrid() {
+  const el = document.getElementById("week-picks-grid");
+  if (!el || !websitePicks.length) return;
+  const season = document.getElementById("week-season").value;
+  const week = document.getElementById("week-choice").value;
+  const isPlayoffs = week === "playoffs";
+  const playoffWeeks = ["round 1", "round 2", "round 3", "super bowl"];
+  const allGames = websiteGames.filter(g => g.season === season && (g.week === week || (isPlayoffs && playoffWeeks.includes(g.week)))).sort((a, b) => Number(a.playoffGameNum || a.gameNum) - Number(b.playoffGameNum || b.gameNum));
+  const weekRows = websiteWeeks.filter(r => r.season === season && r.week === week).sort((a, b) => Number(a.rank) - Number(b.rank));
+  if (!weekRows.length || !allGames.length) { el.innerHTML = ""; return; }
+  const gameIds = new Set(allGames.map(g => g.gameId));
+  const pickMap = {};
+  websitePicks.forEach(p => { if (gameIds.has(p.gameId)) pickMap[`${p.playerId}:${p.gameId}`] = p; });
+  const getPick = (playerId, gameId) => pickMap[`${playerId}:${gameId}`];
+  const rounds = isPlayoffs
+    ? playoffWeeks.filter(w => allGames.some(g => g.week === w)).map(w => ({ week: w, games: allGames.filter(g => g.week === w), isSB: w === "super bowl" }))
+    : [{ week, games: allGames, isSB: false }];
+  const gameCell = pick => {
+    if (!pick?.pick) return ["pg-pick-none", ""];
+    if (pick.resultWin) return ["pg-pick-win", pick.pick];
+    if (pick.resultLoss) return ["pg-pick-loss", pick.pick];
+    if (pick.resultPush) return ["pg-pick-push", pick.pick];
+    return ["pg-pick-pending", pick.pick];
+  };
+  // bestBet is same on every pick in a round; bestBetWin/Loss/Push is set only on the actual BB game
+  const bbCell = (roundPicks, isSB) => {
+    if (!roundPicks.length) return ["pg-bb-none", ""];
+    const bbTeam = roundPicks.find(p => p?.bestBet)?.bestBet;
+    if (!bbTeam) return isSB ? gameCell(roundPicks[0]) : ["pg-bb-none", ""];
+    const bbResult = roundPicks.find(p => p?.bestBetWin || p?.bestBetLoss || p?.bestBetPush);
+    if (!bbResult) return ["pg-bb-pending", bbTeam];
+    if (bbResult.bestBetWin) return ["pg-bb-win", bbTeam];
+    if (bbResult.bestBetLoss) return ["pg-bb-loss", bbTeam];
+    return ["pg-bb-push", bbTeam];
+  };
+  const rl = { "round 1": "Round 1", "round 2": "Round 2", "round 3": "Round 3", "super bowl": "Super Bowl" };
+  let html = '<table class="picks-grid"><thead>';
+  if (isPlayoffs) {
+    html += '<tr><th rowspan="2" class="pg-player">Player</th>';
+    rounds.forEach(r => { html += `<th colspan="${r.games.length + 1}" class="pg-round">${rl[r.week] || r.week}</th>`; });
+    html += '<th rowspan="2" class="pg-sum-hdr">TB<br><small>' + formatTiebreak(weekRows[0]?.actualTiebreak) + '</small></th><th rowspan="2" class="pg-sum-hdr pg-w">W</th><th rowspan="2" class="pg-sum-hdr pg-l">L</th><th rowspan="2" class="pg-sum-hdr">Total</th><th rowspan="2" class="pg-sum-hdr">Win%</th></tr><tr>';
+    rounds.forEach(r => {
+      r.games.forEach(game => {
+        const sp = game.spread != null && game.spread !== "" ? `${game.spread}` : "";
+        html += `<th class="pg-game">${teamDisplay(game.favorite, game)}<br><small>${sp}</small><br>${teamDisplay(game.underdog, game)}</th>`;
+      });
+      html += `<th class="pg-bb-hdr">${r.isSB ? "SB" : "BB"}</th>`;
+    });
+    html += '</tr>';
+  } else {
+    html += '<tr><th class="pg-player">Player</th>';
+    allGames.forEach(game => {
+      const sp = game.spread != null && game.spread !== "" ? `${game.spread}` : "";
+      html += `<th class="pg-game">${teamDisplay(game.favorite, game)}<br><small>${sp}</small><br>${teamDisplay(game.underdog, game)}</th>`;
+    });
+    html += `<th class="pg-bb-hdr">BB</th><th class="pg-sum-hdr">TB<br><small>${formatTiebreak(weekRows[0]?.actualTiebreak)}</small></th><th class="pg-sum-hdr pg-w">W</th><th class="pg-sum-hdr pg-l">L</th><th class="pg-sum-hdr">Total</th></tr>`;
+  }
+  html += '</thead><tbody>';
+  weekRows.forEach(row => {
+    html += `<tr><td class="pg-player">${row.name}</td>`;
+    if (isPlayoffs) {
+      rounds.forEach(r => {
+        r.games.forEach(game => {
+          const [cls, txt] = gameCell(getPick(row.playerId, game.gameId));
+          html += `<td class="${cls}">${txt}</td>`;
+        });
+        const rPicks = r.games.map(g => getPick(row.playerId, g.gameId)).filter(Boolean);
+        const [cls, txt] = bbCell(rPicks, r.isSB);
+        html += `<td class="${cls}">${txt}</td>`;
+      });
+      const total = Number(row.displayWins) + Number(row.displayLosses);
+      html += `<td class="pg-sum-cell">${formatTiebreak(row.tiebreaker)}</td><td class="pg-sum-cell pg-w">${row.displayWins}</td><td class="pg-sum-cell pg-l">${row.displayLosses}</td><td class="pg-sum-cell">${total}</td><td class="pg-sum-cell">${row.displayWinPct != null ? (Number(row.displayWinPct)*100).toFixed(1)+"%" : ""}</td>`;
+    } else {
+      allGames.forEach(game => {
+        const [cls, txt] = gameCell(getPick(row.playerId, game.gameId));
+        html += `<td class="${cls}">${txt}</td>`;
+      });
+      const allPicks = allGames.map(g => getPick(row.playerId, g.gameId)).filter(Boolean);
+      const [cls, txt] = bbCell(allPicks, false);
+      html += `<td class="${cls}">${txt}</td>`;
+      html += `<td class="pg-sum-cell">${formatTiebreak(row.tiebreaker)}</td><td class="pg-sum-cell pg-w">${row.displayWins}</td><td class="pg-sum-cell pg-l">${row.displayLosses}</td><td class="pg-sum-cell">${Number(row.displayWins)+Number(row.displayLosses)}</td>`;
+    }
+    html += '</tr>';
+  });
+  html += '</tbody></table>';
+  el.innerHTML = html;
+}
 function renderWeekRace() {
   if (!websitePicks.length) return;
   const season = document.getElementById("week-season").value;
@@ -285,7 +1063,7 @@ function renderWeekRace() {
   const weekRows = websiteWeeks.filter(row => row.season === season && row.week === week).sort((a, b) => Number(a.rank) - Number(b.rank));
   const playerIds = weekRows.slice(0, 3).map(row => row.playerId);
   if (weekRaceChart) weekRaceChart.destroy();
-  weekRaceChart = new Chart(document.getElementById("week-race-chart"), { type: "line", data: { labels: gameRows.map(game => `${matchupLabel(game)} · ${game.atsResult}`), datasets: playerIds.map((playerId, index) => { let total = 0; const player = websitePlayers.find(item => item.playerId === playerId); return { label: player?.name || playerId, data: gameRows.map(game => { const pick = websitePicks.find(item => item.gameId === game.gameId && item.playerId === playerId); total += Number(pick?.resultWin || 0) + Number(pick?.bestBetWin || 0); return total; }), borderColor: colors[index % colors.length], backgroundColor: colors[index % colors.length], tension: .2, pointRadius: 4, pointHoverRadius: 7, stepped: true }; }) }, options: { responsive: true, maintainAspectRatio: false, interaction: { mode: "index", intersect: false }, scales: { x: { ticks: { color: "#91a0ae", maxRotation: 65, minRotation: 45 }, grid: { color: "#2a3744" }, title: { display: true, text: "Games: favorite · spread · underdog · result", color: "#91a0ae" } }, y: { beginAtZero: true, ticks: { color: "#91a0ae", stepSize: 1 }, grid: { color: "#2a3744" }, title: { display: true, text: "Cumulative wins including Best Bet wins", color: "#91a0ae" } } }, plugins: { legend: { labels: { color: "#e8eef5" } }, tooltip: { callbacks: { label: context => `${context.dataset.label}: ${context.raw} cumulative wins` } } } } });
+  weekRaceChart = new Chart(document.getElementById("week-race-chart"), { type: "line", data: { labels: gameRows.map(game => gameTickLabel(game)), datasets: playerIds.map((playerId, index) => { let total = 0; const player = websitePlayers.find(item => item.playerId === playerId); return { label: player?.name || playerId, playerId, gameList: gameRows, data: gameRows.map(game => { const pick = websitePicks.find(item => item.gameId === game.gameId && item.playerId === playerId); total += Number(pick?.resultWin || 0) + Number(pick?.bestBetWin || 0); return total; }), borderColor: colors[index % colors.length], backgroundColor: colors[index % colors.length], tension: .2, pointRadius: 4, pointHoverRadius: 7, stepped: true }; }) }, options: { responsive: true, maintainAspectRatio: false, interaction: { mode: "index", intersect: false }, scales: { x: { ticks: { color: "#91a0ae", minRotation: 90, maxRotation: 90, autoSkip: false }, grid: { color: "#2a3744" }, title: { display: true, text: "Games: favorite · spread · underdog", color: "#91a0ae" } }, y: { beginAtZero: true, ticks: { color: "#91a0ae", stepSize: 1 }, grid: { color: "#2a3744" }, title: { display: true, text: "Cumulative wins including Best Bet wins", color: "#91a0ae" } } }, plugins: { legend: { labels: { color: "#e8eef5" } }, tooltip: { callbacks: { title: () => "", beforeBody: items => { const dataset = items[0].dataset; const game = dataset.gameList[items[0].dataIndex]; const pick = websitePicks.find(item => item.gameId === game.gameId && item.playerId === dataset.playerId); return buildPickSummary(dataset.playerId, game, pick); }, label: context => `${context.dataset.label}: ${context.raw} cumulative wins` } } } } });
 }
 function renderWeekRace() {
   if (!websitePicks.length) return;
@@ -295,7 +1073,7 @@ function renderWeekRace() {
   const rows = websiteWeeks.filter(row => row.season === season && row.week === week).sort((a, b) => Number(a.rank) - Number(b.rank));
   const playerIds = rows.slice(0, 3).map(row => row.playerId);
   if (weekRaceChart) weekRaceChart.destroy();
-  weekRaceChart = new Chart(document.getElementById("week-race-chart"), { type: "bar", data: { labels: games.map(game => `${matchupLabel(game)} · ${game.atsResult}`), datasets: playerIds.map((playerId, index) => { let total = 0; const player = websitePlayers.find(item => item.playerId === playerId); return { label: player?.name || playerId, data: games.map(game => { const pick = websitePicks.find(item => item.gameId === game.gameId && item.playerId === playerId); total += Number(pick?.resultWin || 0) + Number(pick?.bestBetWin || 0); return total; }), backgroundColor: ["#d4af37", "#c0c0c0", "#cd7f32"][index], borderColor: ["#d4af37", "#c0c0c0", "#cd7f32"][index], borderWidth: 1, categoryPercentage: .78, barPercentage: .9 }; }) }, options: { responsive: true, maintainAspectRatio: false, scales: { x: { ticks: { color: "#91a0ae", minRotation: 90, maxRotation: 90, autoSkip: false }, grid: { color: "#2a3744" }, title: { display: true, text: "Game: favorite · spread · underdog · result", color: "#91a0ae" } }, y: { beginAtZero: true, ticks: { color: "#91a0ae", stepSize: 1 }, grid: { color: "#2a3744" }, title: { display: true, text: "Cumulative wins including Best Bet wins", color: "#91a0ae" } } }, plugins: { legend: { labels: { color: "#e8eef5" } }, tooltip: { callbacks: { title: items => items[0].label, label: context => `${context.dataset.label}: ${context.raw} cumulative wins` } } } } });
+  weekRaceChart = new Chart(document.getElementById("week-race-chart"), { type: "bar", data: { labels: games.map(game => gameTickLines(game)), datasets: playerIds.map((playerId, index) => { let total = 0; const player = websitePlayers.find(item => item.playerId === playerId); return { label: player?.name || playerId, playerId, gameList: games, pickLabels: games.map(game => { const pick = websitePicks.find(item => item.gameId === game.gameId && item.playerId === playerId); if (!pick?.pick) return ""; const outcome = Number(pick.resultWin || 0) ? "W" : Number(pick.resultLoss || 0) ? "L" : Number(pick.resultPush || 0) ? "P" : ""; const isBestBet = Number(pick.bestBetWin || 0) || Number(pick.bestBetLoss || 0) || Number(pick.bestBetPush || 0); return [pick.pick, outcome, isBestBet ? "x2" : ""].filter(Boolean).join(" "); }), data: games.map(game => { const pick = websitePicks.find(item => item.gameId === game.gameId && item.playerId === playerId); total += Number(pick?.resultWin || 0) + Number(pick?.bestBetWin || 0); return total; }), backgroundColor: ["#d4af37", "#c0c0c0", "#cd7f32"][index], borderColor: ["#d4af37", "#c0c0c0", "#cd7f32"][index], borderWidth: 1, categoryPercentage: .78, barPercentage: .9 }; }) }, options: { responsive: true, maintainAspectRatio: false, scales: { x: { ticks: { color: "#91a0ae", minRotation: 0, maxRotation: 0, autoSkip: false, font: { size: 10 } }, grid: { color: "#2a3744" } }, y: { beginAtZero: true, ticks: { color: "#91a0ae", stepSize: 1 }, grid: { color: "#2a3744" }, title: { display: true, text: "Cumulative wins including Best Bet wins", color: "#91a0ae" } } }, plugins: { title: { display: true, text: "Podium: Top 3", color: "#e8eef5", font: { size: 15, weight: "normal" }, padding: { bottom: 12 } }, legend: { labels: { color: "#e8eef5" } }, tooltip: { callbacks: { title: () => "", beforeBody: items => { const dataset = items[0].dataset; const game = dataset.gameList[items[0].dataIndex]; const pick = websitePicks.find(item => item.gameId === game.gameId && item.playerId === dataset.playerId); return buildPickSummary(dataset.playerId, game, pick); }, label: context => `${context.dataset.label}: ${context.raw} cumulative wins` } } } } });
 }
 function orientWeekChart() { const current = Chart.getChart("week-chart"); if (current) { current.options.scales.y.reverse = false; current.options.scales.y.ticks.display = false; current.update(); } }
 function renderWinnerContributions(resetPlayer = false) {
@@ -307,17 +1085,16 @@ function renderWinnerContributions(resetPlayer = false) {
   const playerSelect = document.getElementById("contribution-player");
   const previousPlayer = playerSelect.value;
   playerSelect.innerHTML = "";
-  weekRows.forEach(row => playerSelect.add(new Option(row.name, row.playerId)));
-  const selectedPlayer = resetPlayer || !weekRows.some(row => row.playerId === previousPlayer) ? weekRows[0]?.playerId : previousPlayer;
-  const winner = weekRows.find(row => row.playerId === selectedPlayer) || weekRows[0];
+  [...weekRows].sort((a, b) => String(a.name).localeCompare(String(b.name))).forEach(row => playerSelect.add(new Option(row.name, row.playerId)));
+  const selectedPlayer = resetPlayer || !weekRows.some(row => row.playerId === previousPlayer) ? weekRows[0]?.playerId : previousPlayer;  const winner = weekRows.find(row => row.playerId === selectedPlayer) || weekRows[0];
   if (winner) playerSelect.value = resetPlayer ? winner.playerId : selectedPlayer;
-  const contributions = games.map(game => { const pick = websitePicks.find(row => row.gameId === game.gameId && row.playerId === winner?.playerId); return { game, gameWin: Number(pick?.resultWin || 0), gameLoss: Number(pick?.resultLoss || 0), gamePush: Number(pick?.resultPush || 0), betWin: Number(pick?.bestBetWin || 0), betLoss: Number(pick?.bestBetLoss || 0) + Number(pick?.bestBetPush || 0) }; });
+  const contributions = games.map(game => { const pick = websitePicks.find(row => row.gameId === game.gameId && row.playerId === winner?.playerId); return { game, pick, gameWin: Number(pick?.resultWin || 0), gameLoss: Number(pick?.resultLoss || 0), gamePush: Number(pick?.resultPush || 0), betWin: Number(pick?.bestBetWin || 0), betLoss: Number(pick?.bestBetLoss || 0) + Number(pick?.bestBetPush || 0) }; });
   if (winnerContributionChart) winnerContributionChart.destroy();
-  winnerContributionChart = new Chart(document.getElementById("winner-contribution-chart"), { type: "bar", data: { labels: contributions.map((item, index) => `G${item.game.playoffGameNum || item.game.gameNum || index + 1}`), datasets: [{ label: "Game win", data: contributions.map(item => item.gameWin), backgroundColor: "#238b68", borderColor: "#238b68", borderWidth: 1, stack: "outcome" }, { label: "Best Bet win", data: contributions.map(item => item.betWin), backgroundColor: "#7ee2b8", borderColor: "#7ee2b8", borderWidth: 1, stack: "outcome" }, { label: "Game loss", data: contributions.map(item => -item.gameLoss), backgroundColor: "#d94b5b", borderColor: "#d94b5b", borderWidth: 1, stack: "outcome" }, { label: "Best Bet loss", data: contributions.map(item => -item.betLoss), backgroundColor: "#ff9aa5", borderColor: "#ff9aa5", borderWidth: 1, stack: "outcome" }] }, options: { responsive: true, maintainAspectRatio: false, scales: { x: { stacked: true, ticks: { color: "#91a0ae", autoSkip: false }, grid: { color: "#2a3744" }, title: { display: true, text: "Game", color: "#91a0ae" } }, y: { stacked: true, beginAtZero: true, min: -2, max: 2, ticks: { color: "#91a0ae", stepSize: 1, callback: value => value }, grid: { color: "#2a3744" }, title: { display: true, text: "Wins / losses", color: "#91a0ae" } } }, plugins: { legend: { labels: { color: "#e8eef5" } }, title: { display: true, text: winner ? `${winner.name}: ${winner.displayWins}-${winner.displayLosses}` : "Winner contributions", color: "#e8eef5" }, tooltip: { callbacks: { title: items => { const item = contributions[items[0].dataIndex]; return `${items[0].label}: ${matchupLabel(item.game)} · ${item.game.atsResult}`; }, label: context => `${context.dataset.label}: ${context.raw > 0 ? "yes" : context.raw < 0 ? "yes" : "no"}` } } } } });
+  winnerContributionChart = new Chart(document.getElementById("winner-contribution-chart"), { type: "bar", data: { labels: contributions.map(item => gameTickLines(item.game)), datasets: [{ label: "Game win", data: contributions.map(item => item.gameWin), pickLabels: contributions.map(item => item.pick?.pick || ""), backgroundColor: "#238b68", borderColor: "#238b68", borderWidth: 1, stack: "outcome" }, { label: "Best Bet win", data: contributions.map(item => item.betWin), backgroundColor: "#7ee2b8", borderColor: "#7ee2b8", borderWidth: 1, stack: "outcome" }, { label: "Game loss", data: contributions.map(item => -item.gameLoss), backgroundColor: "#d94b5b", borderColor: "#d94b5b", borderWidth: 1, stack: "outcome" }, { label: "Best Bet loss", data: contributions.map(item => -item.betLoss), backgroundColor: "#ff9aa5", borderColor: "#ff9aa5", borderWidth: 1, stack: "outcome" }] }, options: { responsive: true, maintainAspectRatio: false, layout: { padding: { top: 8, right: 12, bottom: 12, left: 12 } }, scales: { x: { stacked: true, ticks: { color: "#91a0ae", autoSkip: false, minRotation: 0, maxRotation: 0, font: { size: 10 } }, grid: { color: "#2a3744" } }, y: { stacked: true, beginAtZero: true, min: -2, max: 2, ticks: { color: "#91a0ae", stepSize: 1, callback: value => value }, grid: { color: "#2a3744" }, title: { display: true, text: "Wins / losses", color: "#91a0ae" } } }, plugins: { legend: { labels: { color: "#e8eef5" } }, title: { display: true, text: winner ? `${winner.name}: ${winner.displayWins}-${winner.displayLosses}` : "Winner contributions", color: "#e8eef5" }, tooltip: { callbacks: { title: () => "", beforeBody: items => { const item = contributions[items[0].dataIndex]; return buildPickSummary(winner?.playerId || "", item.game, item.pick); }, label: () => "" } } } } });
 }
 function addGamePushMarkers() { const chart = Chart.getChart("winner-contribution-chart"); if (!chart) return; const season = document.getElementById("week-season").value, week = document.getElementById("week-choice").value, playoffWeeks = ["round 1", "round 2", "round 3", "super bowl"]; const games = websiteGames.filter(game => game.season === season && (game.week === week || (week === "playoffs" && playoffWeeks.includes(game.week)))).sort((a, b) => Number(a.playoffGameNum || a.gameNum) - Number(b.playoffGameNum || b.gameNum)); const playerId = document.getElementById("contribution-player").value; const pushes = games.map(game => { const pick = websitePicks.find(row => row.gameId === game.gameId && row.playerId === playerId); return pick?.resultPush ? 0.25 : 0; }); chart.data.datasets = chart.data.datasets.filter(dataset => dataset.label !== "Game push"); chart.data.datasets.push({ label: "Game push", data: pushes, backgroundColor: "#9aa4af", borderColor: "#9aa4af", borderWidth: 1, stack: "outcome" }); chart.update(); }
-document.addEventListener("change", event => { if (event.target.id === "week-choice" || event.target.id === "contribution-player") { setTimeout(orientWeekChart, 0); renderWinnerContributions(event.target.id === "week-choice"); setTimeout(addGamePushMarkers, 0); } });
-init().then(async () => { const contributionLabel = document.getElementById("contribution-player")?.parentElement; if (contributionLabel) contributionLabel.firstChild.textContent = "Player"; populateWeekSeasons(); if (location.hash === "#weeks") { await loadDrilldown(); renderWeekRace(); renderWinnerContributions(true); setTimeout(() => { orientWeekChart(); addGamePushMarkers(); }, 0); } const profileSelect = document.getElementById("profile-player"); if ([...profileSelect.options].some(option => option.value === "Thomas")) { profileSelect.value = "Thomas"; renderProfile("Thomas"); } });
+document.addEventListener("change", event => { if (event.target.id === "week-season" || event.target.id === "week-choice" || event.target.id === "contribution-player") { setTimeout(orientWeekChart, 0); renderWinnerContributions(event.target.id !== "contribution-player"); setTimeout(addGamePushMarkers, 0); } });
+init().then(async () => { const contributionLabel = document.getElementById("contribution-player")?.parentElement; if (contributionLabel) contributionLabel.firstChild.textContent = "Player"; populateWeekSeasons(); populateSeasonChoices(); if (location.hash === "#weeks") { await loadDrilldown(); renderWeekRace(); renderWinnerContributions(true); renderPicksGrid(); setTimeout(() => { orientWeekChart(); addGamePushMarkers(); }, 0); } const profileSelect = document.getElementById("profile-player"); if ([...profileSelect.options].some(option => option.value === "Thomas")) { profileSelect.value = "Thomas"; renderProfile("Thomas"); } });
 </script>
 </body>
 </html>
