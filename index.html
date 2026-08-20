@@ -56,6 +56,7 @@
   .profile-charts { display: grid; grid-template-columns: repeat(2, 1fr); gap: 14px; margin-top: 14px; }
   .explorer-controls { display: grid; grid-template-columns: 220px minmax(240px, 1fr); gap: 12px; margin-bottom: 14px; }
   #view-games .explorer-controls { grid-template-columns: 1fr; max-width: 420px; }
+  #view-weeks .explorer-controls { grid-template-columns: 1fr; max-width: 420px; }
   .wide-chart { min-height: 470px; }
   #search-box { margin-bottom: 12px; }
   #search-box input { max-width: 350px; }
@@ -68,7 +69,7 @@
   .tabulator-row:hover { background: #263b40 !important; }
   #loading { color: var(--muted); font: 13px Arial, sans-serif; }
   @media (max-width: 850px) { .workspace, .profile-grid, .profile-charts { grid-template-columns: 1fr; } .record-grid { grid-template-columns: repeat(2, 1fr); } .intro { display: block; } .intro p { margin-top: 14px; } }
-  @media (max-width: 560px) { .summary { grid-template-columns: repeat(2, 1fr); } .panel-head { align-items: start; flex-direction: column; } .explorer-controls { grid-template-columns: 1fr; } #view-games .explorer-controls { max-width: none; } }
+  @media (max-width: 560px) { .summary { grid-template-columns: repeat(2, 1fr); } .panel-head { align-items: start; flex-direction: column; } .explorer-controls { grid-template-columns: 1fr; } #view-games .explorer-controls, #view-weeks .explorer-controls { max-width: none; } }
 </style>
 </head>
 <body>
@@ -110,9 +111,9 @@
     <section class="intro"><div><div class="eyebrow">Season → week → game</div><h2>Game Browser</h2></div><p>Drill from a season into a specific matchup, then inspect every player's pick, score, spread, and result.</p></section>
     <div class="panel"><div class="explorer-controls"><label>Season<select id="game-season"></select></label><label>Week<select id="game-week"></select></label></div><label style="max-width:420px">Game<select id="game-choice"></select></label><div id="game-detail" class="profile-list" style="margin-top:16px"></div><div id="game-picks-table" style="margin-top:16px"></div></div>
   </section>
-  <section id="view-weeks" class="view">
+  <section id="view-weeks" class="view"><select id="week-race-players" hidden></select>
     <section class="intro"><div><div class="eyebrow">Who owned the week?</div><h2>Week Browser</h2></div><p>Choose a season and week to see the winner, leaderboard, records, and money awarded.</p></section>
-    <div class="panel"><div class="explorer-controls"><label>Season<select id="week-season"></select></label><label>Week<select id="week-choice"></select></label><label>Race players<select id="week-race-players" multiple></select></label></div><div id="week-summary" class="summary"></div><div class="chart-wrap wide-chart"><canvas id="week-chart"></canvas></div><div id="week-table" style="margin-top:16px"></div><div class="chart-wrap wide-chart" style="margin-top:24px"><canvas id="week-race-chart"></canvas></div><h3 style="margin:24px 0 10px">Winner's game contributions</h3><div class="chart-wrap wide-chart"><canvas id="winner-contribution-chart"></canvas></div></div>
+    <div class="panel"><div class="explorer-controls"><label>Season<select id="week-season"></select></label><label>Week<select id="week-choice"></select></label></div><div id="week-summary" class="summary"></div><div class="chart-wrap wide-chart"><canvas id="week-chart"></canvas></div><div id="week-table" style="margin-top:16px"></div><div class="chart-wrap wide-chart" style="margin-top:24px"><canvas id="week-race-chart"></canvas></div><div class="explorer-controls" style="margin-top:24px"><label>Contribution player<select id="contribution-player"></select></label></div><h3 style="margin:24px 0 10px">Player's game contributions</h3><div class="chart-wrap wide-chart"><canvas id="winner-contribution-chart"></canvas></div></div>
   </section>
   <section id="view-players" class="view">
     <section class="intro"><div><div class="eyebrow">One player at a time</div><h2>Player Profile</h2></div><p>Choose a player to see their all-time totals and season-by-season record.</p></section>
@@ -278,8 +279,7 @@ function renderWeekRace() {
   const playoffWeeks = ["round 1", "round 2", "round 3", "super bowl"];
   const gameRows = websiteGames.filter(game => game.season === season && (game.week === week || (week === "playoffs" && playoffWeeks.includes(game.week)))).sort((a, b) => Number(a.playoffGameNum || a.gameNum) - Number(b.playoffGameNum || b.gameNum));
   const weekRows = websiteWeeks.filter(row => row.season === season && row.week === week).sort((a, b) => Number(a.rank) - Number(b.rank));
-  const selected = [...document.getElementById("week-race-players").selectedOptions].map(option => option.value);
-  const playerIds = selected.length ? selected : weekRows.slice(0, 3).map(row => row.playerId);
+  const playerIds = weekRows.slice(0, 3).map(row => row.playerId);
   if (weekRaceChart) weekRaceChart.destroy();
   weekRaceChart = new Chart(document.getElementById("week-race-chart"), { type: "line", data: { labels: gameRows.map(game => `${matchupLabel(game)} · ${game.atsResult}`), datasets: playerIds.map((playerId, index) => { let total = 0; const player = websitePlayers.find(item => item.playerId === playerId); return { label: player?.name || playerId, data: gameRows.map(game => { const pick = websitePicks.find(item => item.gameId === game.gameId && item.playerId === playerId); total += Number(pick?.resultWin || 0) + Number(pick?.bestBetWin || 0); return total; }), borderColor: colors[index % colors.length], backgroundColor: colors[index % colors.length], tension: .2, pointRadius: 4, pointHoverRadius: 7, stepped: true }; }) }, options: { responsive: true, maintainAspectRatio: false, interaction: { mode: "index", intersect: false }, scales: { x: { ticks: { color: "#91a0ae", maxRotation: 65, minRotation: 45 }, grid: { color: "#2a3744" }, title: { display: true, text: "Games: favorite · spread · underdog · result", color: "#91a0ae" } }, y: { beginAtZero: true, ticks: { color: "#91a0ae", stepSize: 1 }, grid: { color: "#2a3744" }, title: { display: true, text: "Cumulative wins including Best Bet wins", color: "#91a0ae" } } }, plugins: { legend: { labels: { color: "#e8eef5" } }, tooltip: { callbacks: { label: context => `${context.dataset.label}: ${context.raw} cumulative wins` } } } } });
 }
@@ -289,12 +289,19 @@ function renderWinnerContributions() {
   const season = document.getElementById("week-season").value, week = document.getElementById("week-choice").value;
   const playoffWeeks = ["round 1", "round 2", "round 3", "super bowl"];
   const games = websiteGames.filter(game => game.season === season && (game.week === week || (week === "playoffs" && playoffWeeks.includes(game.week)))).sort((a, b) => Number(a.playoffGameNum || a.gameNum) - Number(b.playoffGameNum || b.gameNum));
-  const winner = websiteWeeks.filter(row => row.season === season && row.week === week).sort((a, b) => Number(a.rank) - Number(b.rank))[0];
+  const weekRows = websiteWeeks.filter(row => row.season === season && row.week === week).sort((a, b) => Number(a.rank) - Number(b.rank));
+  const playerSelect = document.getElementById("contribution-player");
+  const previousPlayer = playerSelect.value;
+  playerSelect.innerHTML = "";
+  weekRows.forEach(row => playerSelect.add(new Option(row.name, row.playerId)));
+  const selectedPlayer = weekRows.some(row => row.playerId === previousPlayer) ? previousPlayer : weekRows[0]?.playerId;
+  const winner = weekRows.find(row => row.playerId === selectedPlayer) || weekRows[0];
+  if (winner && playerSelect.value !== winner.playerId) playerSelect.value = winner.playerId;
   const contributions = games.map(game => { const pick = websitePicks.find(row => row.gameId === game.gameId && row.playerId === winner?.playerId); return { game, gameWin: Number(pick?.resultWin || 0), gameLoss: Number(pick?.resultLoss || 0), betWin: Number(pick?.bestBetWin || 0), betLoss: Number(pick?.bestBetLoss || 0) }; });
   if (winnerContributionChart) winnerContributionChart.destroy();
   winnerContributionChart = new Chart(document.getElementById("winner-contribution-chart"), { type: "bar", data: { labels: contributions.map((item, index) => `G${item.game.playoffGameNum || item.game.gameNum || index + 1}`), datasets: [{ label: "Game win", data: contributions.map(item => item.gameWin), backgroundColor: "#238b68", borderColor: "#238b68", borderWidth: 1, stack: "outcome" }, { label: "Best Bet win", data: contributions.map(item => item.betWin), backgroundColor: "#7ee2b8", borderColor: "#7ee2b8", borderWidth: 1, stack: "outcome" }, { label: "Game loss", data: contributions.map(item => -item.gameLoss), backgroundColor: "#d94b5b", borderColor: "#d94b5b", borderWidth: 1, stack: "outcome" }, { label: "Best Bet loss", data: contributions.map(item => -item.betLoss), backgroundColor: "#ff9aa5", borderColor: "#ff9aa5", borderWidth: 1, stack: "outcome" }] }, options: { responsive: true, maintainAspectRatio: false, scales: { x: { stacked: true, ticks: { color: "#91a0ae", autoSkip: false }, grid: { color: "#2a3744" }, title: { display: true, text: "Game", color: "#91a0ae" } }, y: { stacked: true, beginAtZero: true, min: -2, max: 2, ticks: { color: "#91a0ae", stepSize: 1, callback: value => value }, grid: { color: "#2a3744" }, title: { display: true, text: "Wins / losses", color: "#91a0ae" } } }, plugins: { legend: { labels: { color: "#e8eef5" } }, title: { display: true, text: winner ? `${winner.name}: ${winner.displayWins}-${winner.displayLosses}` : "Winner contributions", color: "#e8eef5" }, tooltip: { callbacks: { title: items => { const item = contributions[items[0].dataIndex]; return `${items[0].label}: ${matchupLabel(item.game)} · ${item.game.atsResult}`; }, label: context => `${context.dataset.label}: ${context.raw > 0 ? "yes" : context.raw < 0 ? "yes" : "no"}` } } } } });
 }
-document.addEventListener("change", event => { if (event.target.id === "week-choice") { setTimeout(orientWeekChart, 0); renderWinnerContributions(); } });
+document.addEventListener("change", event => { if (event.target.id === "week-choice" || event.target.id === "contribution-player") { setTimeout(orientWeekChart, 0); renderWinnerContributions(); } });
 init().then(async () => { populateWeekSeasons(); if (location.hash === "#weeks") { await loadDrilldown(); renderWeekRace(); renderWinnerContributions(); setTimeout(orientWeekChart, 0); } const profileSelect = document.getElementById("profile-player"); if ([...profileSelect.options].some(option => option.value === "Thomas")) { profileSelect.value = "Thomas"; renderProfile("Thomas"); } });
 </script>
 </body>
