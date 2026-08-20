@@ -38,6 +38,19 @@
   .metric strong { display: block; margin-top: 6px; font-size: 22px; font-weight: 400; }
   .chart-wrap { height: 335px; position: relative; }
   .table-section { margin-top: 28px; }
+  .view { display: none; }
+  .view.active { display: block; }
+  .record-grid { display: grid; grid-template-columns: repeat(3, 1fr); gap: 14px; }
+  .record-card { min-height: 160px; }
+  .record-card h3 { color: var(--accent); font-size: 12px; font-family: Arial, sans-serif; letter-spacing: .8px; text-transform: uppercase; margin: 0 0 12px; }
+  .record-card strong { display: block; font-size: 30px; font-weight: 400; }
+  .record-card p { color: var(--muted); font: 13px Arial, sans-serif; margin: 8px 0 0; }
+  .profile-grid { display: grid; grid-template-columns: minmax(220px, .7fr) minmax(0, 1.3fr); gap: 14px; }
+  .profile-name { font-size: 42px; font-weight: 400; margin: 0 0 16px; }
+  .profile-list { display: grid; gap: 11px; font: 13px Arial, sans-serif; }
+  .profile-list div { display: flex; justify-content: space-between; gap: 12px; border-bottom: 1px solid var(--border); padding-bottom: 8px; }
+  .profile-list span { color: var(--muted); }
+  .profile-chart { min-height: 360px; }
   #search-box { margin-bottom: 12px; }
   #search-box input { max-width: 350px; }
   #table-title { color: var(--muted); font-size: 16px; margin: 0 0 12px; }
@@ -48,13 +61,14 @@
   .tabulator-row.tabulator-row-even { background: #121920 !important; }
   .tabulator-row:hover { background: #263b40 !important; }
   #loading { color: var(--muted); font: 13px Arial, sans-serif; }
-  @media (max-width: 850px) { .workspace { grid-template-columns: 1fr; } .intro { display: block; } .intro p { margin-top: 14px; } }
+  @media (max-width: 850px) { .workspace, .profile-grid { grid-template-columns: 1fr; } .record-grid { grid-template-columns: repeat(2, 1fr); } .intro { display: block; } .intro p { margin-top: 14px; } }
   @media (max-width: 560px) { .summary { grid-template-columns: repeat(2, 1fr); } .panel-head { align-items: start; flex-direction: column; } }
 </style>
 </head>
 <body>
-<header><h1>FBP All-Time Stats</h1><nav id="nav"></nav></header>
+<header><h1>FBP All-Time Stats</h1><nav id="nav"><button data-view="dashboard">Dashboard</button><button data-view="records">Record Book</button><button data-view="players">Player Profile</button><button data-view="tables">Tables</button></nav></header>
 <main>
+  <section id="view-dashboard" class="view active">
   <section class="intro"><div><div class="eyebrow">The record book, in motion</div><h2>See the seasons unfold.</h2></div><p>Filter the history by player, season, and competition. Every chart is linked to the same weekly results behind the tables.</p></section>
   <section class="workspace">
     <div class="panel chart-panel">
@@ -69,11 +83,23 @@
     </aside>
   </section>
   <section class="summary"><div class="metric"><span>Weeks shown</span><strong id="weeks-count">0</strong></div><div class="metric"><span>Wins shown</span><strong id="wins-count">0</strong></div><div class="metric"><span>Money shown</span><strong id="money-count">$0</strong></div><div class="metric"><span>Players shown</span><strong id="players-count">0</strong></div></section>
+  </section>
+  <section id="view-records" class="view">
+    <section class="intro"><div><div class="eyebrow">All-time leaders</div><h2>Record Book</h2></div><p>The biggest totals and longest runs, collected in one place.</p></section>
+    <div id="record-grid" class="record-grid"></div>
+  </section>
+  <section id="view-players" class="view">
+    <section class="intro"><div><div class="eyebrow">One player at a time</div><h2>Player Profile</h2></div><p>Choose a player to see their all-time totals and season-by-season record.</p></section>
+    <label style="max-width:280px">Player<select id="profile-player"></select></label>
+    <div class="profile-grid" style="margin-top:16px"><div class="panel"><h3 id="profile-name" class="profile-name"></h3><div id="profile-stats" class="profile-list"></div></div><div class="panel profile-chart"><div class="panel-head"><h3>Wins and rank by season</h3></div><div class="chart-wrap"><canvas id="profile-history-chart"></canvas></div></div></div>
+  </section>
+  <section id="view-tables" class="view">
   <section class="table-section"><div id="search-box"><input type="text" id="global-search" placeholder="Search this table..." /></div><p id="table-title"></p><div id="loading">Loading...</div><div id="stats-table"></div></section>
+  </section>
 </main>
 <script>
 const DATA_DIR = "data";
-let table = null, chart = null, manifest = [], dashboard = [];
+let table = null, chart = null, profileChart = null, manifest = [], dashboard = [], tableData = {};
 const colors = ["#54d6b2", "#ffb454", "#8ca7ff", "#ff7180", "#d79bff", "#f1e48b", "#65c7e8"];
 function moneyFormatter(cell) { const v = cell.getValue(); if (v === "" || v == null) return ""; const n = typeof v === "number" ? v : parseFloat(String(v).replace(/[^0-9.-]/g, "")); return isNaN(n) ? v : "$" + n.toLocaleString(); }
 function percentFormatter(cell) { const v = cell.getValue(); if (v === "" || v == null) return ""; const n = typeof v === "number" ? v : parseFloat(v); return isNaN(n) ? v : (n * 100).toFixed(2) + "%"; }
@@ -82,12 +108,17 @@ function isPercentColumn(name) { return /^%$|win\s*%|%\s*won/i.test(name); }
 function buildColumns(columns, rows) { return columns.map(col => { const sample = rows.find(r => r[col] !== "" && r[col] != null); const value = sample && sample[col]; const numeric = value !== undefined && value !== "" && !isNaN(parseFloat(String(value).replace(/[$,%]/g, ""))); const def = { title: col, field: col, headerFilter: true, headerFilterPlaceholder: "filter...", sorter: numeric ? "number" : "string" }; if (isMoneyColumn(col)) def.formatter = moneyFormatter; else if (isPercentColumn(col)) def.formatter = percentFormatter; return def; }); }
 async function loadTable(key, title, columns) { document.getElementById("table-title").textContent = title; document.getElementById("loading").style.display = "block"; const rows = await (await fetch(`${DATA_DIR}/${key}.json`)).json(); document.getElementById("loading").style.display = "none"; if (table) table.destroy(); table = new Tabulator("#stats-table", { data: rows, layout: "fitDataStretch", columns: buildColumns(columns, rows), pagination: true, paginationSize: 25, paginationSizeSelector: [15, 25, 50, 100, true], placeholder: "No data" }); document.getElementById("global-search").oninput = e => { const val = e.target.value.toLowerCase(); table.clearFilter(); if (val) table.setFilter(data => Object.values(data).some(v => String(v).toLowerCase().includes(val))); }; }
 function setActiveNav(key) { document.querySelectorAll("#nav button").forEach(btn => btn.classList.toggle("active", btn.dataset.key === key)); }
+function showView(view) { document.querySelectorAll(".view").forEach(section => section.classList.toggle("active", section.id === `view-${view}`)); document.querySelectorAll("#nav button[data-view]").forEach(btn => btn.classList.toggle("active", btn.dataset.view === view)); history.replaceState(null, "", `#${view}`); }
+function bestRecord(key, valueColumn, label) { const rows = tableData[key] || []; const winner = [...rows].sort((a, b) => Number(b[valueColumn] || 0) - Number(a[valueColumn] || 0))[0]; if (!winner) return ""; return `<div class="panel record-card"><h3>${label}</h3><strong>${winner[valueColumn] ?? ""}</strong><p>${winner.Name}</p></div>`; }
+function renderRecords() { document.getElementById("record-grid").innerHTML = [bestRecord("overall", "Wins", "Most wins"), bestRecord("overall", "Plus/Minus", "Best plus/minus"), bestRecord("money_won", "Total Money Won", "Most money won"), bestRecord("weekly_champs", "Weeks Won", "Most weekly wins"), bestRecord("playoff_champs", "Playoffs Won", "Most playoff wins"), bestRecord("season_champs", "Championships Won", "Most championships"), bestRecord("win_streak", "Win Streak", "Longest win streak"), bestRecord("losing_streak", "Losing Streak", "Longest losing streak"), bestRecord("top5_streak", "Top 5 Streak", "Longest Top 5 streak")].join(""); }
+function renderProfile(name) { const overall = (tableData.overall || []).find(row => row.Name === name); const money = (tableData.money_won || []).find(row => row.Name === name); const weekly = dashboard.filter(row => row.Name === name); document.getElementById("profile-name").textContent = name || "Choose a player"; if (!overall) { document.getElementById("profile-stats").innerHTML = ""; return; } const stats = [["Wins", overall.Wins], ["Losses", overall.Losses], ["Win percentage", (Number(overall["%"] || 0) * 100).toFixed(2) + "%"], ["Plus/minus", overall["Plus/Minus"]], ["Total money won", "$" + Number(money?.["Total Money Won"] || 0).toLocaleString()], ["Weeks won", money?.["Weeks Won"] || 0]]; document.getElementById("profile-stats").innerHTML = stats.map(([label, value]) => `<div><span>${label}</span><strong>${value}</strong></div>`).join(""); const seasons = [...new Set(weekly.map(row => row.Season))].sort(); if (profileChart) profileChart.destroy(); profileChart = new Chart(document.getElementById("profile-history-chart"), { type: "line", data: { labels: seasons, datasets: [{ label: "Wins", data: seasons.map(season => weekly.filter(row => row.Season === season).reduce((sum, row) => sum + Number(row.Wins || 0), 0)), borderColor: colors[0], backgroundColor: colors[0] + "55", tension: .25 }, { label: "Average rank", data: seasons.map(season => { const rows = weekly.filter(row => row.Season === season); return rows.reduce((sum, row) => sum + Number(row.Rank || 0), 0) / rows.length; }), borderColor: colors[1], backgroundColor: colors[1] + "55", tension: .25, yAxisID: "rank" }] }, options: { responsive: true, maintainAspectRatio: false, scales: { x: { ticks: { color: "#91a0ae" }, grid: { color: "#2a3744" } }, y: { beginAtZero: true, ticks: { color: "#91a0ae" }, grid: { color: "#2a3744" } }, rank: { position: "right", reverse: true, ticks: { color: "#91a0ae" }, grid: { drawOnChartArea: false } } }, plugins: { legend: { labels: { color: "#e8eef5" } } } } }); }
+function initViews() { document.querySelectorAll("#nav button[data-view]").forEach(btn => btn.onclick = () => showView(btn.dataset.view)); document.getElementById("profile-player").onchange = event => renderProfile(event.target.value); const requested = location.hash.slice(1); showView(["dashboard", "records", "players", "tables"].includes(requested) ? requested : "dashboard"); }
 function selectedPlayers() { return [...document.getElementById("player-filter").selectedOptions].map(o => o.value); }
 function filteredDashboard() { const from = document.getElementById("season-from").value, to = document.getElementById("season-to").value, competition = document.getElementById("competition-filter").value; const players = selectedPlayers(); return dashboard.filter(row => (!players.length || players.includes(row.Name)) && (!from || row.Season >= from) && (!to || row.Season <= to) && (competition === "all" || (competition === "playoffs" ? row.Week === "playoffs" : row.Week !== "playoffs"))); }
 function updateChart() { const rows = filteredDashboard(), metric = document.getElementById("chart-metric").value, style = document.getElementById("chart-style").value; const seasons = [...new Set(rows.map(r => r.Season))].sort(); const players = selectedPlayers().length ? selectedPlayers() : [...new Set(rows.map(r => r.Name))].slice(0, 8); const datasets = players.map((name, index) => { const points = seasons.map(season => { const matches = rows.filter(r => r.Name === name && r.Season === season); if (!matches.length) return null; if (metric === "wins") return matches.reduce((s, r) => s + Number(r.Wins || 0), 0); if (metric === "money") return matches.reduce((s, r) => s + Number(r.Winnings || 0), 0); if (metric === "rank") return matches.reduce((s, r) => s + Number(r.Rank || 0), 0) / matches.length; const games = matches.reduce((s, r) => s + Number(r.Wins || 0) + Number(r.Losses || 0), 0); return games ? matches.reduce((s, r) => s + Number(r.Wins || 0), 0) / games * 100 : 0; }); return { label: name, data: points, borderColor: colors[index % colors.length], backgroundColor: colors[index % colors.length] + "99", tension: .25, fill: false }; }); const labels = metric === "winPct" ? "Win percentage" : metric === "money" ? "Money won" : metric === "rank" ? "Average rank" : "Wins"; document.getElementById("chart-title").textContent = labels + " by season"; if (chart) chart.destroy(); chart = new Chart(document.getElementById("history-chart"), { type: style, data: { labels: seasons, datasets }, options: { responsive: true, maintainAspectRatio: false, interaction: { mode: "index", intersect: false }, plugins: { legend: { labels: { color: "#e8eef5" } } }, scales: { x: { ticks: { color: "#91a0ae" }, grid: { color: "#2a3744" } }, y: { beginAtZero: metric !== "rank", ticks: { color: "#91a0ae", callback: value => metric === "money" ? "$" + value : metric === "winPct" ? value + "%" : value }, grid: { color: "#2a3744" } } } } }); document.getElementById("weeks-count").textContent = rows.length.toLocaleString(); document.getElementById("wins-count").textContent = rows.reduce((s, r) => s + Number(r.Wins || 0), 0).toLocaleString(); document.getElementById("money-count").textContent = "$" + rows.reduce((s, r) => s + Number(r.Winnings || 0), 0).toLocaleString(); document.getElementById("players-count").textContent = new Set(rows.map(r => r.Name)).size; }
 function bindDashboard() { ["player-filter", "competition-filter", "season-from", "season-to", "chart-metric", "chart-style"].forEach(id => document.getElementById(id).onchange = updateChart); }
 async function initDashboard() { dashboard = await (await fetch(`${DATA_DIR}/dashboard.json`)).json(); const players = [...new Set(dashboard.map(r => r.Name))].sort(); const seasons = [...new Set(dashboard.map(r => r.Season))].sort(); const playerSelect = document.getElementById("player-filter"); players.forEach(name => playerSelect.add(new Option(name, name))); const from = document.getElementById("season-from"), to = document.getElementById("season-to"); seasons.forEach(season => { from.add(new Option(season, season)); to.add(new Option(season, season)); }); from.value = seasons[0] || ""; to.value = seasons[seasons.length - 1] || ""; bindDashboard(); updateChart(); }
-async function init() { manifest = await (await fetch(`${DATA_DIR}/manifest.json`)).json(); const nav = document.getElementById("nav"); manifest.forEach((entry, idx) => { const btn = document.createElement("button"); btn.textContent = entry.title; btn.dataset.key = entry.key; btn.onclick = () => { setActiveNav(entry.key); loadTable(entry.key, entry.title, entry.columns); }; nav.appendChild(btn); if (idx === 0) { setActiveNav(entry.key); loadTable(entry.key, entry.title, entry.columns); } }); await initDashboard(); }
+async function init() { manifest = await (await fetch(`${DATA_DIR}/manifest.json`)).json(); const nav = document.getElementById("nav"); for (const entry of manifest) { tableData[entry.key] = await (await fetch(`${DATA_DIR}/${entry.key}.json`)).json(); const btn = document.createElement("button"); btn.textContent = entry.title; btn.dataset.key = entry.key; btn.onclick = () => { showView("tables"); setActiveNav(entry.key); loadTable(entry.key, entry.title, entry.columns); }; nav.appendChild(btn); } await initDashboard(); const players = [...new Set(dashboard.map(row => row.Name))].sort(); const profileSelect = document.getElementById("profile-player"); players.forEach(name => profileSelect.add(new Option(name, name))); profileSelect.value = players[0] || ""; initViews(); renderRecords(); renderProfile(profileSelect.value); }
 init();
 </script>
 </body>
