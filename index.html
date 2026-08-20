@@ -94,8 +94,8 @@
   <section id="view-players" class="view">
     <section class="intro"><div><div class="eyebrow">One player at a time</div><h2>Player Profile</h2></div><p>Choose a player to see their all-time totals and season-by-season record.</p></section>
     <label style="max-width:280px">Player<select id="profile-player"></select></label>
-    <div class="profile-grid" style="margin-top:16px"><div class="panel"><h3 id="profile-name" class="profile-name"></h3><div id="profile-stats" class="profile-list"></div><div id="profile-extra-stats"></div></div><div class="panel profile-chart"><div class="panel-head"><h3>Wins and rank by season</h3></div><div class="chart-wrap"><canvas id="profile-history-chart"></canvas></div></div></div>
-    <div class="profile-charts"><div class="panel profile-chart"><div class="panel-head"><h3>Cumulative money won</h3></div><div class="chart-wrap"><canvas id="profile-money-chart"></canvas></div></div><div class="panel profile-chart"><div class="panel-head"><h3>Season-ending rank</h3></div><div class="chart-wrap"><canvas id="profile-placement-chart"></canvas></div></div></div>
+    <div class="profile-grid" style="margin-top:16px"><div class="panel"><h3 id="profile-name" class="profile-name"></h3><div id="profile-stats" class="profile-list"></div><div id="profile-extra-stats"></div></div><div class="panel profile-chart"><div class="panel-head"><h3>Wins and money by season</h3></div><div class="chart-wrap"><canvas id="profile-history-chart"></canvas></div></div></div>
+    <div class="profile-charts"><div class="panel profile-chart"><div class="panel-head"><h3>Cumulative money won</h3></div><div class="chart-wrap"><canvas id="profile-money-chart"></canvas></div></div><div class="panel profile-chart"><div class="panel-head"><h3>Longest Top 5 and Top 10 streak weeks</h3></div><div class="chart-wrap"><canvas id="profile-placement-chart"></canvas></div></div></div>
   </section>
   <section id="view-tables" class="view">
   <section class="table-section"><div id="search-box"><input type="text" id="global-search" placeholder="Search this table..." /></div><p id="table-title"></p><div id="loading">Loading...</div><div id="stats-table"></div></section>
@@ -145,6 +145,22 @@ function renderProfileLegacy(name) {
   if (profilePlacementChart) profilePlacementChart.destroy();
   profilePlacementChart = new Chart(document.getElementById("profile-placement-chart"), { type: "bar", data: { labels: seasons, datasets: [{ label: "Average finish", data: seasons.map(season => { const rows = weekly.filter(row => row.Season === season); return rows.reduce((sum, row) => sum + Number(row.Rank || 0), 0) / rows.length; }), backgroundColor: colors[3] + "bb", borderColor: colors[3], borderWidth: 1 }] }, options: { ...chartOptions, scales: { ...chartOptions.scales, y: { ...chartOptions.scales.y, reverse: true, suggestedMin: 1, ticks: { color: "#91a0ae" } } } } });
 }
+function renderStreakChart(rows) {
+  const ordered = [...rows].sort((a, b) => String(a.Season).localeCompare(String(b.Season)) || Number(a.WeekSort) - Number(b.WeekSort));
+  function longestRun(limit) {
+    let best = [], current = [];
+    ordered.forEach(row => {
+      if (Number(row.Rank) <= limit) current.push(row);
+      else { if (current.length > best.length) best = current; current = []; }
+    });
+    if (current.length > best.length) best = current;
+    return best;
+  }
+  const top5 = longestRun(5), top10 = longestRun(10);
+  const labels = [...new Set([...top5, ...top10].map(row => `${row.Season} ${row.Week === "playoffs" ? "Playoffs" : `W${row.Week}`}`))];
+  if (profilePlacementChart) profilePlacementChart.destroy();
+  profilePlacementChart = new Chart(document.getElementById("profile-placement-chart"), { type: "bar", data: { labels, datasets: [{ label: "Top 5 streak", data: labels.map(label => top5.some(row => `${row.Season} ${row.Week === "playoffs" ? "Playoffs" : `W${row.Week}`}` === label) ? 5 : null), backgroundColor: "#ff4f5e", borderColor: "#ff4f5e", borderWidth: 1 }, { label: "Top 10 streak", data: labels.map(label => top10.some(row => `${row.Season} ${row.Week === "playoffs" ? "Playoffs" : `W${row.Week}`}` === label) ? 10 : null), backgroundColor: "#ffb454", borderColor: "#ffb454", borderWidth: 1 }] }, options: { responsive: true, maintainAspectRatio: false, scales: { x: { ticks: { color: "#91a0ae", maxRotation: 65, minRotation: 45 }, grid: { color: "#2a3744" } }, y: { beginAtZero: true, max: 10, ticks: { color: "#91a0ae", stepSize: 1, callback: value => value === 5 ? "Top 5" : value === 10 ? "Top 10" : "" }, grid: { color: "#2a3744" } } }, plugins: { legend: { labels: { color: "#e8eef5" } }, tooltip: { callbacks: { label: context => `${context.dataset.label}: ${context.label}` } } } } });
+}
 function renderProfile(name) {
   const overall = (tableData.overall || []).find(row => row.Name === name);
   const money = (tableData.money_won || []).find(row => row.Name === name);
@@ -174,7 +190,7 @@ function renderProfile(name) {
   if (profileMoneyChart) profileMoneyChart.destroy();
   profileMoneyChart = new Chart(document.getElementById("profile-money-chart"), { type: "line", data: { labels: seasons, datasets: [{ label: "Cumulative money", data: seasonMoney, borderColor: colors[2], backgroundColor: colors[2] + "44", fill: true, tension: .25 }] }, options: { ...chartOptions, scales: { ...chartOptions.scales, y: { ...chartOptions.scales.y, ticks: { color: "#91a0ae", callback: value => "$" + value.toLocaleString() } } } } });
   if (profilePlacementChart) profilePlacementChart.destroy();
-  profilePlacementChart = new Chart(document.getElementById("profile-placement-chart"), { type: "bar", data: { labels: seasons, datasets: [{ label: "Season-ending rank", data: seasons.map(season => seasonRows(season)[0]?.SeasonRank || null), backgroundColor: seasons.map(season => seasonRows(season)[0]?.SeasonRank === 1 ? "#ff4f5e" : "#8ca7ffbb"), borderColor: seasons.map(season => seasonRows(season)[0]?.SeasonRank === 1 ? "#ff4f5e" : "#8ca7ff"), borderWidth: 1 }] }, options: { ...chartOptions, indexAxis: "y", scales: { x: { reverse: true, beginAtZero: false, ticks: { color: "#91a0ae", stepSize: 1 }, grid: { color: "#2a3744" } }, y: { ticks: { color: "#91a0ae" }, grid: { color: "#2a3744" } } }, plugins: { ...chartOptions.plugins, tooltip: { callbacks: { label: context => `Finished ${context.raw}${context.raw === 1 ? "st" : context.raw === 2 ? "nd" : context.raw === 3 ? "rd" : "th"}` } } } } });
+  renderStreakChart(weekly);
 }
 function initViews() { document.querySelectorAll("#nav button[data-view]").forEach(btn => btn.onclick = () => showView(btn.dataset.view)); document.getElementById("profile-player").onchange = event => renderProfile(event.target.value); const requested = location.hash.slice(1); showView(["dashboard", "records", "players", "tables"].includes(requested) ? requested : "dashboard"); }
 function selectedPlayers() { return [...document.getElementById("player-filter").selectedOptions].map(o => o.value); }
