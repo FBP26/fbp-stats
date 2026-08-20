@@ -112,7 +112,7 @@
   </section>
   <section id="view-weeks" class="view">
     <section class="intro"><div><div class="eyebrow">Who owned the week?</div><h2>Week Browser</h2></div><p>Choose a season and week to see the winner, leaderboard, records, and money awarded.</p></section>
-    <div class="panel"><div class="explorer-controls"><label>Season<select id="week-season"></select></label><label>Week<select id="week-choice"></select></label><label>Race players<select id="week-race-players" multiple></select></label></div><div id="week-summary" class="summary"></div><div class="chart-wrap wide-chart"><canvas id="week-chart"></canvas></div><div id="week-table" style="margin-top:16px"></div><div class="chart-wrap wide-chart" style="margin-top:24px"><canvas id="week-race-chart"></canvas></div></div>
+    <div class="panel"><div class="explorer-controls"><label>Season<select id="week-season"></select></label><label>Week<select id="week-choice"></select></label><label>Race players<select id="week-race-players" multiple></select></label></div><div id="week-summary" class="summary"></div><div class="chart-wrap wide-chart"><canvas id="week-chart"></canvas></div><div id="week-table" style="margin-top:16px"></div><div class="chart-wrap wide-chart" style="margin-top:24px"><canvas id="week-race-chart"></canvas></div><h3 style="margin:24px 0 10px">Winner's game contributions</h3><div class="chart-wrap wide-chart"><canvas id="winner-contribution-chart"></canvas></div></div>
   </section>
   <section id="view-players" class="view">
     <section class="intro"><div><div class="eyebrow">One player at a time</div><h2>Player Profile</h2></div><p>Choose a player to see their all-time totals and season-by-season record.</p></section>
@@ -126,7 +126,7 @@
 </main>
 <script>
 const DATA_DIR = "data";
-let table = null, chart = null, profileChart = null, profileMoneyChart = null, profilePlacementChart = null, explorerChart = null, moneyMapChart = null, streakLabChart = null, gamePicksTable = null, weekChart = null, weekTable = null, weekRaceChart = null, manifest = [], dashboard = [], tableData = {}, websiteWeeks = [], websiteAwards = [], websiteSeasons = [], websitePlayers = [], websiteRecords = [], websiteStreaks = [], websiteGames = [], websitePicks = [];
+let table = null, chart = null, profileChart = null, profileMoneyChart = null, profilePlacementChart = null, explorerChart = null, moneyMapChart = null, streakLabChart = null, gamePicksTable = null, weekChart = null, weekTable = null, weekRaceChart = null, winnerContributionChart = null, manifest = [], dashboard = [], tableData = {}, websiteWeeks = [], websiteAwards = [], websiteSeasons = [], websitePlayers = [], websiteRecords = [], websiteStreaks = [], websiteGames = [], websitePicks = [];
 const colors = ["#54d6b2", "#ffb454", "#8ca7ff", "#ff7180", "#d79bff", "#f1e48b", "#65c7e8"];
 function moneyFormatter(cell) { const v = cell.getValue(); if (v === "" || v == null) return ""; const n = typeof v === "number" ? v : parseFloat(String(v).replace(/[^0-9.-]/g, "")); return isNaN(n) ? v : "$" + n.toLocaleString(); }
 function percentFormatter(cell) { const v = cell.getValue(); if (v === "" || v == null) return ""; const n = typeof v === "number" ? v : parseFloat(v); return isNaN(n) ? v : (n * 100).toFixed(2) + "%"; }
@@ -279,13 +279,23 @@ function renderWeekRace() {
   const gameRows = websiteGames.filter(game => game.season === season && (game.week === week || (week === "playoffs" && playoffWeeks.includes(game.week)))).sort((a, b) => Number(a.playoffGameNum || a.gameNum) - Number(b.playoffGameNum || b.gameNum));
   const weekRows = websiteWeeks.filter(row => row.season === season && row.week === week).sort((a, b) => Number(a.rank) - Number(b.rank));
   const selected = [...document.getElementById("week-race-players").selectedOptions].map(option => option.value);
-  const playerIds = selected.length ? selected : weekRows.slice(0, 10).map(row => row.playerId);
+  const playerIds = selected.length ? selected : weekRows.slice(0, 5).map(row => row.playerId);
   if (weekRaceChart) weekRaceChart.destroy();
   weekRaceChart = new Chart(document.getElementById("week-race-chart"), { type: "line", data: { labels: gameRows.map(game => `${matchupLabel(game)} · ${game.atsResult}`), datasets: playerIds.map((playerId, index) => { let total = 0; const player = websitePlayers.find(item => item.playerId === playerId); return { label: player?.name || playerId, data: gameRows.map(game => { const pick = websitePicks.find(item => item.gameId === game.gameId && item.playerId === playerId); total += Number(pick?.resultWin || 0) + Number(pick?.bestBetWin || 0); return total; }), borderColor: colors[index % colors.length], backgroundColor: colors[index % colors.length], tension: .2, pointRadius: 4, pointHoverRadius: 7, stepped: true }; }) }, options: { responsive: true, maintainAspectRatio: false, interaction: { mode: "index", intersect: false }, scales: { x: { ticks: { color: "#91a0ae", maxRotation: 65, minRotation: 45 }, grid: { color: "#2a3744" }, title: { display: true, text: "Games: favorite · spread · underdog · result", color: "#91a0ae" } }, y: { beginAtZero: true, ticks: { color: "#91a0ae", stepSize: 1 }, grid: { color: "#2a3744" }, title: { display: true, text: "Cumulative wins including Best Bet wins", color: "#91a0ae" } } }, plugins: { legend: { labels: { color: "#e8eef5" } }, tooltip: { callbacks: { label: context => `${context.dataset.label}: ${context.raw} cumulative wins` } } } } });
 }
 function orientWeekChart() { const current = Chart.getChart("week-chart"); if (current) { current.options.scales.y.reverse = false; current.update(); } }
-document.addEventListener("change", event => { if (event.target.id === "week-choice") setTimeout(orientWeekChart, 0); });
-init().then(async () => { populateWeekSeasons(); if (location.hash === "#weeks") { await loadDrilldown(); renderWeekRace(); setTimeout(orientWeekChart, 0); } const profileSelect = document.getElementById("profile-player"); if ([...profileSelect.options].some(option => option.value === "Thomas")) { profileSelect.value = "Thomas"; renderProfile("Thomas"); } });
+function renderWinnerContributions() {
+  if (!websitePicks.length) return;
+  const season = document.getElementById("week-season").value, week = document.getElementById("week-choice").value;
+  const playoffWeeks = ["round 1", "round 2", "round 3", "super bowl"];
+  const games = websiteGames.filter(game => game.season === season && (game.week === week || (week === "playoffs" && playoffWeeks.includes(game.week)))).sort((a, b) => Number(a.playoffGameNum || a.gameNum) - Number(b.playoffGameNum || b.gameNum));
+  const winner = websiteWeeks.filter(row => row.season === season && row.week === week).sort((a, b) => Number(a.rank) - Number(b.rank))[0];
+  const contributions = games.map(game => { const pick = websitePicks.find(row => row.gameId === game.gameId && row.playerId === winner?.playerId); return { game, gameWin: Number(pick?.resultWin || 0), betWin: Number(pick?.bestBetWin || 0) }; });
+  if (winnerContributionChart) winnerContributionChart.destroy();
+  winnerContributionChart = new Chart(document.getElementById("winner-contribution-chart"), { type: "bar", data: { labels: contributions.map(item => `${matchupLabel(item.game)} · ${item.game.atsResult}`), datasets: [{ label: "Game win", data: contributions.map(item => item.gameWin), backgroundColor: "#54d6b2", borderColor: "#54d6b2", borderWidth: 1 }, { label: "Best Bet win", data: contributions.map(item => item.betWin), backgroundColor: "#a978e8", borderColor: "#a978e8", borderWidth: 1 }] }, options: { responsive: true, maintainAspectRatio: false, scales: { x: { ticks: { color: "#91a0ae", maxRotation: 65, minRotation: 45 }, grid: { color: "#2a3744" } }, y: { beginAtZero: true, max: 1, ticks: { color: "#91a0ae", stepSize: 1, callback: value => value === 1 ? "Win" : "" }, grid: { color: "#2a3744" } } }, plugins: { legend: { labels: { color: "#e8eef5" } }, title: { display: true, text: winner ? `${winner.name}: ${winner.displayWins}-${winner.displayLosses}` : "Winner contributions", color: "#e8eef5" } } } });
+}
+document.addEventListener("change", event => { if (event.target.id === "week-choice") { setTimeout(orientWeekChart, 0); renderWinnerContributions(); } });
+init().then(async () => { populateWeekSeasons(); if (location.hash === "#weeks") { await loadDrilldown(); renderWeekRace(); renderWinnerContributions(); setTimeout(orientWeekChart, 0); } const profileSelect = document.getElementById("profile-player"); if ([...profileSelect.options].some(option => option.value === "Thomas")) { profileSelect.value = "Thomas"; renderProfile("Thomas"); } });
 </script>
 </body>
 </html>
