@@ -58,6 +58,8 @@
   #view-games .explorer-controls { grid-template-columns: 1fr; max-width: 420px; }
   #view-weeks .explorer-controls { grid-template-columns: 1fr; max-width: 420px; }
   .wide-chart { min-height: 470px; }
+  .race-chart-wrap { height: 620px; }
+  #week-race-chart { min-height: 620px; }
   #search-box { margin-bottom: 12px; }
   #search-box input { max-width: 350px; }
   #table-title { color: var(--muted); font-size: 16px; margin: 0 0 12px; }
@@ -295,7 +297,7 @@ function renderWeekRace() {
   if (weekRaceChart) weekRaceChart.destroy();
   weekRaceChart = new Chart(document.getElementById("week-race-chart"), { type: "bar", data: { labels: games.map((game, index) => `G${game.playoffGameNum || game.gameNum || index + 1}: ${matchupLabel(game)}`), datasets: playerIds.map((playerId, index) => { let total = 0; const player = websitePlayers.find(item => item.playerId === playerId); return { label: player?.name || playerId, data: games.map(game => { const pick = websitePicks.find(item => item.gameId === game.gameId && item.playerId === playerId); total += Number(pick?.resultWin || 0) + Number(pick?.bestBetWin || 0); return total; }), backgroundColor: ["#d4af37", "#c0c0c0", "#cd7f32"][index], borderColor: ["#d4af37", "#c0c0c0", "#cd7f32"][index], borderWidth: 1, categoryPercentage: .78, barPercentage: .9 }; }) }, options: { responsive: true, maintainAspectRatio: false, scales: { x: { ticks: { color: "#91a0ae", minRotation: 90, maxRotation: 90, autoSkip: false }, grid: { color: "#2a3744" }, title: { display: true, text: "Game: favorite · spread · underdog", color: "#91a0ae" } }, y: { beginAtZero: true, ticks: { color: "#91a0ae", stepSize: 1 }, grid: { color: "#2a3744" }, title: { display: true, text: "Cumulative wins including Best Bet wins", color: "#91a0ae" } } }, plugins: { legend: { labels: { color: "#e8eef5" } }, tooltip: { callbacks: { title: items => { const game = games[items[0].dataIndex]; return `${items[0].label}: ${game.atsResult}`; }, label: context => `${context.dataset.label}: ${context.raw} cumulative wins` } } } } });
 }
-function orientWeekChart() { const current = Chart.getChart("week-chart"); if (current) { current.options.scales.y.reverse = false; current.update(); } }
+function orientWeekChart() { const current = Chart.getChart("week-chart"); if (current) { current.options.scales.y.reverse = false; current.options.scales.y.ticks.display = false; current.update(); } }
 function renderWinnerContributions(resetPlayer = false) {
   if (!websitePicks.length) return;
   const season = document.getElementById("week-season").value, week = document.getElementById("week-choice").value;
