@@ -1,0 +1,241 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8" />
+<meta name="viewport" content="width=device-width, initial-scale=1.0" />
+<title>FBP All-Time Stats</title>
+<link href="https://unpkg.com/tabulator-tables@5.6.0/dist/css/tabulator.min.css" rel="stylesheet">
+<script type="text/javascript" src="https://unpkg.com/tabulator-tables@5.6.0/dist/js/tabulator.min.js"></script>
+<style>
+  :root {
+    --bg: #0f1216;
+    --panel: #171b21;
+    --border: #2a2f37;
+    --text: #e7e9ec;
+    --muted: #9aa4af;
+    --accent: #4f8cff;
+  }
+  * { box-sizing: border-box; }
+  body {
+    margin: 0;
+    font-family: -apple-system, Segoe UI, Roboto, Helvetica, Arial, sans-serif;
+    background: var(--bg);
+    color: var(--text);
+  }
+  header {
+    padding: 16px 20px;
+    border-bottom: 1px solid var(--border);
+    display: flex;
+    align-items: center;
+    gap: 12px;
+    flex-wrap: wrap;
+  }
+  header h1 {
+    font-size: 18px;
+    margin: 0;
+    margin-right: 12px;
+    white-space: nowrap;
+  }
+  nav {
+    display: flex;
+    flex-wrap: wrap;
+    gap: 6px;
+  }
+  nav button {
+    background: var(--panel);
+    color: var(--text);
+    border: 1px solid var(--border);
+    border-radius: 6px;
+    padding: 6px 12px;
+    font-size: 13px;
+    cursor: pointer;
+  }
+  nav button:hover {
+    border-color: var(--accent);
+  }
+  nav button.active {
+    background: var(--accent);
+    border-color: var(--accent);
+    color: #fff;
+  }
+  main {
+    padding: 20px;
+  }
+  #table-title {
+    font-size: 16px;
+    margin: 0 0 12px 0;
+    color: var(--muted);
+  }
+  #stats-table {
+    border: 1px solid var(--border);
+    border-radius: 8px;
+    overflow: hidden;
+  }
+  .tabulator {
+    background: var(--panel);
+    border: none;
+    font-size: 13px;
+  }
+  .tabulator-header {
+    background: #1d222a;
+    border-bottom: 1px solid var(--border);
+  }
+  .tabulator-col {
+    background: #1d222a !important;
+  }
+  .tabulator-row {
+    background: var(--panel) !important;
+    color: var(--text);
+  }
+  .tabulator-row.tabulator-row-even {
+    background: #14171d !important;
+  }
+  .tabulator-row:hover {
+    background: #22272f !important;
+  }
+  #search-box {
+    margin-bottom: 12px;
+  }
+  #search-box input {
+    width: 100%;
+    max-width: 320px;
+    padding: 8px 10px;
+    border-radius: 6px;
+    border: 1px solid var(--border);
+    background: var(--panel);
+    color: var(--text);
+    font-size: 13px;
+  }
+  #loading {
+    color: var(--muted);
+    font-size: 13px;
+  }
+</style>
+</head>
+<body>
+<header>
+  <h1>FBP All-Time Stats</h1>
+  <nav id="nav"></nav>
+</header>
+<main>
+  <div id="search-box">
+    <input type="text" id="global-search" placeholder="Search this table..." />
+  </div>
+  <p id="table-title"></p>
+  <div id="loading">Loading...</div>
+  <div id="stats-table"></div>
+</main>
+
+<script>
+const DATA_DIR = "data";
+let table = null;
+let manifest = [];
+
+function moneyFormatter(cell) {
+  const v = cell.getValue();
+  if (v === "" || v === null || v === undefined) return "";
+  const num = typeof v === "number" ? v : parseFloat(String(v).replace(/[^0-9.-]/g, ""));
+  if (isNaN(num)) return v;
+  return "$" + num.toLocaleString();
+}
+
+function percentFormatter(cell) {
+  const v = cell.getValue();
+  if (v === "" || v === null || v === undefined) return "";
+  const num = typeof v === "number" ? v : parseFloat(v);
+  if (isNaN(num)) return v;
+  return (num * 100).toFixed(2) + "%";
+}
+
+function isMoneyColumn(name) {
+  return /money|won\s*\$|streak.*money/i.test(name) && !/won during|weeks during/i.test(name);
+}
+function isPercentColumn(name) {
+  return /^%$|win\s*%|%\s*won/i.test(name);
+}
+
+function buildColumns(columns, rows) {
+  return columns.map((col) => {
+    const sample = rows.find((r) => r[col] !== "" && r[col] !== null && r[col] !== undefined);
+    const isNumeric = sample !== undefined && !isNaN(parseFloat(sample[col])) && typeof sample[col] !== "string" || (sample && !isNaN(parseFloat(sample[col])) && /^-?[\d,.$%]+$/.test(String(sample[col]).replace(/,/g, "")));
+    const def = {
+      title: col,
+      field: col,
+      headerFilter: true,
+      headerFilterPlaceholder: "filter...",
+      sorter: isNumeric ? "number" : "string",
+    };
+    if (isMoneyColumn(col)) {
+      def.formatter = moneyFormatter;
+    } else if (isPercentColumn(col)) {
+      def.formatter = percentFormatter;
+    }
+    return def;
+  });
+}
+
+async function loadTable(key, title, columns) {
+  document.getElementById("table-title").textContent = title;
+  document.getElementById("loading").style.display = "block";
+  const res = await fetch(`${DATA_DIR}/${key}.json`);
+  const rows = await res.json();
+  document.getElementById("loading").style.display = "none";
+
+  const colDefs = buildColumns(columns, rows);
+
+  if (table) {
+    table.destroy();
+  }
+  table = new Tabulator("#stats-table", {
+    data: rows,
+    layout: "fitDataStretch",
+    columns: colDefs,
+    pagination: true,
+    paginationSize: 25,
+    paginationSizeSelector: [15, 25, 50, 100, true],
+    placeholder: "No data",
+  });
+
+  document.getElementById("global-search").oninput = (e) => {
+    const val = e.target.value;
+    if (!val) {
+      table.clearFilter();
+      return;
+    }
+    table.setFilter((data) => {
+      return Object.values(data).some((v) => String(v).toLowerCase().includes(val.toLowerCase()));
+    });
+  };
+}
+
+function setActiveNav(key) {
+  document.querySelectorAll("#nav button").forEach((btn) => {
+    btn.classList.toggle("active", btn.dataset.key === key);
+  });
+}
+
+async function init() {
+  const res = await fetch(`${DATA_DIR}/manifest.json`);
+  manifest = await res.json();
+
+  const nav = document.getElementById("nav");
+  manifest.forEach((entry, idx) => {
+    const btn = document.createElement("button");
+    btn.textContent = entry.title;
+    btn.dataset.key = entry.key;
+    btn.onclick = () => {
+      setActiveNav(entry.key);
+      loadTable(entry.key, entry.title, entry.columns);
+    };
+    nav.appendChild(btn);
+    if (idx === 0) {
+      setActiveNav(entry.key);
+      loadTable(entry.key, entry.title, entry.columns);
+    }
+  });
+}
+
+init();
+</script>
+</body>
+</html>

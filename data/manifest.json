@@ -1,0 +1,211 @@
+[
+  {
+    "key": "overall",
+    "title": "+/-",
+    "columns": [
+      "Name",
+      "Plus/Minus",
+      "Wins",
+      "Losses",
+      "%"
+    ]
+  },
+  {
+    "key": "money_won",
+    "title": "Money Won",
+    "columns": [
+      "Name",
+      "Total Money Won",
+      "Weeks Won",
+      "Weekly Money",
+      "Playoffs Won",
+      "Playoff Money",
+      "Seasons Won",
+      "Season Money",
+      "Total Money Spent",
+      "Total Net"
+    ]
+  },
+  {
+    "key": "weekly_champs",
+    "title": "Weekly Champs",
+    "columns": [
+      "Name",
+      "Weeks Won",
+      "Money Won",
+      "2nd Place",
+      "3rd Place",
+      "Top 5",
+      "Top 10",
+      "800 Club",
+      "700 Club",
+      "Played",
+      "Win %",
+      "Best Week Record"
+    ]
+  },
+  {
+    "key": "playoff_champs",
+    "title": "Playoff Champs",
+    "columns": [
+      "Name",
+      "Playoffs Won",
+      "Money Won",
+      "2nd Place",
+      "3rd Place",
+      "Top 5",
+      "Top 10",
+      "800 Club",
+      "700 Club",
+      "Played",
+      "Win %",
+      "Best Playoff Record"
+    ]
+  },
+  {
+    "key": "season_champs",
+    "title": "Season Champs",
+    "columns": [
+      "Name",
+      "Championships Won",
+      "Money Won",
+      "2nd Place",
+      "3rd Place",
+      "Top 5",
+      "Top 10",
+      "Qualified",
+      "Seasons Played",
+      "Win %",
+      "Best Season Win %"
+    ]
+  },
+  {
+    "key": "win_streak",
+    "title": "Longest Win Streak",
+    "columns": [
+      "Name",
+      "Win Streak",
+      "Win Streak Range"
+    ]
+  },
+  {
+    "key": "losing_streak",
+    "title": "Longest Losing Streak",
+    "columns": [
+      "Name",
+      "Losing Streak",
+      "Losing Streak Range"
+    ]
+  },
+  {
+    "key": "no_first_streak",
+    "title": "Longest Streak Without a 1st Place Week",
+    "columns": [
+      "Name",
+      "No-1st Streak (Weeks)",
+      "No-1st Streak Range"
+    ]
+  },
+  {
+    "key": "season_win_streak",
+    "title": "Season Win Streak",
+    "columns": [
+      "Name",
+      "Season Win Streak",
+      "Wins During Streak"
+    ]
+  },
+  {
+    "key": "best_bet_hit_streak",
+    "title": "Best Bet Hit Streak",
+    "columns": [
+      "Name",
+      "Best Bet Hit Streak",
+      "Best Bets During Streak"
+    ]
+  },
+  {
+    "key": "best_bet_miss_streak",
+    "title": "Best Bet Miss Streak",
+    "columns": [
+      "Name",
+      "Best Bet Miss Streak",
+      "Best Bets During Streak"
+    ]
+  },
+  {
+    "key": "money_streak",
+    "title": "Money Streak",
+    "columns": [
+      "Name",
+      "Money Streak",
+      "Money Won During Streak"
+    ]
+  },
+  {
+    "key": "top5_streak",
+    "title": "Longest Top 5 Streak",
+    "columns": [
+      "Name",
+      "Top 5 Streak",
+      "Weeks During Streak"
+    ]
+  },
+  {
+    "key": "top10_streak",
+    "title": "Longest Top 10 Streak",
+    "columns": [
+      "Name",
+      "Top 10 Streak",
+      "Weeks During Streak"
+    ]
+  },
+  {
+    "key": "highest_week_score",
+    "title": "Highest Week Score",
+    "columns": [
+      "Name",
+      "Week",
+      "Record"
+    ]
+  },
+  {
+    "key": "biggest_win_over_2nd",
+    "title": "Biggest Win Over 2nd Place",
+    "columns": [
+      "Name",
+      "Week",
+      "Record",
+      "Runner-Up",
+      "Runner-Up Record",
+      "Win Difference"
+    ]
+  },
+  {
+    "key": "best_team_pick_streak",
+    "title": "Best Team Pick Streak",
+    "columns": [
+      "Name",
+      "Best Team Pick Streak",
+      "Weeks"
+    ]
+  },
+  {
+    "key": "worst_team_pick_streak",
+    "title": "Worst Team Pick Streak",
+    "columns": [
+      "Name",
+      "Worst Team Pick Streak",
+      "Weeks"
+    ]
+  },
+  {
+    "key": "lowest_tiebreak_diff_win",
+    "title": "Lowest Tiebreak Diff Win",
+    "columns": [
+      "Week",
+      "Tiebreak Margin (Record)",
+      "Matchup"
+    ]
+  }
+]
