@@ -96,15 +96,34 @@
   @media (max-width: 560px) { .summary { grid-template-columns: repeat(2, 1fr); } .panel-head { align-items: start; flex-direction: column; } .explorer-controls { grid-template-columns: 1fr; } #view-games .explorer-controls, #view-weeks .explorer-controls { max-width: none; } #view-enter-picks .panel { padding: 10px; } .website-game-row { grid-template-columns: minmax(0, 1fr) 40px minmax(0, 1fr); gap: 4px; } .website-side { padding: 8px 4px; font-size: 12px; } .website-spread { width: 40px; } }
   .picks-grid { border-collapse: collapse; font: 11px Arial, sans-serif; }
   .picks-grid th, .picks-grid td { padding: 2px 5px; border: 1px solid var(--border); text-align: center; vertical-align: middle; white-space: nowrap; }
-  .compact-live-wrap { max-width: 980px; margin-top: 18px; overflow-x: auto; }
+  .compact-live-wrap { max-width: 720px; margin-top: 22px; }
   .compact-live-title { margin: 0 0 10px; color: var(--accent); font: 11px Arial, sans-serif; text-transform: uppercase; letter-spacing: .7px; }
-  .compact-live-table { width: 100%; border-collapse: collapse; font: 12px Arial, sans-serif; }
-  .compact-live-table th, .compact-live-table td { padding: 7px 9px; border: 1px solid var(--border); text-align: left; white-space: nowrap; }
-  .compact-live-table th { background: #202c38; color: var(--muted); font-size: 10px; text-transform: uppercase; }
-  .compact-live-table td { background: var(--panel-2); color: var(--text); }
-  .compact-live-table .compact-number { text-align: center; }
-  .compact-live-table .compact-live { color: var(--accent-2); }
-  .compact-live-table .compact-upcoming { color: var(--muted); }
+  .compact-rank-list { display: grid; gap: 6px; }
+  .compact-rank-row { display: grid; grid-template-columns: 28px minmax(90px, 1fr) 62px 52px; gap: 7px; align-items: center; padding: 8px; border-left: 2px solid var(--accent); background: var(--panel-2); font: 12px Arial, sans-serif; }
+  .compact-rank { color: var(--muted); text-align: center; }
+  .compact-name { color: var(--text); overflow: hidden; text-overflow: ellipsis; }
+  .compact-prob { color: var(--accent-2); text-align: right; }
+  .compact-paths { color: var(--muted); text-align: right; }
+  .compact-state { grid-column: 2 / -1; display: flex; flex-wrap: wrap; gap: 5px; color: var(--muted); font-size: 10px; }
+  .compact-state b { color: var(--accent); font-weight: normal; }
+  .weekly-subview { max-width: 980px; margin-top: 24px; padding-top: 18px; border-top: 1px solid var(--border); }
+  .player-ledger-list { display: grid; gap: 7px; }
+  .player-ledger { background: var(--panel-2); border-left: 2px solid var(--accent-2); }
+  .player-ledger summary { display: grid; grid-template-columns: minmax(90px, 1fr) auto auto; gap: 10px; padding: 10px; cursor: pointer; font: 12px Arial, sans-serif; list-style-position: inside; }
+  .player-ledger summary span:nth-child(2) { color: var(--accent-2); }
+  .player-ledger summary span:last-child { color: var(--muted); }
+  .ledger-games { display: grid; grid-template-columns: repeat(auto-fit, minmax(130px, 1fr)); gap: 5px; padding: 0 10px 10px; }
+  .ledger-game { padding: 7px; border: 1px solid var(--border); font: 10px Arial, sans-serif; color: var(--muted); }
+  .ledger-game strong { display: block; color: var(--text); font-size: 11px; }
+  .ledger-game.live { border-color: var(--accent-2); }
+  .ledger-game.pending { opacity: .72; }
+  .analysis-table-wrap { overflow-x: auto; }
+  .analysis-table { width: 100%; border-collapse: collapse; font: 11px Arial, sans-serif; }
+  .analysis-table th, .analysis-table td { padding: 7px 8px; border: 1px solid var(--border); text-align: left; }
+  .analysis-table th { background: #202c38; color: var(--muted); font-size: 10px; text-transform: uppercase; }
+  .analysis-table td { background: var(--panel-2); }
+  .analysis-note { margin: 0 0 10px; color: var(--muted); font: 11px Arial, sans-serif; }
+  .leverage-bar { display: inline-block; height: 6px; margin-right: 7px; background: var(--accent-2); vertical-align: middle; }
   .pg-player { text-align: left !important; background: var(--panel-2); color: var(--text); min-width: 72px; font-weight: normal; }
   .pg-game { background: #202c38; color: var(--muted); font-size: 10px; line-height: 1.4; }
   .pg-game small { color: #4a6070; }
@@ -154,7 +173,7 @@
   <section id="view-picks-confirmation" class="view"><section class="intro"><div><h2>Picks submitted</h2></div><p>Week 1 · 2026-2027</p></section><div class="panel website-confirmation"><p>Your picks were submitted successfully.</p><p>Your name and picks are available immediately.</p><button id="website-view-week-one" type="button">View Week 1</button></div></section>
   <section id="view-week-one" class="view">
     <section class="intro"><div><h2>Week 1</h2></div><p>2026-2027 submissions and weekly standings.</p></section>
-    <div class="panel"><div id="week-one-status" class="summary"></div><div id="week-one-table" style="overflow-x:auto"></div><div id="week-one-compact" class="compact-live-wrap"></div></div>
+    <div class="panel"><div id="week-one-status" class="summary"></div><div id="week-one-table" style="overflow-x:auto"></div><div id="week-one-compact" class="compact-live-wrap"></div><div id="week-one-ledger" class="weekly-subview"></div><div id="week-one-paths" class="weekly-subview"></div><div id="week-one-leverage" class="weekly-subview"></div></div>
   </section>
   <section id="view-alltime" class="view">
     <section class="intro"><div><h2>All Time</h2></div><p>Seventeen seasons of results in one place: the career leaders, every champion, and how the long-timers built their records.</p></section>
@@ -206,16 +225,15 @@ function renderWebsiteCompactBoard(data) {
   const players = data.players || [];
   const games = data.games || [];
   if (!host || !players.length || !games.length) { if (host) host.innerHTML = ""; return; }
-  const gameLabel = (game, pick) => `${pick} (${game.favorite}/${game.underdog})`;
   const rows = players.map(player => {
-    const live = [];
-    const upcoming = [];
+    let live = 0;
+    let upcoming = 0;
     let completedWins = 0;
     let completedLosses = 0;
     games.forEach((game, index) => {
       const status = String(game.status || "").toUpperCase();
-      if (status === "IN_PROGRESS") live.push(gameLabel(game, player.picks[index]));
-      else if (!["FINAL", "COMPLETED"].includes(status)) upcoming.push(gameLabel(game, player.picks[index]));
+      if (status === "IN_PROGRESS") live++;
+      else if (!["FINAL", "COMPLETED"].includes(status)) upcoming++;
       else {
         const margin = Number(data.favoriteScores[index]) - Number(data.underdogScores[index]) - Number(data.spreads[index]);
         if (margin !== 0) {
@@ -228,7 +246,82 @@ function renderWebsiteCompactBoard(data) {
     });
     return { player, live, upcoming, completed: `${completedWins}-${completedLosses}` };
   }).sort((left, right) => parseFloat(right.player.winProbability || 0) - parseFloat(left.player.winProbability || 0) || Number(right.player.wins || 0) - Number(left.player.wins || 0) || left.player.name.localeCompare(right.player.name));
-  host.innerHTML = `<h3 class="compact-live-title">Live probability board</h3><table class="compact-live-table"><thead><tr><th>Name</th><th>Prob</th><th>Paths</th><th>Current games</th><th>Upcoming games</th><th>Completed games</th></tr></thead><tbody>${rows.map(({ player, live, upcoming, completed }) => `<tr><td>${player.name}</td><td class="compact-number">${player.winProbability || "-"}</td><td class="compact-number">${player.pathsToVictory ?? "-"}</td><td class="compact-live">${live.join(" / ") || "-"}</td><td class="compact-upcoming">${upcoming.join(" / ") || "-"}</td><td class="compact-number">${completed}</td></tr>`).join("")}</tbody></table>`;
+  host.innerHTML = `<h3 class="compact-live-title">Portrait leaderboard</h3><div class="compact-rank-list">${rows.map(({ player, live, upcoming, completed }, index) => `<div class="compact-rank-row"><span class="compact-rank">${index + 1}</span><span class="compact-name">${player.name}</span><span class="compact-prob">${player.winProbability || "-"}</span><span class="compact-paths">${player.pathsToVictory ?? "-"} paths</span><span class="compact-state"><span>Final <b>${completed}</b></span><span>Live <b>${live}</b></span><span>Left <b>${upcoming}</b></span></span></div>`).join("")}</div>`;
+}
+const WEBSITE_PATH_DISPLAY_LIMIT = 50;
+const WEBSITE_SIMULATION_LIMIT = 4096;
+function websiteGameWinner(data, index) {
+  const status = String(data.games[index]?.status || "").toUpperCase();
+  if (!["IN_PROGRESS", "FINAL", "COMPLETED"].includes(status)) return null;
+  const margin = Number(data.favoriteScores[index]) - Number(data.underdogScores[index]) - Number(data.spreads[index]);
+  return margin === 0 ? "PUSH" : margin > 0 ? data.favorites[index] : data.underdogs[index];
+}
+function websiteScenarioOutcomes(data, forced = {}) {
+  const variable = data.games.map((game, index) => ({ game, index })).filter(({ index }) => websiteGameWinner(data, index) === null && forced[index] == null);
+  const radices = variable.map(({ game }) => Number(game.spread) % 1 === 0 ? 3 : 2);
+  const total = radices.reduce((value, radix) => value * radix, 1);
+  return { variable, radices, total, outcomeAt(pathIndex) {
+    const winners = data.games.map((game, index) => forced[index] || websiteGameWinner(data, index));
+    let value = pathIndex;
+    variable.forEach(({ game, index }, variableIndex) => {
+      const outcome = value % radices[variableIndex];
+      value = Math.floor(value / radices[variableIndex]);
+      winners[index] = outcome === 2 ? "PUSH" : outcome === 1 ? game.favorite : game.underdog;
+    });
+    return winners;
+  }};
+}
+function websiteScenarioShares(data, winners) {
+  const scores = data.players.map(player => winners.reduce((score, winner, index) => {
+    if (!winner || winner === "PUSH") return score;
+    const won = player.picks[index] === winner;
+    return score + (won ? 1 : 0) + (won && player.bestBet === winner ? 1 : 0);
+  }, 0));
+  const best = Math.max(...scores);
+  const winningIndexes = scores.map((score, index) => score === best ? index : -1).filter(index => index >= 0);
+  const share = 1 / winningIndexes.length;
+  return { scores, shares: data.players.map((player, index) => winningIndexes.includes(index) ? share : 0), winners: winningIndexes.map(index => data.players[index].name) };
+}
+function websiteSampleScenarioIndexes(total, limit) {
+  const count = Math.min(total, limit);
+  return Array.from({ length: count }, (value, index) => Math.min(total - 1, Math.floor(index * total / count)));
+}
+function websiteConditionalProbabilities(data, forced = {}) {
+  const scenarios = websiteScenarioOutcomes(data, forced);
+  const indexes = websiteSampleScenarioIndexes(scenarios.total, WEBSITE_SIMULATION_LIMIT);
+  const totals = new Array(data.players.length).fill(0);
+  indexes.forEach(index => websiteScenarioShares(data, scenarios.outcomeAt(index)).shares.forEach((share, playerIndex) => { totals[playerIndex] += share; }));
+  return totals.map(total => indexes.length ? total * 100 / indexes.length : 0);
+}
+function renderWebsitePlayerLedgers(data) {
+  const host = document.getElementById("week-one-ledger");
+  if (!host || !(data.players || []).length) return;
+  const players = [...data.players].sort((left, right) => parseFloat(right.winProbability || 0) - parseFloat(left.winProbability || 0));
+  host.innerHTML = `<h3 class="compact-live-title">Player ledgers</h3><p class="analysis-note">Portrait detail: tap a player to see every pick, matchup, score, and game state.</p><div class="player-ledger-list">${players.map(player => `<details class="player-ledger"><summary><span>${player.name}</span><span>${player.winProbability || "-"}</span><span>${player.wins}-${player.losses}</span></summary><div class="ledger-games">${data.games.map((game, index) => { const status = String(game.status || "").toUpperCase(); const live = status === "IN_PROGRESS"; const final = ["FINAL", "COMPLETED"].includes(status); const score = live || final ? `${data.favoriteScores[index]}-${data.underdogScores[index]}` : game.kickoffGroup || game.kickoff || "Upcoming"; return `<div class="ledger-game ${live ? "live" : final ? "" : "pending"}"><strong>${player.picks[index]}${player.bestBet === player.picks[index] ? " · BB" : ""}</strong>${game.favorite} ${data.spreads[index]} ${game.underdog}<br>${score}</div>`; }).join("")}</div></details>`).join("")}</div>`;
+}
+function renderWebsitePaths(data) {
+  const host = document.getElementById("week-one-paths");
+  if (!host || !(data.players || []).length) return;
+  const scenarios = websiteScenarioOutcomes(data);
+  const indexes = websiteSampleScenarioIndexes(scenarios.total, WEBSITE_PATH_DISPLAY_LIMIT);
+  const rows = indexes.map((pathIndex, rowIndex) => { const outcomes = scenarios.outcomeAt(pathIndex); const result = websiteScenarioShares(data, outcomes); const remaining = scenarios.variable.map(({ game, index }) => `${outcomes[index] === "PUSH" ? "Push" : outcomes[index]} over ${outcomes[index] === game.favorite ? game.underdog : game.favorite}`).join(" / ") || "All games complete"; return `<tr><td>${rowIndex + 1}</td><td>${result.winners.join(" / ")}</td><td>${remaining}</td></tr>`; });
+  host.innerHTML = `<h3 class="compact-live-title">Winning paths</h3><p class="analysis-note">Showing ${indexes.length} representative path${indexes.length === 1 ? "" : "s"} of ${scenarios.total.toLocaleString()}. Display is capped at ${WEBSITE_PATH_DISPLAY_LIMIT}; probability calculations remain separate.</p><div class="analysis-table-wrap"><table class="analysis-table"><thead><tr><th>Path</th><th>Winner</th><th>Remaining outcomes</th></tr></thead><tbody>${rows.join("")}</tbody></table></div>`;
+}
+function renderWebsiteGameLeverage(data) {
+  const host = document.getElementById("week-one-leverage");
+  if (!host || !(data.players || []).length) return;
+  const rows = data.games.map((game, index) => {
+    const favoriteProbabilities = websiteConditionalProbabilities(data, { [index]: game.favorite });
+    const underdogProbabilities = websiteConditionalProbabilities(data, { [index]: game.underdog });
+    const swings = favoriteProbabilities.map((probability, playerIndex) => ({ playerIndex, swing: Math.abs(probability - underdogProbabilities[playerIndex]), favorite: probability, underdog: underdogProbabilities[playerIndex] }));
+    const impact = swings.sort((left, right) => right.swing - left.swing)[0];
+    const player = data.players[impact.playerIndex];
+    const actual = websiteGameWinner(data, index);
+    const wording = actual && actual !== "PUSH" ? `${actual} result was worth a ${impact.swing.toFixed(1)}-point conditional swing for ${player.name}` : `${player.name}: ${impact.favorite.toFixed(1)}% if ${game.favorite} covers, ${impact.underdog.toFixed(1)}% if ${game.underdog} covers`;
+    return { game: `${game.favorite} ${data.spreads[index]} ${game.underdog}`, status: game.statusText || game.status, swing: impact.swing, wording };
+  }).sort((left, right) => right.swing - left.swing);
+  const maxSwing = Math.max(1, ...rows.map(row => row.swing));
+  host.innerHTML = `<h3 class="compact-live-title">Games that decide the pool</h3><p class="analysis-note">Leverage is the largest change in any player's pool-win probability when the game result flips. It is a counterfactual swing, not a claim that one game alone caused the win. Scenario sampling is capped at ${WEBSITE_SIMULATION_LIMIT.toLocaleString()}.</p><div class="analysis-table-wrap"><table class="analysis-table"><thead><tr><th>Game</th><th>Status</th><th>Max swing</th><th>Who it affects</th></tr></thead><tbody>${rows.map(row => `<tr><td>${row.game}</td><td>${row.status}</td><td><span class="leverage-bar" style="width:${Math.max(3, row.swing / maxSwing * 80)}px"></span>${row.swing.toFixed(1)} pts</td><td>${row.wording}</td></tr>`).join("")}</tbody></table></div>`;
 }
 function websitePickSelection() { const testMode = document.getElementById("website-picks-mode")?.value === "test"; return { testMode, season: 2026, week: testMode ? Number(document.getElementById("website-preseason-week")?.value || 1) : 1, phase: testMode ? "PRESEASON" : "REGULAR_SEASON" }; }
 async function selectStagedPreseasonWeek() { if (!WEBSITE_SUBMISSIONS_ENDPOINT) return false; try { const separator = WEBSITE_SUBMISSIONS_ENDPOINT.includes("?") ? "&" : "?"; const response = await fetch(`${WEBSITE_SUBMISSIONS_ENDPOINT}${separator}action=preseason-test&season=2026&week=3`); const data = await response.json(); if (!response.ok || !data.ok || !(data.games || []).length) return false; document.getElementById("website-picks-mode").value = "test"; document.getElementById("website-preseason-week").value = "3"; document.getElementById("website-game-picks").dataset.ready = ""; return true; } catch (error) { return false; } }
@@ -303,7 +396,11 @@ async function renderSelectedWebsiteWeek() {
     const data = await response.json();
     if (!response.ok || !data.ok) throw new Error(data.error || "Could not load the preseason test.");
     renderWebsiteWeekOneGrid(data, `Preseason ${selection.week} test`);
+    decorateWebsiteWeekOneHeaders(data);
     renderWebsiteCompactBoard(data);
+    renderWebsitePlayerLedgers(data);
+    renderWebsitePaths(data);
+    renderWebsiteGameLeverage(data);
     document.querySelector("#view-week-one .intro h2").textContent = `Preseason Week ${selection.week} Test`;
     document.querySelector("#view-week-one .intro p").textContent = "Test entries only · excluded from season records.";
     websiteLiveRefreshTimer = setTimeout(renderSelectedWebsiteWeek, 60000);
