@@ -52,18 +52,21 @@
   .profile-list div { display: flex; justify-content: space-between; gap: 12px; border-bottom: 1px solid var(--border); padding-bottom: 8px; }
   .profile-list span { color: var(--muted); }
   .website-game-group { margin: 0; padding: 0; border: 0; }
-  .website-game-group + .website-game-group { border-top: 1px solid var(--border); }
-  .website-game-group legend { width: 100%; padding: 10px 0 4px; color: var(--accent); font: 11px Arial, sans-serif; letter-spacing: .8px; text-transform: uppercase; }
+  .website-game-list { display: block; }
+  .website-game-group legend { width: 100%; padding: 7px 0 2px; color: var(--accent); font: 10px Arial, sans-serif; letter-spacing: .8px; text-transform: uppercase; }
   .website-game-group legend { text-align: center; }
   .website-identity-controls, .website-final-controls { grid-template-columns: 1fr; gap: 7px; margin-bottom: 8px; }
   #website-picks-form > label { margin-bottom: 7px; }
-  .website-game-row { position: relative; display: grid; grid-template-columns: minmax(0, 1fr) 48px minmax(0, 1fr); align-items: center; gap: 8px; padding: 4px 0; }
-  .website-side { display: flex; align-items: center; gap: 8px; min-width: 0; padding: 8px 10px; border: 1px solid transparent; border-radius: 5px; font: 14px Arial, sans-serif; text-transform: none; letter-spacing: 0; cursor: pointer; transition: background .15s, border-color .15s, color .15s; }
+  .website-game-row { position: relative; padding: 2px 0 4px; border-bottom: 1px solid var(--border); }
+  .website-matchup { display: grid; grid-template-columns: minmax(0, 1fr) 48px minmax(0, 1fr); align-items: center; gap: 8px; }
+  .website-game-context { margin: 0; padding: 0 4px 1px; color: var(--muted); font: 10px/1.3 Arial, sans-serif; text-align: center; }
+  .website-side { display: flex; align-items: center; gap: 8px; min-width: 0; padding: 5px 8px; border: 1px solid transparent; border-radius: 5px; font: 14px Arial, sans-serif; text-transform: none; letter-spacing: 0; cursor: pointer; transition: background .15s, border-color .15s, color .15s; }
   .website-side:hover { background: var(--panel-2); border-color: var(--border); }
-  .website-side:has(input:checked) { background: #1e5c3a; border-color: var(--accent); color: #7ee2b8; }
+  .website-side > span { padding: 4px 6px; border: 1px solid transparent; border-radius: 5px; }
+  .website-side:has(input:checked) > span { background: #1e5c3a; border-color: var(--accent); color: #7ee2b8; }
   .website-side.right { justify-content: flex-end; text-align: right; }
   .website-side input { position: absolute; opacity: 0; pointer-events: none; }
-  .website-spread { position: absolute; left: 50%; transform: translateX(-50%); display: flex; align-items: center; justify-content: center; color: var(--accent-2); font: bold 13px Arial, sans-serif; text-align: center; width: 48px; min-height: 28px; }
+  .website-spread { display: flex; align-items: center; justify-content: center; color: var(--accent-2); font: bold 13px Arial, sans-serif; text-align: center; width: 48px; min-height: 28px; }
   .website-instructions { margin: 0 0 18px; color: var(--muted); font: 13px/1.55 Arial, sans-serif; }
   .website-mode-controls { grid-template-columns: minmax(180px, 1fr) minmax(120px, .5fr); }
   .website-test-notice { display: none; margin: 0 0 14px; padding: 10px 12px; border-left: 3px solid var(--accent-2); background: #251f14; color: #ffd28a; font: 12px/1.5 Arial, sans-serif; }
@@ -94,7 +97,7 @@
   .tabulator-row:hover { background: #263b40 !important; }
   #loading { color: var(--muted); font: 13px Arial, sans-serif; }
   @media (max-width: 850px) { .workspace, .profile-grid, .profile-charts { grid-template-columns: 1fr; } .record-grid { grid-template-columns: repeat(2, 1fr); } .intro { display: block; } .intro p { margin-top: 14px; } }
-  @media (max-width: 560px) { .summary { grid-template-columns: repeat(2, 1fr); } .panel-head { align-items: start; flex-direction: column; } .explorer-controls { grid-template-columns: 1fr; } #view-games .explorer-controls, #view-weeks .explorer-controls { max-width: none; } #view-enter-picks .panel { padding: 10px; } .website-game-row { grid-template-columns: minmax(0, 1fr) 40px minmax(0, 1fr); gap: 4px; } .website-side { padding: 8px 4px; font-size: 12px; } .website-spread { width: 40px; } }
+  @media (max-width: 560px) { .summary { grid-template-columns: repeat(2, 1fr); } .panel-head { align-items: start; flex-direction: column; } .explorer-controls, .path-controls { grid-template-columns: 1fr; } #view-games .explorer-controls, #view-weeks .explorer-controls { max-width: none; } #view-enter-picks .panel { padding: 10px; } .website-matchup { grid-template-columns: minmax(0, 1fr) 40px minmax(0, 1fr); gap: 4px; } .website-side { padding: 8px 4px; font-size: 12px; } .website-spread { width: 40px; } }
   .picks-grid { border-collapse: collapse; font: 11px Arial, sans-serif; }
   .picks-grid th, .picks-grid td { padding: 2px 5px; border: 1px solid var(--border); text-align: center; vertical-align: middle; white-space: nowrap; }
   .compact-live-title { margin: 0 0 10px; color: var(--accent); font: 11px Arial, sans-serif; text-transform: uppercase; letter-spacing: .7px; }
@@ -112,16 +115,20 @@
   .ledger-game.correct { background: #1e5c3a; border-color: #2d8556; color: #b7f3d8; }
   .ledger-game.incorrect { background: #6b1f1f; border-color: #963535; color: #ffd0d0; }
   .ledger-game.push { background: #4a4a20; border-color: #747432; color: #e6e6ad; }
-  .path-controls { display: grid; grid-template-columns: minmax(180px, 280px); margin-bottom: 10px; }
-  #week-one-sankey { overflow-x: auto; }
-  .sankey-wrap { position: relative; width: 100%; min-width: 760px; height: 470px; }
+  .path-controls { display: grid; grid-template-columns: repeat(2, minmax(180px, 280px)); gap: 8px; margin-bottom: 10px; }
+  #week-one-sankey { max-width: none; overflow-x: auto; }
+  .sankey-wrap { position: relative; width: 100%; min-width: 1000px; height: 650px; }
   .analysis-table-wrap { overflow-x: auto; }
   .analysis-table { width: 100%; border-collapse: collapse; font: 11px Arial, sans-serif; }
   .analysis-table th, .analysis-table td { padding: 7px 8px; border: 1px solid var(--border); text-align: left; }
   .analysis-table th { background: #202c38; color: var(--muted); font-size: 10px; text-transform: uppercase; }
   .analysis-table td { background: var(--panel-2); }
+  .scenario-player-row td { background: #202c38; border-top: 2px solid var(--accent); }
+  .scenario-subrow td:first-child { padding-left: 22px; color: var(--muted); }
+  .scenario-chance { color: var(--accent-2); white-space: nowrap; }
   .analysis-note { margin: 0 0 10px; color: var(--muted); font: 11px Arial, sans-serif; }
   .pg-player { text-align: left !important; background: var(--panel-2); color: var(--text); min-width: 72px; font-weight: normal; }
+  .pg-week-name { min-width: 110px; text-align: left !important; }
   .pg-game { background: #202c38; color: var(--muted); font-size: 10px; line-height: 1.4; }
   .pg-game small { color: #4a6070; }
   .pg-header-score { display: block; color: var(--text); font-size: 12px; line-height: 1.15; }
@@ -161,16 +168,16 @@
 </style>
 </head>
 <body>
-<header><h1>FBP</h1><nav id="nav"><button data-view="enter-picks">Enter Picks</button><button data-view="week-one">Week 1</button><button data-view="alltime">All Time</button><button data-view="season">Seasons</button><button data-view="weeks">Weeks</button><button data-view="weekly-rank">Weekly Rank</button><button data-view="games">Games</button><button data-view="streaks">Streaks</button><button data-view="players">Player Profile</button></nav></header>
+<header><h1>FBP</h1><nav id="nav"><button data-view="enter-picks">Enter Picks</button><button data-view="week-one">Week 1</button><button data-view="alltime">All Time</button><button data-view="season">Seasons</button><button data-view="weeks">Weeks</button><button data-view="games">Games</button><button data-view="streaks">Streaks</button><button data-view="players">Player Profile</button></nav></header>
 <main>
   <section id="view-enter-picks" class="view active">
     <section class="intro"><div><h2>Enter Picks</h2></div><p>Week 1 · 2026-2027</p></section>
-    <div class="panel"><div class="explorer-controls website-mode-controls"><label>Mode<select id="website-picks-mode"><option value="regular">Regular Week 1</option><option value="test">Preseason test</option></select></label><label>Preseason week<select id="website-preseason-week" disabled><option value="1">Week 1</option><option value="2">Week 2</option><option value="3">Week 3</option></select></label></div><p id="website-test-notice" class="website-test-notice">TEST MODE · Entries and scores are isolated from regular-season standings, logs, awards, and archives.</p><div class="website-instructions">Favorites are on the left. Underdogs on the right.<br>HOME TEAMS are in CAPS. away teams are lower case.<br>Point Spreads will be posted on Tuesdays.<br>Once the point spreads are posted they will not change.</div><form id="website-picks-form"><div class="explorer-controls website-identity-controls"><label>Name<input id="website-picks-name" required autocomplete="name"></label><label><span id="website-week-name-label">Week 1 name</span><input id="website-week-name" required></label></div><div id="website-game-picks" class="profile-list"></div><div class="explorer-controls website-final-controls" style="margin-top:18px"><label>Best Bet<select id="website-best-bet" required></select></label><label>Tiebreaker · Total net passing yards<input id="website-tiebreaker" type="number" required><small style="color:var(--muted);font:11px Arial,sans-serif;text-transform:none;letter-spacing:0">Net passing yards include yards lost to sacks.</small></label></div><button type="submit" style="margin-top:18px">Submit picks</button><p id="website-picks-status" style="color:var(--muted);font:13px Arial,sans-serif"></p></form></div>
+    <div class="panel"><div class="explorer-controls website-mode-controls"><label>Mode<select id="website-picks-mode"><option value="regular">Regular Week 1</option><option value="test">Preseason test</option></select></label><label>Preseason week<select id="website-preseason-week" disabled><option value="1">Week 1</option><option value="2">Week 2</option><option value="3">Week 3</option></select></label></div><p id="website-test-notice" class="website-test-notice">TEST MODE · Entries and scores are isolated from regular-season standings, logs, awards, and archives.</p><div class="website-instructions">Favorites are on the left. Underdogs on the right.<br>HOME TEAMS are in CAPS. away teams are lower case.<br>Point Spreads will be posted on Tuesdays.<br>Once the point spreads are posted they will not change.</div><form id="website-picks-form"><div class="explorer-controls website-identity-controls"><label>Name<input id="website-picks-name" required autocomplete="name"></label><label><span id="website-week-name-label">Week 1 name</span><input id="website-week-name" required></label></div><div id="website-game-picks" class="website-game-list"></div><div class="explorer-controls website-final-controls" style="margin-top:18px"><label>Best Bet<select id="website-best-bet" required></select></label><label>Tiebreaker · Total net passing yards<input id="website-tiebreaker" type="number" required><small style="color:var(--muted);font:11px Arial,sans-serif;text-transform:none;letter-spacing:0">Net passing yards include yards lost to sacks.</small></label></div><button type="submit" style="margin-top:18px">Submit picks</button><p id="website-picks-status" style="color:var(--muted);font:13px Arial,sans-serif"></p></form></div>
   </section>
   <section id="view-picks-confirmation" class="view"><section class="intro"><div><h2>Picks submitted</h2></div><p>Week 1 · 2026-2027</p></section><div class="panel website-confirmation"><p>Your picks were submitted successfully.</p><p>Your name and picks are available immediately.</p><button id="website-view-week-one" type="button">View Week 1</button></div></section>
   <section id="view-week-one" class="view">
     <section class="intro"><div><h2>Week 1</h2></div><p>2026-2027 submissions and weekly standings.</p></section>
-    <div class="panel"><div id="week-one-status" class="summary"></div><div id="week-one-table" style="overflow-x:auto"></div><div id="week-one-ledger" class="weekly-subview"></div><div id="week-one-paths" class="weekly-subview"></div><div id="week-one-sankey" class="weekly-subview"></div></div>
+    <div class="panel"><div id="week-one-status"></div><div id="week-one-table" style="overflow-x:auto"></div><div id="week-one-scenarios" class="weekly-subview"></div><div id="week-one-sankey" class="weekly-subview"></div><div id="week-one-paths" class="weekly-subview"></div></div>
   </section>
   <section id="view-alltime" class="view">
     <section class="intro"><div><h2>All Time</h2></div><p>Seventeen seasons of results in one place: the career leaders, every champion, and how the long-timers built their records.</p></section>
@@ -190,11 +197,7 @@
   </section>
   <section id="view-weeks" class="view"><select id="week-race-players" hidden></select>
     <section class="intro"><div><h2>Weeks</h2></div><p>Every player's picks against the spread, where they finished, and the game-by-game runs that separated the top three.</p></section>
-    <div class="panel"><div class="explorer-controls"><label>Season<select id="week-season"></select></label><label>Week<select id="week-choice"></select></label></div><div id="week-summary" class="summary"></div><div class="chart-wrap wide-chart"><canvas id="week-chart"></canvas></div><h3 style="margin:28px 0 8px;color:var(--accent);font:11px Arial,sans-serif;letter-spacing:1px;text-transform:uppercase">Picks</h3><div id="week-picks-grid" style="overflow-x:auto;margin-bottom:4px"></div><h3 style="margin:28px 0 8px;color:var(--accent);font:11px Arial,sans-serif;letter-spacing:1px;text-transform:uppercase">Standings</h3><div id="week-table"></div><hr class="chart-divider"><div class="chart-wrap wide-chart race-chart-wrap" style="margin-top:24px"><canvas id="week-race-chart"></canvas></div><div class="explorer-controls" style="margin-top:28px"><label>Contribution player<select id="contribution-player"></select></label></div><h3 style="margin:24px 0 10px">Pick by pick</h3><div class="chart-wrap wide-chart race-chart-wrap" style="margin-top:12px"><canvas id="winner-contribution-chart"></canvas></div></div>
-  </section>
-  <section id="view-weekly-rank" class="view">
-    <section class="intro"><div><h2>Weekly Rank</h2></div><p>A sheet-style history of weekly finishes across every season, newest weeks first, with player filtering and trend context.</p></section>
-    <div class="panel"><div class="explorer-controls" style="grid-template-columns: repeat(2, minmax(180px, 1fr)); max-width: 520px;"><label>Player<select id="weekly-rank-player"><option value="all">All players</option></select></label><label>Display<select id="weekly-rank-display"><option value="all">All finishes</option><option value="wins">Weekly winners</option><option value="top5">Top 5</option><option value="top10">Top 10</option><option value="money">Money winners</option></select></label></div><div id="weekly-rank-summary" class="summary"></div><div class="chart-wrap wide-chart" style="height:420px;margin-top:14px"><canvas id="weekly-rank-chart"></canvas></div><div id="weekly-rank-sheet" style="overflow-x:auto;margin-top:14px"></div></div>
+    <div class="panel"><div class="explorer-controls"><label>Season<select id="week-season"></select></label><label>Week<select id="week-choice"></select></label></div><div id="week-summary" class="summary"></div><div class="chart-wrap wide-chart"><canvas id="week-chart"></canvas></div><h3 style="margin:28px 0 8px;color:var(--accent);font:11px Arial,sans-serif;letter-spacing:1px;text-transform:uppercase">Picks</h3><div id="week-picks-grid" style="overflow-x:auto;margin-bottom:4px"></div><h3 style="margin:28px 0 8px;color:var(--accent);font:11px Arial,sans-serif;letter-spacing:1px;text-transform:uppercase">Standings</h3><div id="week-table"></div><hr class="chart-divider"><div class="chart-wrap wide-chart race-chart-wrap" style="margin-top:24px"><canvas id="week-race-chart"></canvas></div><div class="explorer-controls" style="margin-top:28px"><label>Contribution player<select id="contribution-player"></select></label></div><h3 style="margin:24px 0 10px">Pick by pick</h3><div class="chart-wrap wide-chart race-chart-wrap" style="margin-top:12px"><canvas id="winner-contribution-chart"></canvas></div><hr class="chart-divider"><h3 style="margin:28px 0 8px;color:var(--accent);font:11px Arial,sans-serif;letter-spacing:1px;text-transform:uppercase">Weekly Rank</h3><p class="analysis-note">A sheet-style history of weekly finishes across every season, newest weeks first, with player filtering and trend context.</p><div class="explorer-controls" style="grid-template-columns: repeat(2, minmax(180px, 1fr)); max-width: 520px;"><label>Player<select id="weekly-rank-player"><option value="all">All players</option></select></label><label>Display<select id="weekly-rank-display"><option value="all">All finishes</option><option value="wins">Weekly winners</option><option value="top5">Top 5</option><option value="top10">Top 10</option><option value="money">Money winners</option></select></label></div><div id="weekly-rank-summary" class="summary"></div><div class="chart-wrap wide-chart" style="height:420px;margin-top:14px"><canvas id="weekly-rank-chart"></canvas></div><div id="weekly-rank-sheet" style="overflow-x:auto;margin-top:14px"></div></div>
   </section>
   <section id="view-players" class="view">
     <section class="intro"><div><div class="eyebrow">One player at a time</div><h2>Player Profile</h2></div><p>Choose a player to see their all-time totals and season-by-season record.</p></section>
@@ -206,34 +209,79 @@
 </main>
 <script>
 const DATA_DIR = "data";
-const requestedStartupRoute = location.hash.slice(1);
+const requestedStartupRoute = location.hash.slice(1) === "weekly-rank" ? "weeks" : location.hash.slice(1);
+if (location.hash === "#weekly-rank") history.replaceState(null, "", "#weeks");
 let startupRoutePending = true;
 const WEBSITE_SUBMISSIONS_ENDPOINT = "https://script.google.com/macros/s/AKfycbxZUgJm6LstCEomhmrlJYa_nH7tsmxC_4UZwYdroIZbs-PeI6KdPqUZtsF9fZvr_YuNWQ/exec";
 function showWebsiteConfirmation() { showView("picks-confirmation"); }
 function resetWebsiteBestBet() { const bestBet = document.getElementById("website-best-bet"); if (!bestBet) return; if (!bestBet.options.length || bestBet.options[0].value !== "") bestBet.insertBefore(new Option("Choose a best bet", ""), bestBet.options[0] || null); bestBet.value = ""; }
 const WEBSITE_TEAM_NAMES = { ari:"arizona",atl:"atlanta",bal:"baltimore",buf:"buffalo",car:"carolina",chi:"chicago",cin:"cincinnati",cle:"cleveland",dal:"dallas",den:"denver",det:"detroit",gb:"green bay",hou:"houston",ind:"indianapolis",jax:"jacksonville",kc:"kansas city",lar:"la rams",lac:"la chargers",lv:"las vegas",mia:"miami",min:"minnesota",ne:"new england",no:"new orleans",nyg:"ny giants",nyj:"ny jets",phi:"philadelphia",pit:"pittsburgh",sea:"seattle",sf:"san francisco",tb:"tampa bay",ten:"tennessee",was:"washington" };
 function websiteTeamName(abbreviation) { const name = WEBSITE_TEAM_NAMES[abbreviation.toLowerCase()] || abbreviation; return abbreviation === abbreviation.toUpperCase() ? name.toUpperCase() : name; }
+function websiteEscapeHtml(value) { return String(value).replace(/[&<>"']/g, character => ({ "&": "&amp;", "<": "&lt;", ">": "&gt;", '"': "&quot;", "'": "&#39;" })[character]); }
 const WEBSITE_WEEK_ONE_GAMES = [["wed 8:20","SEA","3.5","ne"],["thur 8:35","LAR","3.5","sf"],["sun 1:00","HOU","1.5","buf"],["sun 1:00","PIT","3","atl"],["sun 1:00","JAX","7.5","cle"],["sun 1:00","TEN","2.5","nyj"],["sun 1:00","DET","6.5","no"],["sun 1:00","bal","3.5","IND"],["sun 1:00","chi","2.5","CAR"],["sun 1:00","CIN","3.5","tb"],["sun 4:25","MIN","1.5","gb"],["sun 4:25","PHI","5.5","was"],["sun 4:25","LAC","10.5","ari"],["sun 4:25","LV","3.5","mia"],["sun 8:20","dal","2.5","NYG"],["mon 8:15","KC","2.5","den"]].map(([time,favorite,spread,underdog],index)=>({id:`game-${index+1}`,time,favorite,spread,underdog}));
 function renderWebsitePicksForm() { const host = document.getElementById("website-game-picks"); if (!host || host.dataset.ready) return; host.dataset.ready = "true"; const choices = WEBSITE_WEEK_ONE_GAMES.flatMap(game => [game.favorite, game.underdog]).sort((a, b) => websiteTeamName(a).localeCompare(websiteTeamName(b), undefined, { sensitivity: "base" })); const groups = []; WEBSITE_WEEK_ONE_GAMES.forEach((game, index) => { const previous = WEBSITE_WEEK_ONE_GAMES[index - 1]; if (!previous || previous.time !== game.time) groups.push({ time: game.time, games: [] }); groups[groups.length - 1].games.push({ game, index }); }); host.innerHTML = groups.map(group => `<fieldset class="website-game-group"><legend>${group.time}</legend>${group.games.map(({ game, index }) => `<div class="website-game-row"><label class="website-side"><input type="radio" name="game-${index + 1}" value="${game.favorite}" required><span>${websiteTeamName(game.favorite)}</span></label><span class="website-spread">${game.spread}</span><label class="website-side right"><span>${websiteTeamName(game.underdog)}</span><input type="radio" name="game-${index + 1}" value="${game.underdog}" required></label></div>`).join("")}</fieldset>`).join(""); const bestBet = document.getElementById("website-best-bet"); choices.forEach(team => bestBet.add(new Option(websiteTeamName(team), team))); document.getElementById("website-picks-form").onsubmit = async event => { event.preventDefault(); const form = event.currentTarget; const submission = { submittedAt: new Date().toISOString(), name: document.getElementById("website-picks-name").value.trim(), weekName: document.getElementById("website-week-name").value.trim(), picks: WEBSITE_WEEK_ONE_GAMES.map((game, index) => form.elements[`game-${index + 1}`].value), bestBet: bestBet.value, tiebreaker: document.getElementById("website-tiebreaker").value }; const stored = JSON.parse(localStorage.getItem("fbpWebsiteSubmissions") || "[]"); stored.push(submission); localStorage.setItem("fbpWebsiteSubmissions", JSON.stringify(stored)); if (WEBSITE_SUBMISSIONS_ENDPOINT) await fetch(WEBSITE_SUBMISSIONS_ENDPOINT, { method: "POST", mode: "no-cors", headers: { "Content-Type": "text/plain" }, body: JSON.stringify(submission) }); document.getElementById("website-picks-status").textContent = WEBSITE_SUBMISSIONS_ENDPOINT ? "Submitted to the test workbook." : "Saved in this browser test. Add the Apps Script URL to submit to Sheets."; renderWebsiteWeekOne(); }; }
 let websiteActiveGames = WEBSITE_WEEK_ONE_GAMES;
 let websiteLiveRefreshTimer = null;
+let websitePicksWeatherRefreshTimer = null;
+const WEBSITE_PICKS_WEATHER_REFRESH_MS = 5 * 60 * 1000;
 const WEBSITE_PATH_DISPLAY_LIMIT = 50;
 const WEBSITE_SIMULATION_LIMIT = 4096;
-const WEBSITE_TIEBREAK_MIN = 0;
-const WEBSITE_TIEBREAK_MAX = 1000;
-let websiteScenarioMode = "preview-three";
+const WEBSITE_TIEBREAK_MIN = 200;
+const WEBSITE_TIEBREAK_MAX = 800;
+const WEBSITE_TIEBREAK_MEAN = 450;
+const WEBSITE_TIEBREAK_DEVIATION = 110;
+const WEBSITE_EXACT_SCENARIO_GAME_LIMIT = 6;
+let websiteScenarioMode = "current";
+let websiteContenderDetailMode = "simple";
 let websiteSankeyChart = null;
 function websiteGameWinner(data, index) {
-  const status = String(data.games[index]?.status || "").toUpperCase();
-  if (!["IN_PROGRESS", "FINAL", "COMPLETED"].includes(status)) return null;
+  const game = data.games[index] || {};
+  const status = String(game.espnStatus || game.status || "").toUpperCase();
+  if (!["POST", "FINAL", "COMPLETED"].includes(status)) return null;
   const margin = Number(data.favoriteScores[index]) - Number(data.underdogScores[index]) - Number(data.spreads[index]);
   return margin === 0 ? "PUSH" : margin > 0 ? data.favorites[index] : data.underdogs[index];
 }
+function websiteNormalCdf(value) {
+  const sign = value < 0 ? -1 : 1;
+  const absolute = Math.abs(value) / Math.sqrt(2);
+  const t = 1 / (1 + .3275911 * absolute);
+  const erf = sign * (1 - (((((1.061405429 * t - 1.453152027) * t) + 1.421413741) * t - .284496736) * t + .254829592) * t * Math.exp(-absolute * absolute));
+  return .5 * (1 + erf);
+}
+function websiteGameOutcomeProbabilities(data, index) {
+  const game = data.games[index] || {};
+  const status = String(game.espnStatus || game.status || "").toUpperCase();
+  if (["POST", "FINAL", "COMPLETED"].includes(status)) {
+    const winner = websiteGameWinner(data, index);
+    return { favorite: winner === data.favorites[index] ? 1 : 0, underdog: winner === data.underdogs[index] ? 1 : 0, push: winner === "PUSH" ? 1 : 0 };
+  }
+  const integerSpread = Number(data.spreads[index]) % 1 === 0;
+  if (!["IN", "IN_PROGRESS"].includes(status)) return { favorite: integerSpread ? .485 : .5, underdog: integerSpread ? .485 : .5, push: integerSpread ? .03 : 0 };
+  const period = Math.max(1, Math.min(4, Number(game.period) || 1));
+  const clockParts = String(game.clock || "15:00").split(":").map(Number);
+  const secondsInPeriod = Math.max(0, Math.min(900, (clockParts[0] || 0) * 60 + (clockParts[1] || 0)));
+  const secondsRemaining = Math.max(1, (4 - period) * 900 + secondsInPeriod);
+  const remainingFraction = secondsRemaining / 3600;
+  const favoriteIsHome = String(game.favorite).toUpperCase() === String(game.home).toUpperCase();
+  const favoriteScore = Number(favoriteIsHome ? game.espnHomeScore : game.espnAwayScore);
+  const underdogScore = Number(favoriteIsHome ? game.espnAwayScore : game.espnHomeScore);
+  const spread = Number(data.spreads[index]);
+  const currentMargin = (Number.isFinite(favoriteScore) ? favoriteScore : Number(data.favoriteScores[index])) - (Number.isFinite(underdogScore) ? underdogScore : Number(data.underdogScores[index]));
+  const favoriteHasPossession = String(game.possession || "").toUpperCase() === String(game.favorite || "").toUpperCase();
+  const underdogHasPossession = String(game.possession || "").toUpperCase() === String(game.underdog || "").toUpperCase();
+  const possessionAdjustment = favoriteHasPossession ? .65 : underdogHasPossession ? -.65 : 0;
+  const projectedAtsMargin = currentMargin - spread * (1 - remainingFraction) + possessionAdjustment;
+  const remainingDeviation = Math.max(1.5, 13.86 * Math.sqrt(remainingFraction));
+  const favoriteCover = Math.max(.005, Math.min(.995, websiteNormalCdf(projectedAtsMargin / remainingDeviation)));
+  const push = integerSpread ? Math.min(.04, .015 / Math.sqrt(remainingFraction)) : 0;
+  return { favorite: favoriteCover * (1 - push), underdog: (1 - favoriteCover) * (1 - push), push };
+}
 function websiteAnalysisData(data) {
-  if (websiteScenarioMode !== "preview-three") return data;
+  const previewCount = websiteScenarioMode === "preview-four" ? 4 : websiteScenarioMode === "preview-three" ? 3 : 0;
+  if (!previewCount) return data;
   const games = data.games.map(game => ({ ...game }));
   const unresolvedCount = games.filter((game, index) => websiteGameWinner(data, index) === null).length;
-  games.map((game, index) => ({ game, index })).filter(({ index }) => websiteGameWinner(data, index) !== null).slice(-Math.max(0, 3 - unresolvedCount)).forEach(({ game }) => { game.status = "PREGAME"; game.statusText = "Three-game preview"; });
+  games.map((game, index) => ({ game, index })).filter(({ index }) => websiteGameWinner(data, index) !== null).slice(-Math.max(0, previewCount - unresolvedCount)).forEach(({ game }) => { game.status = "PREGAME"; game.espnStatus = "pre"; game.statusText = `${previewCount}-game preview`; });
   return { ...data, games };
 }
 function websiteScenarioOutcomes(data, forced = {}) {
@@ -249,6 +297,12 @@ function websiteScenarioOutcomes(data, forced = {}) {
       winners[index] = outcome === 2 ? "PUSH" : outcome === 1 ? game.favorite : game.underdog;
     });
     return winners;
+  }, weightOf(winners) {
+    return variable.reduce((weight, { index }) => {
+      const probabilities = websiteGameOutcomeProbabilities(data, index);
+      const outcome = winners[index];
+      return weight * (outcome === "PUSH" ? probabilities.push : outcome === data.favorites[index] ? probabilities.favorite : probabilities.underdog);
+    }, 1);
   }};
 }
 function websiteScenarioShares(data, winners) {
@@ -261,18 +315,20 @@ function websiteScenarioShares(data, winners) {
   const winningIndexes = scores.map((score, index) => score === best ? index : -1).filter(index => index >= 0);
   if (winningIndexes.length === 1) {
     const shares = data.players.map((player, index) => index === winningIndexes[0] ? 1 : 0);
-    return { scores, shares, winners: [{ name: data.players[winningIndexes[0]].name, share: 1, range: "Any total" }] };
+    return { scores, shares, winners: [{ name: data.players[winningIndexes[0]].name, share: 1, range: "No tiebreak needed", low: null, high: null }] };
   }
   const yardShares = new Array(data.players.length).fill(0);
   const yardHits = winningIndexes.map(() => []);
+  let totalYardWeight = 0;
   for (let yards = WEBSITE_TIEBREAK_MIN; yards <= WEBSITE_TIEBREAK_MAX; yards++) {
+    const yardWeight = Math.exp(-.5 * Math.pow((yards - WEBSITE_TIEBREAK_MEAN) / WEBSITE_TIEBREAK_DEVIATION, 2));
+    totalYardWeight += yardWeight;
     const differences = winningIndexes.map(index => Math.abs(Number(data.players[index].tiebreaker) - yards));
     const bestDifference = Math.min(...differences);
     const closest = winningIndexes.filter((index, position) => differences[position] === bestDifference);
-    closest.forEach(index => { yardShares[index] += 1 / closest.length; yardHits[winningIndexes.indexOf(index)].push(yards); });
+    closest.forEach(index => { yardShares[index] += yardWeight / closest.length; yardHits[winningIndexes.indexOf(index)].push(yards); });
   }
-  const yardCount = WEBSITE_TIEBREAK_MAX - WEBSITE_TIEBREAK_MIN + 1;
-  const shares = yardShares.map(value => value / yardCount);
+  const shares = yardShares.map(value => value / totalYardWeight);
   const ranges = winningIndexes.map((index, position) => {
     const hits = yardHits[position];
     if (!hits.length) return "No range";
@@ -282,7 +338,13 @@ function websiteScenarioShares(data, winners) {
     if (high === WEBSITE_TIEBREAK_MAX) return `${low}+`;
     return low === high ? `${low}` : `${low}–${high}`;
   });
-  return { scores, shares, winners: winningIndexes.map((index, position) => ({ name: data.players[index].name, share: shares[index], range: ranges[position] })) };
+  return { scores, shares, winners: winningIndexes.map((index, position) => ({
+    name: data.players[index].name,
+    share: shares[index],
+    range: ranges[position],
+    low: yardHits[position].length ? Math.min(...yardHits[position]) : null,
+    high: yardHits[position].length ? Math.max(...yardHits[position]) : null
+  })) };
 }
 function websiteSampleScenarioIndexes(total, limit) {
   const count = Math.min(total, limit);
@@ -292,12 +354,33 @@ function websiteConditionalProbabilities(data, forced = {}) {
   const scenarios = websiteScenarioOutcomes(data, forced);
   const indexes = websiteSampleScenarioIndexes(scenarios.total, WEBSITE_SIMULATION_LIMIT);
   const totals = new Array(data.players.length).fill(0);
-  indexes.forEach(index => websiteScenarioShares(data, scenarios.outcomeAt(index)).shares.forEach((share, playerIndex) => { totals[playerIndex] += share; }));
-  return totals.map(total => indexes.length ? total * 100 / indexes.length : 0);
+  let totalWeight = 0;
+  indexes.forEach(index => {
+    const outcomes = scenarios.outcomeAt(index);
+    const weight = scenarios.weightOf(outcomes);
+    totalWeight += weight;
+    websiteScenarioShares(data, outcomes).shares.forEach((share, playerIndex) => { totals[playerIndex] += share * weight; });
+  });
+  return totals.map(total => totalWeight ? total * 100 / totalWeight : 0);
 }
 function websitePreparePlayers(data) {
-  const probabilities = websiteConditionalProbabilities(data);
-  data.players.forEach((player, index) => { player.winProbability = `${probabilities[index].toFixed(2)}%`; });
+  if (data.testMode) data.players.forEach(player => { player.name = String(player.name).replace(/\s+Test$/i, ""); });
+  const analysisData = websiteAnalysisData(data);
+  const probabilities = websiteConditionalProbabilities(analysisData);
+  const scenarios = websiteScenarioOutcomes(analysisData);
+  const indexes = websiteSampleScenarioIndexes(scenarios.total, WEBSITE_SIMULATION_LIMIT);
+  const pathCounts = new Array(data.players.length).fill(0);
+  indexes.forEach(pathIndex => {
+    const result = websiteScenarioShares(analysisData, scenarios.outcomeAt(pathIndex));
+    result.winners.forEach(winner => {
+      const playerIndex = analysisData.players.findIndex(player => player.name === winner.name);
+      if (playerIndex >= 0 && winner.share > 0) pathCounts[playerIndex] += 1;
+    });
+  });
+  data.players.forEach((player, index) => {
+    player.winProbability = `${probabilities[index].toFixed(2)}%`;
+    player.pathsToVictory = pathCounts[index];
+  });
   websiteSortPlayers(data.players);
 }
 function websiteSortPlayers(players) { return players.sort((left, right) => parseFloat(right.winPercent || 0) - parseFloat(left.winPercent || 0) || Number(right.wins || 0) - Number(left.wins || 0) || parseFloat(right.winProbability || 0) - parseFloat(left.winProbability || 0) || left.name.localeCompare(right.name)); }
@@ -313,8 +396,8 @@ function renderWebsitePaths(data) {
   const analysisData = websiteAnalysisData(data);
   const scenarios = websiteScenarioOutcomes(analysisData);
   const indexes = websiteSampleScenarioIndexes(scenarios.total, WEBSITE_PATH_DISPLAY_LIMIT);
-  const rows = indexes.map((pathIndex, rowIndex) => { const outcomes = scenarios.outcomeAt(pathIndex); const result = websiteScenarioShares(analysisData, outcomes); const winners = result.winners.map(winner => `${winner.name} ${(winner.share * 100).toFixed(1)}% · TB ${winner.range}`).join(" / "); const remaining = scenarios.variable.map(({ game, index }) => `${outcomes[index] === "PUSH" ? "Push" : outcomes[index]} over ${outcomes[index] === game.favorite ? game.underdog : game.favorite}`).join(" / ") || "All games complete"; return `<tr><td>${rowIndex + 1}</td><td>${winners}</td><td>${remaining}</td></tr>`; });
-  host.innerHTML = `<h3 class="compact-live-title">Winning paths</h3><div class="path-controls"><label>Scenario<select id="website-path-mode"><option value="current">Current slate</option><option value="preview-three">Preview 3 games remaining</option></select></label></div><p class="analysis-note">Live games use the current ATS leader as a provisional result and can flip on refresh. Tied records are weighted by each player's closest-guess range across 0–1,000 net passing yards. Showing ${indexes.length} of ${scenarios.total.toLocaleString()} paths; display is capped at ${WEBSITE_PATH_DISPLAY_LIMIT}.</p><div class="analysis-table-wrap"><table class="analysis-table"><thead><tr><th>Path</th><th>Winner · tiebreak range</th><th>Remaining outcomes</th></tr></thead><tbody>${rows.join("")}</tbody></table></div>`;
+  const rows = indexes.map((pathIndex, rowIndex) => { const outcomes = scenarios.outcomeAt(pathIndex); const result = websiteScenarioShares(analysisData, outcomes); const winners = result.winners.map(winner => `${winner.name} ${(winner.share * 100).toFixed(1)}% · ${winner.range}`).join(" / "); const remaining = scenarios.variable.map(({ game, index }) => `${outcomes[index] === "PUSH" ? "Push" : outcomes[index]} over ${outcomes[index] === game.favorite ? game.underdog : game.favorite}`).join(" / ") || "All games complete"; return `<tr><td>${rowIndex + 1}</td><td>${winners}</td><td>${remaining}</td></tr>`; });
+  host.innerHTML = `<h3 class="compact-live-title">Winning paths</h3><div class="path-controls"><label>Scenario<select id="website-path-mode"><option value="current">Current slate</option><option value="preview-three">Preview 3 games remaining</option></select></label></div><p class="analysis-note">Live games use the current ATS leader as a provisional result and can flip on refresh. Tied records are weighted by each player's closest-guess range across 200–800 net passing yards, with most weight between 300 and 600. Showing ${indexes.length} of ${scenarios.total.toLocaleString()} paths; display is capped at ${WEBSITE_PATH_DISPLAY_LIMIT}.</p><div class="analysis-table-wrap"><table class="analysis-table"><thead><tr><th>Path</th><th>Winner · tiebreak range</th><th>Remaining outcomes</th></tr></thead><tbody>${rows.join("")}</tbody></table></div>`;
   const mode = document.getElementById("website-path-mode");
   mode.value = websiteScenarioMode;
   mode.onchange = () => { websiteScenarioMode = mode.value; renderWebsitePaths(data); renderWebsiteSankey(data); };
@@ -344,15 +427,337 @@ function renderWebsiteSankey(data) {
   if (websiteSankeyChart) websiteSankeyChart.destroy();
   websiteSankeyChart = new Chart(document.getElementById("week-one-sankey-chart"), { type: "sankey", data: { datasets: [{ data: [...edges.values()], labels, colorFrom: context => context.dataset.data[context.dataIndex].from === "start" ? "#54d6b2" : "#ffb454", colorTo: context => context.dataset.data[context.dataIndex].to.startsWith("winner:") ? "#54d6b2" : "#ffb454", colorMode: "gradient", borderWidth: 0 }] }, options: { responsive: true, maintainAspectRatio: false, color: "#e8eef5", layout: { padding: { right: 100 } }, plugins: { legend: { display: false }, tooltip: { callbacks: { label: context => `${(context.raw.flow * 100).toFixed(1)}% of scenarios` } } } } });
 }
+function websiteContenderPaths(data) {
+  const analysisData = websiteAnalysisData(data);
+  const scenarios = websiteScenarioOutcomes(analysisData);
+  const indexes = websiteSampleScenarioIndexes(scenarios.total, WEBSITE_SIMULATION_LIMIT);
+  const contenders = analysisData.players.map(player => ({ player, probability: 0, paths: [] }));
+  let totalWeight = 0;
+  indexes.forEach(pathIndex => {
+    const outcomes = scenarios.outcomeAt(pathIndex);
+    const weight = scenarios.weightOf(outcomes);
+    totalWeight += weight;
+    const result = websiteScenarioShares(analysisData, outcomes);
+    result.winners.forEach(winner => {
+      const contenderIndex = analysisData.players.findIndex(player => player.name === winner.name);
+      if (contenderIndex < 0 || winner.share <= 0) return;
+      contenders[contenderIndex].probability += winner.share * weight;
+      contenders[contenderIndex].paths.push({
+        outcomes,
+        range: winner.range,
+        low: winner.low,
+        high: winner.high,
+        share: winner.share,
+        weight,
+        tiedWith: result.winners.filter(other => other.name !== winner.name).map(other => other.name)
+      });
+    });
+  });
+  contenders.forEach(contender => {
+    contender.probability = totalWeight ? contender.probability / totalWeight : 0;
+    contender.paths.forEach(path => { path.probabilityContribution = totalWeight ? path.weight * path.share / totalWeight : 0; });
+  });
+  return { analysisData, scenarios, indexes, totalWeight, contenders: contenders.filter(contender => contender.probability > 0).sort((left, right) => right.probability - left.probability) };
+}
+function websiteJoinNames(values) {
+  if (values.length < 2) return values[0] || "";
+  return `${values.slice(0, -1).join(", ")} and ${values[values.length - 1]}`;
+}
+function websiteOutcomePhrase(contender, outcome) {
+  if (outcome === "PUSH") return "the game to push";
+  return `${String(outcome).toUpperCase()}${contender.player.bestBet === outcome ? " (best bet)" : ""} to cover`;
+}
+function websiteOutcomeClause(contender, outcome) {
+  if (outcome === "PUSH") return "the game pushes";
+  return `${String(outcome).toUpperCase()}${contender.player.bestBet === outcome ? " (best bet)" : ""} covers`;
+}
+function websiteSimplifiedOutcomeTerms(analysis, contender, mandatoryIndexes, sourcePaths = contender.paths, formatter = websiteOutcomePhrase) {
+  const variables = analysis.scenarios.variable.filter(({ index }) => !mandatoryIndexes.has(index));
+  let terms = [...new Map(sourcePaths.map(path => {
+    const values = variables.map(({ index }) => path.outcomes[index]);
+    return [values.join("|"), values];
+  })).values()];
+  let changed = true;
+  while (changed) {
+    changed = false;
+    const used = new Set(), combined = [];
+    terms.forEach((left, leftIndex) => terms.slice(leftIndex + 1).forEach((right, offset) => {
+      const rightIndex = leftIndex + offset + 1;
+      const differences = left.map((value, index) => value === right[index] ? -1 : index).filter(index => index >= 0);
+      if (differences.length !== 1) return;
+      const difference = differences[0];
+      if (left[difference] === "*" || right[difference] === "*") return;
+      used.add(leftIndex); used.add(rightIndex); changed = true;
+      combined.push(left.map((value, index) => index === difference ? "*" : value));
+    }));
+    terms = [...new Map(terms.filter((term, index) => !used.has(index)).concat(combined).map(term => [term.join("|"), term])).values()];
+  }
+  return terms.map(term => term.map(outcome => outcome === "*" ? null : formatter(contender, outcome)).filter(Boolean));
+}
+function websiteRouteText(analysis, contender, paths) {
+  const terms = websiteSimplifiedOutcomeTerms(analysis, contender, new Set(), paths, websiteOutcomeClause).filter(term => term.length);
+  if (!terms.length) return "the current results hold";
+  return terms.length === 1 ? websiteJoinNames(terms[0]) : terms.map(term => websiteJoinNames(term)).join("; or ");
+}
+function websiteYardRange(low, high) {
+  if (low === WEBSITE_TIEBREAK_MIN) return `${high} or fewer`;
+  if (high === WEBSITE_TIEBREAK_MAX) return `${low} or more`;
+  return low === high ? String(low) : `${low}–${high}`;
+}
+function websiteCompactYardRange(low, high) {
+  if (low === WEBSITE_TIEBREAK_MIN) return `≤${high}`;
+  if (high === WEBSITE_TIEBREAK_MAX) return `${low}+`;
+  return low === high ? String(low) : `${low}–${high}`;
+}
+function websiteTiebreakRouteGroups(contender) {
+  const groups = new Map();
+  contender.paths.filter(path => path.low != null && path.high != null).forEach(path => {
+    const key = `${path.low}|${path.high}|${path.tiedWith.slice().sort().join("|")}`;
+    const group = groups.get(key) || { paths: [], low: path.low, high: path.high, tiedWith: path.tiedWith, weightedShare: 0, weight: 0 };
+    group.paths.push(path);
+    group.weightedShare += path.share * path.weight;
+    group.weight += path.weight;
+    groups.set(key, group);
+  });
+  return [...groups.values()];
+}
+function websiteContenderNarrative(analysis, contender) {
+  const currentScores = analysis.analysisData.players.map(player => Number(player.wins) || 0);
+  const playerIndex = analysis.analysisData.players.indexOf(contender.player);
+  const leaderScore = Math.max(...currentScores);
+  const leaders = analysis.analysisData.players.filter((player, index) => currentScores[index] === leaderScore && player !== contender.player).map(player => player.name);
+  const gap = leaderScore - currentScores[playerIndex];
+  const leaderDescription = leaders.length > 3 ? `${leaders.length} other players` : websiteJoinNames(leaders);
+  const standing = gap > 0 ? `${contender.player.name} is ${gap} ${gap === 1 ? "point" : "points"} behind ${leaderDescription}` : leaders.length ? `${contender.player.name} is tied for the lead with ${leaderDescription}` : `${contender.player.name} currently leads`;
+  const mandatory = analysis.scenarios.variable.filter(({ index }) => new Set(contender.paths.map(path => path.outcomes[index])).size === 1);
+  const mustHave = mandatory.map(({ index }) => websiteOutcomePhrase(contender, contender.paths[0].outcomes[index]));
+  const elimination = mustHave.length === 1 ? `If ${mustHave[0].replace(" to cover", " does not cover")}, ${contender.player.name} is eliminated.` : mustHave.length > 1 ? `If any of those results miss, ${contender.player.name} is eliminated.` : "";
+  const outrightPaths = contender.paths.filter(path => path.low == null || path.high == null);
+  const outright = outrightPaths.length ? `If ${websiteRouteText(analysis, contender, outrightPaths)}, ${contender.player.name} wins outright without a tiebreak.` : "";
+  const tiebreaks = websiteTiebreakRouteGroups(contender).map(group => {
+    const opponents = websiteJoinNames(group.tiedWith);
+    const conditionalChance = group.weight ? group.weightedShare * 100 / group.weight : 0;
+    return `if ${websiteRouteText(analysis, contender, group.paths)}, ${contender.player.name} ties${opponents ? ` with ${opponents}` : ""}, needs ${websiteYardRange(group.low, group.high)} net passing yards, and has a ${conditionalChance.toFixed(0)}% chance to win that tiebreak`;
+  });
+  const standingAndNeeds = `${standing}${mustHave.length ? ` and must have ${websiteJoinNames(mustHave)}` : ""}.`;
+  const tiebreakSummary = tiebreaks.length ? `Tiebreak routes: ${tiebreaks.join("; ")}.` : "";
+  return [standingAndNeeds, elimination, outright, tiebreakSummary].filter(Boolean).join(" ");
+}
+function websiteBestPath(paths) {
+  return paths.slice().sort((left, right) => right.probabilityContribution - left.probabilityContribution)[0];
+}
+function websiteRootingLabel(contender, outcome) {
+  if (outcome === "PUSH") return "a push";
+  return `${String(outcome).toUpperCase()}${contender.player.bestBet === outcome ? " (best bet)" : ""}`;
+}
+function websiteSimpleContenderNarrative(analysis, contender) {
+  const mandatory = analysis.scenarios.variable.filter(({ index }) => new Set(contender.paths.map(path => path.outcomes[index])).size === 1);
+  const mustHave = mandatory.map(({ index }) => websiteRootingLabel(contender, contender.paths[0].outcomes[index]));
+  const first = mustHave.length ? `${contender.player.name} should root for ${websiteJoinNames(mustHave)}; ${mustHave.length > 1 ? "missing any of them ends the run" : "if it misses, the run is over"}.` : `${contender.player.name} has several workable combinations and no single must-have result.`;
+  const outright = websiteBestPath(contender.paths.filter(path => path.low == null || path.high == null));
+  const second = outright ? `Best clean route: ${websiteRouteText(analysis, contender, [outright])}; ${contender.player.name} wins without a tiebreak.` : "";
+  const tiebreak = websiteBestPath(contender.paths.filter(path => path.low != null && path.high != null));
+  const third = tiebreak ? `Tiebreak fallback: ${websiteRouteText(analysis, contender, [tiebreak])}; ${contender.player.name} needs ${websiteYardRange(tiebreak.low, tiebreak.high)} net passing yards.` : "";
+  return [first, second, third].filter(Boolean).join(" ");
+}
+function websiteScenarioOutcomeText(analysis, contender, path) {
+  const groups = { correct: [], incorrect: [], push: [] };
+  analysis.scenarios.variable.forEach(({ index }) => {
+    const outcome = path.outcomes[index];
+    const pick = contender.player.picks[index] || outcome;
+    const label = `${String(pick).toUpperCase()}${contender.player.bestBet === pick ? " (best bet)" : ""}`;
+    if (outcome === "PUSH") groups.push.push(label);
+    else groups[pick === outcome ? "correct" : "incorrect"].push(label);
+  });
+  const lines = [
+    groups.correct.length ? `<strong>Correct:</strong> ${groups.correct.join(", ")}` : "",
+    groups.incorrect.length ? `<strong>Incorrect:</strong> ${groups.incorrect.join(", ")}` : "",
+    groups.push.length ? `<strong>Push:</strong> ${groups.push.join(", ")}` : ""
+  ].filter(Boolean);
+  return lines.join("<br>") || "Current results hold";
+}
+function websiteScenarioIncorrectCount(analysis, contender, path) {
+  return analysis.scenarios.variable.reduce((count, { index }) => {
+    const outcome = path.outcomes[index];
+    return count + (outcome !== "PUSH" && contender.player.picks[index] !== outcome ? 1 : 0);
+  }, 0);
+}
+function renderWebsiteScenarioBreakdown(data, analysis = websiteContenderPaths(data)) {
+  const host = document.getElementById("week-one-scenarios");
+  if (!host) return;
+  const unresolvedGames = analysis.scenarios.variable.length;
+  if (unresolvedGames > WEBSITE_EXACT_SCENARIO_GAME_LIMIT) {
+    host.innerHTML = `<h3 class="compact-live-title">Scenarios</h3><p class="analysis-note">Exact scenarios appear when six or fewer games remain. With ${unresolvedGames} unresolved games, use What each contender needs for generalized must-have results and the highest chances to win.</p>`;
+    return;
+  }
+  const rows = analysis.contenders.map(contender => {
+    const scenarios = contender.paths.slice().sort((left, right) => {
+      const chanceDifference = right.probabilityContribution - left.probabilityContribution;
+      return Math.abs(chanceDifference) > 1e-12 ? chanceDifference : websiteScenarioIncorrectCount(analysis, contender, left) - websiteScenarioIncorrectCount(analysis, contender, right);
+    }).map((path, index) => {
+      const result = path.low == null || path.high == null ? "Wins outright; no tiebreak" : `Tiebreak with ${websiteJoinNames(path.tiedWith)} · needs ${websiteYardRange(path.low, path.high)} net passing yards · ${(path.share * 100).toFixed(0)}% chance to win tiebreak`;
+      return `<tr class="scenario-subrow"><td>Scenario ${index + 1}</td><td class="scenario-chance">${(path.probabilityContribution * 100).toFixed(2)}%</td><td>${websiteScenarioOutcomeText(analysis, contender, path)}</td><td>${result}</td></tr>`;
+    }).join("");
+    return `<tr class="scenario-player-row"><td><strong>${contender.player.name}</strong></td><td><strong>${(contender.probability * 100).toFixed(2)}%</strong></td><td colspan="2">${contender.paths.length} specific ${contender.paths.length === 1 ? "scenario" : "scenarios"}</td></tr>${scenarios}`;
+  }).join("");
+  host.innerHTML = `<h3 class="compact-live-title">Scenarios</h3><p class="analysis-note">Each indented row is one exact outcome combination and its contribution to that player's total chance. A player's scenario percentages add to the chance in the bold row above.</p><div class="analysis-table-wrap"><table class="analysis-table"><thead><tr><th>Player / scenario</th><th>Chance</th><th>Exact outcomes</th><th>How the player wins</th></tr></thead><tbody>${rows || '<tr><td colspan="4">No winning scenarios remain.</td></tr>'}</tbody></table></div>`;
+}
+function renderWebsiteContenderPaths(data) {
+  const host = document.getElementById("week-one-paths");
+  if (!host || !(data.players || []).length) return;
+  const analysis = websiteContenderPaths(data);
+  const rows = analysis.contenders.map(contender => {
+    const narrative = websiteContenderDetailMode === "complete" ? websiteContenderNarrative(analysis, contender) : websiteSimpleContenderNarrative(analysis, contender);
+    return `<tr><td><strong>${contender.player.name}</strong></td><td>${(contender.probability * 100).toFixed(2)}%</td><td>${narrative}</td></tr>`;
+  }).join("");
+  host.innerHTML = `<h3 class="compact-live-title">What each contender needs</h3><div class="path-controls"><label>Scenario<select id="website-path-mode"><option value="current">Current slate</option><option value="preview-three">Preview 3 games remaining</option><option value="preview-four">Preview 4 games remaining</option></select></label><label>Answer<select id="website-contender-detail"><option value="simple">Who to root for</option><option value="complete">Complete routes</option></select></label></div><p class="analysis-note">Choose a short rooting guide or the complete route-by-route explanation. Live chances use the locked spread plus ESPN score, quarter, and clock. Tiebreak chances model 200–800 net passing yards, with most weight between 300 and 600.</p><div class="analysis-table-wrap"><table class="analysis-table"><thead><tr><th>Contender</th><th>Chance</th><th>What needs to happen</th></tr></thead><tbody>${rows || '<tr><td colspan="3">No winning paths remain.</td></tr>'}</tbody></table></div>`;
+  const mode = document.getElementById("website-path-mode");
+  const detail = document.getElementById("website-contender-detail");
+  mode.value = websiteScenarioMode;
+  detail.value = websiteContenderDetailMode;
+  detail.onchange = () => { websiteContenderDetailMode = detail.value; renderWebsiteContenderPaths(data); };
+  mode.onchange = () => {
+    websiteScenarioMode = mode.value;
+    websitePreparePlayers(data);
+    renderWebsiteWeekOneGrid(data);
+    decorateWebsiteWeekOneHeaders(data);
+    renderWebsiteContenderPaths(data);
+    renderWebsitePersonalizedSankey(data);
+  };
+  renderWebsiteScenarioBreakdown(data, analysis);
+}
+function renderWebsitePersonalizedSankey(data) {
+  const host = document.getElementById("week-one-sankey");
+  if (!host || !(data.players || []).length) return;
+  const analysisData = websiteAnalysisData(data);
+  const scenarios = websiteScenarioOutcomes(analysisData);
+  const indexes = websiteSampleScenarioIndexes(scenarios.total, WEBSITE_SIMULATION_LIMIT);
+  const edges = new Map();
+  const labels = { start: "Current standings" };
+  let totalWeight = 0;
+  const outcomeLabel = (game, outcome) => outcome === "PUSH" ? `${String(game.favorite).toUpperCase()}/${String(game.underdog).toUpperCase()} push` : `${String(outcome).toUpperCase()} covers`;
+  const addEdge = (from, to, flow, combination, beneficiaries, details = {}) => {
+    const key = `${from}|${to}`;
+    const edge = edges.get(key) || { from, to, flow: 0, combinations: new Set(), beneficiaries: new Set(), tiebreakShare: details.tiebreakShare ?? null, yardRange: details.yardRange || "", yardSpan: details.yardSpan ?? null, result: details.result || "" };
+    edge.flow += flow;
+    edge.combinations.add(combination);
+    beneficiaries.forEach(name => edge.beneficiaries.add(name));
+    edges.set(key, edge);
+  };
+  indexes.forEach(pathIndex => {
+    const outcomes = scenarios.outcomeAt(pathIndex);
+    const weight = scenarios.weightOf(outcomes);
+    const result = websiteScenarioShares(analysisData, outcomes);
+    const beneficiaries = result.winners.filter(winner => winner.share > 0).map(winner => winner.name);
+    totalWeight += weight;
+    let from = "start", prefix = "";
+    scenarios.variable.forEach(({ game, index }, depth) => {
+      const label = outcomeLabel(game, outcomes[index]);
+      prefix += `${prefix ? " → " : ""}${label}`;
+      const to = `g${depth}:${prefix}`;
+      labels[to] = label;
+      addEdge(from, to, weight, prefix, beneficiaries);
+      from = to;
+    });
+    const tiebreakWinners = result.winners.filter(winner => winner.low != null && winner.high != null && winner.share > 0);
+    if (tiebreakWinners.length) {
+      tiebreakWinners.forEach(winner => {
+        const to = `winner:${winner.name}:${prefix}:tb`;
+        const yardRange = websiteYardRange(winner.low, winner.high);
+        labels[to] = `${winner.name} · ${websiteCompactYardRange(winner.low, winner.high)}`;
+        addEdge(from, to, weight * winner.share, prefix || "All games complete", [winner.name], {
+          tiebreakShare: winner.share,
+          yardRange,
+          yardSpan: winner.high - winner.low + 1,
+          result: `${winner.name} wins tiebreak at ${yardRange} net passing yards`
+        });
+      });
+    } else {
+      result.winners.forEach(winner => {
+        if (winner.share <= 0) return;
+        const to = `winner:${winner.name}:${prefix}:outright`;
+        labels[to] = `${winner.name} · outright`;
+        addEdge(from, to, weight * winner.share, prefix || "All games complete", [winner.name], { result: `${winner.name} wins outright` });
+      });
+    }
+  });
+  const chartEdges = [...edges.values()].map(edge => ({
+    from: edge.from,
+    to: edge.to,
+    flow: totalWeight ? edge.flow / totalWeight : 0,
+    combinations: [...edge.combinations],
+    beneficiaries: [...edge.beneficiaries],
+    tiebreakShare: edge.tiebreakShare,
+    yardRange: edge.yardRange,
+    yardSpan: edge.yardSpan,
+    result: edge.result
+  }));
+  const nodeFlows = chartEdges.reduce((flows, edge) => {
+    flows[edge.to] = (flows[edge.to] || 0) + edge.flow;
+    return flows;
+  }, {});
+  Object.keys(labels).forEach(node => {
+    if (node !== "start" && !node.startsWith("winner:") && (nodeFlows[node] || 0) < .015) labels[node] = "";
+  });
+  host.innerHTML = `<h3 class="compact-live-title">Remaining-game and tiebreak flow</h3><p class="analysis-note">The final outcome splits directly into each winner. Blue TB bars are sized by that player's share of likely net-passing totals, so narrow yard windows stay thin and broad ranges grow thicker. Outright routes remain orange. Hover for covers and result.</p><div class="sankey-wrap"><canvas id="week-one-sankey-chart"></canvas></div>`;
+  if (websiteSankeyChart) websiteSankeyChart.destroy();
+  websiteSankeyChart = new Chart(document.getElementById("week-one-sankey-chart"), { type: "sankey", data: { datasets: [{ data: chartEdges, labels, colorFrom: context => context.dataset.data[context.dataIndex].from === "start" ? "#54d6b2" : context.dataset.data[context.dataIndex].tiebreakShare == null ? "#ffb454" : "#8ca7ff", colorTo: context => context.dataset.data[context.dataIndex].to.startsWith("winner:") ? "#54d6b2" : "#ffb454", colorMode: "gradient", borderWidth: 0 }] }, options: { responsive: true, maintainAspectRatio: false, color: "#e8eef5", layout: { padding: { right: 180 } }, plugins: { legend: { display: false }, tooltip: { callbacks: { label: context => {
+    const raw = context.raw;
+    const resultLines = raw.result ? [`Winner: ${raw.beneficiaries[0]}`, raw.tiebreakShare == null ? "Outright" : `TB: ${raw.yardRange}`, ...(raw.tiebreakShare == null ? [] : ["net pass yds"])] : [];
+    const benefitLines = raw.result ? [] : ["Helps:", ...raw.beneficiaries];
+    return [`${(raw.flow * 100).toFixed(2)}% overall chance`, ...resultLines, ...benefitLines];
+  } } } } } });
+}
+renderWebsitePlayerLedgers = function() {};
+renderWebsitePaths = renderWebsiteContenderPaths;
+renderWebsiteSankey = renderWebsitePersonalizedSankey;
 function websitePickSelection() { const testMode = document.getElementById("website-picks-mode")?.value === "test"; return { testMode, season: 2026, week: testMode ? Number(document.getElementById("website-preseason-week")?.value || 1) : 1, phase: testMode ? "PRESEASON" : "REGULAR_SEASON" }; }
 async function selectStagedPreseasonWeek() { if (!WEBSITE_SUBMISSIONS_ENDPOINT) return false; try { const separator = WEBSITE_SUBMISSIONS_ENDPOINT.includes("?") ? "&" : "?"; const response = await fetch(`${WEBSITE_SUBMISSIONS_ENDPOINT}${separator}action=preseason-test&season=2026&week=3`); const data = await response.json(); if (!response.ok || !data.ok || !(data.games || []).length) return false; document.getElementById("website-picks-mode").value = "test"; document.getElementById("website-preseason-week").value = "3"; document.getElementById("website-game-picks").dataset.ready = ""; return true; } catch (error) { return false; } }
 async function loadWebsiteStagedGames(selection) { if (!WEBSITE_SUBMISSIONS_ENDPOINT) return selection.testMode ? [] : WEBSITE_WEEK_ONE_GAMES; const separator = WEBSITE_SUBMISSIONS_ENDPOINT.includes("?") ? "&" : "?"; const url = `${WEBSITE_SUBMISSIONS_ENDPOINT}${separator}action=week-config&season=${selection.season}&week=${selection.week}&phase=${selection.phase}`; const response = await fetch(url); const data = await response.json(); if (!response.ok || !data.ok) throw new Error(data.error || "Could not load the staged games."); return (data.games || []).map((game, index) => ({ ...game, id: game.gameId || `game-${index + 1}`, time: game.kickoffGroup || game.kickoff || `Game ${index + 1}` })); }
+function websiteGameContext(game) {
+  const location = [game.venueCity, game.venueState].filter(Boolean).join(", ");
+  const weather = [game.temperature !== "" && game.temperature != null ? `${game.temperature}°F` : "", game.weather].filter(Boolean).join(" ");
+  const details = [game.venueName || game.venue, location, game.indoor ? "Indoor" : weather || "Weather unavailable", game.broadcast || game.tv].filter(Boolean);
+  return details.length ? `<div class="website-game-context">${details.map(websiteEscapeHtml).join(" · ")}</div>` : "";
+}
+function scheduleWebsitePicksWeatherRefresh() {
+  clearTimeout(websitePicksWeatherRefreshTimer);
+  websitePicksWeatherRefreshTimer = setTimeout(refreshWebsitePicksWeather, WEBSITE_PICKS_WEATHER_REFRESH_MS);
+}
+async function refreshWebsitePicksWeather() {
+  clearTimeout(websitePicksWeatherRefreshTimer);
+  websitePicksWeatherRefreshTimer = null;
+  const host = document.getElementById("website-game-picks");
+  if (!host || !document.getElementById("view-enter-picks")?.classList.contains("active") || !websiteActiveGames.length) return;
+  const selection = websitePickSelection();
+  const configKey = `${selection.phase}-${selection.week}`;
+  if (host.dataset.ready !== configKey) return;
+  try {
+    const refreshedGames = await loadWebsiteStagedGames(selection);
+    const rows = [...host.querySelectorAll(".website-game-row")];
+    websiteActiveGames = websiteActiveGames.map((game, index) => {
+      const gameId = game.gameId || game.id;
+      const refreshed = refreshedGames.find(candidate => (gameId && (candidate.gameId || candidate.id) === gameId) || (candidate.favorite === game.favorite && candidate.underdog === game.underdog));
+      if (!refreshed) return game;
+      const updated = { ...game, weather: refreshed.weather || "", temperature: refreshed.temperature ?? "" };
+      const context = rows[index]?.querySelector(".website-game-context");
+      const contextHtml = websiteGameContext(updated);
+      if (context) context.outerHTML = contextHtml;
+      else if (contextHtml) rows[index]?.insertAdjacentHTML("beforeend", contextHtml);
+      return updated;
+    });
+  } catch (error) {
+    console.warn(`Weather refresh unavailable: ${error.message}`);
+  } finally {
+    scheduleWebsitePicksWeatherRefresh();
+  }
+}
 async function renderWebsitePicksForm() {
   const host = document.getElementById("website-game-picks");
   if (!host) return;
   const selection = websitePickSelection();
   const configKey = `${selection.phase}-${selection.week}`;
-  if (host.dataset.ready === configKey) return;
+  if (host.dataset.ready === configKey) { refreshWebsitePicksWeather(); return; }
   host.dataset.ready = configKey;
   host.innerHTML = '<p class="website-instructions">Loading staged games...</p>';
   document.getElementById("website-preseason-week").disabled = !selection.testMode;
@@ -364,11 +769,12 @@ async function renderWebsitePicksForm() {
     websiteActiveGames = stagedGames.length ? stagedGames : WEBSITE_WEEK_ONE_GAMES;
     const groups = [];
     websiteActiveGames.forEach((game, index) => { const previous = websiteActiveGames[index - 1]; if (!previous || previous.time !== game.time) groups.push({ time: game.time, games: [] }); groups[groups.length - 1].games.push({ game, index }); });
-    host.innerHTML = groups.map(group => `<fieldset class="website-game-group"><legend>${group.time}</legend>${group.games.map(({ game, index }) => `<div class="website-game-row"><label class="website-side"><input type="radio" name="game-${index + 1}" value="${game.favorite}" required><span>${websiteTeamName(game.favorite)}</span></label><span class="website-spread">${game.spread}</span><label class="website-side right"><span>${websiteTeamName(game.underdog)}</span><input type="radio" name="game-${index + 1}" value="${game.underdog}" required></label></div>`).join("")}</fieldset>`).join("");
+    host.innerHTML = groups.map(group => `<fieldset class="website-game-group"><legend>${group.time}</legend>${group.games.map(({ game, index }) => `<div class="website-game-row"><div class="website-matchup"><label class="website-side"><input type="radio" name="game-${index + 1}" value="${game.favorite}" required><span>${websiteTeamName(game.favorite)}</span></label><span class="website-spread">${game.spread}</span><label class="website-side right"><span>${websiteTeamName(game.underdog)}</span><input type="radio" name="game-${index + 1}" value="${game.underdog}" required></label></div>${websiteGameContext(game)}</div>`).join("")}</fieldset>`).join("");
     const bestBet = document.getElementById("website-best-bet");
     bestBet.innerHTML = '';
     bestBet.add(new Option("Choose a best bet", ""));
     websiteActiveGames.flatMap(game => [game.favorite, game.underdog]).sort((a, b) => websiteTeamName(a).localeCompare(websiteTeamName(b), undefined, { sensitivity: "base" })).forEach(team => bestBet.add(new Option(websiteTeamName(team), team)));
+    scheduleWebsitePicksWeatherRefresh();
   } catch (error) {
     websiteActiveGames = [];
     host.innerHTML = `<p class="website-instructions">${error.message}</p>`;
@@ -396,9 +802,70 @@ function websiteWeekOneFallback() { return { favorites: WEBSITE_WEEK_ONE_GAMES.m
 function websiteWeekOnePickClass(data, gameIndex, pick) { const game = (data.games || [])[gameIndex]; const status = String(game?.status || "").toUpperCase(); if (game && !["IN_PROGRESS", "FINAL", "COMPLETED"].includes(status)) return "pg-pick-pending"; const favoriteScore = Number(data.favoriteScores[gameIndex]); const underdogScore = Number(data.underdogScores[gameIndex]); if (data.favoriteScores[gameIndex] === "" || data.underdogScores[gameIndex] === "") return "pg-pick-pending"; const margin = favoriteScore - underdogScore - Number(data.spreads[gameIndex]); if (margin === 0) return "pg-pick-push"; const winner = margin > 0 ? data.favorites[gameIndex] : data.underdogs[gameIndex]; return pick === winner ? "pg-pick-win" : "pg-pick-loss"; }
 function decorateWebsiteWeekOneHeaders(data) { const headers = [...document.querySelectorAll("#week-one-table th.pg-game")].slice(1, 17); headers.forEach((header, index) => { const favorite = data.favorites[index]; const underdog = data.underdogs[index]; const favoriteScore = data.favoriteScores[index]; const underdogScore = data.underdogScores[index]; const game = (data.games || []).find(item => item.favorite?.toLowerCase() === favorite.toLowerCase() && item.underdog?.toLowerCase() === underdog.toLowerCase()); const gameStatus = String(game?.status || "").toUpperCase(); const started = ["IN_PROGRESS", "FINAL", "COMPLETED"].includes(gameStatus); const status = gameStatus === "IN_PROGRESS" ? game.statusText : ["FINAL", "COMPLETED"].includes(gameStatus) ? "Final" : ""; const spread = `<small class="pg-header-spread">${data.spreads[index]}</small>`; if (!started && game) { const kickoff = game.kickoffGroup || game.kickoff || game.statusText || ""; header.innerHTML = `${favorite}${spread}${underdog}${kickoff ? `<small class="pg-header-kickoff">${kickoff}</small>` : ""}`; return; } const score = value => `<span class="pg-header-score">${value === "" ? "-" : value}</span>`; header.innerHTML = `${favorite}${score(favoriteScore)}${spread}${score(underdogScore)}${underdog}${status ? `<small class="pg-header-kickoff">${status}</small>` : ""}`; }); }
 function renderWebsiteWeekOneGrid(data, source) { const rows = data.players || []; const status = document.getElementById("week-one-status"); const gamesFinal = (data.games || []).length ? data.games.filter(game => ["FINAL", "COMPLETED"].includes(String(game.status || "").toUpperCase())).length : (data.favoriteScores || []).filter((score, index) => score !== "" && data.underdogScores[index] !== "").length; status.innerHTML = [["Submissions", rows.length], ["Games final", gamesFinal], ["Source", source]].map(([label,value]) => `<div class="metric"><span>${label}</span><strong>${value}</strong></div>`).join(""); const table = document.getElementById("week-one-table"); if (!rows.length) { table.innerHTML = `<p style="color:var(--muted)">No Week 1 submissions yet.</p>`; return; } let html = '<table class="picks-grid"><thead><tr><th class="pg-player">Player</th><th class="pg-game">Week name</th>'; data.favorites.forEach((favorite, index) => { html += `<th class="pg-game">${favorite}<br><small>${data.spreads[index]}</small><br>${data.underdogs[index]}</th>`; }); html += `<th class="pg-bb-hdr">BB</th><th class="pg-sum-hdr">TB${data.actualTiebreaker ? `<br><small>${data.actualTiebreaker}</small>` : ""}</th><th class="pg-sum-hdr pg-w">W</th><th class="pg-sum-hdr pg-l">L</th><th class="pg-sum-hdr">Total</th><th class="pg-sum-hdr">Win%</th><th class="pg-sum-hdr">Prob</th><th class="pg-sum-hdr">Paths</th></tr></thead><tbody>`; rows.forEach(row => { html += `<tr><td class="pg-player">${row.name}</td><td class="pg-sum-cell">${row.weekName || ""}</td>`; row.picks.forEach((pick, index) => { html += `<td class="${websiteWeekOnePickClass(data, index, pick)}">${pick}</td>`; }); const bestBetIndex = row.picks.findIndex(pick => pick === row.bestBet); const bestBetClass = bestBetIndex < 0 ? "pg-bb-none" : websiteWeekOnePickClass(data, bestBetIndex, row.bestBet).replace("pg-pick", "pg-bb"); html += `<td class="${bestBetClass}">${row.bestBet || ""}</td><td class="pg-sum-cell">${row.tiebreaker || ""}</td><td class="pg-sum-cell pg-w">${row.wins || ""}</td><td class="pg-sum-cell pg-l">${row.losses || ""}</td><td class="pg-sum-cell">${row.total || ""}</td><td class="pg-sum-cell">${row.winPercent || ""}</td><td class="pg-sum-cell">${row.winProbability || ""}</td><td class="pg-sum-cell">${row.pathsToVictory || ""}</td></tr>`; }); table.innerHTML = html + '</tbody></table>'; }
-async function renderWebsiteWeekOne() { const fallback = websiteWeekOneFallback(); renderWebsiteWeekOneGrid(fallback, WEBSITE_SUBMISSIONS_ENDPOINT ? "Loading" : "Browser test"); decorateWebsiteWeekOneHeaders(fallback); if (!WEBSITE_SUBMISSIONS_ENDPOINT) return; try { const separator = WEBSITE_SUBMISSIONS_ENDPOINT.includes("?") ? "&" : "?"; const response = await fetch(`${WEBSITE_SUBMISSIONS_ENDPOINT}${separator}action=week-one`); const data = await response.json(); if (!response.ok || !data.ok) throw new Error(data.error || "Could not load Week 1."); if (!/^\d+(?:\.\d+)?$/.test(String(data.actualTiebreaker || ""))) data.actualTiebreaker = ""; renderWebsiteWeekOneGrid(data, "Week X"); decorateWebsiteWeekOneHeaders(data); } catch (error) { document.getElementById("week-one-status").insertAdjacentHTML("afterend", `<p class="website-instructions">Live Week 1 could not load: ${error.message}</p>`); } }
+async function renderWebsiteWeekOne() {
+  const fallback = websiteWeekOneFallback();
+  renderWebsiteWeekOneGrid(fallback, WEBSITE_SUBMISSIONS_ENDPOINT ? "Loading" : "Browser test");
+  decorateWebsiteWeekOneHeaders(fallback);
+  if (!WEBSITE_SUBMISSIONS_ENDPOINT) return;
+  try {
+    const separator = WEBSITE_SUBMISSIONS_ENDPOINT.includes("?") ? "&" : "?";
+    const response = await fetch(`${WEBSITE_SUBMISSIONS_ENDPOINT}${separator}action=week-one`);
+    const data = await response.json();
+    if (!response.ok || !data.ok) throw new Error(data.error || "Could not load Week 1.");
+    if (!/^\d+(?:\.\d+)?$/.test(String(data.actualTiebreaker || ""))) data.actualTiebreaker = "";
+    websitePreparePlayers(data);
+    renderWebsiteWeekOneGrid(data, "Week X");
+    decorateWebsiteWeekOneHeaders(data);
+    renderWebsitePaths(data);
+    renderWebsiteSankey(data);
+    websiteLiveRefreshTimer = setTimeout(renderSelectedWebsiteWeek, 60000);
+  } catch (error) {
+    document.getElementById("week-one-status").insertAdjacentHTML("afterend", `<p class="website-instructions">Live Week 1 could not load: ${error.message}</p>`);
+    websiteLiveRefreshTimer = setTimeout(renderSelectedWebsiteWeek, 60000);
+  }
+}
 const renderWebsiteWeekOneGridBase = renderWebsiteWeekOneGrid;
 renderWebsiteWeekOneGrid = function(data, source) { websiteSortPlayers(data.players || []); return renderWebsiteWeekOneGridBase(data, source); };
+function renderWebsiteWeekOneGridClean(data) {
+  const rows = data.players || [];
+  const status = document.getElementById("week-one-status");
+  if (status) status.innerHTML = "";
+  const table = document.getElementById("week-one-table");
+  if (!rows.length) { table.innerHTML = '<p style="color:var(--muted)">No submissions yet.</p>'; return; }
+  const tiebreakDetail = data.actualTiebreaker !== "" && data.actualTiebreaker != null ? `<br><small>${data.actualTiebreaker} net passing yards${data.tiebreakStatus ? ` · ${data.tiebreakStatus}` : ""}</small>` : "";
+  let html = '<table class="picks-grid"><thead><tr><th class="pg-player">Player</th><th class="pg-game pg-week-name">Week 1 name</th><th class="pg-sum-hdr pg-w">W</th><th class="pg-sum-hdr pg-l">L</th><th class="pg-sum-hdr">Win%</th><th class="pg-sum-hdr">Prob</th><th class="pg-sum-hdr">Paths</th>';
+  data.favorites.forEach((favorite, index) => { html += `<th class="pg-game">${favorite}<br><small>${data.spreads[index]}</small><br>${data.underdogs[index]}</th>`; });
+  html += `<th class="pg-bb-hdr">BB</th><th class="pg-sum-hdr">TB${tiebreakDetail}</th></tr></thead><tbody>`;
+  rows.forEach(row => {
+    html += `<tr><td class="pg-player">${row.name}</td><td class="pg-sum-cell pg-week-name">${row.weekName || ""}</td><td class="pg-sum-cell pg-w">${row.wins ?? ""}</td><td class="pg-sum-cell pg-l">${row.losses ?? ""}</td><td class="pg-sum-cell">${row.winPercent || ""}</td><td class="pg-sum-cell">${row.winProbability || ""}</td><td class="pg-sum-cell">${row.pathsToVictory ?? ""}</td>`;
+    row.picks.forEach((pick, index) => { html += `<td class="${websiteWeekOnePickClass(data, index, pick)}">${pick}</td>`; });
+    const bestBetIndex = row.picks.findIndex(pick => pick === row.bestBet);
+    const bestBetClass = bestBetIndex < 0 ? "pg-bb-none" : websiteWeekOnePickClass(data, bestBetIndex, row.bestBet).replace("pg-pick", "pg-bb");
+    html += `<td class="${bestBetClass}">${row.bestBet || ""}</td><td class="pg-sum-cell">${row.tiebreaker || ""}</td></tr>`;
+  });
+  table.innerHTML = `${html}</tbody></table>`;
+}
+function decorateWebsiteWeekOneHeadersLive(data) {
+  const headers = [...document.querySelectorAll("#week-one-table th.pg-game")].slice(1, 17);
+  headers.forEach((header, index) => {
+    const favorite = data.favorites[index], underdog = data.underdogs[index];
+    const game = (data.games || []).find(item => item.favorite?.toLowerCase() === favorite.toLowerCase() && item.underdog?.toLowerCase() === underdog.toLowerCase());
+    const favoriteIsHome = game?.favorite === game?.home;
+    const espnFavoriteScore = favoriteIsHome ? game?.espnHomeScore : game?.espnAwayScore;
+    const espnUnderdogScore = favoriteIsHome ? game?.espnAwayScore : game?.espnHomeScore;
+    const favoriteScore = espnFavoriteScore !== "" && espnFavoriteScore != null ? espnFavoriteScore : data.favoriteScores[index];
+    const underdogScore = espnUnderdogScore !== "" && espnUnderdogScore != null ? espnUnderdogScore : data.underdogScores[index];
+    const gameStatus = String(game?.espnStatus || game?.status || "").toUpperCase();
+    const started = ["IN", "POST", "IN_PROGRESS", "FINAL", "COMPLETED"].includes(gameStatus);
+    const spread = `<small class="pg-header-spread">${data.spreads[index]}</small>`;
+    if (!started && game) { const kickoff = game.kickoffGroup || game.kickoff || game.statusText || ""; header.innerHTML = `${favorite}${spread}${underdog}${kickoff ? `<small class="pg-header-kickoff">${kickoff}</small>` : ""}`; return; }
+    const score = value => `<span class="pg-header-score">${value === "" ? "-" : value}</span>`;
+    const liveState = game?.espnStatusText || game?.statusText || (["POST", "FINAL", "COMPLETED"].includes(gameStatus) ? "Final" : [game?.period ? `Q${game.period}` : "", game?.clock, game?.possession ? `${game.possession} ball` : ""].filter(Boolean).join(" · "));
+    header.innerHTML = `${favorite}${score(favoriteScore)}${spread}${score(underdogScore)}${underdog}${liveState ? `<small class="pg-header-kickoff">${liveState}</small>` : ""}`;
+  });
+}
+renderWebsiteWeekOneGrid = function(data) { websiteSortPlayers(data.players || []); return renderWebsiteWeekOneGridClean(data); };
+decorateWebsiteWeekOneHeaders = decorateWebsiteWeekOneHeadersLive;
 async function renderSelectedWebsiteWeek() {
   clearTimeout(websiteLiveRefreshTimer);
   websiteLiveRefreshTimer = null;
@@ -1817,6 +2284,7 @@ function renderPicksGrid() {
   });
   html += '</tbody></table>';
   el.innerHTML = html;
+  renderWeeklyRankView();
 }
 function weeklyRankWeekLabel(value) { return value === "super bowl" ? "Super Bowl" : value?.startsWith?.("round") ? value.replace("round", "Round") : value === "playoffs" ? "Playoffs" : `Week ${value}`; }
 function populateWeeklyRankPlayers() {
