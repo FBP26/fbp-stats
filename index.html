@@ -809,7 +809,7 @@ async function renderWebsiteWeekOne() {
   if (!WEBSITE_SUBMISSIONS_ENDPOINT) return;
   try {
     const separator = WEBSITE_SUBMISSIONS_ENDPOINT.includes("?") ? "&" : "?";
-    const response = await fetch(`${WEBSITE_SUBMISSIONS_ENDPOINT}${separator}action=week-one`);
+    const response = await fetch(`${WEBSITE_SUBMISSIONS_ENDPOINT}${separator}action=week-one`, { signal: AbortSignal.timeout(20000) });
     const data = await response.json();
     if (!response.ok || !data.ok) throw new Error(data.error || "Could not load Week 1.");
     if (!/^\d+(?:\.\d+)?$/.test(String(data.actualTiebreaker || ""))) data.actualTiebreaker = "";
@@ -882,7 +882,7 @@ async function renderSelectedWebsiteWeek() {
   }
   try {
     const separator = WEBSITE_SUBMISSIONS_ENDPOINT.includes("?") ? "&" : "?";
-    const response = await fetch(`${WEBSITE_SUBMISSIONS_ENDPOINT}${separator}action=preseason-test&season=${selection.season}&week=${selection.week}`);
+    const response = await fetch(`${WEBSITE_SUBMISSIONS_ENDPOINT}${separator}action=preseason-test&season=${selection.season}&week=${selection.week}`, { signal: AbortSignal.timeout(20000) });
     const data = await response.json();
     if (!response.ok || !data.ok) throw new Error(data.error || "Could not load the preseason test.");
     websitePreparePlayers(data);
