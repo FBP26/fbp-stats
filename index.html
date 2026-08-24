@@ -305,6 +305,25 @@ function websiteScenarioOutcomes(data, forced = {}) {
     }, 1);
   }};
 }
+function websiteTiebreakDistribution(data) {
+  const currentYards = Number(data.actualTiebreaker);
+  const game = (data.games || [])[data.games.length - 1] || {};
+  const status = String(game.espnStatus || game.status || "").toUpperCase();
+  if (Number.isFinite(currentYards) && data.actualTiebreaker !== "" && ["POST", "FINAL", "COMPLETED"].includes(status)) {
+    return { mean: currentYards, deviation: 0 };
+  }
+  if (Number.isFinite(currentYards) && data.actualTiebreaker !== "" && ["IN", "IN_PROGRESS"].includes(status)) {
+    const period = Math.max(1, Math.min(4, Number(game.period) || 1));
+    const clockParts = String(game.clock || "15:00").split(":").map(Number);
+    const secondsInPeriod = Math.max(0, Math.min(900, (clockParts[0] || 0) * 60 + (clockParts[1] || 0)));
+    const remainingFraction = Math.max(0, ((4 - period) * 900 + secondsInPeriod) / 3600);
+    return {
+      mean: currentYards + WEBSITE_TIEBREAK_MEAN * remainingFraction,
+      deviation: Math.max(1, WEBSITE_TIEBREAK_DEVIATION * Math.sqrt(remainingFraction))
+    };
+  }
+  return { mean: WEBSITE_TIEBREAK_MEAN, deviation: WEBSITE_TIEBREAK_DEVIATION };
+}
 function websiteScenarioShares(data, winners) {
   const scores = data.players.map(player => winners.reduce((score, winner, index) => {
     if (!winner || winner === "PUSH") return score;
@@ -320,8 +339,11 @@ function websiteScenarioShares(data, winners) {
   const yardShares = new Array(data.players.length).fill(0);
   const yardHits = winningIndexes.map(() => []);
   let totalYardWeight = 0;
+  const distribution = websiteTiebreakDistribution(data);
   for (let yards = WEBSITE_TIEBREAK_MIN; yards <= WEBSITE_TIEBREAK_MAX; yards++) {
-    const yardWeight = Math.exp(-.5 * Math.pow((yards - WEBSITE_TIEBREAK_MEAN) / WEBSITE_TIEBREAK_DEVIATION, 2));
+    const yardWeight = distribution.deviation === 0
+      ? (yards === Math.round(distribution.mean) ? 1 : 0)
+      : Math.exp(-.5 * Math.pow((yards - distribution.mean) / distribution.deviation, 2));
     totalYardWeight += yardWeight;
     const differences = winningIndexes.map(index => Math.abs(Number(data.players[index].tiebreaker) - yards));
     const bestDifference = Math.min(...differences);
@@ -386,7 +408,7 @@ function websitePreparePlayers(data) {
   });
   websiteSortPlayers(data.players);
 }
-function websiteSortPlayers(players) { const difference = player => player.tiebreakDifference === "" || player.tiebreakDifference == null || !Number.isFinite(Number(player.tiebreakDifference)) ? Number.POSITIVE_INFINITY : Math.abs(Number(player.tiebreakDifference)); return players.sort((left, right) => parseFloat(right.winPercent || 0) - parseFloat(left.winPercent || 0) || parseFloat(right.winProbability || 0) - parseFloat(left.winProbability || 0) || difference(left) - difference(right) || left.name.localeCompare(right.name)); }
+function websiteSortPlayers(players) { const difference = player => player.tiebreakDifference === "" || player.tiebreakDifference == null || !Number.isFinite(Number(player.tiebreakDifference)) ? Number.POSITIVE_INFINITY : Math.abs(Number(player.tiebreakDifference)); return players.sort((left, right) => parseFloat(right.winPercent || 0) - parseFloat(left.winPercent || 0) || difference(left) - difference(right) || left.name.localeCompare(right.name)); }
 function renderWebsitePlayerLedgers(data) {
   const host = document.getElementById("week-one-ledger");
   if (!host || !(data.players || []).length) return;
@@ -400,7 +422,7 @@ function renderWebsitePaths(data) {
   const scenarios = websiteScenarioOutcomes(analysisData);
   const indexes = websiteSampleScenarioIndexes(scenarios.total, WEBSITE_PATH_DISPLAY_LIMIT);
   const rows = indexes.map((pathIndex, rowIndex) => { const outcomes = scenarios.outcomeAt(pathIndex); const result = websiteScenarioShares(analysisData, outcomes); const winners = result.winners.map(winner => `${winner.name} ${(winner.share * 100).toFixed(1)}% · ${winner.range}`).join(" / "); const remaining = scenarios.variable.map(({ game, index }) => `${outcomes[index] === "PUSH" ? "Push" : outcomes[index]} over ${outcomes[index] === game.favorite ? game.underdog : game.favorite}`).join(" / ") || "All games complete"; return `<tr><td>${rowIndex + 1}</td><td>${winners}</td><td>${remaining}</td></tr>`; });
-  host.innerHTML = `<h3 class="compact-live-title">Winning paths</h3><div class="path-controls"><label>Scenario<select id="website-path-mode"><option value="current">Current slate</option><option value="preview-three">Preview 3 games remaining</option></select></label></div><p class="analysis-note">Live games use the current ATS leader as a provisional result and can flip on refresh. Tied records are weighted by each player's closest-guess range across 200–800 net passing yards, with most weight between 300 and 600. Showing ${indexes.length} of ${scenarios.total.toLocaleString()} paths; display is capped at ${WEBSITE_PATH_DISPLAY_LIMIT}.</p><div class="analysis-table-wrap"><table class="analysis-table"><thead><tr><th>Path</th><th>Winner · tiebreak range</th><th>Remaining outcomes</th></tr></thead><tbody>${rows.join("")}</tbody></table></div>`;
+  host.innerHTML = `<h3 class="compact-live-title">Winning paths</h3><div class="path-controls"><label>Scenario<select id="website-path-mode"><option value="current">Current slate</option><option value="preview-three">Preview 3 games remaining</option></select></label></div><p class="analysis-note">Live games use the current ATS leader as a provisional result and can flip on refresh. Tiebreak chances start with a 450-yard forecast, then condition on current net passing and contract as the game clock runs out. Showing ${indexes.length} of ${scenarios.total.toLocaleString()} paths; display is capped at ${WEBSITE_PATH_DISPLAY_LIMIT}.</p><div class="analysis-table-wrap"><table class="analysis-table"><thead><tr><th>Path</th><th>Winner · tiebreak range</th><th>Remaining outcomes</th></tr></thead><tbody>${rows.join("")}</tbody></table></div>`;
   const mode = document.getElementById("website-path-mode");
   mode.value = websiteScenarioMode;
   mode.onchange = () => { websiteScenarioMode = mode.value; renderWebsitePaths(data); renderWebsiteSankey(data); };
@@ -619,7 +641,7 @@ function renderWebsiteContenderPaths(data) {
     const narrative = websiteContenderDetailMode === "complete" ? websiteContenderNarrative(analysis, contender) : websiteSimpleContenderNarrative(analysis, contender, contenderIndex);
     return `<tr><td><strong>${contender.player.name}</strong></td><td>${(contender.probability * 100).toFixed(2)}%</td><td>${narrative}</td></tr>`;
   }).join("");
-  host.innerHTML = `<h3 class="compact-live-title">What each contender needs</h3><div class="path-controls"><label>Scenario<select id="website-path-mode"><option value="current">Current slate</option><option value="preview-three">Preview 3 games remaining</option><option value="preview-four">Preview 4 games remaining</option></select></label><label>Answer<select id="website-contender-detail"><option value="simple">Who to root for</option><option value="complete">Complete routes</option></select></label></div><p class="analysis-note">Choose a short rooting guide or the complete route-by-route explanation. Live chances use the locked spread plus ESPN score, quarter, and clock. Tiebreak chances model 200–800 net passing yards, with most weight between 300 and 600.</p><div class="analysis-table-wrap"><table class="analysis-table"><thead><tr><th>Contender</th><th>Chance</th><th>What needs to happen</th></tr></thead><tbody>${rows || '<tr><td colspan="3">No winning paths remain.</td></tr>'}</tbody></table></div>`;
+  host.innerHTML = `<h3 class="compact-live-title">What each contender needs</h3><div class="path-controls"><label>Scenario<select id="website-path-mode"><option value="current">Current slate</option><option value="preview-three">Preview 3 games remaining</option><option value="preview-four">Preview 4 games remaining</option></select></label><label>Answer<select id="website-contender-detail"><option value="simple">Who to root for</option><option value="complete">Complete routes</option></select></label></div><p class="analysis-note">Choose a short rooting guide or the complete route-by-route explanation. Live chances use the locked spread plus ESPN score, quarter, and clock. Tiebreak chances condition on current net passing and narrow toward the observed total as time expires.</p><div class="analysis-table-wrap"><table class="analysis-table"><thead><tr><th>Contender</th><th>Chance</th><th>What needs to happen</th></tr></thead><tbody>${rows || '<tr><td colspan="3">No winning paths remain.</td></tr>'}</tbody></table></div>`;
   const mode = document.getElementById("website-path-mode");
   const detail = document.getElementById("website-contender-detail");
   mode.value = websiteScenarioMode;
