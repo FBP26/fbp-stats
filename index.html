@@ -531,7 +531,6 @@ function websiteContenderNarrative(analysis, contender) {
   const standing = gap > 0 ? `${contender.player.name} is ${gap} ${gap === 1 ? "point" : "points"} behind ${leaderDescription}` : leaders.length ? `${contender.player.name} is tied for the lead with ${leaderDescription}` : `${contender.player.name} currently leads`;
   const mandatory = analysis.scenarios.variable.filter(({ index }) => new Set(contender.paths.map(path => path.outcomes[index])).size === 1);
   const mustHave = mandatory.map(({ index }) => websiteOutcomePhrase(contender, contender.paths[0].outcomes[index]));
-  const elimination = mustHave.length === 1 ? `If ${mustHave[0].replace(" to cover", " does not cover")}, ${contender.player.name} is eliminated.` : mustHave.length > 1 ? `If any of those results miss, ${contender.player.name} is eliminated.` : "";
   const outrightPaths = contender.paths.filter(path => path.low == null || path.high == null);
   const outright = outrightPaths.length ? `If ${websiteRouteText(analysis, contender, outrightPaths)}, ${contender.player.name} wins outright without a tiebreak.` : "";
   const tiebreaks = websiteTiebreakRouteGroups(contender).map(group => {
@@ -541,7 +540,7 @@ function websiteContenderNarrative(analysis, contender) {
   });
   const standingAndNeeds = `${standing}${mustHave.length ? ` and must have ${websiteJoinNames(mustHave)}` : ""}.`;
   const tiebreakSummary = tiebreaks.length ? `Tiebreak routes: ${tiebreaks.join("; ")}.` : "";
-  return [standingAndNeeds, elimination, outright, tiebreakSummary].filter(Boolean).join(" ");
+  return [standingAndNeeds, outright, tiebreakSummary].filter(Boolean).join(" ");
 }
 function websiteBestPath(paths) {
   return paths.slice().sort((left, right) => right.probabilityContribution - left.probabilityContribution)[0];
@@ -550,14 +549,21 @@ function websiteRootingLabel(contender, outcome) {
   if (outcome === "PUSH") return "a push";
   return `${String(outcome).toUpperCase()}${contender.player.bestBet === outcome ? " (best bet)" : ""}`;
 }
-function websiteSimpleContenderNarrative(analysis, contender) {
+function websiteContenderPhrase(choices, variantIndex, offset = 0) {
+  return choices[(variantIndex + offset) % choices.length];
+}
+function websiteSimpleContenderNarrative(analysis, contender, variantIndex = 0) {
   const mandatory = analysis.scenarios.variable.filter(({ index }) => new Set(contender.paths.map(path => path.outcomes[index])).size === 1);
   const mustHave = mandatory.map(({ index }) => websiteRootingLabel(contender, contender.paths[0].outcomes[index]));
-  const first = mustHave.length ? `${contender.player.name} should root for ${websiteJoinNames(mustHave)}; ${mustHave.length > 1 ? "missing any of them ends the run" : "if it misses, the run is over"}.` : `${contender.player.name} has several workable combinations and no single must-have result.`;
+  const rootingLead = websiteContenderPhrase(["Root for", "Cheer for", "Pull for", "The priority is"], variantIndex);
+  const openRoute = websiteContenderPhrase(["Several combinations remain open for", "Multiple result mixes work for", "There are several routes available to", "More than one combination helps"], variantIndex, 1);
+  const first = mustHave.length ? `${rootingLead} ${websiteJoinNames(mustHave)}.` : `${openRoute} ${contender.player.name}.`;
   const outright = websiteBestPath(contender.paths.filter(path => path.low == null || path.high == null));
-  const second = outright ? `Best clean route: ${websiteRouteText(analysis, contender, [outright])}; ${contender.player.name} wins without a tiebreak.` : "";
+  const outrightLead = websiteContenderPhrase(["Cleanest path", "Best outright route", "Direct win route", "Route without a tiebreak"], variantIndex, 2);
+  const second = outright ? `${outrightLead}: ${websiteRouteText(analysis, contender, [outright])}; that gives ${contender.player.name} the win outright.` : "";
   const tiebreak = websiteBestPath(contender.paths.filter(path => path.low != null && path.high != null));
-  const third = tiebreak ? `Tiebreak fallback: ${websiteRouteText(analysis, contender, [tiebreak])}; ${contender.player.name} needs ${websiteYardRange(tiebreak.low, tiebreak.high)} net passing yards.` : "";
+  const tiebreakLead = websiteContenderPhrase(["Best tiebreak route", "Tiebreak path", "Strongest tiebreak setup", "Route through the tiebreak"], variantIndex, 3);
+  const third = tiebreak ? `${tiebreakLead}: root for ${websiteRouteText(analysis, contender, [tiebreak])}; ${websiteYardRange(tiebreak.low, tiebreak.high)} net passing yards gives ${contender.player.name} the tiebreak.` : "";
   return [first, second, third].filter(Boolean).join(" ");
 }
 function websiteScenarioOutcomeText(analysis, contender, path) {
@@ -606,8 +612,8 @@ function renderWebsiteContenderPaths(data) {
   const host = document.getElementById("week-one-paths");
   if (!host || !(data.players || []).length) return;
   const analysis = websiteContenderPaths(data);
-  const rows = analysis.contenders.map(contender => {
-    const narrative = websiteContenderDetailMode === "complete" ? websiteContenderNarrative(analysis, contender) : websiteSimpleContenderNarrative(analysis, contender);
+  const rows = analysis.contenders.map((contender, contenderIndex) => {
+    const narrative = websiteContenderDetailMode === "complete" ? websiteContenderNarrative(analysis, contender) : websiteSimpleContenderNarrative(analysis, contender, contenderIndex);
     return `<tr><td><strong>${contender.player.name}</strong></td><td>${(contender.probability * 100).toFixed(2)}%</td><td>${narrative}</td></tr>`;
   }).join("");
   host.innerHTML = `<h3 class="compact-live-title">What each contender needs</h3><div class="path-controls"><label>Scenario<select id="website-path-mode"><option value="current">Current slate</option><option value="preview-three">Preview 3 games remaining</option><option value="preview-four">Preview 4 games remaining</option></select></label><label>Answer<select id="website-contender-detail"><option value="simple">Who to root for</option><option value="complete">Complete routes</option></select></label></div><p class="analysis-note">Choose a short rooting guide or the complete route-by-route explanation. Live chances use the locked spread plus ESPN score, quarter, and clock. Tiebreak chances model 200–800 net passing yards, with most weight between 300 and 600.</p><div class="analysis-table-wrap"><table class="analysis-table"><thead><tr><th>Contender</th><th>Chance</th><th>What needs to happen</th></tr></thead><tbody>${rows || '<tr><td colspan="3">No winning paths remain.</td></tr>'}</tbody></table></div>`;
