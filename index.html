@@ -61,7 +61,7 @@
   .website-matchup { display: grid; grid-template-columns: minmax(0, 1fr) 48px minmax(0, 1fr); align-items: center; gap: 8px; }
   .website-game-context { margin: 0; padding: 0 4px 1px; color: var(--muted); font: 10px/1.3 Arial, sans-serif; text-align: center; }
   .website-side { display: flex; align-items: center; gap: 8px; min-width: 0; padding: 5px 8px; border: 1px solid transparent; border-radius: 5px; font: 14px Arial, sans-serif; text-transform: none; letter-spacing: 0; cursor: pointer; transition: background .15s, border-color .15s, color .15s; }
-  .website-side:hover { background: var(--panel-2); border-color: var(--border); }
+  .website-side:hover > span { background: var(--panel-2); border-color: var(--border); }
   .website-side > span { padding: 4px 6px; border: 1px solid transparent; border-radius: 5px; }
   .website-side:has(input:checked) > span { background: #1e5c3a; border-color: var(--accent); color: #7ee2b8; }
   .website-side.right { justify-content: flex-end; text-align: right; }
@@ -86,6 +86,8 @@
   #view-weeks .explorer-controls { grid-template-columns: 1fr; max-width: 420px; }
   .wide-chart { min-height: 470px; }
   .race-chart-wrap { height: 620px; }
+  .attendance-chart-scroll { height: 620px; min-height: 0; overflow-x: hidden; overflow-y: auto; }
+  .attendance-chart-inner { position: relative; min-width: 100%; }
   .chart-divider { border: none; border-top: 1px solid var(--border); margin: 56px 0 0; }
   #week-race-chart { min-height: 620px; }
   #search-box { margin-bottom: 12px; }
@@ -113,11 +115,11 @@
   .profile-chart-tooltip .loss { color: var(--danger); font-weight: bold; }
   .profile-chart-tooltip .push { color: #f1e48b; font-weight: bold; }
   .profile-chart-tooltip .neutral { color: #b8c4cf; font-weight: normal; }
-  .weekly-game-tooltip, .profile-chart-tooltip.compact-game-tooltip { width: max-content; min-width: 150px; padding: 7px 9px; text-align: center; }
+  .weekly-game-tooltip, .profile-chart-tooltip.compact-game-tooltip { width: max-content; min-width: 132px; padding: 6px 7px; text-align: center; }
   .weekly-game-tooltip div, .profile-chart-tooltip.compact-game-tooltip div { padding: 1px 0; border-top: 0; line-height: 1.2; }
-  .weekly-game-tooltip .tooltip-matchup, .profile-chart-tooltip.compact-game-tooltip .tooltip-matchup { display: grid; grid-template-columns: minmax(46px, 1fr) auto minmax(46px, 1fr); gap: 8px; align-items: center; }
+  .tooltip-matchup { display: grid; grid-template-columns: minmax(42px, 1fr) auto minmax(42px, 1fr); gap: 5px; align-items: center; }
   .tooltip-matchup .tooltip-favorite { text-align: left; }
-  .tooltip-matchup .tooltip-spread { text-align: center; }
+  .tooltip-matchup .tooltip-spread { color: var(--accent-2); font: bold 11px/1 Consolas, monospace; text-align: center; }
   .tooltip-matchup .tooltip-underdog { text-align: right; }
   .weekly-game-tooltip .tooltip-meta-start, .profile-chart-tooltip.compact-game-tooltip .tooltip-meta-start { margin-top: 5px; padding-top: 5px; border-top: 1px solid #52606d; }
   .compact-live-title { margin: 0 0 10px; color: var(--accent); font: 11px Arial, sans-serif; text-transform: uppercase; letter-spacing: .7px; }
@@ -1589,6 +1591,7 @@ function allTimeCareers() {
   return [...byPlayer.values()].map(player => ({ ...player, seasonCount: player.seasons.size, winPct: player.wins + player.losses ? player.wins / (player.wins + player.losses) : 0 }));
 }
 function renderAllTime() {
+  if (!websiteGames.length || !websitePicks.length) { loadDrilldown().then(renderAllTime); return; }
   const normalizeTiedWeeklyWinners = rows => {
     const groups = new Map();
     rows.forEach(row => {
@@ -1861,13 +1864,14 @@ function renderAllTime() {
   }
   const allWeeks = [...new Map(websiteWeeks.map(row => [`${row.season}|${row.week}`, { season: row.season, week: row.week, weekOrder: Number(row.weekOrder), maxGames: 0 }])).values()].sort((a, b) => String(a.season).localeCompare(String(b.season)) || a.weekOrder - b.weekOrder);
   allWeeks.forEach(week => { week.maxGames = Math.max(...websiteWeeks.filter(row => row.season === week.season && row.week === week.week).map(row => Number(row.games || row.displayWins + row.displayLosses + row.displayPushes || 0))); });
-  const gamesPlayedRows = careers.map(player => {
+  const allGamesPlayedRows = careers.map(player => {
     const playerRows = websiteWeeks.filter(row => row.playerId === player.playerId);
     const rowByWeek = new Map(playerRows.map(row => [`${row.season}|${row.week}`, row]));
     const lastMissed = [...allWeeks].reverse().find(week => { const row = rowByWeek.get(`${week.season}|${week.week}`); const games = row ? Number(row.games || row.displayWins + row.displayLosses + row.displayPushes || 0) : 0; return games < week.maxGames; });
     const games = playerRows.reduce((sum, row) => sum + Number(row.games || row.displayWins + row.displayLosses + row.displayPushes || 0), 0);
     return { ...player, games, lastMissed: lastMissed ? `${lastMissed.season} ${lastMissed.week === "playoffs" ? "Playoffs" : `W${lastMissed.week}`}` : "Never" };
-  }).filter(row => row.games > 0).sort((a, b) => b.games - a.games || String(a.name).localeCompare(String(b.name))).slice(0, 15);
+  }).filter(row => row.games > 0).sort((a, b) => b.games - a.games || String(a.name).localeCompare(String(b.name)));
+  const gamesPlayedRows = allGamesPlayedRows.slice(0, 15);
   if (allTimeGamesChart) allTimeGamesChart.destroy();
   allTimeGamesChart = new Chart(document.getElementById("alltime-games-chart"), { type: "bar", data: { labels: gamesPlayedRows.map(row => row.name), datasets: [{ label: "Games", data: gamesPlayedRows.map(row => row.games), barText: gamesPlayedRows.map(row => `${row.name} · ${row.games} games · last missed ${row.lastMissed}`), backgroundColor: gamesPlayedRows.map((row, index) => ["#d4af37", "#c0c0c0", "#cd7f32"][index] || "#54d6b2bb"), borderColor: gamesPlayedRows.map((row, index) => ["#d4af37", "#c0c0c0", "#cd7f32"][index] || "#54d6b2"), borderWidth: 1 }] }, options: { indexAxis: "y", responsive: true, maintainAspectRatio: false, scales: { x: { beginAtZero: true, position: "top", ticks: { color: "#91a0ae" }, grid: { color: "#2a3744" }, title: { display: true, text: "Games picked", color: "#91a0ae" } }, y: { ticks: { display: false }, grid: { color: "#2a3744" } } }, plugins: { legend: { display: false }, title: { display: true, text: "Most games played", color: "#e8eef5", font: { size: 15, weight: "normal" }, padding: { bottom: 12 } }, tooltip: { displayColors: false, callbacks: { label: context => { const row = gamesPlayedRows[context.dataIndex]; return [`Games: ${row.games}`, `Record: ${row.wins}-${row.losses}`, `Last missed game: ${row.lastMissed}`, `Seasons: ${row.seasonCount}`]; } } } } } });
   allTimeGamesChart.data.datasets[0].backgroundColor = gamesPlayedRows.map((row, index) => ["#d4af37", "#c0c0c0", "#cd7f32"][index] || "#8ca7ffbb");
@@ -1878,28 +1882,41 @@ function renderAllTime() {
   let attendanceCanvas = document.getElementById("alltime-attendance-chart");
   if (!attendanceCanvas) {
     const attendanceWrap = document.createElement("div");
-    attendanceWrap.className = "chart-wrap wide-chart race-chart-wrap";
+    attendanceWrap.className = "chart-wrap wide-chart attendance-chart-scroll";
     attendanceWrap.style.marginTop = "14px";
+    const attendanceInner = document.createElement("div");
+    attendanceInner.className = "attendance-chart-inner";
     attendanceCanvas = document.createElement("canvas");
     attendanceCanvas.id = "alltime-attendance-chart";
-    attendanceWrap.appendChild(attendanceCanvas);
+    attendanceInner.appendChild(attendanceCanvas);
+    attendanceWrap.appendChild(attendanceInner);
     document.getElementById("alltime-games-chart").closest(".chart-wrap").after(attendanceWrap);
   }
-  const attendanceRows = gamesPlayedRows.map((player, playerIndex) => {
-    const rowByWeek = new Map(websiteWeeks.filter(row => row.playerId === player.playerId).map(row => [`${row.season}|${row.week}`, row]));
-    const activeIndexes = allWeeks.map((week, index) => rowByWeek.has(`${week.season}|${week.week}`) ? index : -1).filter(index => index >= 0);
-    const firstIndex = activeIndexes[0] ?? 0, lastIndex = activeIndexes.at(-1) ?? -1;
-    const attendance = allWeeks.map((week, index) => {
-      if (index < firstIndex || index > lastIndex) return null;
-      const row = rowByWeek.get(`${week.season}|${week.week}`), games = row ? Number(row.games || row.displayWins + row.displayLosses + row.displayPushes || 0) : 0;
-      return { x: index, y: playerIndex, games, available: week.maxGames, missed: Math.max(0, week.maxGames - games), week };
-    }).filter(Boolean);
-    return { player, attendance };
+  const attendanceGames = [...new Map(websiteGames.filter(game => game.gameId).map(game => [game.gameId, game])).values()].sort((a, b) => String(a.season).localeCompare(String(b.season)) || Date.parse(a.gameDate || "") - Date.parse(b.gameDate || "") || Number(a.playoffGameNum || a.gameNum || 0) - Number(b.playoffGameNum || b.gameNum || 0));
+  const attendanceRows = allGamesPlayedRows.map((player, playerIndex) => {
+    const pickedGameIds = new Set(websitePicks.filter(pick => pick.playerId === player.playerId && pick.pick).map(pick => pick.gameId));
+    const pickedIndexes = attendanceGames.map((game, index) => pickedGameIds.has(game.gameId) ? index : -1).filter(index => index >= 0);
+    const firstIndex = pickedIndexes[0] ?? 0;
+    const runs = [];
+    let games = 0;
+    for (let index = firstIndex; index < attendanceGames.length; index += 1) {
+      const game = attendanceGames[index], picked = pickedGameIds.has(game.gameId), previous = runs.at(-1);
+      if (picked) games += 1;
+      if (previous?.picked === picked) { previous.x[1] = index + 1; previous.runEnd = { game }; previous.runLength += 1; }
+      else runs.push({ x: [index, index + 1], y: playerIndex, picked, runStart: { game }, runEnd: { game }, runLength: 1 });
+    }
+    const attendancePct = attendanceGames.length > firstIndex ? games / (attendanceGames.length - firstIndex) * 100 : 0;
+    const attendancePlayer = { ...player, games, attendancePct };
+    runs.forEach(run => { run.player = attendancePlayer; });
+    return { player: attendancePlayer, runs };
   });
-  allTimeAttendanceChart = new Chart(attendanceCanvas, { type: "line", data: { datasets: attendanceRows.map(({ player, attendance }) => ({ label: player.name, data: attendance, parsing: false, borderColor: "#33404c", borderWidth: 1, pointStyle: "rect", pointRadius: 3.5, pointHoverRadius: 6, pointBorderWidth: 0, pointBackgroundColor: attendance.map(item => !item ? "transparent" : item.missed ? "#ff7180" : "#54d6b2"), spanGaps: false })) }, options: { responsive: true, maintainAspectRatio: false, animation: false, scales: { x: { type: "linear", min: 0, max: Math.max(0, allWeeks.length - 1), ticks: { color: "#91a0ae", maxTicksLimit: 18, callback: value => { const index = Math.round(value), week = allWeeks[index]; return week && (index === 0 || allWeeks[index - 1]?.season !== week.season) ? String(week.season).slice(0, 4) : ""; } }, grid: { color: "#2a3744" }, title: { display: true, text: "Green: every game picked · Red: one or more games missed", color: "#91a0ae" } }, y: { min: -.5, max: gamesPlayedRows.length - .5, reverse: true, ticks: { color: "#91a0ae", stepSize: 1, callback: value => gamesPlayedRows[value]?.name || "" }, grid: { color: "#2a3744" } } }, plugins: { legend: { display: false }, title: { display: true, text: "Attendance over time", color: "#e8eef5", font: { size: 15, weight: "normal" }, padding: { bottom: 12 } }, tooltip: { displayColors: false, callbacks: { title: items => { const item = items[0]?.raw; return item ? `${item.week.season} ${item.week.week === "playoffs" ? "Playoffs" : `W${item.week.week}`}` : ""; }, label: context => { const item = context.raw; return item.missed ? `${context.dataset.label}: missed ${item.missed} of ${item.available} games` : `${context.dataset.label}: all ${item.available} games picked`; } } } } } });
+  const attendanceGameLabel = item => { const week = String(item.game.week || ""), period = /^\d+$/.test(week) ? `Week ${week}` : profileWeekLabel(week); return `${item.game.season} ${period} Game ${item.game.playoffGameNum || item.game.gameNum || "?"}`; };
+  attendanceCanvas.closest(".attendance-chart-inner").style.height = `${Math.max(600, attendanceRows.length * 38 + 90)}px`;
+  const attendanceRuns = attendanceRows.flatMap(row => row.runs);
+  allTimeAttendanceChart = new Chart(attendanceCanvas, { type: "bar", data: { labels: attendanceRows.map(row => row.player.name), datasets: [{ label: "Attendance", data: attendanceRuns, backgroundColor: attendanceRuns.map(run => run.picked ? "#54d6b2" : "#ff7180"), borderColor: attendanceRuns.map(run => run.picked ? "#54d6b2" : "#ff7180"), borderWidth: 1, borderSkipped: false, barThickness: 10 }] }, options: { indexAxis: "y", responsive: true, maintainAspectRatio: false, animation: false, layout: { padding: { left: 8, right: 10 } }, scales: { x: { type: "linear", min: 0, max: attendanceGames.length, ticks: { color: "#91a0ae", maxTicksLimit: 18, callback: value => String(attendanceGames[Math.min(attendanceGames.length - 1, Math.round(value))]?.season || "").slice(0, 4) }, grid: { color: "#2a3744" }, title: { display: true, text: "Green: picked · Red: missed · Pushes count as played", color: "#91a0ae" } }, y: { type: "category", reverse: true, ticks: { color: "#e8eef5", font: { size: 11 }, callback: (value, index) => { const row = attendanceRows[index]?.player; return row ? `${row.name} · ${row.games} · ${row.attendancePct.toFixed(1)}% att.` : ""; } }, grid: { color: "#2a3744" } } }, plugins: { legend: { display: false }, title: { display: true, text: "Attendance over time", color: "#e8eef5", font: { size: 15, weight: "normal" }, padding: { bottom: 12 } }, tooltip: { displayColors: false, callbacks: { title: items => `${items[0].raw.player.name} · ${items[0].raw.picked ? "No-miss streak" : "Missed stretch"}`, beforeBody: items => { const item = items[0].raw; return [`Start: ${attendanceGameLabel(item.runStart)}`, `End: ${attendanceGameLabel(item.runEnd)}`]; }, label: context => context.raw.picked ? `Games in a row without missing: ${context.raw.runLength}` : `Games missed in this stretch: ${context.raw.runLength}`, afterLabel: context => { const player = context.raw.player; return [`Career games picked: ${player.games}`, `Attendance since joining: ${player.attendancePct.toFixed(1)}%`, "Pushes count as played; Best Bets are not extra games."]; } } } } } });
   const attendanceXAxis = allTimeAttendanceChart.options.scales.x;
-  attendanceXAxis.afterBuildTicks = scale => { scale.ticks = allWeeks.map((week, index) => ({ week, index })).filter(item => item.index === 0 || allWeeks[item.index - 1]?.season !== item.week.season).map(item => ({ value: item.index })); };
-  attendanceXAxis.ticks = { color: "#91a0ae", minRotation: 45, maxRotation: 60, callback: value => String(allWeeks[Math.round(value)]?.season || "").slice(0, 4) };
+  attendanceXAxis.afterBuildTicks = scale => { scale.ticks = attendanceGames.map((game, index) => ({ game, index })).filter(item => item.index === 0 || attendanceGames[item.index - 1]?.season !== item.game.season).map(item => ({ value: item.index })); };
+  attendanceXAxis.ticks = { color: "#91a0ae", minRotation: 45, maxRotation: 60, callback: value => String(attendanceGames[Math.round(value)]?.season || "").slice(0, 4) };
   allTimeAttendanceChart.update("none");
   let championHtml = '<table class="picks-grid"><thead><tr><th class="pg-player">Season</th><th class="pg-game">Champion</th><th class="pg-game">Record</th><th class="pg-game">Win%</th><th class="pg-game">Runner-up</th><th class="pg-game">Record</th><th class="pg-game">Margin</th><th class="pg-sum-hdr">Field</th></tr></thead><tbody>';
   [...champions].reverse().forEach(item => {
@@ -2324,8 +2341,9 @@ function renderGame() { const game = websiteGames.find(item => item.gameId === d
 function profileChartTooltip(context, html, compact = false) { let element = document.getElementById("profile-chart-tooltip"); if (!element) { element = document.createElement("div"); element.id = "profile-chart-tooltip"; document.body.appendChild(element); } element.className = `profile-chart-tooltip${compact ? " compact-game-tooltip" : ""}`; const tooltip = context.tooltip; if (!tooltip || tooltip.opacity === 0 || !tooltip.dataPoints?.length) { element.style.display = "none"; return; } element.innerHTML = html(tooltip.dataPoints[0].dataIndex); element.style.display = "block"; const rect = context.chart.canvas.getBoundingClientRect(); const left = Math.min(window.innerWidth - element.offsetWidth - 12, Math.max(12, rect.left + tooltip.caretX + 12)); const top = Math.min(window.innerHeight - element.offsetHeight - 12, Math.max(12, rect.top + tooltip.caretY + 12)); element.style.left = `${left}px`; element.style.top = `${top}px`; }
 function profileWeekLabel(week) { const value = String(week || ""), lower = value.toLowerCase(); return lower === "super bowl" ? "Super Bowl" : lower === "playoffs" ? "Playoffs" : lower.startsWith("round") ? `Round ${value.match(/\d+/)?.[0] || ""}`.trim() : `W${value}`; }
 function profilePeriodOrder(week) { const value = String(week || "").toLowerCase(); if (value === "super bowl") return 1004; const round = Number(value.match(/^round\s*(\d+)/)?.[1]); if (round) return 1000 + round; return Number(value.match(/\d+/)?.[0] || 0); }
-function profileGameResultHtml(game, pickedTeam, result, prefix = "") { const picked = String(pickedTeam || "").toUpperCase(), favoritePicked = String(game.favorite || "").toUpperCase() === picked, underdogPicked = String(game.underdog || "").toUpperCase() === picked; const value = (text, highlighted = false) => `<span class="${highlighted ? result : "neutral"}">${websiteEscapeHtml(text ?? "?")}</span>`; return `<div>${prefix ? `${value(prefix)} · ` : ""}${value(teamDisplay(game.favorite, game), favoritePicked)} ${value(favoriteScore(game), favoritePicked)} ${value(game.spread ?? "PK")} ${value(underdogScore(game), underdogPicked)} ${value(teamDisplay(game.underdog, game), underdogPicked)}</div>`; }
-function weeklyGameTooltipHtml(game, result, pickedTeam) { const favoritePoints = favoriteScore(game), underdogPoints = underdogScore(game), picked = String(pickedTeam || "").toUpperCase(), resultClass = result === "win" ? "win" : result === "loss" ? "loss" : "push", favoritePicked = String(game.favorite || "").toUpperCase() === picked, underdogPicked = String(game.underdog || "").toUpperCase() === picked; const value = (text, highlighted = false, className = "") => `<span class="${className} ${highlighted ? resultClass : "neutral"}">${websiteEscapeHtml(text ?? "?")}</span>`; return `<div class="tooltip-matchup">${value(`${teamDisplay(game.favorite, game)} ${favoritePoints}`, favoritePicked, "tooltip-favorite")}${value(game.spread ?? "PK", false, "tooltip-spread")}${value(`${underdogPoints} ${teamDisplay(game.underdog, game)}`, underdogPicked, "tooltip-underdog")}</div><div class="tooltip-meta-start"><span class="neutral">${websiteEscapeHtml(game.gameDate ?? "?")}</span></div><div><span class="neutral">${websiteEscapeHtml(game.gameTime ?? "?")}</span></div>`; }
+function matchupTooltipHtml(game, result, pickedTeam) { const favoritePoints = favoriteScore(game), underdogPoints = underdogScore(game), picked = String(pickedTeam || "").toUpperCase(), resultClass = result === "win" ? "win" : result === "loss" ? "loss" : "push", favoritePicked = String(game.favorite || "").toUpperCase() === picked, underdogPicked = String(game.underdog || "").toUpperCase() === picked; const value = (text, highlighted = false, className = "") => `<span class="${className} ${highlighted ? resultClass : "neutral"}">${websiteEscapeHtml(text ?? "?")}</span>`; return `<div class="tooltip-matchup">${value(`${teamDisplay(game.favorite, game)} ${favoritePoints}`, favoritePicked, "tooltip-favorite")}${value(game.spread ?? "PK", false, "tooltip-spread")}${value(`${underdogPoints} ${teamDisplay(game.underdog, game)}`, underdogPicked, "tooltip-underdog")}</div>`; }
+function profileGameResultHtml(game, pickedTeam, result, prefix = "") { return `<div>${prefix ? `<span class="neutral">${websiteEscapeHtml(prefix)}</span>` : ""}${matchupTooltipHtml(game, result, pickedTeam)}</div>`; }
+function weeklyGameTooltipHtml(game, result, pickedTeam) { return `${matchupTooltipHtml(game, result, pickedTeam)}<div class="tooltip-meta-start"><span class="neutral">${websiteEscapeHtml(game.gameDate ?? "?")}</span></div><div><span class="neutral">${websiteEscapeHtml(game.gameTime ?? "?")}</span></div>`; }
 let weeklyTooltipPinnedTarget = null;
 function positionWeeklyGameTooltip(event) { const element = document.getElementById("weekly-game-tooltip"); if (!element || element.style.display === "none") return; element.style.left = `${Math.min(window.innerWidth - element.offsetWidth - 12, Math.max(12, event.clientX + 12))}px`; element.style.top = `${Math.min(window.innerHeight - element.offsetHeight - 12, Math.max(12, event.clientY + 12))}px`; }
 function showWeeklyGameTooltip(target, event) { let element = document.getElementById("weekly-game-tooltip"); if (!element) { element = document.createElement("div"); element.id = "weekly-game-tooltip"; element.className = "profile-chart-tooltip weekly-game-tooltip"; document.body.appendChild(element); } element.innerHTML = target.dataset.weeklyTooltip; element.style.display = "block"; positionWeeklyGameTooltip(event); }
