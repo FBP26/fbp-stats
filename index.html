@@ -1071,6 +1071,7 @@ document.addEventListener("click",event=>{const button=event.target.closest("#na
 document.getElementById("website-view-week-one")?.addEventListener("click",()=>{showView("week-one");renderSelectedWebsiteWeek();});
 let profileChart = null, profileMoneyChart = null, profilePlusMinusChart = null, profilePlacementChart = null, profileBestWeeksChart = null, profileRecentChart = null, profileBestBetChart = null, profileTeamChart = null, profileClubChart = null, gamePicksTable = null, weekChart = null, weekTable = null, weekRaceChart = null, winnerContributionChart = null, weeklyRankChart = null, streakChart = null, streakTable = null, seasonTopChart = null, seasonTable = null, seasonRaceChart = null, seasonPlayerChart = null, seasonMoneyChart = null, seasonConsistencyChart = null, seasonBbChart = null, seasonTeamsChart = null, seasonContrarianChart = null, seasonTbChart = null, allTimeTopChart = null, allTimePlusMinusChart = null, allTimePlusMinusTrendChart = null, allTimeGamesChart = null, allTimeArcsChart = null, allTimeMoneyChart = null, allTimeTurnoutChart = null, allTimeStreakChart = null, allTimeTeamPicksChart = null, allTimeContrarianChart = null, allTimeSeasonWeeksChart = null, manifest = [], dashboard = [], tableData = {}, websiteWeeks = [], websiteAwards = [], websiteSeasons = [], websitePlayers = [], websiteRecords = [], websiteStreaks = [], websiteGames = [], websitePicks = [];
 let allTimeAttendanceChart = null;
+let allTimePlusMinusExtraPlayers = [];
 const colors = ["#54d6b2", "#ffb454", "#8ca7ff", "#ff7180", "#d79bff", "#f1e48b", "#65c7e8"];
 const weekBarLabels = { id: "weekBarLabels", afterDatasetsDraw(chart) { if (!["week-chart", "season-top-chart", "season-bb-chart", "season-money-chart", "season-tb-chart", "alltime-top-chart", "alltime-plus-minus-chart", "alltime-weekly-wins-chart", "alltime-games-chart", "alltime-money-chart", "streak-chart"].includes(chart.canvas.id)) return; const context = chart.ctx; const meta = chart.getDatasetMeta(0); context.save(); context.font = "15px Arial"; context.textBaseline = "middle"; context.fillStyle = "#0d1117"; context.textAlign = "left"; meta.data.forEach((bar, index) => { context.fillText(chart.data.datasets[0].barText?.[index] ?? chart.data.labels[index], Math.max(chart.chartArea.left + 8, bar.x - bar.width + 8), bar.y); }); context.restore(); } };
 Chart.register(weekBarLabels);
@@ -1538,7 +1539,7 @@ function renderAllTimePickCharts() {
   if (!panel || !grid) return;
   let host = document.getElementById("alltime-pick-charts");
   if (!host) { host = document.createElement("div"); host.id = "alltime-pick-charts"; grid.insertAdjacentElement("afterend", host); }
-  host.innerHTML = '<h3 style="margin:28px 0 8px;color:var(--accent);font:11px Arial,sans-serif;letter-spacing:1px;text-transform:uppercase">Team picks</h3><div id="alltime-team-picks-table" style="overflow-x:auto"></div><h3 style="margin:28px 0 8px;color:var(--accent);font:11px Arial,sans-serif;letter-spacing:1px;text-transform:uppercase">Season champions</h3><div class="chart-wrap wide-chart race-chart-wrap"><canvas id="alltime-season-weeks-chart"></canvas></div>';
+  host.innerHTML = '<h3 style="margin:28px 0 8px;color:var(--accent);font:11px Arial,sans-serif;letter-spacing:1px;text-transform:uppercase">Team picks</h3><div class="grid-legend"><span>Percentage cells: <i style="background:#238b68"></i>above 50% <i style="background:#d94b5b"></i>below 50% · deeper color means farther from 50% (minimum 25 results)</span></div><div id="alltime-team-picks-table" style="overflow-x:auto"></div><h3 style="margin:28px 0 8px;color:var(--accent);font:11px Arial,sans-serif;letter-spacing:1px;text-transform:uppercase">Season champions</h3><div class="chart-wrap wide-chart race-chart-wrap"><canvas id="alltime-season-weeks-chart"></canvas></div>';
   const byTeam = new Map(), byPlayer = new Map(), byGame = new Map(), gameMap = new Map(websiteGames.map(game => [game.gameId, game]));
   const getTeamRow = team => byTeam.get(team) || { team, wins: 0, losses: 0, pushes: 0, playoffWins: 0, playoffLosses: 0, favoriteWins: 0, favoriteLosses: 0, favoritePushes: 0, underdogWins: 0, underdogLosses: 0, underdogPushes: 0, count: 0, pickedWins: 0, pickedLosses: 0, pickedPushes: 0, pickedAgainst: 0, pickedAgainstWins: 0, pickedAgainstLosses: 0, pickedAgainstPushes: 0, favoritePicks: 0, favoritePickWins: 0, favoritePickLosses: 0, favoritePickPushes: 0, underdogPicks: 0, underdogPickWins: 0, underdogPickLosses: 0, underdogPickPushes: 0 };
   websiteGames.forEach(game => {
@@ -1578,6 +1579,8 @@ function renderAllTimePickCharts() {
   const renderTeamTable = (sortIndex = 3, descending = true) => {
     const sorted = [...teamRows].sort((a, b) => { const left = teamColumns[sortIndex].value(a), right = teamColumns[sortIndex].value(b); return (descending ? -1 : 1) * (typeof left === "number" ? left - right : String(left).localeCompare(String(right))); });
     document.getElementById("alltime-team-picks-table").innerHTML = `<table class="picks-grid"><thead><tr>${teamColumns.map((column, index) => `<th class="${index === 0 ? "pg-player" : ""}" data-sort-index="${index}" title="Click to sort">${column.label}</th>`).join("")}</tr></thead><tbody>${sorted.map(row => `<tr><td class="pg-player">${row.team}</td><td class="pg-sum-cell">${row.wins}</td><td class="pg-sum-cell">${row.losses}</td><td class="pg-sum-cell">${pct(row.wins, row.losses)}</td><td class="pg-sum-cell">${pct(row.favoriteWins, row.favoriteLosses)}</td><td class="pg-sum-cell">${pct(row.underdogWins, row.underdogLosses)}</td><td class="pg-sum-cell">${row.count}</td><td class="pg-sum-cell">${pct(row.pickedWins, row.pickedLosses)}</td><td class="pg-sum-cell">${row.favoritePicks}</td><td class="pg-sum-cell">${pct(row.favoritePickWins, row.favoritePickLosses)}</td><td class="pg-sum-cell">${row.underdogPicks}</td><td class="pg-sum-cell">${pct(row.underdogPickWins, row.underdogPickLosses)}</td><td class="pg-sum-cell">${row.pickedAgainst}</td><td class="pg-sum-cell">${pct(row.pickedAgainstWins, row.pickedAgainstLosses)}</td><td class="pg-sum-cell">${row.pushes}</td></tr>`).join("")}</tbody></table>`;
+    const heatSpecs = row => [[3, row.wins, row.losses], [4, row.favoriteWins, row.favoriteLosses], [5, row.underdogWins, row.underdogLosses], [7, row.pickedWins, row.pickedLosses], [9, row.favoritePickWins, row.favoritePickLosses], [11, row.underdogPickWins, row.underdogPickLosses], [13, row.pickedAgainstWins, row.pickedAgainstLosses]];
+    document.querySelectorAll("#alltime-team-picks-table tbody tr").forEach((tableRow, rowIndex) => heatSpecs(sorted[rowIndex]).forEach(([cellIndex, wins, losses]) => { const total = wins + losses; if (total < 25) return; const rate = wins / total, strength = Math.min(1, Math.abs(rate - .5) / .15), alpha = .12 + strength * .38; tableRow.cells[cellIndex].style.backgroundColor = rate >= .5 ? `rgba(35,139,104,${alpha})` : `rgba(217,75,91,${alpha})`; }));
     document.querySelectorAll("#alltime-team-picks-table th[data-sort-index]").forEach(header => header.onclick = () => { const index = Number(header.dataset.sortIndex); renderTeamTable(index, index === sortIndex ? !descending : true); });
   };
   renderTeamTable();
@@ -1692,10 +1695,10 @@ function renderAllTime() {
   allTimeTopChart.data.datasets[0].barText = qualified.map(player => `${player.name} · ${(player.winPct * 100).toFixed(1)}% · ${player.wins}-${player.losses} · ${player.seasonCount} seasons`);
   allTimeTopChart.data.datasets[0].barThickness = 26;
   allTimeTopChart.update();
-  const plusMinusRows = [...(tableData.overall || [])]
+  const plusMinusAllRows = [...(tableData.overall || [])]
     .map(row => ({ name: row.Name, plusMinus: Number(row["Plus/Minus"] || 0), wins: Number(row.Wins || 0), losses: Number(row.Losses || 0), winPct: Number(row["%"] || 0) }))
-    .sort((a, b) => b.plusMinus - a.plusMinus || b.wins - a.wins || String(a.name).localeCompare(String(b.name)))
-    .slice(0, 10);
+    .sort((a, b) => b.plusMinus - a.plusMinus || b.wins - a.wins || String(a.name).localeCompare(String(b.name)));
+  const plusMinusRows = plusMinusAllRows.slice(0, 10);
   if (allTimePlusMinusChart) allTimePlusMinusChart.destroy();
   const plusMinusColor = (row, index) => ["#d4af37", "#c0c0c0", "#cd7f32"][index] || "#8ca7ff";
   allTimePlusMinusChart = new Chart(document.getElementById("alltime-plus-minus-chart"), { type: "bar", data: { labels: plusMinusRows.map(row => row.name), datasets: [{ label: "Plus/minus", data: plusMinusRows.map(row => row.plusMinus), barText: plusMinusRows.map(row => `${row.name} · ${row.plusMinus > 0 ? "+" : ""}${row.plusMinus}`), backgroundColor: plusMinusRows.map((row, index) => plusMinusColor(row, index) + "bb"), borderColor: plusMinusRows.map((row, index) => plusMinusColor(row, index)), borderWidth: 1 }] }, options: { indexAxis: "y", responsive: true, maintainAspectRatio: false, scales: { x: { position: "top", ticks: { color: "#91a0ae", callback: value => Number(value) > 0 ? "+" + value : value }, grid: { color: "#2a3744" }, title: { display: true, text: "Wins above losses", color: "#91a0ae" } }, y: { ticks: { display: false }, grid: { color: "#2a3744" } } }, plugins: { legend: { display: false }, title: { display: true, text: "Career plus/minus", color: "#e8eef5", font: { size: 15, weight: "normal" }, padding: { bottom: 12 } }, tooltip: { displayColors: false, callbacks: { label: context => { const row = plusMinusRows[context.dataIndex]; return [`Plus/minus: ${row.plusMinus > 0 ? "+" : ""}${row.plusMinus}`, `Record: ${row.wins}-${row.losses}`, `Win %: ${(row.winPct * 100).toFixed(2)}%`]; } } } } } });
@@ -1704,7 +1707,15 @@ function renderAllTime() {
   if (plusMinusWrap) { plusMinusWrap.style.minHeight = "0"; plusMinusWrap.style.height = `${Math.round(675 * plusMinusRows.length / 15)}px`; }
   allTimePlusMinusChart.resize();
   allTimePlusMinusChart.update();
-  const trendPlayers = plusMinusRows.map(row => row.name);
+  const trendBasePlayers = plusMinusAllRows.slice(0, 5).map(row => row.name);
+  allTimePlusMinusExtraPlayers = allTimePlusMinusExtraPlayers.filter(name => plusMinusAllRows.some(row => row.name === name) && !trendBasePlayers.includes(name));
+  const trendPlayers = [...trendBasePlayers, ...allTimePlusMinusExtraPlayers];
+  const trendWrap = document.getElementById("alltime-plus-minus-trend-chart").closest(".chart-wrap");
+  let trendControls = document.getElementById("alltime-plus-minus-trend-controls");
+  if (!trendControls) { trendControls = document.createElement("div"); trendControls.id = "alltime-plus-minus-trend-controls"; trendControls.className = "explorer-controls"; trendControls.style.cssText = "grid-template-columns:minmax(220px,320px) auto;align-items:end;margin:14px 0 0"; trendWrap.before(trendControls); }
+  trendControls.innerHTML = `<label>Add player<select id="alltime-plus-minus-add-player"><option value="">Choose a player...</option>${plusMinusAllRows.map(row => { const shown = trendPlayers.includes(row.name), suffix = trendBasePlayers.includes(row.name) ? " (top 5)" : shown ? " (added)" : ""; return `<option value="${websiteEscapeHtml(row.name)}"${shown ? " disabled" : ""}>${websiteEscapeHtml(row.name + suffix)}</option>`; }).join("")}</select></label><button id="alltime-plus-minus-clear" type="button"${allTimePlusMinusExtraPlayers.length ? "" : " disabled"}>Top 5 only</button>`;
+  document.getElementById("alltime-plus-minus-add-player").onchange = event => { if (event.target.value) { allTimePlusMinusExtraPlayers.push(event.target.value); renderAllTime(); } };
+  document.getElementById("alltime-plus-minus-clear").onclick = () => { allTimePlusMinusExtraPlayers = []; renderAllTime(); };
   const cumulativeByPlayer = new Map(trendPlayers.map(name => [name, 0]));
   const trendData = seasons.map(season => {
     trendPlayers.forEach(name => {
@@ -1952,7 +1963,7 @@ function renderAllTime() {
   attendanceDataset.backgroundColor = attendanceRuns.map(run => run.picked ? "#54d6b2" : "#ffb454");
   attendanceDataset.borderColor = attendanceRuns.map(run => run.picked ? "#238b68" : "#c97920");
   attendanceDataset.barThickness = 12;
-  allTimeAttendanceChart.options.scales.x.title.text = "Green: picked · Amber: missed · Pushes count as played";
+  allTimeAttendanceChart.options.scales.x.title.text = "Green: picked · Amber: missed";
   allTimeAttendanceChart.options.scales.y.reverse = false;
   allTimeAttendanceChart.options.interaction = { mode: "nearest", axis: "xy", intersect: true };
   allTimeAttendanceChart.options.plugins.tooltip.callbacks.title = items => { const item = items[0].raw; return `${item.player.name} · ${item.picked ? "No-miss streak" : "Missed stretch"}`; };
