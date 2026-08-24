@@ -253,7 +253,7 @@
   </section>
 </main>
 <script>
-const DATA_DIR = "data";
+const DATA_DIR = "./data";
 const requestedStartupRoute = location.hash.slice(1) === "weekly-rank" ? "weeks" : location.hash.slice(1);
 if (location.hash === "#weekly-rank") history.replaceState(null, "", "#weeks");
 let startupRoutePending = true;
@@ -1914,7 +1914,7 @@ function renderAllTime() {
     document.getElementById("alltime-games-chart").closest(".chart-wrap").after(attendanceWrap);
   }
   const attendanceGames = [...new Map(websiteGames.filter(game => game.gameId).map(game => [game.gameId, game])).values()].sort((a, b) => String(a.season).localeCompare(String(b.season)) || profilePeriodOrder(a.week) - profilePeriodOrder(b.week) || Number(a.playoffGameNum || a.gameNum || 0) - Number(b.playoffGameNum || b.gameNum || 0));
-  const attendanceRows = allGamesPlayedRows.map((player, playerIndex) => {
+  const allAttendanceRows = allGamesPlayedRows.map((player, playerIndex) => {
     const pickedGameIds = new Set(websitePicks.filter(pick => pick.playerId === player.playerId && pick.pick).map(pick => pick.gameId));
     const pickedIndexes = attendanceGames.map((game, index) => pickedGameIds.has(game.gameId) ? index : -1).filter(index => index >= 0);
     const firstIndex = pickedIndexes[0] ?? 0, lastIndex = pickedIndexes.at(-1) ?? -1;
@@ -1931,6 +1931,20 @@ function renderAllTime() {
     runs.forEach(run => { run.player = attendancePlayer; });
     return { player: attendancePlayer, runs };
   });
+  let attendancePageSelect = document.getElementById("attendance-page");
+  if (!attendancePageSelect) {
+    const attendanceControls = document.createElement("div");
+    attendanceControls.className = "explorer-controls";
+    attendanceControls.style.cssText = "grid-template-columns:minmax(180px,260px);margin:14px 0 0";
+    attendanceControls.innerHTML = '<label>Players shown<select id="attendance-page" aria-label="Attendance players shown"></select></label>';
+    attendanceCanvas.closest(".attendance-chart-scroll").before(attendanceControls);
+    attendancePageSelect = attendanceControls.querySelector("select");
+    attendancePageSelect.addEventListener("change", renderAllTime);
+  }
+  const selectedAttendancePage = attendancePageSelect.value || "0", attendancePageSize = 50, attendancePageCount = Math.ceil(allAttendanceRows.length / attendancePageSize);
+  attendancePageSelect.innerHTML = Array.from({ length: attendancePageCount }, (_, index) => `<option value="${index}">Page ${index + 1} · ${index * attendancePageSize + 1}-${Math.min((index + 1) * attendancePageSize, allAttendanceRows.length)}</option>`).join("") + '<option value="all">Show all</option>';
+  attendancePageSelect.value = selectedAttendancePage === "all" || Number(selectedAttendancePage) < attendancePageCount ? selectedAttendancePage : "0";
+  const attendanceRows = (attendancePageSelect.value === "all" ? allAttendanceRows : allAttendanceRows.slice(Number(attendancePageSelect.value) * attendancePageSize, (Number(attendancePageSelect.value) + 1) * attendancePageSize)).map((row, playerIndex) => { row.runs.forEach(run => { run.y = playerIndex; }); return row; });
   const attendanceGameLabel = item => { const week = String(item.game.week || ""), period = /^\d+$/.test(week) ? `Week ${week}` : profileWeekLabel(week); return `${item.game.season} ${period} Game ${item.game.playoffGameNum || item.game.gameNum || "?"}`; };
   attendanceCanvas.closest(".attendance-chart-inner").style.height = `${Math.max(600, attendanceRows.length * 24 + 90)}px`;
   const attendanceRuns = attendanceRows.flatMap(row => row.runs);
@@ -1944,6 +1958,7 @@ function renderAllTime() {
   allTimeAttendanceChart.options.interaction = { mode: "nearest", axis: "xy", intersect: true };
   allTimeAttendanceChart.options.plugins.tooltip.callbacks.title = items => { const item = items[0].raw, player = attendanceRows[item.y]?.player || item.player; return `${player.name} · ${item.picked ? "No-miss streak" : "Missed stretch"}`; };
   allTimeAttendanceChart.options.plugins.tooltip.callbacks.afterLabel = context => { const player = attendanceRows[context.raw.y]?.player || context.raw.player; return [`Career games picked: ${player.games}`, `Attendance since joining: ${player.attendancePct.toFixed(1)}%`]; };
+  allTimeAttendanceChart.options.scales.y.ticks.callback = (value, index) => { const row = attendanceRows[index]?.player; return row ? `${row.name} · ${row.attendancePct.toFixed(1)}% att.` : ""; };
   const attendanceXAxis = allTimeAttendanceChart.options.scales.x;
   attendanceXAxis.afterBuildTicks = scale => { scale.ticks = attendanceGames.map((game, index) => ({ game, index })).filter(item => item.index === 0 || attendanceGames[item.index - 1]?.season !== item.game.season).map(item => ({ value: item.index })); };
   attendanceXAxis.ticks = { color: "#91a0ae", minRotation: 45, maxRotation: 60, callback: value => String(attendanceGames[Math.round(value)]?.season || "").slice(0, 4) };
@@ -2493,7 +2508,7 @@ function renderProfile(name) {
     if (recentView === "correct" || recentView === "wrong") { const run = longestRun(orderedPickEntries, item => Number(recentView === "correct" ? item.pick.resultWin : item.pick.resultLoss)); streak = { length: run.length, events: run.map(item => ({ gameId: item.game.gameId })) }; }
     if (recentView === "best_bet_hit" || recentView === "best_bet_miss") { const bets = orderedPickEntries.filter(item => Number(item.pick.bestBetWin || 0) || Number(item.pick.bestBetLoss || 0) || Number(item.pick.bestBetPush || 0)); const run = longestRun(bets, item => Number(recentView === "best_bet_hit" ? item.pick.bestBetWin : item.pick.bestBetLoss)); streak = { length: run.length, events: run.map(item => ({ gameId: item.game.gameId })) }; }
     if (recentView === "best_team_pick" || recentView === "worst_team_pick") { const teamRuns = [...new Set(orderedPickEntries.map(item => String(item.pick.pick || "").toUpperCase()).filter(Boolean))].map(group => { const entries = orderedPickEntries.filter(item => String(item.pick.pick || "").toUpperCase() === group); return { group, run: longestRun(entries, item => Number(recentView === "best_team_pick" ? item.pick.resultWin : item.pick.resultLoss)) }; }).sort((a, b) => b.run.length - a.run.length); const best = teamRuns[0] || { group: "", run: [] }; streak = { length: best.run.length, group: best.group, events: best.run.map(item => ({ gameId: item.game.gameId })) }; }
-    if (recentView === "money" || recentView === "no_first") { const run = longestRun(orderedWeekEntries, item => recentView === "money" ? Number(item.moneyAward || 0) > 0 : Number(item.rank) !== 1); streak = { length: run.length, weeks: run.map(item => ({ season: item.season, week: item.week })) }; }
+    if (recentView === "money" || recentView === "no_first") { const run = longestRun(orderedWeekEntries, item => recentView === "money" ? Number(item.moneyAward || 0) > 0 : Number(item.rank) !== 1); streak = { length: run.length, weeks: run.map(item => ({ season: item.season, week: item.week })) }; if (recentView === "no_first") { const canonical = (tableData.no_first_streak || []).find(row => row.Name === name), range = String(canonical?.["No-1st Streak Range"] || ""), matches = [...range.matchAll(/(\d{4}-\d{4})\s+(?:Week\s+(\d+)|Playoffs?)/gi)]; if (canonical && matches.length) { const start = matches[0], end = matches.at(-1), order = (season, week) => Number(String(season).slice(0, 4)) * 2000 + Number(week || 0), startOrder = order(start[1], start[2] ? Number(start[2]) : 999), endOrder = order(end[1], end[2] ? Number(end[2]) : 999), weeks = orderedWeekEntries.filter(item => { const itemOrder = order(item.season, item.weekOrder); return itemOrder >= startOrder && itemOrder <= endOrder; }); streak = { length: Number(canonical["No-1st Streak (Weeks)"] || weeks.length), weeks: weeks.map(item => ({ season: item.season, week: item.week })) }; } } }
     const weekMode = streak?.weeks?.length;
     const allEntries = weekMode ? orderedWeekEntries : orderedPickEntries.filter(row => recentView === "correct" || recentView === "wrong" ? true : recentView.startsWith("best_bet") ? Number(row.pick.bestBetWin || 0) || Number(row.pick.bestBetLoss || 0) || Number(row.pick.bestBetPush || 0) : String(row.pick.pick || "").toUpperCase() === String(streak?.group || "").toUpperCase());
     const streakIds = new Set(weekMode ? streak.weeks.map(row => `${row.season}|${row.week}`) : (streak?.events || []).map(row => row.gameId));
