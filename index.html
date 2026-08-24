@@ -832,7 +832,7 @@ function renderWebsiteWeekOneGridClean(data) {
   if (status) status.innerHTML = "";
   const table = document.getElementById("week-one-table");
   if (!rows.length) { table.innerHTML = '<p style="color:var(--muted)">No submissions yet.</p>'; return; }
-  const tiebreakDetail = data.actualTiebreaker !== "" && data.actualTiebreaker != null ? `<br><small>${data.actualTiebreaker} net passing yards${data.tiebreakStatus ? ` · ${data.tiebreakStatus}` : ""}</small>` : "";
+  const tiebreakDetail = data.actualTiebreaker !== "" && data.actualTiebreaker != null ? `<br><small>${data.actualTiebreaker}</small>` : "";
   let html = '<table class="picks-grid"><thead><tr><th class="pg-player">Player</th><th class="pg-game pg-week-name">Week 1 name</th><th class="pg-sum-hdr pg-w">W</th><th class="pg-sum-hdr pg-l">L</th><th class="pg-sum-hdr">Win%</th><th class="pg-sum-hdr">Prob</th><th class="pg-sum-hdr">Paths</th>';
   data.favorites.forEach((favorite, index) => { html += `<th class="pg-game">${favorite}<br><small>${data.spreads[index]}</small><br>${data.underdogs[index]}</th>`; });
   html += `<th class="pg-bb-hdr">BB</th><th class="pg-sum-hdr">TB${tiebreakDetail}</th></tr></thead><tbody>`;
