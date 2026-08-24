@@ -48,7 +48,8 @@ function buildTeamsAnalytics() {
       });
     }
     const bestBet = String(pick.bestBet || "").toUpperCase();
-    if (teams.includes(bestBet)) eachScope(bestBet, game.season, row => {
+    const hasBestBetResult = Number(pick.bestBetWin || 0) || Number(pick.bestBetLoss || 0) || Number(pick.bestBetPush || 0);
+    if (hasBestBetResult && teams.includes(bestBet)) eachScope(bestBet, game.season, row => {
       row.bestBets += 1;
       row.bestBetWins += Number(pick.bestBetWin || 0);
       row.bestBetLosses += Number(pick.bestBetLoss || 0);
@@ -99,7 +100,44 @@ function teamRowsForSeason(season) {
     }));
 }
 
+function setupTeamsSections() {
+  const panel = document.querySelector("#view-teams > .panel");
+  const charts = panel?.querySelector(".profile-charts");
+  if (!panel || !charts || document.getElementById("teams-global-section")) return;
+  const chartPanels = [...charts.children];
+  const headings = [...panel.querySelectorAll(":scope > h3")];
+  const headingFor = text => headings.find(heading => heading.textContent.trim() === text);
+  const globalSection = document.createElement("section");
+  globalSection.id = "teams-global-section";
+  globalSection.innerHTML = '<h3 class="teams-section-title">All-Team Comparison</h3><div class="profile-charts" id="teams-global-charts"></div>';
+  const selectedSection = document.createElement("section");
+  selectedSection.id = "teams-selected-section";
+  selectedSection.innerHTML = '<hr class="chart-divider"><h3 class="teams-section-title" id="teams-selected-title">Selected Team</h3><div id="teams-selected-summary"></div><div class="profile-charts" id="teams-selected-charts"></div>';
+  charts.before(globalSection, selectedSection);
+  const sharedControls = panel.querySelector(":scope > .explorer-controls");
+  const teamLabel = document.getElementById("teams-team")?.closest("label"), metricLabel = document.getElementById("teams-metric")?.closest("label");
+  const globalControls = document.createElement("div"), selectedControls = document.createElement("div");
+  globalControls.className = selectedControls.className = "explorer-controls";
+  globalControls.style.marginBottom = selectedControls.style.marginBottom = "12px";
+  if (metricLabel) globalControls.append(metricLabel);
+  if (teamLabel) selectedControls.append(teamLabel);
+  globalSection.querySelector(".teams-section-title").after(globalControls);
+  selectedSection.querySelector(".teams-section-title").after(selectedControls);
+  if (sharedControls && !sharedControls.children.length) sharedControls.remove();
+  globalSection.querySelector("#teams-global-charts").append(chartPanels[0]);
+  selectedSection.querySelector("#teams-selected-summary").append(document.getElementById("teams-summary"));
+  selectedSection.querySelector("#teams-selected-charts").append(...chartPanels.slice(1));
+  ["Team leaderboard", "Best Bet records"].forEach(text => {
+    const heading = headingFor(text);
+    if (heading) globalSection.append(heading, heading.nextElementSibling);
+  });
+  const affinityHeading = document.getElementById("teams-affinity-title");
+  if (affinityHeading) selectedSection.append(affinityHeading, document.getElementById("teams-affinity-table"));
+  charts.remove();
+}
+
 function initializeTeamsControls() {
+  setupTeamsSections();
   const seasonSelect = document.getElementById("teams-season");
   const teamSelect = document.getElementById("teams-team");
   const priorTeam = teamSelect.value;
@@ -133,6 +171,7 @@ function renderTeams() {
     ["Pool fade record", record(selected.fadeWins || 0, selected.fadeLosses || 0, selected.fadePushes || 0)],
     ["Best Bet record", record(selected.bestBetWins || 0, selected.bestBetLosses || 0, selected.bestBetPushes || 0)]
   ].map(([label, value]) => `<div class="metric"><span>${label}</span><strong>${value}</strong></div>`).join("");
+  document.getElementById("teams-selected-title").textContent = `${selectedTeam} Team Detail`;
 
   const config = {
     volume: { label: "Times picked", value: row => row.picks, eligible: row => row.picks > 0 },
@@ -201,15 +240,36 @@ function renderTeams() {
   const affinity = new Map();
   websitePicks.forEach(pick => {
     const game = buildTeamsAnalytics().gameById.get(pick.gameId);
-    if (!game || (season !== "all" && game.season !== season) || String(pick.pick || "").toUpperCase() !== selectedTeam) return;
-    const row = affinity.get(pick.playerId) || { player: pick.name || websitePlayers.find(player => player.playerId === pick.playerId)?.name || pick.playerId, picks: 0, wins: 0, losses: 0, pushes: 0 };
-    row.picks += 1; row.wins += Number(pick.resultWin || 0); row.losses += Number(pick.resultLoss || 0); row.pushes += Number(pick.resultPush || 0); affinity.set(pick.playerId, row);
+    if (!game || (season !== "all" && game.season !== season) || !pick.pick) return;
+    const row = affinity.get(pick.playerId) || { player: pick.name || websitePlayers.find(player => player.playerId === pick.playerId)?.name || pick.playerId, totalPicks: 0, picks: 0, wins: 0, losses: 0, pushes: 0, bestBets: 0, bestBetWins: 0, bestBetLosses: 0, bestBetPushes: 0, against: 0, againstWins: 0, againstLosses: 0, againstPushes: 0 };
+    row.totalPicks += 1;
+    const picked = String(pick.pick || "").toUpperCase();
+    const teams = [game.favorite, game.underdog].map(value => String(value || "").toUpperCase());
+    if (picked === selectedTeam) {
+      row.picks += 1; row.wins += Number(pick.resultWin || 0); row.losses += Number(pick.resultLoss || 0); row.pushes += Number(pick.resultPush || 0);
+    } else if (teams.includes(selectedTeam)) {
+      row.against += 1; row.againstWins += Number(pick.resultWin || 0); row.againstLosses += Number(pick.resultLoss || 0); row.againstPushes += Number(pick.resultPush || 0);
+    }
+    const hasBestBetResult = Number(pick.bestBetWin || 0) || Number(pick.bestBetLoss || 0) || Number(pick.bestBetPush || 0);
+    if (hasBestBetResult && String(pick.bestBet || "").toUpperCase() === selectedTeam) {
+      row.bestBets += 1; row.bestBetWins += Number(pick.bestBetWin || 0); row.bestBetLosses += Number(pick.bestBetLoss || 0); row.bestBetPushes += Number(pick.bestBetPush || 0);
+    }
+    affinity.set(pick.playerId, row);
   });
-  const affinityRows = [...affinity.values()].map(row => ({ ...row, record: record(row.wins, row.losses, row.pushes), winPct: teamRate(row.wins, row.losses) })).sort((left, right) => right.picks - left.picks);
-  document.getElementById("teams-affinity-title").textContent = `${selectedTeam} player affinity`;
+  const affinityRows = [...affinity.values()].filter(row => row.picks || row.against || row.bestBets).map(row => ({
+    ...row,
+    affinityPct: row.totalPicks ? row.picks / row.totalPicks : 0,
+    record: record(row.wins, row.losses, row.pushes), winPct: teamRate(row.wins, row.losses),
+    bestBetRecord: record(row.bestBetWins, row.bestBetLosses, row.bestBetPushes), bestBetPct: teamRate(row.bestBetWins, row.bestBetLosses),
+    againstRecord: record(row.againstWins, row.againstLosses, row.againstPushes), againstPct: teamRate(row.againstWins, row.againstLosses)
+  })).sort((left, right) => right.affinityPct - left.affinityPct || right.picks - left.picks);
+  document.getElementById("teams-affinity-title").textContent = `${selectedTeam} Player Affinity and Bet Against`;
   if (teamsAffinityTable) teamsAffinityTable.destroy();
   teamsAffinityTable = new Tabulator("#teams-affinity-table", { data: affinityRows, layout: "fitDataStretch", pagination: true, paginationSize: 20, columns: [
-    { title: "Player", field: "player" }, { title: "Times picked", field: "picks", sorter: "number" }, { title: "Record", field: "record" }, { title: "Win %", field: "winPct", formatter: percentFormatter, sorter: "number" }
+    { title: "Player", field: "player", frozen: true },
+    { title: "Picked", field: "picks", sorter: "number" }, { title: "Pick share", field: "affinityPct", formatter: percentFormatter, sorter: "number" }, { title: "Record", field: "record" }, { title: "Win %", field: "winPct", formatter: percentFormatter, sorter: "number" },
+    { title: "Best Bets", field: "bestBets", sorter: "number" }, { title: "BB record", field: "bestBetRecord" }, { title: "BB %", field: "bestBetPct", formatter: percentFormatter, sorter: "number" },
+    { title: "Bet against", field: "against", sorter: "number" }, { title: "Against record", field: "againstRecord" }, { title: "Against %", field: "againstPct", formatter: percentFormatter, sorter: "number" }
   ] });
 }
 

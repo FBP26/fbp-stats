@@ -2,6 +2,15 @@ const historicalTooltipStandards = {
   id: "historicalTooltipStandards",
   beforeInit(chart) {
     const id = chart.canvas.id;
+    if (id === "alltime-top-chart" || id === "alltime-season-weeks-chart") {
+      chart.options.plugins.tooltip ||= {};
+      chart.options.plugins.tooltip.enabled = false;
+      chart.options.plugins.tooltip.external = context => profileChartTooltip(context, index => {
+        if (id === "alltime-top-chart") return historicalSeasonSummaryHtml(chart.data.labels[index]);
+        const season = chart.data.labels[index], name = chart.data.datasets[0].barText?.[index]?.name;
+        return historicalSeasonSummaryHtml(name, season);
+      });
+    }
     if (id === "alltime-plus-minus-trend-chart") {
       chart.options.plugins.tooltip ||= {};
       chart.options.plugins.tooltip.callbacks = {
@@ -82,6 +91,57 @@ const historicalTooltipStandards = {
 };
 Chart.register(historicalTooltipStandards);
 
+function historicalSeasonSummaryHtml(name, season = "") {
+  const rows = websiteWeeks.filter(row => row.competition === "regular" && (!name || row.name === name) && (!season || row.season === season));
+  const groups = rows.reduce((map, row) => { const list = map.get(row.season) || []; list.push(row); map.set(row.season, list); return map; }, new Map());
+  const body = [...groups].sort(([left], [right]) => String(right).localeCompare(String(left))).map(([seasonId, weeks]) => {
+    const wins = weeks.reduce((sum, row) => sum + Number(row.displayWins || 0), 0), losses = weeks.reduce((sum, row) => sum + Number(row.displayLosses || 0), 0), pushes = weeks.reduce((sum, row) => sum + Number(row.displayPushes || 0), 0);
+    const rank = weeks.find(row => row.seasonRank != null)?.seasonRank;
+    const weekly = season ? weeks.sort((left, right) => Number(left.weekOrder || left.week) - Number(right.weekOrder || right.week)).map(row => `<div class="tooltip-week-row"><span>${profileWeekLabel(row.week)}</span><span>#${row.rank || "-"}</span><span>${row.displayWins}-${row.displayLosses}${Number(row.displayPushes || 0) ? `-${row.displayPushes}` : ""}</span></div>`).join("") : "";
+    return `<div class="tooltip-season-header">${websiteEscapeHtml(seasonId)}${rank ? ` · #${rank}` : ""}</div><div class="tooltip-week-row"><span>Season</span><span>${wins}-${losses}${pushes ? `-${pushes}` : ""}</span><span>${wins + losses ? (wins / (wins + losses) * 100).toFixed(1) : "0.0"}%</span></div>${weekly}`;
+  }).join("");
+  return `<strong>${websiteEscapeHtml(name || "Season summary")}${season ? ` · ${websiteEscapeHtml(season)}` : ""}</strong>${body || '<div><span class="neutral">No season details recorded</span></div>'}`;
+}
+
+function setupAllTimeHoverTargets() {
+  document.querySelectorAll("#alltime-champions tbody tr").forEach(row => {
+    const season = row.cells[0]?.textContent.trim(), name = row.cells[1]?.textContent.trim();
+    if (season && name) row.dataset.weeklyTooltip = historicalSeasonSummaryHtml(name, season);
+  });
+  const seasons = websiteSeasons.map(item => item.seasonId);
+  document.querySelectorAll("#alltime-seasons-grid tbody tr").forEach(row => {
+    const name = row.cells[0]?.textContent.trim();
+    seasons.forEach((season, index) => {
+      const cell = row.cells[index + 1];
+      if (name && cell?.textContent.trim()) cell.dataset.weeklyTooltip = historicalSeasonSummaryHtml(name, season);
+    });
+  });
+}
+
+function setupProfileSidebarHovers() {
+  const host = document.getElementById("profile-extra-stats");
+  const main = document.getElementById("profile-stats");
+  if (!host || !main) return;
+  const definitions = {
+    "Wins": "Career correct picks against the spread.", "Losses": "Career missed picks against the spread.", "Weeks": "Regular and playoff weeks entered.", "Win %": "Career wins divided by career decisions.", "Plus/minus": "Career wins minus career losses.", "Weeks won": "Weekly first-place finishes, with ties split evenly.",
+    "Total money won": "Weekly, playoff, and season prize money combined.", "Weekly money": "Prize money from regular weekly wins.", "Playoff money": "Prize money from playoff championships.", "Season money": "Prize money from regular-season championships.",
+    "Top 5 finishes": "Weeks finished fifth or better.", "Top 10 finishes": "Weeks finished tenth or better.", "800 club": "Weeks with an 80% or better pick rate.", "700 club": "Weeks from 70% through 79.9%."
+  };
+  [...main.querySelectorAll(":scope > div"), ...host.querySelectorAll(".profile-list > div")].forEach(row => {
+    const label = row.querySelector("span")?.textContent.trim(), value = row.querySelector("strong")?.textContent.trim();
+    if (!label || row.dataset.weeklyTooltip) return;
+    row.dataset.weeklyTooltip = `<strong>${websiteEscapeHtml(label)} · ${websiteEscapeHtml(value || "0")}</strong><div><span class="neutral">${websiteEscapeHtml(definitions[label] || `Current ${label.toLowerCase()} for the selected player.`)}</span></div>`;
+  });
+  const streakSection = [...host.querySelectorAll(".profile-section")].find(section => section.querySelector("h3")?.textContent === "Streak details");
+  const labelKeys = { "Correct picks": "win_streak", "Wrong picks": "losing_streak", "Best bet hit": "best_bet_hit_streak", "Best bet miss": "best_bet_miss_streak", "Best team run": "best_team_pick_streak", "Worst team run": "worst_team_pick_streak", "Top 5 streak": "top5_streak", "Top 10 streak": "top10_streak", "Weeks without a win": "no_first_streak" };
+  streakSection?.querySelectorAll(".profile-list > div").forEach(row => {
+    const label = row.querySelector("span")?.textContent.trim(), key = labelKeys[label], category = STREAK_CATEGORIES.find(item => item.key === key), name = document.getElementById("profile-player")?.value;
+    if (!key || !category || !name) return;
+    const canonical = (tableData[key] || []).find(item => item.Name === name), parsed = splitStreakLabel(canonical?.[category.column]);
+    row.dataset.weeklyTooltip = streakCardsTooltipHtml({ name, length: Number(parsed.count) || Number(row.querySelector("strong")?.textContent) || 0, span: parsed.detail, detail: String(canonical?.[category.detail] || "") }, category);
+  });
+}
+
 function setupProfileCareerTrends() {
   const historyCanvas = document.getElementById("profile-history-chart");
   const moneyCanvas = document.getElementById("profile-money-chart");
@@ -152,10 +212,66 @@ function setupAttendanceFilter() {
   document.getElementById("attendance-min-games").onchange = applyFilter;
 }
 
+const paginatedTableSizes = {
+  "season-table": 25,
+  "week-table": 50,
+  "streak-table": 25,
+  "game-picks-table": 50,
+  "teams-leaderboard-table": 32,
+  "teams-bestbet-table": 16,
+  "teams-affinity-table": 20
+};
+
+function setupTableShowAllControls() {
+  Object.entries(paginatedTableSizes).forEach(([hostId, pageSize]) => {
+    const host = document.getElementById(hostId);
+    if (!host) return;
+    const currentTable = () => globalThis.Tabulator?.findTable?.(`#${hostId}`)?.[0];
+    const table = currentTable();
+    if (!table) return;
+    let button = document.getElementById(`${hostId}-show-all`);
+    if (!button) {
+      button = document.createElement("button");
+      button.id = `${hostId}-show-all`;
+      button.className = "table-show-all";
+      button.dataset.showingAll = "false";
+      host.before(button);
+    }
+    const update = () => {
+      const activeTable = currentTable();
+      if (!activeTable) return;
+      const total = activeTable.getDataCount("active");
+      const showingAll = button.dataset.showingAll === "true";
+      const alreadyAll = total <= pageSize;
+      if (button.hidden) button.hidden = false;
+      if (button.disabled !== alreadyAll) button.disabled = alreadyAll;
+      const label = alreadyAll ? `All ${total} shown` : showingAll ? `Show ${pageSize} per page` : `Show all (${total})`;
+      if (button.textContent !== label) button.textContent = label;
+    };
+    button.onclick = () => {
+      const activeTable = currentTable();
+      if (!activeTable) return;
+      const showingAll = button.dataset.showingAll !== "true";
+      button.dataset.showingAll = String(showingAll);
+      activeTable.setPageSize(showingAll ? Math.max(1, activeTable.getDataCount("active")) : pageSize);
+      activeTable.setPage(1);
+      update();
+    };
+    update();
+  });
+}
+
 document.addEventListener("DOMContentLoaded", () => {
+  const style = document.createElement("style");
+  style.textContent = '.teams-section-title{margin:28px 0 12px;color:var(--accent);font:11px Arial,sans-serif;letter-spacing:1px;text-transform:uppercase}.table-show-all{margin:8px 0;padding:7px 11px;border:1px solid var(--border);border-radius:4px;background:var(--panel-2);color:var(--text);font:11px Arial,sans-serif;cursor:pointer}.table-show-all:hover{border-color:var(--accent);color:var(--accent)}.table-show-all:disabled{cursor:default;color:var(--muted);opacity:.75}';
+  document.head.append(style);
   setupProfileCareerTrends();
   setupAllTimeCareerLeaders();
   setupAttendanceFilter();
+  setupTableShowAllControls();
+  setupAllTimeHoverTargets();
+  setupProfileSidebarHovers();
   const allTimeView = document.getElementById("view-alltime");
   if (allTimeView) new MutationObserver(setupAttendanceFilter).observe(allTimeView, { childList: true, subtree: true });
+  new MutationObserver(() => { setupTableShowAllControls(); setupAllTimeHoverTargets(); setupProfileSidebarHovers(); }).observe(document.body, { childList: true, subtree: true });
 });
