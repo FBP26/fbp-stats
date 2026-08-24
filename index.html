@@ -380,10 +380,13 @@ function websitePreparePlayers(data) {
   data.players.forEach((player, index) => {
     player.winProbability = `${probabilities[index].toFixed(2)}%`;
     player.pathsToVictory = pathCounts[index];
+    const actualTiebreaker = Number(data.actualTiebreaker);
+    const playerTiebreaker = Number(player.tiebreaker);
+    player.tiebreakDifference = data.actualTiebreaker !== "" && data.actualTiebreaker != null && Number.isFinite(actualTiebreaker) && Number.isFinite(playerTiebreaker) ? Math.abs(playerTiebreaker - actualTiebreaker) : "";
   });
   websiteSortPlayers(data.players);
 }
-function websiteSortPlayers(players) { return players.sort((left, right) => parseFloat(right.winPercent || 0) - parseFloat(left.winPercent || 0) || Number(right.wins || 0) - Number(left.wins || 0) || parseFloat(right.winProbability || 0) - parseFloat(left.winProbability || 0) || left.name.localeCompare(right.name)); }
+function websiteSortPlayers(players) { const difference = player => player.tiebreakDifference === "" || player.tiebreakDifference == null || !Number.isFinite(Number(player.tiebreakDifference)) ? Number.POSITIVE_INFINITY : Math.abs(Number(player.tiebreakDifference)); return players.sort((left, right) => parseFloat(right.winPercent || 0) - parseFloat(left.winPercent || 0) || Number(right.wins || 0) - Number(left.wins || 0) || difference(left) - difference(right) || left.name.localeCompare(right.name)); }
 function renderWebsitePlayerLedgers(data) {
   const host = document.getElementById("week-one-ledger");
   if (!host || !(data.players || []).length) return;
