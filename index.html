@@ -1089,10 +1089,11 @@ const profileValueLabels = { id: "profileValueLabels", afterDatasetsDraw(chart) 
       const outside = dataset.showShortBarText && barHeight < lines.length * 12 + 8;
       const textColor = outside ? dataset.shortBarTextColor || "#e8eef5" : Array.isArray(dataset.barTextColor) ? dataset.barTextColor[index] : dataset.barTextColor || "#0d1117";
       const lineColors = dataset.barTextLineColor?.[index];
+      const highlightedLines = new Set(dataset.barTextHighlightLines?.[index] || []);
       let size = 11;
       while (size > 8) { context.font = `bold ${size}px Arial`; if (Math.max(...lines.map(line => context.measureText(line).width)) <= Math.max(24, bar.width * .9)) break; size -= 1; }
       const centerY = outside ? Math.max(chart.chartArea.top + lines.length * (size + 2) / 2, bar.y - 5 - lines.length * (size + 2) / 2) : (bar.y + bar.base) / 2;
-      if (Math.max(...lines.map(line => context.measureText(line).width)) <= Math.max(24, bar.width * .95)) lines.forEach((line, lineIndex) => { context.fillStyle = lineColors?.[lineIndex] || textColor; context.fillText(line, bar.x, centerY + (lineIndex - (lines.length - 1) / 2) * (size + 2)); });
+      if (Math.max(...lines.map(line => context.measureText(line).width)) <= Math.max(24, bar.width * .95)) lines.forEach((line, lineIndex) => { const lineY = centerY + (lineIndex - (lines.length - 1) / 2) * (size + 2); if (highlightedLines.has(lineIndex)) { const width = context.measureText(line).width; context.fillStyle = "#ffffffd9"; context.fillRect(bar.x - width / 2 - 4, lineY - size / 2 - 3, width + 8, size + 6); } context.fillStyle = lineColors?.[lineIndex] || textColor; context.fillText(line, bar.x, lineY); });
       context.restore();
     });
     (dataset.pointText || []).forEach((text, index) => {
@@ -1113,6 +1114,8 @@ const profileValueLabels = { id: "profileValueLabels", afterDatasetsDraw(chart) 
   });
 } };
 Chart.register(profileValueLabels);
+const attendanceRunLabels = { id: "attendanceRunLabels", afterDatasetsDraw(chart) { if (chart.canvas.id !== "alltime-attendance-chart") return; const context = chart.ctx, dataset = chart.data.datasets[0], meta = chart.getDatasetMeta(0); context.save(); context.font = "bold 9px Arial"; context.textAlign = "center"; context.textBaseline = "middle"; meta.data.forEach((bar, index) => { const text = String(dataset.data[index]?.runLength || ""); if (!text || Math.abs(bar.x - bar.base) < context.measureText(text).width + 6) return; context.fillStyle = dataset.data[index].picked ? "#073b2c" : "#4b0710"; context.fillText(text, (bar.x + bar.base) / 2, bar.y); }); context.restore(); } };
+Chart.register(attendanceRunLabels);
 function profileTurningLabels(values, formatter, limit = 6) {
   if (!values.length) return [];
   const candidates = values.map((value, index) => ({ index, value, prominence: index === 0 || index === values.length - 1 ? 0 : Math.abs(value - values[index - 1]) + Math.abs(value - values[index + 1]) }))
@@ -1892,20 +1895,20 @@ function renderAllTime() {
     attendanceWrap.appendChild(attendanceInner);
     document.getElementById("alltime-games-chart").closest(".chart-wrap").after(attendanceWrap);
   }
-  const attendanceGames = [...new Map(websiteGames.filter(game => game.gameId).map(game => [game.gameId, game])).values()].sort((a, b) => String(a.season).localeCompare(String(b.season)) || Date.parse(a.gameDate || "") - Date.parse(b.gameDate || "") || Number(a.playoffGameNum || a.gameNum || 0) - Number(b.playoffGameNum || b.gameNum || 0));
+  const attendanceGames = [...new Map(websiteGames.filter(game => game.gameId).map(game => [game.gameId, game])).values()].sort((a, b) => String(a.season).localeCompare(String(b.season)) || profilePeriodOrder(a.week) - profilePeriodOrder(b.week) || Number(a.playoffGameNum || a.gameNum || 0) - Number(b.playoffGameNum || b.gameNum || 0));
   const attendanceRows = allGamesPlayedRows.map((player, playerIndex) => {
     const pickedGameIds = new Set(websitePicks.filter(pick => pick.playerId === player.playerId && pick.pick).map(pick => pick.gameId));
     const pickedIndexes = attendanceGames.map((game, index) => pickedGameIds.has(game.gameId) ? index : -1).filter(index => index >= 0);
-    const firstIndex = pickedIndexes[0] ?? 0;
+    const firstIndex = pickedIndexes[0] ?? 0, lastIndex = pickedIndexes.at(-1) ?? -1;
     const runs = [];
     let games = 0;
-    for (let index = firstIndex; index < attendanceGames.length; index += 1) {
+    for (let index = firstIndex; index <= lastIndex; index += 1) {
       const game = attendanceGames[index], picked = pickedGameIds.has(game.gameId), previous = runs.at(-1);
       if (picked) games += 1;
       if (previous?.picked === picked) { previous.x[1] = index + 1; previous.runEnd = { game }; previous.runLength += 1; }
       else runs.push({ x: [index, index + 1], y: playerIndex, picked, runStart: { game }, runEnd: { game }, runLength: 1 });
     }
-    const attendancePct = attendanceGames.length > firstIndex ? games / (attendanceGames.length - firstIndex) * 100 : 0;
+    const attendancePct = lastIndex >= firstIndex ? games / (lastIndex - firstIndex + 1) * 100 : 0;
     const attendancePlayer = { ...player, games, attendancePct };
     runs.forEach(run => { run.player = attendancePlayer; });
     return { player: attendancePlayer, runs };
@@ -2443,6 +2446,12 @@ function renderProfile(name) {
   profileBestWeeksChart = new Chart(document.getElementById("profile-best-weeks-chart"), { type: "bar", data: { labels: bestWeeks.map(row => `${String(row.Season).slice(0, 4)} ${row.Week === "playoffs" ? "P" : `W${row.Week}`}`), datasets: [{ label: "Win %", data: bestWeeks.map(row => Number((Number(row.WinPct || 0) * 100).toFixed(1))), barText: bestWeeks.map(row => [`${row.Wins}-${row.Losses}`, `${(Number(row.WinPct || 0) * 100).toFixed(1)}%`]), backgroundColor: bestWeeks.map((row, index) => ["#d4af37", "#c0c0c0", "#cd7f32"][index] || "#8ca7ffbb"), borderColor: bestWeeks.map((row, index) => ["#d4af37", "#c0c0c0", "#cd7f32"][index] || "#8ca7ff"), borderWidth: 1 }] }, options: { responsive: true, maintainAspectRatio: false, scales: { x: { ticks: { color: "#91a0ae" }, grid: { color: "#2a3744" } }, y: { beginAtZero: true, max: 100, ticks: { color: "#91a0ae", callback: value => value + "%" }, grid: { color: "#2a3744" } } }, plugins: { legend: { display: false }, tooltip: { enabled: false, external: context => profileChartTooltip(context, index => { const row = bestWeeks[index]; return `<strong>${row.Season} W${row.Week} · ${row.Wins}-${row.Losses} · ${(Number(row.WinPct || 0) * 100).toFixed(1)}%</strong>${bestWeekDetails[index].map(({ pick, game }) => { const result = Number(pick.resultWin || 0) ? "win" : Number(pick.resultLoss || 0) ? "loss" : "push"; const picked = String(pick.pick || "").toUpperCase(); const team = value => String(value || "").toUpperCase() === picked ? `<span class="${result}">${websiteEscapeHtml(teamDisplay(value, game))}</span>` : `<span class="neutral">${websiteEscapeHtml(teamDisplay(value, game))}</span>`; return `<div>${team(game.favorite)} <span class="neutral">${websiteEscapeHtml(game.spread ?? "PK")}</span> ${team(game.underdog)}</div>`; }).join("")}`; }) } } } });
   profileBestWeeksChart.options.plugins.tooltip.external = context => profileChartTooltip(context, index => { const row = bestWeeks[index], details = bestWeekDetails[index], bestBet = details.find(({ pick }) => Number(pick.bestBetWin || 0) || Number(pick.bestBetLoss || 0) || Number(pick.bestBetPush || 0)); return `<strong>${row.Season} ${profileWeekLabel(row.Week)}</strong>${details.map(({ pick, game }) => { const result = Number(pick.resultWin || 0) ? "win" : Number(pick.resultLoss || 0) ? "loss" : "push"; return profileGameResultHtml(game, pick.pick, result); }).join("")}${bestBet ? `<div><span class="neutral">Best bet: </span><span class="${Number(bestBet.pick.bestBetWin || 0) ? "win" : Number(bestBet.pick.bestBetLoss || 0) ? "loss" : "push"}">${websiteEscapeHtml(bestBet.pick.bestBet)}</span></div>` : ""}`; });
   if (profileRecentChart) profileRecentChart.destroy();
+  const recentChartCanvas = document.getElementById("profile-recent-chart"), recentChartWrap = recentChartCanvas.closest(".chart-wrap");
+  recentChartCanvas.style.removeProperty("height");
+  recentChartCanvas.style.removeProperty("width");
+  recentChartCanvas.removeAttribute("height");
+  recentChartCanvas.removeAttribute("width");
+  recentChartWrap.style.height = "335px";
   const recentChronological = [...recentWeekRows].reverse();
   const recentRanks = recentChronological.map(row => Number(row.Rank || 0));
   if (recentView === "form") {
@@ -2463,13 +2472,16 @@ function renderProfile(name) {
     const indexes = allEntries.map((item, index) => streakIds.has(keyOf(item)) ? index : -1).filter(index => index >= 0);
     const contextRows = indexes.length ? allEntries.slice(Math.max(0, indexes[0] - 1), Math.min(allEntries.length, indexes.at(-1) + 2)) : [];
     const moneyMode = recentView === "money";
-    const streakLabel = item => { if (moneyMode) return [`$${Number(item.moneyAward || 0).toLocaleString()}`, `#${item.rank}`]; if (weekMode) return `#${item.rank}`; return [teamDisplay(item.game.favorite, item.game), `${favoriteScore(item.game) ?? "?"}`, `${item.game.spread ?? "PK"}`, `${underdogScore(item.game) ?? "?"}`, teamDisplay(item.game.underdog, item.game)]; };
+    recentChartWrap.style.height = weekMode ? "335px" : "240px";
+    const streakLabel = item => { if (moneyMode) return [`$${Number(item.moneyAward || 0).toLocaleString()}`, `#${item.rank}`]; if (weekMode) return `#${item.rank}`; return [`${teamDisplay(item.game.favorite, item.game)} ${favoriteScore(item.game) ?? "?"}`, `${item.game.spread ?? "PK"}`, `${underdogScore(item.game) ?? "?"} ${teamDisplay(item.game.underdog, item.game)}`]; };
     const eventResult = item => { const bestBetMode = recentView.startsWith("best_bet"); return Number(bestBetMode ? item.pick?.bestBetWin : item.pick?.resultWin) ? "win" : Number(bestBetMode ? item.pick?.bestBetLoss : item.pick?.resultLoss) ? "loss" : "push"; };
     profileRecentChart = new Chart(document.getElementById("profile-recent-chart"), { type: "bar", data: { labels: contextRows.map(item => weekMode ? `${String(item.season).slice(0, 4)} W${item.week}` : `${String(item.game.season).slice(0, 4)} W${item.game.week} G${item.game.gameNum}`), datasets: [{ label: streak ? `${streak.length}-event run${streak.group ? ` · ${streak.group}` : ""}` : "No recorded run", data: contextRows.map(item => moneyMode ? Number(item.moneyAward || 0) : weekMode ? Number(item.rank || 0) : eventResult(item) === "win" ? 1 : eventResult(item) === "loss" ? -1 : 0), barText: contextRows.map(streakLabel), barTextColor: contextRows.map(item => eventResult(item) === "win" ? "#073b2c" : eventResult(item) === "loss" ? "#4b0710" : "#28323b"), backgroundColor: contextRows.map(item => weekMode ? streakIds.has(keyOf(item)) ? "#54d6b2bb" : "#8ca7ff55" : eventResult(item) === "win" ? "#54d6b2cc" : eventResult(item) === "loss" ? "#ff7180cc" : "#aeb7c099"), borderColor: contextRows.map(item => weekMode ? streakIds.has(keyOf(item)) ? "#54d6b2" : "#8ca7ff" : eventResult(item) === "win" ? "#54d6b2" : eventResult(item) === "loss" ? "#ff7180" : "#aeb7c0"), borderWidth: 1 }] }, options: { responsive: true, maintainAspectRatio: false, scales: { x: { ticks: { color: "#91a0ae" }, grid: { color: "#2a3744" } }, y: { reverse: Boolean(weekMode && !moneyMode), ticks: { color: "#91a0ae", stepSize: moneyMode ? undefined : 1, callback: value => moneyMode ? `$${Number(value).toLocaleString()}` : value }, grid: { color: "#2a3744" }, title: { display: true, text: moneyMode ? "Money won" : weekMode ? "Weekly rank" : "Result (+1 win / -1 loss)", color: "#91a0ae" } } }, plugins: { legend: { labels: { color: "#e8eef5" } }, tooltip: { callbacks: { afterBody: items => { const item = contextRows[items[0].dataIndex]; return weekMode ? [`Record: ${item.wins}-${item.losses}`, `Money: $${Number(item.moneyAward || 0).toLocaleString()}`, streakIds.has(keyOf(item)) ? "Inside streak" : "Before/after context"] : [...buildPickSummary(playerId, item.game, item.pick), streakIds.has(keyOf(item)) ? "Inside streak" : "Before/after context"]; } } } } } });
     if (!weekMode) {
       const streakDataset = profileRecentChart.data.datasets[0];
-      const streakLineColors = item => { const lineColors = ["#28323b", "#28323b", "#28323b", "#28323b", "#28323b"], picked = String(recentView.startsWith("best_bet") ? item.pick.bestBet : item.pick.pick || "").toUpperCase(), resultColor = eventResult(item) === "win" ? "#087f5b" : eventResult(item) === "loss" ? "#c92a3b" : "#8a6d1f"; if (String(item.game.favorite || "").toUpperCase() === picked) { lineColors[0] = resultColor; lineColors[1] = resultColor; } if (String(item.game.underdog || "").toUpperCase() === picked) { lineColors[3] = resultColor; lineColors[4] = resultColor; } return lineColors; };
-      Object.assign(streakDataset, { barTextColor: "#16202a", barTextLineColor: contextRows.map(streakLineColors), backgroundColor: contextRows.map(item => streakIds.has(keyOf(item)) ? "#edf2f5" : "#b7c3cd"), borderColor: contextRows.map(item => streakIds.has(keyOf(item)) ? "#ffffff" : "#d4dde4") });
+      const pickedLine = item => String(item.game.favorite || "").toUpperCase() === String(recentView.startsWith("best_bet") ? item.pick.bestBet : item.pick.pick || "").toUpperCase() ? [0] : [2];
+      Object.assign(streakDataset, { barTextColor: "#16202a", barTextLineColor: contextRows.map(() => ["#16202a", "#0b6175", "#16202a"]), barTextHighlightLines: contextRows.map(pickedLine), backgroundColor: contextRows.map(item => eventResult(item) === "win" ? "#54d6b2" : eventResult(item) === "loss" ? "#ff7180" : "#f1e48b"), borderColor: contextRows.map(item => eventResult(item) === "win" ? "#238b68" : eventResult(item) === "loss" ? "#d94b5b" : "#8a6d1f") });
+      profileRecentChart.options.scales.y.min = -1.15;
+      profileRecentChart.options.scales.y.max = 1.15;
       const streakLegendColor = recentView === "wrong" || recentView === "best_bet_miss" || recentView === "worst_team_pick" ? "#ff7180" : "#54d6b2";
       profileRecentChart.options.plugins.legend.labels = { color: streakLegendColor, boxWidth: 0 };
       profileRecentChart.options.plugins.tooltip = { enabled: false, external: context => profileChartTooltip(context, index => { const item = contextRows[index], picked = recentView.startsWith("best_bet") ? item.pick.bestBet : item.pick.pick; return weeklyGameTooltipHtml(item.game, eventResult(item), picked); }, true) };
