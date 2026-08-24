@@ -165,19 +165,27 @@
   .weekly-rank-sheet .rank-1 { background: #8a6d1f; color: #ffe9a8; font-weight: bold; }
   .weekly-rank-sheet .top-5 { background: #1e5c3a; color: #7ee2b8; }
   .weekly-rank-sheet .top-10 { background: #26405e; color: #a9c6ff; }
+  .week-recap { margin-top: 28px; padding-top: 20px; border-top: 1px solid var(--border); }
+  .week-recap-grid { display: grid; grid-template-columns: repeat(3, minmax(0, 1fr)); gap: 10px; margin: 12px 0 18px; }
+  .week-recap-item { padding: 13px; background: var(--panel-2); border-left: 2px solid var(--accent-2); }
+  .week-recap-item span { display: block; color: var(--muted); font: 10px Arial, sans-serif; text-transform: uppercase; }
+  .week-recap-item strong { display: block; margin-top: 6px; font-size: 17px; font-weight: 400; line-height: 1.35; }
+  .winner-draft { padding: 16px; border: 1px solid var(--border); background: #121920; font: 14px/1.65 Georgia, "Times New Roman", serif; white-space: pre-wrap; }
+  .week-facts { margin: 12px 0 0; padding-left: 20px; color: var(--muted); font: 13px/1.55 Arial, sans-serif; }
+  @media (max-width: 850px) { .week-recap-grid { grid-template-columns: 1fr; } }
 </style>
 </head>
 <body>
-<header><h1>FBP</h1><nav id="nav"><button data-view="enter-picks">Enter Picks</button><button data-view="week-one">Week 1</button><button data-view="alltime">All Time</button><button data-view="season">Seasons</button><button data-view="weeks">Weeks</button><button data-view="games">Games</button><button data-view="streaks">Streaks</button><button data-view="players">Player Profile</button></nav></header>
+<header><h1>FBP</h1><nav id="nav"><button data-view="enter-picks">Enter Picks</button><button data-view="week-one">Current Week</button><button data-view="alltime">All Time</button><button data-view="season">Seasons</button><button data-view="weeks">Weeks</button><button data-view="games">Games</button><button data-view="streaks">Streaks</button><button data-view="players">Player Profile</button></nav></header>
 <main>
   <section id="view-enter-picks" class="view active">
     <section class="intro"><div><h2>Enter Picks</h2></div><p>Week 1 · 2026-2027</p></section>
-    <div class="panel"><div class="explorer-controls website-mode-controls"><label>Mode<select id="website-picks-mode"><option value="regular">Regular Week 1</option><option value="test">Preseason test</option></select></label><label>Preseason week<select id="website-preseason-week" disabled><option value="1">Week 1</option><option value="2">Week 2</option><option value="3">Week 3</option><option value="4">Week 4</option></select></label></div><p id="website-test-notice" class="website-test-notice">TEST MODE · Entries and scores are isolated from regular-season standings, logs, awards, and archives.</p><div class="website-instructions">Favorites are on the left. Underdogs on the right.<br>HOME TEAMS are in CAPS. away teams are lower case.<br>Point Spreads will be posted on Tuesdays.<br>Once the point spreads are posted they will not change.</div><form id="website-picks-form"><div class="explorer-controls website-identity-controls"><label>Name<input id="website-picks-name" required autocomplete="name"></label><label><span id="website-week-name-label">Week 1 name</span><input id="website-week-name" required></label></div><div id="website-game-picks" class="website-game-list"></div><div class="explorer-controls website-final-controls" style="margin-top:18px"><label>Best Bet<select id="website-best-bet" required></select></label><label>Tiebreaker · Total net passing yards<input id="website-tiebreaker" type="number" required><small style="color:var(--muted);font:11px Arial,sans-serif;text-transform:none;letter-spacing:0">Net passing yards include yards lost to sacks.</small></label></div><button type="submit" style="margin-top:18px">Submit picks</button><p id="website-picks-status" style="color:var(--muted);font:13px Arial,sans-serif"></p></form></div>
+    <div class="panel"><div class="explorer-controls website-mode-controls"><label>Mode<select id="website-picks-mode"><option value="regular">Regular Week 1</option><option value="test">Preseason test</option></select></label><label>Preseason week<select id="website-preseason-week" disabled><option value="1">Week 1</option><option value="2">Week 2</option><option value="3">Week 3</option><option value="4">Week 4</option></select></label></div><p id="website-test-notice" class="website-test-notice">TEST MODE · Entries and scores are isolated from regular-season standings, logs, awards, and archives.</p><div class="website-instructions">Favorites are on the left. Underdogs on the right.<br>HOME TEAMS are in CAPS. away teams are lower case.<br>Point Spreads will be posted on Tuesdays.<br>Once the point spreads are posted they will not change.</div><form id="website-picks-form"><div class="explorer-controls website-identity-controls"><label>Name<input id="website-picks-name" required autocomplete="name"></label><label><span id="website-week-name-label">Week 1 name</span><input id="website-week-name" required></label></div><div id="website-game-picks" class="website-game-list"></div><div class="explorer-controls website-final-controls" style="margin-top:18px"><label>Best Bet<select id="website-best-bet" required></select></label><label>Tiebreaker · Total net passing yards<input id="website-tiebreaker" inputmode="decimal" pattern="(?:\d+(?:\.\d*)?|\.\d+)" title="Enter an integer or decimal number" required><small style="color:var(--muted);font:11px Arial,sans-serif;text-transform:none;letter-spacing:0">Net passing yards include yards lost to sacks.</small></label></div><button type="submit" style="margin-top:18px">Submit picks</button><p id="website-picks-status" style="color:var(--muted);font:13px Arial,sans-serif"></p></form></div>
   </section>
   <section id="view-picks-confirmation" class="view"><section class="intro"><div><h2>Picks submitted</h2></div><p>Week 1 · 2026-2027</p></section><div class="panel website-confirmation"><p>Your picks were submitted successfully.</p><p>Your name and picks are available immediately.</p><button id="website-view-week-one" type="button">View Week 1</button></div></section>
   <section id="view-week-one" class="view">
     <section class="intro"><div><h2>Week 1</h2></div><p>2026-2027 submissions and weekly standings.</p></section>
-    <div class="panel"><div id="week-one-status"></div><div id="week-one-table" style="overflow-x:auto"></div><div id="week-one-scenarios" class="weekly-subview"></div><div id="week-one-sankey" class="weekly-subview"></div><div id="week-one-paths" class="weekly-subview"></div></div>
+    <div class="panel"><div id="week-one-status"></div><div id="week-one-table" style="overflow-x:auto"></div><div id="week-one-recap"></div><div id="week-one-scenarios" class="weekly-subview"></div><div id="week-one-sankey" class="weekly-subview"></div><div id="week-one-paths" class="weekly-subview"></div></div>
   </section>
   <section id="view-alltime" class="view">
     <section class="intro"><div><h2>All Time</h2></div><p>Seventeen seasons of results in one place: the career leaders, every champion, and how the long-timers built their records.</p></section>
@@ -748,7 +756,30 @@ function renderWebsitePersonalizedSankey(data) {
 renderWebsitePlayerLedgers = function() {};
 renderWebsitePaths = renderWebsiteContenderPaths;
 renderWebsiteSankey = renderWebsitePersonalizedSankey;
-function websitePickSelection() { const testMode = document.getElementById("website-picks-mode")?.value === "test"; return { testMode, season: 2026, week: testMode ? Number(document.getElementById("website-preseason-week")?.value || 1) : 1, phase: testMode ? "PRESEASON" : "REGULAR_SEASON" }; }
+let websiteRegularSelection = { season: 2026, week: 1, phase: "REGULAR_SEASON", staged: false };
+let websiteLastWeekData = null;
+function websitePickSelection() { const testMode = document.getElementById("website-picks-mode")?.value === "test"; return testMode ? { testMode, season: 2026, week: Number(document.getElementById("website-preseason-week")?.value || 1), phase: "PRESEASON" } : { testMode, ...websiteRegularSelection }; }
+function updateWebsiteWeekLabels(selection) {
+  const seasonLabel = `${selection.season}-${selection.season + 1}`;
+  const weekLabel = `Week ${selection.week}`;
+  const modeOption = document.querySelector('#website-picks-mode option[value="regular"]');
+  if (modeOption) modeOption.textContent = `Regular ${weekLabel}`;
+  const navButton = document.querySelector('#nav button[data-view="week-one"]');
+  if (navButton) navButton.textContent = weekLabel;
+  document.querySelector("#view-enter-picks .intro p").textContent = `${weekLabel} · ${seasonLabel}`;
+  document.querySelector("#view-picks-confirmation .intro p").textContent = `${weekLabel} · ${seasonLabel}`;
+  document.getElementById("website-view-week-one").textContent = `View ${weekLabel}`;
+}
+async function loadActiveRegularWeek() {
+  if (!WEBSITE_SUBMISSIONS_ENDPOINT) return websiteRegularSelection;
+  const separator = WEBSITE_SUBMISSIONS_ENDPOINT.includes("?") ? "&" : "?";
+  const response = await fetch(`${WEBSITE_SUBMISSIONS_ENDPOINT}${separator}action=active-week`, { signal: AbortSignal.timeout(20000) });
+  const data = await response.json();
+  if (!response.ok || !data.ok) throw new Error(data.error || "Could not load the active regular-season week.");
+  websiteRegularSelection = { season: Number(data.season) || 2026, week: Number(data.week) || 1, phase: "REGULAR_SEASON", staged: Boolean(data.staged) };
+  updateWebsiteWeekLabels(websiteRegularSelection);
+  return websiteRegularSelection;
+}
 async function selectStagedPreseasonWeek() { if (!WEBSITE_SUBMISSIONS_ENDPOINT) return false; const separator = WEBSITE_SUBMISSIONS_ENDPOINT.includes("?") ? "&" : "?"; const weeks = [4, 3, 2, 1]; const results = await Promise.all(weeks.map(async week => { try { const response = await fetch(`${WEBSITE_SUBMISSIONS_ENDPOINT}${separator}action=preseason-test&season=2026&week=${week}`, { signal: AbortSignal.timeout(20000) }); const data = await response.json(); return response.ok && data.ok && (data.games || []).length ? week : null; } catch (error) { return null; } })); const week = results.find(Boolean); if (!week) return false; document.getElementById("website-picks-mode").value = "test"; document.getElementById("website-preseason-week").value = String(week); document.getElementById("website-game-picks").dataset.ready = ""; return true; }
 async function loadWebsiteStagedGames(selection) { if (!WEBSITE_SUBMISSIONS_ENDPOINT) return selection.testMode ? [] : WEBSITE_WEEK_ONE_GAMES; const separator = WEBSITE_SUBMISSIONS_ENDPOINT.includes("?") ? "&" : "?"; const url = `${WEBSITE_SUBMISSIONS_ENDPOINT}${separator}action=week-config&season=${selection.season}&week=${selection.week}&phase=${selection.phase}`; const response = await fetch(url); const data = await response.json(); if (!response.ok || !data.ok) throw new Error(data.error || "Could not load the staged games."); return (data.games || []).map((game, index) => ({ ...game, id: game.gameId || `game-${index + 1}`, time: game.kickoffGroup || game.kickoff || `Game ${index + 1}` })); }
 function websiteGameContext(game) {
@@ -792,6 +823,9 @@ async function refreshWebsitePicksWeather() {
 async function renderWebsitePicksForm() {
   const host = document.getElementById("website-game-picks");
   if (!host) return;
+  if (document.getElementById("website-picks-mode")?.value !== "test") {
+    try { await loadActiveRegularWeek(); } catch (error) { host.innerHTML = `<p class="website-instructions">${error.message}</p>`; return; }
+  }
   const selection = websitePickSelection();
   const configKey = `${selection.phase}-${selection.week}`;
   if (host.dataset.ready === configKey) { refreshWebsitePicksWeather(); return; }
@@ -802,8 +836,8 @@ async function renderWebsitePicksForm() {
   document.getElementById("website-week-name-label").textContent = `${selection.testMode ? "Preseason" : "Week"} ${selection.week} name`;
   try {
     const stagedGames = await loadWebsiteStagedGames(selection);
-    if (!stagedGames.length && selection.testMode) throw new Error(`Preseason Week ${selection.week} has not been staged yet.`);
-    websiteActiveGames = stagedGames.length ? stagedGames : WEBSITE_WEEK_ONE_GAMES;
+    if (!stagedGames.length) throw new Error(`${selection.testMode ? "Preseason" : "Regular"} Week ${selection.week} has not been staged yet.`);
+    websiteActiveGames = stagedGames;
     const groups = [];
     websiteActiveGames.forEach((game, index) => { const previous = websiteActiveGames[index - 1]; if (!previous || previous.time !== game.time) groups.push({ time: game.time, games: [] }); groups[groups.length - 1].games.push({ game, index }); });
     host.innerHTML = groups.map(group => `<fieldset class="website-game-group"><legend>${group.time}</legend>${group.games.map(({ game, index }) => `<div class="website-game-row"><div class="website-matchup"><label class="website-side"><input type="radio" name="game-${index + 1}" value="${game.favorite}" required><span>${websiteTeamName(game.favorite)}</span></label><span class="website-spread">${game.spread}</span><label class="website-side right"><span>${websiteTeamName(game.underdog)}</span><input type="radio" name="game-${index + 1}" value="${game.underdog}" required></label></div>${websiteGameContext(game)}</div>`).join("")}</fieldset>`).join("");
@@ -830,13 +864,64 @@ document.getElementById("website-picks-form").onsubmit = async event => {
     const storageKey = selection.testMode ? `fbpPreseasonTest-${selection.week}` : "fbpWebsiteSubmissions";
     const stored = JSON.parse(localStorage.getItem(storageKey) || "[]"); stored.push(submission); localStorage.setItem(storageKey, JSON.stringify(stored));
     status.textContent = selection.testMode ? "Test picks submitted. Season records were not changed." : "Picks submitted successfully.";
-    document.querySelector("#view-picks-confirmation .intro p").textContent = selection.testMode ? `Preseason Week ${selection.week} test` : "Week 1 · 2026-2027";
+    document.querySelector("#view-picks-confirmation .intro p").textContent = selection.testMode ? `Preseason Week ${selection.week} test` : `Week ${selection.week} · ${selection.season}-${selection.season + 1}`;
     document.querySelector("#view-picks-confirmation .website-confirmation p").textContent = selection.testMode ? "Test picks were submitted. Season records were not changed." : "Your picks were submitted successfully.";
     form.reset(); resetWebsiteBestBet(); showWebsiteConfirmation();
   } catch (error) { status.textContent = `Could not submit picks: ${error.message}`; }
 };
 function websiteWeekOneFallback() { return { favorites: WEBSITE_WEEK_ONE_GAMES.map(game => game.favorite), favoriteScores: Array(16).fill(""), spreads: WEBSITE_WEEK_ONE_GAMES.map(game => game.spread), underdogScores: Array(16).fill(""), underdogs: WEBSITE_WEEK_ONE_GAMES.map(game => game.underdog), actualTiebreaker: "", players: JSON.parse(localStorage.getItem("fbpWebsiteSubmissions") || "[]").map(row => ({ name: row.name, weekName: row.weekName, picks: row.picks, bestBet: row.bestBet, tiebreaker: row.tiebreaker, wins: "", losses: "", total: "", winPercent: "", winProbability: "", pathsToVictory: "" })) }; }
 function websiteWeekOnePickClass(data, gameIndex, pick) { const game = (data.games || [])[gameIndex]; const status = String(game?.status || "").toUpperCase(); if (game && !["IN_PROGRESS", "FINAL", "COMPLETED"].includes(status)) return "pg-pick-pending"; const favoriteScore = Number(data.favoriteScores[gameIndex]); const underdogScore = Number(data.underdogScores[gameIndex]); if (data.favoriteScores[gameIndex] === "" || data.underdogScores[gameIndex] === "") return "pg-pick-pending"; const margin = favoriteScore - underdogScore - Number(data.spreads[gameIndex]); if (margin === 0) return "pg-pick-push"; const winner = margin > 0 ? data.favorites[gameIndex] : data.underdogs[gameIndex]; return pick === winner ? "pg-pick-win" : "pg-pick-loss"; }
+function renderWebsiteWeekRecap(data) {
+  const host = document.getElementById("week-one-recap");
+  if (!host) return;
+  websiteLastWeekData = data;
+  const final = (data.games || []).length && data.games.every(game => ["POST", "FINAL", "COMPLETED"].includes(String(game.espnStatus || game.status || "").toUpperCase()));
+  if (!final || data.testMode || !(data.players || []).length) { host.innerHTML = ""; return; }
+  const actual = Number(data.actualTiebreaker);
+  const score = player => Number(player.total ?? player.wins) || 0;
+  const difference = player => Number.isFinite(actual) ? Math.abs(Number(player.tiebreaker) - actual) : Number.POSITIVE_INFINITY;
+  const ordered = [...data.players].sort((left, right) => score(right) - score(left) || difference(left) - difference(right) || left.name.localeCompare(right.name));
+  const winner = ordered[0];
+  const runnerUp = ordered[1];
+  const tiedWinners = ordered.filter(player => score(player) === score(winner) && difference(player) === difference(winner));
+  const gameWinners = data.games.map((game, index) => websiteGameWinner(data, index));
+  const running = data.players.map(() => 0);
+  let largestDeficit = 0;
+  let leadTakenAt = 0;
+  gameWinners.forEach((gameWinner, gameIndex) => {
+    data.players.forEach((player, playerIndex) => {
+      if (gameWinner && gameWinner !== "PUSH" && player.picks[gameIndex] === gameWinner) running[playerIndex] += 1 + (player.bestBet === gameWinner ? 1 : 0);
+    });
+    const winnerIndex = data.players.indexOf(winner);
+    const leader = Math.max(...running);
+    largestDeficit = Math.max(largestDeficit, leader - running[winnerIndex]);
+    if (running[winnerIndex] === leader) leadTakenAt = gameIndex + 1;
+  });
+  const lateStart = Math.max(0, gameWinners.length - 4);
+  const lateWins = gameWinners.slice(lateStart).reduce((total, gameWinner, offset) => total + (winner.picks[lateStart + offset] === gameWinner ? 1 + (winner.bestBet === gameWinner ? 1 : 0) : 0), 0);
+  const bestBetIndex = winner.picks.findIndex(pick => pick === winner.bestBet);
+  const bestBetHit = bestBetIndex >= 0 && gameWinners[bestBetIndex] === winner.bestBet;
+  const underdogWins = winner.picks.filter((pick, index) => pick === data.underdogs[index] && gameWinners[index] === pick).length;
+  const historicalWinningScores = (websiteWeeks || []).filter(row => row.competition === "regular" && Number(row.rank) === 1).map(row => Number(row.displayWins || 0)).filter(Number.isFinite);
+  const historicalPercentile = historicalWinningScores.length ? Math.round(100 * historicalWinningScores.filter(value => value <= score(winner)).length / historicalWinningScores.length) : null;
+  const tiebreakZ = Number.isFinite(actual) ? Math.abs(actual - WEBSITE_TIEBREAK_MEAN) / WEBSITE_TIEBREAK_DEVIATION : null;
+  const journey = largestDeficit > 0 ? `${winner.name} came back from ${largestDeficit} point${largestDeficit === 1 ? "" : "s"} off the lead and was back on top after Game ${leadTakenAt}.` : `${winner.name} never fell more than a point off the pace and held the lead through the finish.`;
+  const closeCall = runnerUp ? `${runnerUp.name} came up just short, finishing ${Math.max(0, score(winner) - score(runnerUp))} point${Math.abs(score(winner) - score(runnerUp)) === 1 ? "" : "s"} back${score(winner) === score(runnerUp) ? ` with the tiebreak decided by ${Math.max(0, difference(runnerUp) - difference(winner))} yards` : ""}.` : "No runner-up was recorded.";
+  const rarity = tiebreakZ != null && tiebreakZ >= 2 ? `${actual} net passing yards was a genuine outlier, ${tiebreakZ.toFixed(1)} standard deviations from the historical average.` : Number.isFinite(actual) ? `${actual} net passing yards finished ${Math.abs(actual - WEBSITE_TIEBREAK_MEAN)} yards from the historical average of ${WEBSITE_TIEBREAK_MEAN}.` : "The final net-passing total was unavailable.";
+  const facts = [
+    `${winner.name} scored ${score(winner)} and went ${winner.wins}-${winner.losses}.`,
+    lateWins ? `${lateWins} of the winner's points came from the final four games.` : "The winner survived the final four games without adding another point.",
+    `${bestBetHit ? "The best bet hit" : "The best bet missed"}: ${String(winner.bestBet || "none").toUpperCase()}.`,
+    underdogWins ? `${winner.name} cashed ${underdogWins} winning underdog pick${underdogWins === 1 ? "" : "s"}.` : `${winner.name} did not need a winning underdog pick.`,
+    Number.isFinite(actual) ? `${winner.name}'s tiebreak guess was ${difference(winner)} yards off.` : "No final tiebreak comparison was available.",
+    historicalPercentile != null ? `That winning score was at or above ${historicalPercentile}% of archived weekly-winning scores.` : "Historical score comparison will appear after the archive data loads.",
+    rarity
+  ];
+  const winnerNames = tiedWinners.map(player => player.name).join(" and ");
+  const greeting = tiedWinners.length > 1 ? `Congratulations to ${winnerNames} on sharing Week ${websiteRegularSelection.week}!` : `Congratulations, ${winner.name}, on winning Week ${websiteRegularSelection.week}!`;
+  const draft = [greeting, "", journey, closeCall, `${winner.name} finished with ${score(winner)} points, ${lateWins ? `including ${lateWins} from the last four games` : "and had already done enough before the closing stretch"}. ${bestBetHit ? `The ${String(winner.bestBet).toUpperCase()} best bet delivered the extra point.` : `The win held up even without help from the ${String(winner.bestBet || "").toUpperCase()} best bet.`}`, "", rarity, historicalPercentile != null ? `Historically, the winning score landed at or above ${historicalPercentile}% of weekly-winning performances in the archive.` : "", "", "Great week and a well-earned win."].filter(line => line !== "").join("\n");
+  host.innerHTML = `<section class="week-recap"><h3 class="compact-live-title">Week ${websiteRegularSelection.week} story</h3><div class="week-recap-grid"><div class="week-recap-item"><span>Winner</span><strong>${websiteEscapeHtml(winnerNames)} · ${score(winner)} points</strong></div><div class="week-recap-item"><span>Journey</span><strong>${websiteEscapeHtml(journey)}</strong></div><div class="week-recap-item"><span>Came up just short</span><strong>${websiteEscapeHtml(closeCall)}</strong></div></div><h3 class="compact-live-title">Winner message draft</h3><div class="winner-draft">${websiteEscapeHtml(draft)}</div><ul class="week-facts">${facts.map(fact => `<li>${websiteEscapeHtml(fact)}</li>`).join("")}</ul></section>`;
+}
 function decorateWebsiteWeekOneHeaders(data) { const headers = [...document.querySelectorAll("#week-one-table th.pg-game")].slice(1, 17); headers.forEach((header, index) => { const favorite = data.favorites[index]; const underdog = data.underdogs[index]; const favoriteScore = data.favoriteScores[index]; const underdogScore = data.underdogScores[index]; const game = (data.games || []).find(item => item.favorite?.toLowerCase() === favorite.toLowerCase() && item.underdog?.toLowerCase() === underdog.toLowerCase()); const gameStatus = String(game?.status || "").toUpperCase(); const started = ["IN_PROGRESS", "FINAL", "COMPLETED"].includes(gameStatus); const status = gameStatus === "IN_PROGRESS" ? game.statusText : ["FINAL", "COMPLETED"].includes(gameStatus) ? "Final" : ""; const spread = `<small class="pg-header-spread">${data.spreads[index]}</small>`; if (!started && game) { const kickoff = game.kickoffGroup || game.kickoff || game.statusText || ""; header.innerHTML = `${favorite}${spread}${underdog}${kickoff ? `<small class="pg-header-kickoff">${kickoff}</small>` : ""}`; return; } const score = value => `<span class="pg-header-score">${value === "" ? "-" : value}</span>`; header.innerHTML = `${favorite}${score(favoriteScore)}${spread}${score(underdogScore)}${underdog}${status ? `<small class="pg-header-kickoff">${status}</small>` : ""}`; }); }
 function renderWebsiteWeekOneGrid(data, source) { const rows = data.players || []; const status = document.getElementById("week-one-status"); const gamesFinal = (data.games || []).length ? data.games.filter(game => ["FINAL", "COMPLETED"].includes(String(game.status || "").toUpperCase())).length : (data.favoriteScores || []).filter((score, index) => score !== "" && data.underdogScores[index] !== "").length; status.innerHTML = [["Submissions", rows.length], ["Games final", gamesFinal], ["Source", source]].map(([label,value]) => `<div class="metric"><span>${label}</span><strong>${value}</strong></div>`).join(""); const table = document.getElementById("week-one-table"); if (!rows.length) { table.innerHTML = `<p style="color:var(--muted)">No Week 1 submissions yet.</p>`; return; } let html = '<table class="picks-grid"><thead><tr><th class="pg-player">Player</th><th class="pg-game">Week name</th>'; data.favorites.forEach((favorite, index) => { html += `<th class="pg-game">${favorite}<br><small>${data.spreads[index]}</small><br>${data.underdogs[index]}</th>`; }); html += `<th class="pg-bb-hdr">BB</th><th class="pg-sum-hdr">TB${data.actualTiebreaker ? `<br><small>${data.actualTiebreaker}</small>` : ""}</th><th class="pg-sum-hdr pg-w">W</th><th class="pg-sum-hdr pg-l">L</th><th class="pg-sum-hdr">Total</th><th class="pg-sum-hdr">Win%</th><th class="pg-sum-hdr">Prob</th><th class="pg-sum-hdr">Paths</th></tr></thead><tbody>`; rows.forEach(row => { html += `<tr><td class="pg-player">${row.name}</td><td class="pg-sum-cell">${row.weekName || ""}</td>`; row.picks.forEach((pick, index) => { html += `<td class="${websiteWeekOnePickClass(data, index, pick)}">${pick}</td>`; }); const bestBetIndex = row.picks.findIndex(pick => pick === row.bestBet); const bestBetClass = bestBetIndex < 0 ? "pg-bb-none" : websiteWeekOnePickClass(data, bestBetIndex, row.bestBet).replace("pg-pick", "pg-bb"); html += `<td class="${bestBetClass}">${row.bestBet || ""}</td><td class="pg-sum-cell">${row.tiebreaker || ""}</td><td class="pg-sum-cell pg-w">${row.wins || ""}</td><td class="pg-sum-cell pg-l">${row.losses || ""}</td><td class="pg-sum-cell">${row.total || ""}</td><td class="pg-sum-cell">${row.winPercent || ""}</td><td class="pg-sum-cell">${row.winProbability || ""}</td><td class="pg-sum-cell">${row.pathsToVictory || ""}</td></tr>`; }); table.innerHTML = html + '</tbody></table>'; }
 async function renderWebsiteWeekOne() {
@@ -846,18 +931,21 @@ async function renderWebsiteWeekOne() {
   if (!WEBSITE_SUBMISSIONS_ENDPOINT) return;
   try {
     const separator = WEBSITE_SUBMISSIONS_ENDPOINT.includes("?") ? "&" : "?";
-    const response = await fetch(`${WEBSITE_SUBMISSIONS_ENDPOINT}${separator}action=week-one`, { signal: AbortSignal.timeout(20000) });
+    const response = await fetch(`${WEBSITE_SUBMISSIONS_ENDPOINT}${separator}action=current-week`, { signal: AbortSignal.timeout(20000) });
     const data = await response.json();
-    if (!response.ok || !data.ok) throw new Error(data.error || "Could not load Week 1.");
+    if (!response.ok || !data.ok) throw new Error(data.error || "Could not load the current week.");
+    websiteRegularSelection = { season: Number(data.season) || 2026, week: Number(data.week) || 1, phase: "REGULAR_SEASON", staged: Boolean((data.games || []).length) };
+    updateWebsiteWeekLabels(websiteRegularSelection);
     if (!/^\d+(?:\.\d+)?$/.test(String(data.actualTiebreaker || ""))) data.actualTiebreaker = "";
     websitePreparePlayers(data);
     renderWebsiteWeekOneGrid(data, "Week X");
     decorateWebsiteWeekOneHeaders(data);
+    renderWebsiteWeekRecap(data);
     renderWebsitePaths(data);
     renderWebsiteSankey(data);
     websiteLiveRefreshTimer = setTimeout(renderSelectedWebsiteWeek, 60000);
   } catch (error) {
-    document.getElementById("week-one-status").insertAdjacentHTML("afterend", `<p class="website-instructions">Live Week 1 could not load: ${error.message}</p>`);
+    document.getElementById("week-one-status").insertAdjacentHTML("afterend", `<p class="website-instructions">The current week could not load: ${error.message}</p>`);
     websiteLiveRefreshTimer = setTimeout(renderSelectedWebsiteWeek, 60000);
   }
 }
@@ -870,7 +958,7 @@ function renderWebsiteWeekOneGridClean(data) {
   const table = document.getElementById("week-one-table");
   if (!rows.length) { table.innerHTML = '<p style="color:var(--muted)">No submissions yet.</p>'; return; }
   const tiebreakDetail = data.actualTiebreaker !== "" && data.actualTiebreaker != null ? `<br><small>${data.actualTiebreaker}</small>` : "";
-  let html = '<table class="picks-grid"><thead><tr><th class="pg-player">Player</th><th class="pg-game pg-week-name">Week 1 name</th><th class="pg-sum-hdr pg-w">W</th><th class="pg-sum-hdr pg-l">L</th><th class="pg-sum-hdr">Win%</th><th class="pg-sum-hdr">Prob</th><th class="pg-sum-hdr">Paths</th>';
+  let html = `<table class="picks-grid"><thead><tr><th class="pg-player">Player</th><th class="pg-game pg-week-name">Week ${websiteRegularSelection.week} name</th><th class="pg-sum-hdr pg-w">W</th><th class="pg-sum-hdr pg-l">L</th><th class="pg-sum-hdr">Win%</th><th class="pg-sum-hdr">Prob</th><th class="pg-sum-hdr">Paths</th>`;
   data.favorites.forEach((favorite, index) => { html += `<th class="pg-game">${favorite}<br><small>${data.spreads[index]}</small><br>${data.underdogs[index]}</th>`; });
   html += `<th class="pg-bb-hdr">BB</th><th class="pg-sum-hdr">TB${tiebreakDetail}</th></tr></thead><tbody>`;
   rows.forEach(row => {
@@ -908,8 +996,10 @@ async function renderSelectedWebsiteWeek() {
   websiteLiveRefreshTimer = null;
   const selection = websitePickSelection();
   if (!selection.testMode) {
-    document.querySelector("#view-week-one .intro h2").textContent = "Week 1";
-    document.querySelector("#view-week-one .intro p").textContent = "2026-2027 submissions and weekly standings.";
+    try { await loadActiveRegularWeek(); } catch (error) { console.warn(error.message); }
+    const active = websitePickSelection();
+    document.querySelector("#view-week-one .intro h2").textContent = `Week ${active.week}`;
+    document.querySelector("#view-week-one .intro p").textContent = `${active.season}-${active.season + 1} submissions and weekly standings.`;
     return renderWebsiteWeekOne();
   }
   const hasExistingBoard = Boolean(document.querySelector("#week-one-table .picks-grid"));
@@ -2413,7 +2503,7 @@ function renderWinnerContributions(resetPlayer = false) {
 }
 function addGamePushMarkers() { const chart = Chart.getChart("winner-contribution-chart"); if (!chart) return; const season = document.getElementById("week-season").value, week = document.getElementById("week-choice").value, playoffWeeks = ["round 1", "round 2", "round 3", "super bowl"]; const games = websiteGames.filter(game => game.season === season && (game.week === week || (week === "playoffs" && playoffWeeks.includes(game.week)))).sort((a, b) => Number(a.playoffGameNum || a.gameNum) - Number(b.playoffGameNum || b.gameNum)); const playerId = document.getElementById("contribution-player").value; const pushes = games.map(game => { const pick = websitePicks.find(row => row.gameId === game.gameId && row.playerId === playerId); return pick?.resultPush ? 0.25 : 0; }); chart.data.datasets = chart.data.datasets.filter(dataset => dataset.label !== "Game push"); chart.data.datasets.push({ label: "Game push", data: pushes, backgroundColor: "#9aa4af", borderColor: "#9aa4af", borderWidth: 1, stack: "outcome" }); chart.update(); }
 document.addEventListener("change", event => { if (event.target.id === "week-season" || event.target.id === "week-choice" || event.target.id === "contribution-player") { setTimeout(orientWeekChart, 0); renderWinnerContributions(event.target.id !== "contribution-player"); setTimeout(addGamePushMarkers, 0); } });
-init().then(async () => { const contributionLabel = document.getElementById("contribution-player")?.parentElement; if (contributionLabel) contributionLabel.firstChild.textContent = "Player"; populateWeekSeasons(); populateSeasonChoices(); if (location.hash === "#weeks") { await loadDrilldown(); renderWeekRace(); renderWinnerContributions(true); renderPicksGrid(); setTimeout(() => { orientWeekChart(); addGamePushMarkers(); }, 0); } const profileSelect = document.getElementById("profile-player"); if ([...profileSelect.options].some(option => option.value === "Thomas")) { profileSelect.value = "Thomas"; renderProfile("Thomas"); } });
+init().then(async () => { const contributionLabel = document.getElementById("contribution-player")?.parentElement; if (contributionLabel) contributionLabel.firstChild.textContent = "Player"; populateWeekSeasons(); populateSeasonChoices(); if (location.hash === "#weeks") { await loadDrilldown(); renderWeekRace(); renderWinnerContributions(true); renderPicksGrid(); setTimeout(() => { orientWeekChart(); addGamePushMarkers(); }, 0); } const profileSelect = document.getElementById("profile-player"); if ([...profileSelect.options].some(option => option.value === "Thomas")) { profileSelect.value = "Thomas"; renderProfile("Thomas"); } if (websiteLastWeekData) renderWebsiteWeekRecap(websiteLastWeekData); });
 </script>
 <script>const initialRoute = location.hash.slice(1); const startupRoute = initialRoute || "enter-picks"; (async () => { const preseasonActive = await selectStagedPreseasonWeek(); if (startupRoute === "enter-picks") { await renderWebsitePicksForm(); resetWebsiteBestBet(); } if (startupRoute === "week-one") await (preseasonActive ? renderSelectedWebsiteWeek() : renderWebsiteWeekOne()); startupRoutePending = false; if (["enter-picks", "week-one", "picks-confirmation"].includes(startupRoute)) showView(startupRoute); })();</script>
 </body>
