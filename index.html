@@ -100,7 +100,7 @@
   #view-weeks .explorer-controls { grid-template-columns: 1fr; max-width: 420px; }
   .wide-chart { min-height: 470px; }
   .race-chart-wrap { height: 620px; }
-  .attendance-chart-scroll { height: 620px; min-height: 0; overflow-x: hidden; overflow-y: auto; }
+  .attendance-chart-full { min-height: 0; overflow: visible; }
   .attendance-chart-inner { position: relative; min-width: 100%; }
   .chart-divider { border: none; border-top: 1px solid var(--border); margin: 56px 0 0; }
   #week-race-chart { min-height: 620px; }
@@ -1903,7 +1903,7 @@ function renderAllTime() {
   let attendanceCanvas = document.getElementById("alltime-attendance-chart");
   if (!attendanceCanvas) {
     const attendanceWrap = document.createElement("div");
-    attendanceWrap.className = "chart-wrap wide-chart attendance-chart-scroll";
+    attendanceWrap.className = "chart-wrap wide-chart attendance-chart-full";
     attendanceWrap.style.marginTop = "14px";
     const attendanceInner = document.createElement("div");
     attendanceInner.className = "attendance-chart-inner";
@@ -1913,6 +1913,17 @@ function renderAllTime() {
     attendanceWrap.appendChild(attendanceInner);
     document.getElementById("alltime-games-chart").closest(".chart-wrap").after(attendanceWrap);
   }
+  const attendanceWrap = attendanceCanvas.closest(".chart-wrap");
+  attendanceWrap.className = "chart-wrap wide-chart attendance-chart-full";
+  let participationBlock = document.getElementById("alltime-participation-history");
+  if (!participationBlock) {
+    participationBlock = document.createElement("div");
+    participationBlock.id = "alltime-participation-history";
+    document.getElementById("alltime-turnout-chart").closest(".chart-wrap").after(participationBlock);
+  }
+  const gamesWrap = document.getElementById("alltime-games-chart").closest(".chart-wrap");
+  const gamesHeading = gamesWrap.previousElementSibling;
+  participationBlock.append(gamesHeading, gamesWrap, attendanceWrap);
   const attendanceGames = [...new Map(websiteGames.filter(game => game.gameId).map(game => [game.gameId, game])).values()].sort((a, b) => String(a.season).localeCompare(String(b.season)) || profilePeriodOrder(a.week) - profilePeriodOrder(b.week) || Number(a.playoffGameNum || a.gameNum || 0) - Number(b.playoffGameNum || b.gameNum || 0));
   const allAttendanceRows = allGamesPlayedRows.map((player, playerIndex) => {
     const pickedGameIds = new Set(websitePicks.filter(pick => pick.playerId === player.playerId && pick.pick).map(pick => pick.gameId));
@@ -1932,21 +1943,12 @@ function renderAllTime() {
     return { player: attendancePlayer, runs };
   });
   document.getElementById("attendance-page")?.closest(".explorer-controls")?.remove();
-  let attendanceShowAll = document.getElementById("attendance-show-all");
-  if (!attendanceShowAll) {
-    const attendanceControls = document.createElement("div");
-    attendanceControls.className = "explorer-controls";
-    attendanceControls.style.cssText = "grid-template-columns:minmax(180px,260px);margin:14px 0 0";
-    attendanceControls.innerHTML = '<button id="attendance-show-all" type="button">Show all players</button>';
-    attendanceCanvas.closest(".attendance-chart-scroll").before(attendanceControls);
-    attendanceShowAll = attendanceControls.querySelector("button");
-    attendanceShowAll.addEventListener("click", () => { attendanceShowAll.dataset.expanded = attendanceShowAll.dataset.expanded === "true" ? "false" : "true"; renderAllTime(); });
-  }
-  const attendanceExpanded = attendanceShowAll.dataset.expanded === "true";
-  attendanceShowAll.textContent = attendanceExpanded ? "Show top 20" : `Show all ${allAttendanceRows.length}`;
-  const attendanceRows = (attendanceExpanded ? allAttendanceRows : allAttendanceRows.slice(0, 20)).map(row => { row.runs.forEach(run => { run.y = row.player.name; }); return row; });
+  document.getElementById("attendance-show-all")?.closest(".explorer-controls")?.remove();
+  const attendanceRows = allAttendanceRows.map(row => { row.runs.forEach(run => { run.y = row.player.name; }); return row; });
   const attendanceGameLabel = item => { const week = String(item.game.week || ""), period = /^\d+$/.test(week) ? `Week ${week}` : profileWeekLabel(week); return `${item.game.season} ${period} Game ${item.game.playoffGameNum || item.game.gameNum || "?"}`; };
-  attendanceCanvas.closest(".attendance-chart-inner").style.height = `${Math.max(600, attendanceRows.length * 24 + 90)}px`;
+  const attendanceHeight = Math.max(600, attendanceRows.length * 24 + 90);
+  attendanceCanvas.closest(".attendance-chart-inner").style.height = `${attendanceHeight}px`;
+  attendanceWrap.style.height = `${attendanceHeight}px`;
   const attendanceRuns = attendanceRows.flatMap(row => row.runs);
   allTimeAttendanceChart = new Chart(attendanceCanvas, { type: "bar", data: { labels: attendanceRows.map(row => row.player.name), datasets: [{ label: "Attendance", data: attendanceRuns, backgroundColor: attendanceRuns.map(run => run.picked ? "#54d6b2" : "#ff7180"), borderColor: attendanceRuns.map(run => run.picked ? "#54d6b2" : "#ff7180"), borderWidth: 1, borderSkipped: false, barThickness: 10 }] }, options: { indexAxis: "y", responsive: true, maintainAspectRatio: false, animation: false, layout: { padding: { left: 8, right: 10 } }, scales: { x: { type: "linear", min: 0, max: attendanceGames.length, ticks: { color: "#91a0ae", maxTicksLimit: 18, callback: value => String(attendanceGames[Math.min(attendanceGames.length - 1, Math.round(value))]?.season || "").slice(0, 4) }, grid: { color: "#2a3744" }, title: { display: true, text: "Green: picked · Red: missed · Pushes count as played", color: "#91a0ae" } }, y: { type: "category", reverse: true, ticks: { color: "#e8eef5", font: { size: 11 }, callback: (value, index) => { const row = attendanceRows[index]?.player; return row ? `${row.name} · ${row.games} · ${row.attendancePct.toFixed(1)}% att.` : ""; } }, grid: { color: "#2a3744" } } }, plugins: { legend: { display: false }, title: { display: true, text: "Attendance over time", color: "#e8eef5", font: { size: 15, weight: "normal" }, padding: { bottom: 12 } }, tooltip: { displayColors: false, callbacks: { title: items => `${items[0].raw.player.name} · ${items[0].raw.picked ? "No-miss streak" : "Missed stretch"}`, beforeBody: items => { const item = items[0].raw; return [`Start: ${attendanceGameLabel(item.runStart)}`, `End: ${attendanceGameLabel(item.runEnd)}`]; }, label: context => context.raw.picked ? `Games in a row without missing: ${context.raw.runLength}` : `Games missed in this stretch: ${context.raw.runLength}`, afterLabel: context => { const player = context.raw.player; return [`Career games picked: ${player.games}`, `Attendance since joining: ${player.attendancePct.toFixed(1)}%`, "Pushes count as played; Best Bets are not extra games."]; } } } } } });
   const attendanceDataset = allTimeAttendanceChart.data.datasets[0];
