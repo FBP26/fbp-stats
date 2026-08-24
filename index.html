@@ -1892,14 +1892,19 @@ function renderAllTime() {
     const games = playerRows.reduce((sum, row) => sum + Number(row.games || row.displayWins + row.displayLosses + row.displayPushes || 0), 0);
     return { ...player, games, lastMissed: lastMissed ? `${lastMissed.season} ${lastMissed.week === "playoffs" ? "Playoffs" : `W${lastMissed.week}`}` : "Never" };
   }).filter(row => row.games > 0).sort((a, b) => b.games - a.games || String(a.name).localeCompare(String(b.name)));
-  const gamesPlayedRows = allGamesPlayedRows.slice(0, 15);
-  if (allTimeGamesChart) allTimeGamesChart.destroy();
-  allTimeGamesChart = new Chart(document.getElementById("alltime-games-chart"), { type: "bar", data: { labels: gamesPlayedRows.map(row => row.name), datasets: [{ label: "Games", data: gamesPlayedRows.map(row => row.games), barText: gamesPlayedRows.map(row => `${row.name} · ${row.games} games · last missed ${row.lastMissed}`), backgroundColor: gamesPlayedRows.map((row, index) => ["#d4af37", "#c0c0c0", "#cd7f32"][index] || "#54d6b2bb"), borderColor: gamesPlayedRows.map((row, index) => ["#d4af37", "#c0c0c0", "#cd7f32"][index] || "#54d6b2"), borderWidth: 1 }] }, options: { indexAxis: "y", responsive: true, maintainAspectRatio: false, scales: { x: { beginAtZero: true, position: "top", ticks: { color: "#91a0ae" }, grid: { color: "#2a3744" }, title: { display: true, text: "Games picked", color: "#91a0ae" } }, y: { ticks: { display: false }, grid: { color: "#2a3744" } } }, plugins: { legend: { display: false }, title: { display: true, text: "Most games played", color: "#e8eef5", font: { size: 15, weight: "normal" }, padding: { bottom: 12 } }, tooltip: { displayColors: false, callbacks: { label: context => { const row = gamesPlayedRows[context.dataIndex]; return [`Games: ${row.games}`, `Record: ${row.wins}-${row.losses}`, `Last missed game: ${row.lastMissed}`, `Seasons: ${row.seasonCount}`]; } } } } } });
-  allTimeGamesChart.data.datasets[0].backgroundColor = gamesPlayedRows.map((row, index) => ["#d4af37", "#c0c0c0", "#cd7f32"][index] || "#8ca7ffbb");
-  allTimeGamesChart.data.datasets[0].borderColor = gamesPlayedRows.map((row, index) => ["#d4af37", "#c0c0c0", "#cd7f32"][index] || "#8ca7ff");
-  allTimeGamesChart.data.datasets[0].barText = gamesPlayedRows.map(row => `${row.name} · ${row.games} games · last missed a game ${row.lastMissed}`);
-  allTimeGamesChart.update();
   if (allTimeAttendanceChart) allTimeAttendanceChart.destroy();
+  let participationBlock = document.getElementById("alltime-participation-history");
+  if (!participationBlock) {
+    participationBlock = document.createElement("div");
+    participationBlock.id = "alltime-participation-history";
+    document.getElementById("alltime-turnout-chart").closest(".chart-wrap").after(participationBlock);
+  }
+  const gamesCanvas = document.getElementById("alltime-games-chart");
+  if (gamesCanvas) {
+    const gamesWrap = gamesCanvas.closest(".chart-wrap"), gamesHeading = gamesWrap.previousElementSibling;
+    gamesHeading?.remove();
+    gamesWrap.remove();
+  }
   let attendanceCanvas = document.getElementById("alltime-attendance-chart");
   if (!attendanceCanvas) {
     const attendanceWrap = document.createElement("div");
@@ -1911,19 +1916,11 @@ function renderAllTime() {
     attendanceCanvas.id = "alltime-attendance-chart";
     attendanceInner.appendChild(attendanceCanvas);
     attendanceWrap.appendChild(attendanceInner);
-    document.getElementById("alltime-games-chart").closest(".chart-wrap").after(attendanceWrap);
+    participationBlock.appendChild(attendanceWrap);
   }
   const attendanceWrap = attendanceCanvas.closest(".chart-wrap");
   attendanceWrap.className = "chart-wrap wide-chart attendance-chart-full";
-  let participationBlock = document.getElementById("alltime-participation-history");
-  if (!participationBlock) {
-    participationBlock = document.createElement("div");
-    participationBlock.id = "alltime-participation-history";
-    document.getElementById("alltime-turnout-chart").closest(".chart-wrap").after(participationBlock);
-  }
-  const gamesWrap = document.getElementById("alltime-games-chart").closest(".chart-wrap");
-  const gamesHeading = gamesWrap.previousElementSibling;
-  participationBlock.append(gamesHeading, gamesWrap, attendanceWrap);
+  participationBlock.appendChild(attendanceWrap);
   const attendanceGames = [...new Map(websiteGames.filter(game => game.gameId).map(game => [game.gameId, game])).values()].sort((a, b) => String(a.season).localeCompare(String(b.season)) || profilePeriodOrder(a.week) - profilePeriodOrder(b.week) || Number(a.playoffGameNum || a.gameNum || 0) - Number(b.playoffGameNum || b.gameNum || 0));
   const allAttendanceRows = allGamesPlayedRows.map((player, playerIndex) => {
     const pickedGameIds = new Set(websitePicks.filter(pick => pick.playerId === player.playerId && pick.pick).map(pick => pick.gameId));
@@ -1960,6 +1957,8 @@ function renderAllTime() {
   allTimeAttendanceChart.options.interaction = { mode: "nearest", axis: "xy", intersect: true };
   allTimeAttendanceChart.options.plugins.tooltip.callbacks.title = items => { const item = items[0].raw; return `${item.player.name} · ${item.picked ? "No-miss streak" : "Missed stretch"}`; };
   allTimeAttendanceChart.options.plugins.tooltip.callbacks.afterLabel = context => { const player = context.raw.player; return [`Career games picked: ${player.games}`, `Attendance since joining: ${player.attendancePct.toFixed(1)}%`]; };
+  allTimeAttendanceChart.options.plugins.title.text = "Most games played";
+  allTimeAttendanceChart.options.plugins.subtitle = { display: true, text: "Attendance % is attendance since joining the pool", color: "#91a0ae", font: { size: 12, weight: "normal" }, padding: { bottom: 12 } };
   allTimeAttendanceChart.options.scales.y.ticks.callback = (value, index) => { const row = attendanceRows[index]?.player; return row ? `${row.name} · ${row.games} games · ${row.attendancePct.toFixed(1)}% att.` : ""; };
   const attendanceXAxis = allTimeAttendanceChart.options.scales.x;
   attendanceXAxis.afterBuildTicks = scale => { scale.ticks = attendanceGames.map((game, index) => ({ game, index })).filter(item => item.index === 0 || attendanceGames[item.index - 1]?.season !== item.game.season).map(item => ({ value: item.index })); };
