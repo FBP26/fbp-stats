@@ -226,14 +226,20 @@ let websitePicksWeatherRefreshTimer = null;
 const WEBSITE_PICKS_WEATHER_REFRESH_MS = 5 * 60 * 1000;
 const WEBSITE_PATH_DISPLAY_LIMIT = 50;
 const WEBSITE_SIMULATION_LIMIT = 4096;
-const WEBSITE_TIEBREAK_MIN = 200;
-const WEBSITE_TIEBREAK_MAX = 800;
-const WEBSITE_TIEBREAK_MEAN = 450;
-const WEBSITE_TIEBREAK_DEVIATION = 110;
+const WEBSITE_TIEBREAK_MIN = 0;
+const WEBSITE_TIEBREAK_MAX = 900;
+const WEBSITE_TIEBREAK_MEAN = 453;
+const WEBSITE_TIEBREAK_DEVIATION = 113;
 const WEBSITE_EXACT_SCENARIO_GAME_LIMIT = 6;
 let websiteScenarioMode = "current";
 let websiteContenderDetailMode = "simple";
 let websiteSankeyChart = null;
+function websiteProbabilityText(percent) {
+  const value = Number(percent);
+  if (!Number.isFinite(value)) return "";
+  if (value > 0 && value < .01) return "0.01%";
+  return `${value.toFixed(2)}%`;
+}
 function websiteGameWinner(data, index) {
   const game = data.games[index] || {};
   const status = String(game.espnStatus || game.status || "").toUpperCase();
@@ -400,7 +406,7 @@ function websitePreparePlayers(data) {
     });
   });
   data.players.forEach((player, index) => {
-    player.winProbability = `${probabilities[index].toFixed(2)}%`;
+    player.winProbability = websiteProbabilityText(probabilities[index]);
     player.pathsToVictory = pathCounts[index];
     const actualTiebreaker = Number(data.actualTiebreaker);
     const playerTiebreaker = Number(player.tiebreaker);
@@ -422,7 +428,7 @@ function renderWebsitePaths(data) {
   const scenarios = websiteScenarioOutcomes(analysisData);
   const indexes = websiteSampleScenarioIndexes(scenarios.total, WEBSITE_PATH_DISPLAY_LIMIT);
   const rows = indexes.map((pathIndex, rowIndex) => { const outcomes = scenarios.outcomeAt(pathIndex); const result = websiteScenarioShares(analysisData, outcomes); const winners = result.winners.map(winner => `${winner.name} ${(winner.share * 100).toFixed(1)}% · ${winner.range}`).join(" / "); const remaining = scenarios.variable.map(({ game, index }) => `${outcomes[index] === "PUSH" ? "Push" : outcomes[index]} over ${outcomes[index] === game.favorite ? game.underdog : game.favorite}`).join(" / ") || "All games complete"; return `<tr><td>${rowIndex + 1}</td><td>${winners}</td><td>${remaining}</td></tr>`; });
-  host.innerHTML = `<h3 class="compact-live-title">Winning paths</h3><div class="path-controls"><label>Scenario<select id="website-path-mode"><option value="current">Current slate</option><option value="preview-three">Preview 3 games remaining</option></select></label></div><p class="analysis-note">Live games use the current ATS leader as a provisional result and can flip on refresh. Tiebreak chances start with a 450-yard forecast, then condition on current net passing and contract as the game clock runs out. Showing ${indexes.length} of ${scenarios.total.toLocaleString()} paths; display is capped at ${WEBSITE_PATH_DISPLAY_LIMIT}.</p><div class="analysis-table-wrap"><table class="analysis-table"><thead><tr><th>Path</th><th>Winner · tiebreak range</th><th>Remaining outcomes</th></tr></thead><tbody>${rows.join("")}</tbody></table></div>`;
+  host.innerHTML = `<h3 class="compact-live-title">Winning paths</h3><div class="path-controls"><label>Scenario<select id="website-path-mode"><option value="current">Current slate</option><option value="preview-three">Preview 3 games remaining</option></select></label></div><p class="analysis-note">Live games use the current ATS leader as a provisional result and can flip on refresh. Tiebreak chances start with a 453-yard historical forecast, then condition on current net passing and contract as the game clock runs out. Showing ${indexes.length} of ${scenarios.total.toLocaleString()} paths; display is capped at ${WEBSITE_PATH_DISPLAY_LIMIT}.</p><div class="analysis-table-wrap"><table class="analysis-table"><thead><tr><th>Path</th><th>Winner · tiebreak range</th><th>Remaining outcomes</th></tr></thead><tbody>${rows.join("")}</tbody></table></div>`;
   const mode = document.getElementById("website-path-mode");
   mode.value = websiteScenarioMode;
   mode.onchange = () => { websiteScenarioMode = mode.value; renderWebsitePaths(data); renderWebsiteSankey(data); };
@@ -627,9 +633,9 @@ function renderWebsiteScenarioBreakdown(data, analysis = websiteContenderPaths(d
       return Math.abs(chanceDifference) > 1e-12 ? chanceDifference : websiteScenarioIncorrectCount(analysis, contender, left) - websiteScenarioIncorrectCount(analysis, contender, right);
     }).map((path, index) => {
       const result = path.low == null || path.high == null ? "Wins outright; no tiebreak" : `Tiebreak with ${websiteJoinNames(path.tiedWith)} · needs ${websiteYardRange(path.low, path.high)} net passing yards · ${(path.share * 100).toFixed(0)}% chance to win tiebreak`;
-      return `<tr class="scenario-subrow"><td>Scenario ${index + 1}</td><td class="scenario-chance">${(path.probabilityContribution * 100).toFixed(2)}%</td><td>${websiteScenarioOutcomeText(analysis, contender, path)}</td><td>${result}</td></tr>`;
+      return `<tr class="scenario-subrow"><td>Scenario ${index + 1}</td><td class="scenario-chance">${websiteProbabilityText(path.probabilityContribution * 100)}</td><td>${websiteScenarioOutcomeText(analysis, contender, path)}</td><td>${result}</td></tr>`;
     }).join("");
-    return `<tr class="scenario-player-row"><td><strong>${contender.player.name}</strong></td><td><strong>${(contender.probability * 100).toFixed(2)}%</strong></td><td colspan="2">${contender.paths.length} specific ${contender.paths.length === 1 ? "scenario" : "scenarios"}</td></tr>${scenarios}`;
+    return `<tr class="scenario-player-row"><td><strong>${contender.player.name}</strong></td><td><strong>${websiteProbabilityText(contender.probability * 100)}</strong></td><td colspan="2">${contender.paths.length} specific ${contender.paths.length === 1 ? "scenario" : "scenarios"}</td></tr>${scenarios}`;
   }).join("");
   host.innerHTML = `<h3 class="compact-live-title">Scenarios</h3><p class="analysis-note">Each indented row is one exact outcome combination and its contribution to that player's total chance. A player's scenario percentages add to the chance in the bold row above.</p><div class="analysis-table-wrap"><table class="analysis-table"><thead><tr><th>Player / scenario</th><th>Chance</th><th>Exact outcomes</th><th>How the player wins</th></tr></thead><tbody>${rows || '<tr><td colspan="4">No winning scenarios remain.</td></tr>'}</tbody></table></div>`;
 }
@@ -639,7 +645,7 @@ function renderWebsiteContenderPaths(data) {
   const analysis = websiteContenderPaths(data);
   const rows = analysis.contenders.map((contender, contenderIndex) => {
     const narrative = websiteContenderDetailMode === "complete" ? websiteContenderNarrative(analysis, contender) : websiteSimpleContenderNarrative(analysis, contender, contenderIndex);
-    return `<tr><td><strong>${contender.player.name}</strong></td><td>${(contender.probability * 100).toFixed(2)}%</td><td>${narrative}</td></tr>`;
+    return `<tr><td><strong>${contender.player.name}</strong></td><td>${websiteProbabilityText(contender.probability * 100)}</td><td>${narrative}</td></tr>`;
   }).join("");
   host.innerHTML = `<h3 class="compact-live-title">What each contender needs</h3><div class="path-controls"><label>Scenario<select id="website-path-mode"><option value="current">Current slate</option><option value="preview-three">Preview 3 games remaining</option><option value="preview-four">Preview 4 games remaining</option></select></label><label>Answer<select id="website-contender-detail"><option value="simple">Who to root for</option><option value="complete">Complete routes</option></select></label></div><p class="analysis-note">Choose a short rooting guide or the complete route-by-route explanation. Live chances use the locked spread plus ESPN score, quarter, and clock. Tiebreak chances condition on current net passing and narrow toward the observed total as time expires.</p><div class="analysis-table-wrap"><table class="analysis-table"><thead><tr><th>Contender</th><th>Chance</th><th>What needs to happen</th></tr></thead><tbody>${rows || '<tr><td colspan="3">No winning paths remain.</td></tr>'}</tbody></table></div>`;
   const mode = document.getElementById("website-path-mode");
@@ -736,7 +742,7 @@ function renderWebsitePersonalizedSankey(data) {
     const raw = context.raw;
     const resultLines = raw.result ? [`Winner: ${raw.beneficiaries[0]}`, raw.tiebreakShare == null ? "Outright" : `TB: ${raw.yardRange}`, ...(raw.tiebreakShare == null ? [] : ["net pass yds"])] : [];
     const benefitLines = raw.result ? [] : ["Helps:", ...raw.beneficiaries];
-    return [`${(raw.flow * 100).toFixed(2)}% overall chance`, ...resultLines, ...benefitLines];
+    return [`${websiteProbabilityText(raw.flow * 100)} overall chance`, ...resultLines, ...benefitLines];
   } } } } } });
 }
 renderWebsitePlayerLedgers = function() {};
