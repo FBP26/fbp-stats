@@ -130,6 +130,7 @@
   .profile-chart-tooltip .push { color: #f1e48b; font-weight: bold; }
   .profile-chart-tooltip .neutral { color: #b8c4cf; font-weight: normal; }
   .weekly-game-tooltip, .profile-chart-tooltip.compact-game-tooltip { width: max-content; min-width: 132px; padding: 6px 7px; text-align: center; }
+  .weekly-game-tooltip.weekly-rank-tooltip { max-height: min(460px, calc(100vh - 24px)); }
   .weekly-game-tooltip div, .profile-chart-tooltip.compact-game-tooltip div { padding: 1px 0; border-top: 0; line-height: 1.2; }
   .tooltip-matchup { display: grid; grid-template-columns: minmax(42px, 1fr) auto minmax(42px, 1fr); gap: 5px; align-items: center; }
   .tooltip-matchup .tooltip-favorite { text-align: left; }
@@ -2410,7 +2411,7 @@ function weeklyGameTooltipHtml(game, result, pickedTeam) { return `${matchupTool
 let weeklyTooltipPinnedTarget = null;
 const weeklyRankHoverRows = new Map();
 function positionWeeklyGameTooltip(event) { const element = document.getElementById("weekly-game-tooltip"); if (!element || element.style.display === "none") return; element.style.left = `${Math.min(window.innerWidth - element.offsetWidth - 12, Math.max(12, event.clientX + 12))}px`; element.style.top = `${Math.min(window.innerHeight - element.offsetHeight - 12, Math.max(12, event.clientY + 12))}px`; }
-function showWeeklyGameTooltip(target, event) { let element = document.getElementById("weekly-game-tooltip"); if (!element) { element = document.createElement("div"); element.id = "weekly-game-tooltip"; element.className = "profile-chart-tooltip weekly-game-tooltip"; document.body.appendChild(element); } element.innerHTML = target.dataset.weeklyTooltip || weeklyRankTooltip(weeklyRankHoverRows.get(target.dataset.weeklyRankKey)); element.style.display = "block"; positionWeeklyGameTooltip(event); }
+function showWeeklyGameTooltip(target, event) { let element = document.getElementById("weekly-game-tooltip"); if (!element) { element = document.createElement("div"); element.id = "weekly-game-tooltip"; element.className = "profile-chart-tooltip weekly-game-tooltip"; document.body.appendChild(element); } element.classList.toggle("weekly-rank-tooltip", Boolean(target.dataset.weeklyRankKey)); element.innerHTML = target.dataset.weeklyTooltip || weeklyRankTooltip(weeklyRankHoverRows.get(target.dataset.weeklyRankKey)); element.style.display = "block"; positionWeeklyGameTooltip(event); }
 document.addEventListener("pointerover", event => { const target = event.target.closest?.("[data-weekly-tooltip],[data-weekly-rank-key]"); if (!target || weeklyTooltipPinnedTarget) return; showWeeklyGameTooltip(target, event); });
 document.addEventListener("pointermove", event => { if (!weeklyTooltipPinnedTarget) positionWeeklyGameTooltip(event); });
 document.addEventListener("pointerout", event => { if (!event.target.closest?.("[data-weekly-tooltip],[data-weekly-rank-key]") || weeklyTooltipPinnedTarget) return; const element = document.getElementById("weekly-game-tooltip"); if (element) element.style.display = "none"; });
@@ -2750,8 +2751,12 @@ function weeklyRankWeekLabel(value) { return value === "super bowl" ? "Super Bow
 function weeklyRankTooltip(row) {
   const playoffWeeks = new Set(["round 1", "round 2", "round 3", "super bowl"]);
   const games = websiteGames.filter(game => game.season === row.season && (String(game.week) === String(row.week) || row.week === "playoffs" && playoffWeeks.has(String(game.week).toLowerCase()))).sort((a, b) => Number(a.playoffGameNum || a.gameNum || 0) - Number(b.playoffGameNum || b.gameNum || 0));
-  const details = games.map(game => { const pick = websitePicks.find(item => item.gameId === game.gameId && item.playerId === row.playerId); if (!pick?.pick) return ""; const result = Number(pick.resultWin || 0) ? "win" : Number(pick.resultLoss || 0) ? "loss" : "push"; return profileGameResultHtml(game, pick.pick, result, `${game.season} ${weeklyRankWeekLabel(game.week)}`); }).filter(Boolean).join("");
-  return `<strong>${websiteEscapeHtml(row.name)} · ${websiteEscapeHtml(row.season)} ${websiteEscapeHtml(weeklyRankWeekLabel(row.week))} · ${row.displayWins}-${row.displayLosses}${Number(row.displayPushes || 0) ? `-${row.displayPushes}` : ""} · #${row.rank}</strong>${details || '<div><span class="neutral">No game details recorded</span></div>'}`;
+  const picks = games.map(game => ({ game, pick: websitePicks.find(item => item.gameId === game.gameId && item.playerId === row.playerId) })).filter(item => item.pick?.pick);
+  const details = picks.map(({ game, pick }) => { const result = Number(pick.resultWin || 0) ? "win" : Number(pick.resultLoss || 0) ? "loss" : "push"; return profileGameResultHtml(game, pick.pick, result); }).join("");
+  const bestBet = picks.find(({ pick }) => Number(pick.bestBetWin || 0) || Number(pick.bestBetLoss || 0) || Number(pick.bestBetPush || 0));
+  const bestBetResult = bestBet ? Number(bestBet.pick.bestBetWin || 0) ? "win" : Number(bestBet.pick.bestBetLoss || 0) ? "loss" : "push" : "";
+  const bestBetHtml = bestBet ? `<div class="tooltip-meta-start"><span class="neutral">Best Bet: </span><span class="${bestBetResult}">${websiteEscapeHtml(bestBet.pick.bestBet || bestBet.pick.pick)} · ${bestBetResult === "win" ? "W" : bestBetResult === "loss" ? "L" : "P"}</span></div>` : "";
+  return `<strong>${websiteEscapeHtml(row.name)} · ${websiteEscapeHtml(row.season)} ${websiteEscapeHtml(weeklyRankWeekLabel(row.week))} · ${row.displayWins}-${row.displayLosses}${Number(row.displayPushes || 0) ? `-${row.displayPushes}` : ""} · #${row.rank}</strong>${details || '<div><span class="neutral">No game details recorded</span></div>'}${bestBetHtml}`;
 }
 function renderSortableWeeklyRankTable(hostId, sourceRows) {
   const host = document.getElementById(hostId);
