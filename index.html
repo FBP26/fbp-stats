@@ -1711,11 +1711,12 @@ function renderAllTime() {
   allTimePlusMinusExtraPlayers = allTimePlusMinusExtraPlayers.filter(name => plusMinusAllRows.some(row => row.name === name) && !trendBasePlayers.includes(name));
   const trendPlayers = [...trendBasePlayers, ...allTimePlusMinusExtraPlayers];
   const trendWrap = document.getElementById("alltime-plus-minus-trend-chart").closest(".chart-wrap");
+  let trendHeading = document.getElementById("alltime-plus-minus-trend-heading");
+  if (!trendHeading) { trendHeading = document.createElement("h3"); trendHeading.id = "alltime-plus-minus-trend-heading"; trendHeading.style.cssText = "margin:28px 0 8px;color:var(--accent);font:11px Arial,sans-serif;letter-spacing:1px;text-transform:uppercase"; trendHeading.textContent = "Plus/minus over time · top 5 plus added players"; trendWrap.before(trendHeading); }
   let trendControls = document.getElementById("alltime-plus-minus-trend-controls");
-  if (!trendControls) { trendControls = document.createElement("div"); trendControls.id = "alltime-plus-minus-trend-controls"; trendControls.className = "explorer-controls"; trendControls.style.cssText = "grid-template-columns:minmax(220px,320px) auto;align-items:end;margin:14px 0 0"; trendWrap.before(trendControls); }
-  trendControls.innerHTML = `<label>Add player<select id="alltime-plus-minus-add-player"><option value="">Choose a player...</option>${plusMinusAllRows.map(row => { const shown = trendPlayers.includes(row.name), suffix = trendBasePlayers.includes(row.name) ? " (top 5)" : shown ? " (added)" : ""; return `<option value="${websiteEscapeHtml(row.name)}"${shown ? " disabled" : ""}>${websiteEscapeHtml(row.name + suffix)}</option>`; }).join("")}</select></label><button id="alltime-plus-minus-clear" type="button"${allTimePlusMinusExtraPlayers.length ? "" : " disabled"}>Top 5 only</button>`;
+  if (!trendControls) { trendControls = document.createElement("div"); trendControls.id = "alltime-plus-minus-trend-controls"; trendControls.className = "explorer-controls"; trendControls.style.cssText = "grid-template-columns:minmax(220px,320px);margin:0 0 12px"; trendWrap.before(trendControls); }
+  trendControls.innerHTML = `<label>Add a line for another player<select id="alltime-plus-minus-add-player"><option value="">Choose a player...</option>${plusMinusAllRows.map(row => { const shown = trendPlayers.includes(row.name), suffix = trendBasePlayers.includes(row.name) ? " (top 5)" : shown ? " (added)" : ""; return `<option value="${websiteEscapeHtml(row.name)}"${shown ? " disabled" : ""}>${websiteEscapeHtml(row.name + suffix)}</option>`; }).join("")}</select></label>`;
   document.getElementById("alltime-plus-minus-add-player").onchange = event => { if (event.target.value) { allTimePlusMinusExtraPlayers.push(event.target.value); renderAllTime(); } };
-  document.getElementById("alltime-plus-minus-clear").onclick = () => { allTimePlusMinusExtraPlayers = []; renderAllTime(); };
   const cumulativeByPlayer = new Map(trendPlayers.map(name => [name, 0]));
   const trendData = seasons.map(season => {
     trendPlayers.forEach(name => {
@@ -1931,6 +1932,9 @@ function renderAllTime() {
   }
   const attendanceWrap = attendanceCanvas.closest(".chart-wrap");
   attendanceWrap.className = "chart-wrap wide-chart attendance-chart-full";
+  let attendanceLegend = document.getElementById("alltime-attendance-legend");
+  if (!attendanceLegend) { attendanceLegend = document.createElement("div"); attendanceLegend.id = "alltime-attendance-legend"; attendanceLegend.className = "grid-legend"; attendanceLegend.innerHTML = '<span><i style="background:#54d6b2"></i>Picked</span><span><i style="background:#ffb454"></i>Missed</span>'; }
+  attendanceWrap.before(attendanceLegend);
   participationBlock.appendChild(attendanceWrap);
   const attendanceGames = [...new Map(websiteGames.filter(game => game.gameId).map(game => [game.gameId, game])).values()].sort((a, b) => String(a.season).localeCompare(String(b.season)) || profilePeriodOrder(a.week) - profilePeriodOrder(b.week) || Number(a.playoffGameNum || a.gameNum || 0) - Number(b.playoffGameNum || b.gameNum || 0));
   const allAttendanceRows = allGamesPlayedRows.map((player, playerIndex) => {
@@ -1963,7 +1967,7 @@ function renderAllTime() {
   attendanceDataset.backgroundColor = attendanceRuns.map(run => run.picked ? "#54d6b2" : "#ffb454");
   attendanceDataset.borderColor = attendanceRuns.map(run => run.picked ? "#238b68" : "#c97920");
   attendanceDataset.barThickness = 12;
-  allTimeAttendanceChart.options.scales.x.title.text = "Green: picked · Amber: missed";
+  allTimeAttendanceChart.options.scales.x.title.display = false;
   allTimeAttendanceChart.options.scales.y.reverse = false;
   allTimeAttendanceChart.options.interaction = { mode: "nearest", axis: "xy", intersect: true };
   allTimeAttendanceChart.options.plugins.tooltip.callbacks.title = items => { const item = items[0].raw; return `${item.player.name} · ${item.picked ? "No-miss streak" : "Missed stretch"}`; };
@@ -2767,16 +2771,17 @@ function renderWeeklyRank() {
   if (display === "top5") rows = rows.filter(row => Number(row.rank) <= 5);
   if (display === "top10") rows = rows.filter(row => Number(row.rank) <= 10);
   if (display === "money") rows = rows.filter(row => Number(row.moneyAward || 0) > 0);
-  const selectedRows = player === "all" ? websiteWeeks : websiteWeeks.filter(row => row.name === player);
-  const avgRank = selectedRows.length ? (selectedRows.reduce((sum, row) => sum + Number(row.rank || 0), 0) / selectedRows.length).toFixed(1) : "-";
-  const weeksWon = selectedRows.filter(row => Number(row.rank) === 1).length;
-  const secondPlaces = selectedRows.filter(row => Number(row.rank) === 2).length;
-  const thirdPlaces = selectedRows.filter(row => Number(row.rank) === 3).length;
-  const top5Weeks = selectedRows.filter(row => Number(row.rank) <= 5).length;
-  const top10Weeks = selectedRows.filter(row => Number(row.rank) <= 10).length;
-  const bestWeek = [...selectedRows].sort((a, b) => Number(b.displayWins || 0) - Number(a.displayWins || 0) || Number(a.displayLosses || 0) - Number(b.displayLosses || 0) || Number(a.rank || 999) - Number(b.rank || 999))[0];
+  const selectedRows = rows;
+  const allTimeRows = player === "all" ? websiteWeeks : websiteWeeks.filter(row => row.name === player);
+  const allTimeRecord = allTimeRows.reduce((record, row) => ({ wins: record.wins + Number(row.displayWins || 0), losses: record.losses + Number(row.displayLosses || 0), pushes: record.pushes + Number(row.displayPushes || 0) }), { wins: 0, losses: 0, pushes: 0 });
+  const allTimeRecordLabel = `${allTimeRecord.wins}-${allTimeRecord.losses}${allTimeRecord.pushes ? `-${allTimeRecord.pushes}` : ""}`;
+  const weeksWon = selectedRows.filter(row => row.competition === "regular" && Number(row.rank) === 1).length;
+  const playoffWins = selectedRows.filter(row => row.competition === "playoffs" && Number(row.rank) === 1).length;
+  const recordPct = row => { const wins = Number(row.displayWins || 0), losses = Number(row.displayLosses || 0); return wins + losses ? wins / (wins + losses) : 0; };
+  const bestWeek = [...selectedRows].sort((a, b) => recordPct(b) - recordPct(a) || Number(b.displayWins || 0) - Number(a.displayWins || 0) || Number(a.displayLosses || 0) - Number(b.displayLosses || 0))[0];
   const bestWeekRecord = bestWeek ? `${bestWeek.displayWins}-${bestWeek.displayLosses}${Number(bestWeek.displayPushes || 0) ? `-${bestWeek.displayPushes}` : ""}` : "-";
-  document.getElementById("weekly-rank-summary").innerHTML = [["Weeks", selectedRows.length], ["Weeks won", weeksWon], ["2nd place", secondPlaces], ["3rd place", thirdPlaces], ["Top 5", top5Weeks], ["Top 10", top10Weeks], ["Best record", bestWeekRecord], ["Avg rank", avgRank]].map(([label, value]) => `<div class="metric"><span>${label}</span><strong>${value}</strong></div>`).join("");
+  const countLabel = display === "all" ? player === "all" ? "Player-weeks" : "Weeks played" : player === "all" ? "Matching player-weeks" : "Matching weeks";
+  document.getElementById("weekly-rank-summary").innerHTML = [[countLabel, selectedRows.length], ["Record (all time)", allTimeRecordLabel], ["Regular weeks won", weeksWon], ["Playoff wins", playoffWins], ["Best record", bestWeekRecord]].map(([label, value]) => `<div class="metric"><span>${label}</span><strong>${value}</strong></div>`).join("");
   if (weeklyRankChart) weeklyRankChart.destroy();
   const rankChartWrap = document.getElementById("weekly-rank-chart")?.closest(".chart-wrap");
   if (player === "all") {
