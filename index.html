@@ -1960,7 +1960,7 @@ function renderAllTime() {
   allTimeAttendanceChart.options.interaction = { mode: "nearest", axis: "xy", intersect: true };
   allTimeAttendanceChart.options.plugins.tooltip.callbacks.title = items => { const item = items[0].raw; return `${item.player.name} · ${item.picked ? "No-miss streak" : "Missed stretch"}`; };
   allTimeAttendanceChart.options.plugins.tooltip.callbacks.afterLabel = context => { const player = context.raw.player; return [`Career games picked: ${player.games}`, `Attendance since joining: ${player.attendancePct.toFixed(1)}%`]; };
-  allTimeAttendanceChart.options.scales.y.ticks.callback = (value, index) => { const row = attendanceRows[index]?.player; return row ? `${row.name} · ${row.attendancePct.toFixed(1)}% att.` : ""; };
+  allTimeAttendanceChart.options.scales.y.ticks.callback = (value, index) => { const row = attendanceRows[index]?.player; return row ? `${row.name} · ${row.games} games · ${row.attendancePct.toFixed(1)}% att.` : ""; };
   const attendanceXAxis = allTimeAttendanceChart.options.scales.x;
   attendanceXAxis.afterBuildTicks = scale => { scale.ticks = attendanceGames.map((game, index) => ({ game, index })).filter(item => item.index === 0 || attendanceGames[item.index - 1]?.season !== item.game.season).map(item => ({ value: item.index })); };
   attendanceXAxis.ticks = { color: "#91a0ae", minRotation: 45, maxRotation: 60, callback: value => String(attendanceGames[Math.round(value)]?.season || "").slice(0, 4) };
