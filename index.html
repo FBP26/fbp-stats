@@ -8,6 +8,7 @@
 <script src="https://cdn.jsdelivr.net/npm/chart.js@4.4.3/dist/chart.umd.min.js"></script>
 <script src="https://cdn.jsdelivr.net/npm/chartjs-chart-sankey@0.14.0/dist/chartjs-chart-sankey.min.js"></script>
 <script src="https://unpkg.com/tabulator-tables@5.6.0/dist/js/tabulator.min.js"></script>
+<script src="historical-ui.js?v=20260811-3"></script>
 <style>
   :root { --bg: #0d1117; --panel: #151c24; --panel-2: #1b2530; --border: #2a3744; --text: #e8eef5; --muted: #91a0ae; --accent: #54d6b2; --accent-2: #ffb454; --danger: #ff7180; }
   * { box-sizing: border-box; }
@@ -29,6 +30,11 @@
   [hidden] { display: none !important; }
   .panel h3 { font-size: 17px; font-weight: 400; margin: 0; }
   .controls { display: grid; gap: 13px; }
+  .race-playback { display: flex; align-items: end; flex-wrap: wrap; gap: 8px; }
+  .race-playback button { min-height: 36px; border: 1px solid var(--border); border-radius: 5px; background: var(--panel-2); color: var(--text); padding: 7px 11px; font: 12px Arial, sans-serif; cursor: pointer; }
+  .race-playback button:hover { border-color: var(--accent); color: var(--accent); }
+  .race-playback label { width: 94px; }
+  .race-playback output { min-width: 92px; padding: 9px 10px; color: var(--accent); font: 12px Arial, sans-serif; text-align: center; }
   label { color: var(--muted); display: grid; gap: 5px; font: 11px Arial, sans-serif; text-transform: uppercase; letter-spacing: .8px; }
   select, input { width: 100%; border: 1px solid var(--border); border-radius: 5px; background: var(--panel-2); color: var(--text); padding: 9px 10px; font: 13px Arial, sans-serif; }
   select[multiple] { min-height: 112px; }
@@ -115,7 +121,7 @@
   .tabulator-row:hover { background: #263b40 !important; }
   #loading { color: var(--muted); font: 13px Arial, sans-serif; }
   @media (max-width: 850px) { .workspace, .profile-grid, .profile-charts { grid-template-columns: 1fr; } .record-grid { grid-template-columns: repeat(2, 1fr); } .intro { display: block; } .intro p { margin-top: 14px; } }
-  @media (max-width: 560px) { .summary { grid-template-columns: repeat(2, 1fr); } .panel-head { align-items: start; flex-direction: column; } .explorer-controls, .path-controls { grid-template-columns: 1fr; } #view-games .explorer-controls, #view-weeks .explorer-controls { max-width: none; } #view-enter-picks .panel { padding: 10px; } .website-matchup { grid-template-columns: minmax(0, 1fr) 40px minmax(0, 1fr); gap: 4px; } .website-side { padding: 8px 4px; font-size: 12px; } .website-spread { width: 40px; } }
+  @media (max-width: 560px) { .summary { grid-template-columns: repeat(2, 1fr); } .record-grid { grid-template-columns: 1fr; } .panel-head { align-items: start; flex-direction: column; } .explorer-controls, .path-controls { grid-template-columns: 1fr; } #view-games .explorer-controls, #view-weeks .explorer-controls { max-width: none; } #view-enter-picks .panel { padding: 10px; } .website-matchup { grid-template-columns: minmax(0, 1fr) 40px minmax(0, 1fr); gap: 4px; } .website-side { padding: 8px 4px; font-size: 12px; } .website-spread { width: 40px; } }
   .picks-grid { border-collapse: collapse; font: 11px Arial, sans-serif; }
   .picks-grid th, .picks-grid td { padding: 2px 5px; border: 1px solid var(--border); text-align: center; vertical-align: middle; white-space: nowrap; }
   .weekly-pick-win, .weekly-bb-win { color: var(--accent); font-weight: bold; }
@@ -137,6 +143,10 @@
   .tooltip-matchup .tooltip-spread { color: var(--accent-2); font: bold 11px/1 Consolas, monospace; text-align: center; }
   .tooltip-matchup .tooltip-underdog { text-align: right; }
   .weekly-game-tooltip .tooltip-meta-start, .profile-chart-tooltip.compact-game-tooltip .tooltip-meta-start { margin-top: 5px; padding-top: 5px; border-top: 1px solid #52606d; }
+  .distribution-tooltip { min-width: 270px; }
+  .distribution-tooltip .tooltip-season-header { margin-top: 6px; padding-top: 6px; color: var(--accent-2); border-top: 1px solid #52606d; font-weight: bold; text-align: left; }
+  .distribution-tooltip .tooltip-week-row { display: grid; grid-template-columns: minmax(72px, 1fr) 38px 64px; gap: 12px; border-top: 0; font-family: Consolas, monospace; text-align: right; }
+  .distribution-tooltip .tooltip-week-row span:first-child { text-align: left; }
   .compact-live-title { margin: 0 0 10px; color: var(--accent); font: 11px Arial, sans-serif; text-transform: uppercase; letter-spacing: .7px; }
   .weekly-subview { max-width: 980px; margin-top: 24px; padding-top: 18px; border-top: 1px solid var(--border); }
   .player-ledger-list { display: grid; gap: 7px; }
@@ -215,7 +225,7 @@
 </style>
 </head>
 <body>
-<header><nav id="nav"><button data-view="enter-picks">Enter Picks</button><button data-view="week-one">Current Week</button><button data-view="alltime">All Time</button><button data-view="season">Seasons</button><button data-view="weeks">Weeks</button><button data-view="games">Games</button><button data-view="streaks">Streaks</button><button data-view="players">Players</button></nav></header>
+<header><nav id="nav"><button data-view="enter-picks">Enter Picks</button><button data-view="week-one">Current Week</button><button data-view="weeks">Weeks</button><button data-view="season">Seasons</button><button data-view="players">Players</button><button data-view="teams">Teams</button><button data-view="alltime">All Time</button><button data-view="streaks">Streaks</button><button data-view="games">Games</button></nav></header>
 <main>
   <section id="view-enter-picks" class="view active">
     <section class="intro"><div><h2>Enter Picks</h2></div><p>Week 1 · 2026-2027</p></section>
@@ -253,6 +263,10 @@
     <div class="profile-charts"><div class="panel profile-chart"><div class="panel-head"><h3>Cumulative money won</h3></div><div class="chart-wrap"><canvas id="profile-money-chart"></canvas></div></div><div class="panel profile-chart"><div class="panel-head"><h3>Plus/minus over time</h3></div><div class="chart-wrap"><canvas id="profile-plus-minus-chart"></canvas></div></div><div class="panel profile-chart"><div class="panel-head"><h3>Weekly distribution</h3></div><div class="chart-wrap"><canvas id="profile-finish-chart"></canvas></div></div><div class="panel profile-chart"><div class="panel-head"><h3>Best bets</h3><label>View<select id="profile-best-bet-view" aria-label="Best bets view" onchange="renderProfile(document.getElementById('profile-player').value)"><option value="season">By season</option><option value="most">Most bet teams</option><option value="least">Least bet teams</option><option value="best">Best team records</option><option value="worst">Worst team records</option><option value="volume-time">Volume over time</option><option value="rate-time">Hit rate over time</option></select></label></div><div class="chart-wrap"><canvas id="profile-best-bet-chart"></canvas></div></div><div class="panel profile-chart"><div class="panel-head"><h3>Team picks</h3><label>View<select id="profile-team-view" aria-label="Team picks view" onchange="renderProfile(document.getElementById('profile-player').value)"><option value="picked-most">Top 10 picked</option><option value="picked-least">Bottom 10 picked</option><option value="against-most">Top 10 picked against</option><option value="against-least">Bottom 10 picked against</option><option value="picked-best">Best records picking</option><option value="picked-worst">Worst records picking</option><option value="against-best">Best records picking against</option><option value="against-worst">Worst records picking against</option><option value="picked-time">Pick volume over time</option><option value="picked-rate-time">Pick win rate over time</option><option value="against-time">Against volume over time</option><option value="against-rate-time">Against win rate over time</option></select></label><label id="profile-team-add-label" hidden>Add team<select id="profile-team-add" aria-label="Add team to Team Picks chart" onchange="renderProfile(document.getElementById('profile-player').value)"><option value="">None</option></select></label></div><div class="chart-wrap"><canvas id="profile-team-chart"></canvas></div></div><div class="panel profile-chart"><div class="panel-head"><h3>700 / 800 club</h3></div><div class="chart-wrap"><canvas id="profile-club-chart"></canvas></div></div></div>
     <div class="panel" style="margin-top:14px"><h3 style="margin:0 0 12px;color:var(--accent);font:11px Arial,sans-serif;letter-spacing:1px;text-transform:uppercase">Weekly wins detail</h3><div id="profile-weekly-wins-detail" style="overflow-x:auto"></div></div>
     <div class="panel" style="margin-top:14px"><h3 style="margin:0 0 8px;color:var(--accent);font:11px Arial,sans-serif;letter-spacing:1px;text-transform:uppercase">Weekly Rank</h3><p class="analysis-note">Every recorded weekly finish for the selected player, newest first.</p><div id="profile-weekly-rank-sheet" style="overflow-x:auto;margin-top:14px"></div></div>
+  </section>
+  <section id="view-teams" class="view">
+    <section class="intro"><div><div class="eyebrow">League-wide pick behavior</div><h2>Teams</h2></div><p>See which NFL teams the pool trusted, faded, and used as Best Bets, plus how those choices performed against the spread.</p></section>
+    <div class="panel"><div class="explorer-controls"><label>Season<select id="teams-season"><option value="all">All seasons</option></select></label><label>Team<select id="teams-team"></select></label><label>Leaderboard<select id="teams-metric"><option value="volume">Most picked</option><option value="ats">Best record when picked</option><option value="fade">Best record fading</option><option value="bestbet">Best Bet hit rate</option></select></label></div><div id="teams-summary" class="summary"></div><div class="profile-charts"><div class="panel profile-chart"><div class="panel-head"><h3>Team Leaders</h3></div><div class="chart-wrap"><canvas id="teams-leader-chart"></canvas></div></div><div class="panel profile-chart"><div class="panel-head"><h3 id="teams-trend-title">Selected Team History</h3></div><div class="chart-wrap"><canvas id="teams-trend-chart"></canvas></div></div><div class="panel profile-chart"><div class="panel-head"><h3>Consensus and Fade Results</h3></div><div class="chart-wrap"><canvas id="teams-consensus-chart"></canvas></div></div></div><h3 style="margin:28px 0 8px;color:var(--accent);font:11px Arial,sans-serif;letter-spacing:1px;text-transform:uppercase">Team leaderboard</h3><div id="teams-leaderboard-table"></div><h3 style="margin:28px 0 8px;color:var(--accent);font:11px Arial,sans-serif;letter-spacing:1px;text-transform:uppercase">Best Bet records</h3><div id="teams-bestbet-table"></div><h3 id="teams-affinity-title" style="margin:28px 0 8px;color:var(--accent);font:11px Arial,sans-serif;letter-spacing:1px;text-transform:uppercase">Player affinity</h3><div id="teams-affinity-table"></div></div>
   </section>
 </main>
 <script>
@@ -1074,6 +1088,7 @@ document.addEventListener("click",event=>{const button=event.target.closest("#na
 document.getElementById("website-view-week-one")?.addEventListener("click",()=>{showView("week-one");renderSelectedWebsiteWeek();});
 let profileChart = null, profileMoneyChart = null, profilePlusMinusChart = null, profilePlacementChart = null, profileBestWeeksChart = null, profileRecentChart = null, profileBestBetChart = null, profileTeamChart = null, profileClubChart = null, gamePicksTable = null, weekChart = null, weekTable = null, weekRaceChart = null, winnerContributionChart = null, weeklyRankChart = null, streakChart = null, streakTable = null, seasonTopChart = null, seasonTable = null, seasonRaceChart = null, seasonPlayerChart = null, seasonMoneyChart = null, seasonConsistencyChart = null, seasonBbChart = null, seasonTeamsChart = null, seasonContrarianChart = null, seasonTbChart = null, allTimeTopChart = null, allTimePlusMinusChart = null, allTimePlusMinusTrendChart = null, allTimeGamesChart = null, allTimeArcsChart = null, allTimeMoneyChart = null, allTimeTurnoutChart = null, allTimeStreakChart = null, allTimeTeamPicksChart = null, allTimeContrarianChart = null, allTimeSeasonWeeksChart = null, manifest = [], dashboard = [], tableData = {}, websiteWeeks = [], websiteAwards = [], websiteSeasons = [], websitePlayers = [], websiteRecords = [], websiteStreaks = [], websiteGames = [], websitePicks = [];
 let allTimeAttendanceChart = null;
+let teamsLeaderChart = null, teamsTrendChart = null, teamsConsensusChart = null, teamsLeaderboardTable = null, teamsBestBetTable = null, teamsAffinityTable = null;
 let allTimePlusMinusExtraPlayers = [];
 const colors = ["#54d6b2", "#ffb454", "#8ca7ff", "#ff7180", "#d79bff", "#f1e48b", "#65c7e8"];
 const weekBarLabels = { id: "weekBarLabels", afterDatasetsDraw(chart) { if (!["week-chart", "season-top-chart", "season-bb-chart", "season-money-chart", "season-tb-chart", "alltime-top-chart", "alltime-plus-minus-chart", "alltime-weekly-wins-chart", "alltime-games-chart", "alltime-money-chart", "streak-chart"].includes(chart.canvas.id)) return; const context = chart.ctx; const meta = chart.getDatasetMeta(0); context.save(); context.font = "15px Arial"; context.textBaseline = "middle"; context.fillStyle = "#0d1117"; context.textAlign = "left"; meta.data.forEach((bar, index) => { context.fillText(chart.data.datasets[0].barText?.[index] ?? chart.data.labels[index], Math.max(chart.chartArea.left + 8, bar.x - bar.width + 8), bar.y); }); context.restore(); } };
@@ -2186,7 +2201,53 @@ function renderSeasonTiebreakers(standings, weeks) {
   if (seasonTbChart) seasonTbChart.destroy();
   seasonTbChart = new Chart(document.getElementById("season-tb-chart"), { type: "bar", data: { labels: rows.map(row => row.name), datasets: [{ label: "Average miss", data: rows.map(row => Number(row.average.toFixed(1))), barText: rows.map(row => `${row.name} · avg ${row.average.toFixed(1)} yds off · closest ${row.best} yds ${joinTies(row.bestWeeks, 3)}`), backgroundColor: rows.map((row, index) => ["#d4af37", "#c0c0c0", "#cd7f32"][index] || "#8ca7ffbb"), borderColor: rows.map((row, index) => ["#d4af37", "#c0c0c0", "#cd7f32"][index] || "#8ca7ff"), borderWidth: 1 }] }, options: { indexAxis: "y", responsive: true, maintainAspectRatio: false, scales: { x: { beginAtZero: true, position: "top", ticks: { color: "#91a0ae" }, grid: { color: "#2a3744" }, title: { display: true, text: "Average yards off the tiebreaker", color: "#91a0ae" } }, y: { ticks: { display: false }, grid: { color: "#2a3744" } } }, plugins: { legend: { display: false }, title: { display: true, text: "Most accurate tiebreakers (min 5 weeks)", color: "#e8eef5", font: { size: 15, weight: "normal" }, padding: { bottom: 12 } }, tooltip: { displayColors: false, callbacks: { label: context => { const row = rows[context.dataIndex]; return [`Average miss: ${row.average.toFixed(1)} yards`, `Closest: ${row.best} yards off in ${row.bestWeeks.join(", ")}`, `Exact hits: ${row.exact}`, `Weeks with a guess: ${row.count}`]; } } } } } });
 }
+let seasonRacePlaybackTimer = null, seasonRacePlaybackFrame = null, seasonRacePlaybackData = null;
+function stopSeasonRacePlayback() {
+  if (seasonRacePlaybackTimer) clearTimeout(seasonRacePlaybackTimer);
+  seasonRacePlaybackTimer = null;
+  const button = document.getElementById("season-race-play");
+  if (button) button.textContent = "Play race";
+}
+function ensureSeasonRacePlaybackControls() {
+  const controls = document.getElementById("season-race-metric")?.closest(".explorer-controls");
+  if (!controls || document.getElementById("season-race-playback")) return;
+  controls.insertAdjacentHTML("beforeend", '<div id="season-race-playback" class="race-playback" aria-label="Season race playback"><button id="season-race-play" type="button">Play race</button><button id="season-race-restart" type="button">Restart</button><label>Speed<select id="season-race-speed"><option value="1400">0.75x</option><option value="900" selected>1x</option><option value="500">2x</option></select></label><output id="season-race-week" aria-live="polite">Full season</output></div>');
+}
+function showSeasonRaceFrame(frame) {
+  if (!seasonRaceChart || !seasonRacePlaybackData?.labels.length) return;
+  const last = seasonRacePlaybackData.labels.length - 1;
+  seasonRacePlaybackFrame = Math.max(0, Math.min(frame, last));
+  seasonRaceChart.data.labels = seasonRacePlaybackData.labels.slice(0, seasonRacePlaybackFrame + 1);
+  seasonRaceChart.data.datasets.forEach((dataset, index) => {
+    dataset.data = seasonRacePlaybackData.datasets[index].data.slice(0, seasonRacePlaybackFrame + 1);
+    dataset.totals = seasonRacePlaybackData.datasets[index].totals.slice(0, seasonRacePlaybackFrame + 1);
+  });
+  seasonRaceChart.update("none");
+  document.getElementById("season-race-week").textContent = `${seasonRacePlaybackData.labels[seasonRacePlaybackFrame]} · ${seasonRacePlaybackFrame + 1}/${seasonRacePlaybackData.labels.length}`;
+}
+function advanceSeasonRacePlayback() {
+  if (!seasonRacePlaybackTimer) return;
+  const last = seasonRacePlaybackData.labels.length - 1;
+  showSeasonRaceFrame(seasonRacePlaybackFrame == null || seasonRacePlaybackFrame >= last ? 0 : seasonRacePlaybackFrame + 1);
+  seasonRacePlaybackTimer = setTimeout(advanceSeasonRacePlayback, Number(document.getElementById("season-race-speed")?.value || 900));
+}
+function initializeSeasonRacePlayback(weeks) {
+  ensureSeasonRacePlaybackControls();
+  if (!seasonRaceChart) return;
+  seasonRacePlaybackData = { labels: [...seasonRaceChart.data.labels], datasets: seasonRaceChart.data.datasets.map(dataset => ({ data: [...dataset.data], totals: [...dataset.totals] })), weeks: [...weeks] };
+  seasonRacePlaybackFrame = null;
+  const play = document.getElementById("season-race-play"), restart = document.getElementById("season-race-restart"), output = document.getElementById("season-race-week");
+  output.textContent = "Full season";
+  play.onclick = () => {
+    if (seasonRacePlaybackTimer) { stopSeasonRacePlayback(); return; }
+    play.textContent = "Pause";
+    seasonRacePlaybackTimer = setTimeout(advanceSeasonRacePlayback, 0);
+  };
+  restart.onclick = () => showSeasonRaceFrame(0);
+}
 function renderSeasonRace(standings, weeks, progress) {
+  stopSeasonRacePlayback();
+  queueMicrotask(() => initializeSeasonRacePlayback(weeks));
   const podium = standings.slice(0, 3);
   const usePct = (document.getElementById("season-race-metric")?.value || "pct") === "pct";
   const leaderNames = [], leaderValues = [];
@@ -2408,6 +2469,11 @@ function profilePeriodOrder(week) { const value = String(week || "").toLowerCase
 function matchupTooltipHtml(game, result, pickedTeam) { const favoritePoints = favoriteScore(game), underdogPoints = underdogScore(game), picked = String(pickedTeam || "").toUpperCase(), resultClass = result === "win" ? "win" : result === "loss" ? "loss" : "push", favoritePicked = String(game.favorite || "").toUpperCase() === picked, underdogPicked = String(game.underdog || "").toUpperCase() === picked; const value = (text, highlighted = false, className = "") => `<span class="${className} ${highlighted ? resultClass : "neutral"}">${websiteEscapeHtml(text ?? "?")}</span>`; return `<div class="tooltip-matchup">${value(`${teamDisplay(game.favorite, game)} ${favoritePoints}`, favoritePicked, "tooltip-favorite")}${value(game.spread ?? "PK", false, "tooltip-spread")}${value(`${underdogPoints} ${teamDisplay(game.underdog, game)}`, underdogPicked, "tooltip-underdog")}</div>`; }
 function profileGameResultHtml(game, pickedTeam, result, prefix = "") { return `<div>${prefix ? `<span class="neutral">${websiteEscapeHtml(prefix)}</span>` : ""}${matchupTooltipHtml(game, result, pickedTeam)}</div>`; }
 function weeklyGameTooltipHtml(game, result, pickedTeam) { return `${matchupTooltipHtml(game, result, pickedTeam)}<div class="tooltip-meta-start"><span class="neutral">${websiteEscapeHtml(game.gameDate ?? "?")}</span></div><div><span class="neutral">${websiteEscapeHtml(game.gameTime ?? "?")}</span></div>`; }
+function weeklyDistributionTooltipHtml(bucket, totalWeeks) {
+  const groups = bucket.weeks.reduce((map, row) => { const rows = map.get(row.Season) || []; rows.push(row); map.set(row.Season, rows); return map; }, new Map());
+  const percentage = totalWeeks ? bucket.weeks.length / totalWeeks * 100 : 0;
+  return `<strong>${websiteEscapeHtml(bucket.label)} · ${bucket.weeks.length} weeks · ${percentage.toFixed(1)}%</strong>${[...groups].map(([season, rows]) => `<div class="tooltip-season-header">${websiteEscapeHtml(season)}</div>${rows.map(row => `<div class="tooltip-week-row"><span>${websiteEscapeHtml(row.Week === "playoffs" ? "Playoffs" : `Week ${row.Week}`)}</span><span>#${websiteEscapeHtml(row.Rank)}</span><span>${websiteEscapeHtml(`${row.Wins}-${row.Losses}${Number(row.Pushes || 0) ? `-${row.Pushes}` : ""}`)}</span></div>`).join("")}`).join("")}`;
+}
 function normalizeWeeklyTooltipRow(row, overrides = {}) {
   return { season: row?.season ?? row?.Season ?? "", week: row?.week ?? row?.Week ?? "", playerId: row?.playerId ?? row?.PlayerId ?? "", name: row?.name ?? row?.Name ?? "", wins: Number(row?.displayWins ?? row?.Wins ?? 0), losses: Number(row?.displayLosses ?? row?.Losses ?? 0), pushes: Number(row?.displayPushes ?? row?.Pushes ?? 0), rank: Number(row?.rank ?? row?.Rank ?? 0), competition: String(row?.competition ?? row?.Competition ?? "regular").toLowerCase(), ...overrides };
 }
@@ -2611,6 +2677,8 @@ function renderProfile(name) {
   if (profilePlacementChart) profilePlacementChart.destroy();
   const finishCounts = [["Wins", row => Number(row.Rank) === 1], ["2nd", row => Number(row.Rank) === 2], ["3rd", row => Number(row.Rank) === 3], ["4th-5th", row => Number(row.Rank) >= 4 && Number(row.Rank) <= 5], ["6th-10th", row => Number(row.Rank) >= 6 && Number(row.Rank) <= 10], ["11th-15th", row => Number(row.Rank) >= 11 && Number(row.Rank) <= 15], ["16th-20th", row => Number(row.Rank) >= 16 && Number(row.Rank) <= 20], ["21st+", row => Number(row.Rank) >= 21]].map(([label, test]) => ({ label, weeks: weekly.filter(test).sort((a, b) => String(b.Season).localeCompare(String(a.Season)) || Number(b.WeekSort || b.Week || 0) - Number(a.WeekSort || a.Week || 0)) }));
   profilePlacementChart = new Chart(document.getElementById("profile-finish-chart"), { type: "bar", data: { labels: finishCounts.map(row => row.label), datasets: [{ label: "Weeks", data: finishCounts.map(row => row.weeks.length), barText: finishCounts.map(row => row.weeks.length ? [String(row.weeks.length), `${((row.weeks.length / weekly.length) * 100).toFixed(0)}%`] : ""), backgroundColor: ["#d4af37bb", "#c0c0c0bb", "#cd7f32bb", "#54d6b2bb", "#8ca7ffbb", "#65c7e8bb", "#d79bffbb", "#ff7180aa"], borderColor: ["#d4af37", "#c0c0c0", "#cd7f32", "#54d6b2", "#8ca7ff", "#65c7e8", "#d79bff", "#ff7180"], borderWidth: 1 }] }, options: { responsive: true, maintainAspectRatio: false, scales: { x: { ticks: { color: "#91a0ae" }, grid: { color: "#2a3744" } }, y: { beginAtZero: true, ticks: { color: "#91a0ae", stepSize: 1 }, grid: { color: "#2a3744" }, title: { display: true, text: "Weeks by finishing range", color: "#91a0ae" } } }, plugins: { legend: { display: false }, tooltip: { displayColors: false, callbacks: { afterBody: items => finishCounts[items[0].dataIndex].weeks.map(row => `${row.Season} ${row.Week === "playoffs" ? "Playoffs" : `W${row.Week}`} · #${row.Rank} · ${row.Wins}-${row.Losses}`) } } } } });
+  profilePlacementChart.options.plugins.tooltip = { enabled: false, external: context => { profileChartTooltip(context, index => weeklyDistributionTooltipHtml(finishCounts[index], weekly.length)); document.getElementById("profile-chart-tooltip")?.classList.add("distribution-tooltip"); } };
+  profilePlacementChart.update("none");
   const allTeams = [...new Set([...Object.keys(WEBSITE_TEAM_NAMES), ...websiteGames.flatMap(game => [game.favorite, game.underdog])].map(team => String(team || "").toUpperCase()).filter(Boolean))].sort();
   const bestBetEvents = playerPicks.filter(pick => Number(pick.bestBetWin || 0) || Number(pick.bestBetLoss || 0) || Number(pick.bestBetPush || 0)).map(pick => ({ pick, game: gameById.get(pick.gameId), team: String(pick.bestBet || "").toUpperCase(), win: Number(pick.bestBetWin || 0), loss: Number(pick.bestBetLoss || 0), push: Number(pick.bestBetPush || 0) })).filter(row => row.game && row.team);
   const summarize = (rows, key) => [...rows.reduce((map, item) => { const value = item[key]; const row = map.get(value) || { label: value, wins: 0, losses: 0, pushes: 0, count: 0, details: [] }; row.wins += item.win; row.losses += item.loss; row.pushes += item.push; row.count += 1; row.details.push(item); map.set(value, row); return map; }, new Map()).values()].map(row => ({ ...row, pct: row.wins + row.losses ? row.wins / (row.wins + row.losses) : 0 }));
@@ -2895,6 +2963,7 @@ function applyHistoricalLabels() {
 applyHistoricalLabels();
 init().then(async () => { applyHistoricalLabels(); populateWeekSeasons(); populateSeasonChoices(); if (location.hash === "#weeks") { await loadDrilldown(); renderWeekRace(); renderWinnerContributions(true); renderPicksGrid(); setTimeout(() => { orientWeekChart(); addGamePushMarkers(); }, 0); } const profileSelect = document.getElementById("profile-player"); if ([...profileSelect.options].some(option => option.value === "Thomas")) { profileSelect.value = "Thomas"; renderProfile("Thomas"); } if (websiteLastWeekData) renderWebsiteWeekRecap(websiteLastWeekData); });
 </script>
+<script src="teams.js?v=20260811-2"></script>
 <script>const initialRoute = location.hash.slice(1); const startupRoute = initialRoute || "enter-picks"; (async () => { const preseasonActive = await selectStagedPreseasonWeek(); if (startupRoute === "enter-picks") { await renderWebsitePicksForm(); resetWebsiteBestBet(); } if (startupRoute === "week-one") await (preseasonActive ? renderSelectedWebsiteWeek() : renderWebsiteWeekOne()); startupRoutePending = false; if (["enter-picks", "week-one", "picks-confirmation"].includes(startupRoute)) showView(startupRoute); })();</script>
 </body>
 </html>
