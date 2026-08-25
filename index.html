@@ -954,7 +954,8 @@ async function loadWebsiteStagedGames(selection) { if (!WEBSITE_SUBMISSIONS_ENDP
 function websiteGameContext(game) {
   const location = [game.venueCity, game.venueState].filter(Boolean).join(", ");
   const weather = [game.temperature !== "" && game.temperature != null ? `${game.temperature}°F` : "", game.weather].filter(Boolean).join(" ");
-  const details = [game.venueName || game.venue, location, game.indoor ? "Indoor" : weather || "Weather unavailable", game.broadcast || game.tv].filter(Boolean);
+  const weatherDetail = game.indoor ? "Indoor" : weather ? `${weather}${game.weatherSource ? ` · ${game.weatherSource}` : ""}` : "Weather unavailable";
+  const details = [game.venueName || game.venue, location, weatherDetail, game.broadcast || game.tv].filter(Boolean);
   return details.length ? `<div class="website-game-context">${details.map(websiteEscapeHtml).join(" · ")}</div>` : "";
 }
 function scheduleWebsitePicksWeatherRefresh() {
@@ -976,7 +977,7 @@ async function refreshWebsitePicksWeather() {
       const gameId = game.gameId || game.id;
       const refreshed = refreshedGames.find(candidate => (gameId && (candidate.gameId || candidate.id) === gameId) || (candidate.favorite === game.favorite && candidate.underdog === game.underdog));
       if (!refreshed) return game;
-      const updated = { ...game, weather: refreshed.weather || "", temperature: refreshed.temperature ?? "" };
+      const updated = { ...game, ...refreshed };
       const context = rows[index]?.querySelector(".website-game-context");
       const contextHtml = websiteGameContext(updated);
       if (context) context.outerHTML = contextHtml;
