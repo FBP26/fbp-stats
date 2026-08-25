@@ -1115,6 +1115,7 @@ function websiteParticipationSummary(name) {
 function interpretWebsiteWeekName(weekName, playerName) {
   const text = String(weekName || "").trim();
   const lower = text.toLowerCase();
+  const normalizedPlayer = String(playerName || "").trim().toLowerCase();
   const playerWeeks = websitePlayerWeekHistory(playerName);
   const matches = playerWeeks.filter(row => String(row.weekName || "").trim().toLowerCase() === lower);
   const priorUses = matches.length;
@@ -1129,6 +1130,12 @@ function interpretWebsiteWeekName(weekName, playerName) {
   if (lower === "big red") {
     const fandom = relatedIndianaNames.length ? ` Add in names like “${relatedIndianaNames[0]}” and the evidence says Indiana fan, not cinnamon-gum loyalist.` : " We are calling it an Indiana rally cry, with cinnamon gum running a respectable second.";
     return { category: "Our best guess", read: `“${text}” could be the gum, Indiana's rally cry, or a very confident Clifford reference.${fandom} ${history}` };
+  }
+  if (normalizedPlayer === "ron" && /\bhole in one\b/i.test(text)) {
+    const productRun = playerWeeks.filter(row => String(row.season) === "2025-2026" && String(row.week).toLowerCase() !== "playoffs" && String(row.weekName || "").trim());
+    const examples = [productRun[0], productRun[Math.floor(productRun.length / 2)], productRun.at(-1)].filter(Boolean).map(row => `“${String(row.weekName).trim()}”`);
+    const archive = productRun.length ? `Your 2025-2026 run used ${productRun.length} straight oddly specific product names, including ${examples.join(", ")}. ` : "";
+    return { category: "The Price Is Right file", read: `${archive}Hole in One is also a Price Is Right pricing game, so our best read is that “${text}” carries that game-show shopping-list bit into another season.${history}` };
   }
   if (/\b(go )?hoosiers?|indiana|\biu\b/i.test(text)) return { category: "Hoosier file", read: `This one has candy stripes all over it. We are putting “${text}” in the Indiana fan folder. ${history}` };
   if (/catalina|wine mixer|boats? and hoes|prestige worldwide/i.test(text)) return { category: "Movie quote desk", read: `This is almost certainly a Step Brothers reference, probably delivered with far more confidence than the Catalina Wine Mixer deserved. ${history}` };
@@ -1270,8 +1277,8 @@ async function renderConfirmationHistory(submission) {
     for (let index = completedHistory.length - 1; index >= 0 && completedHistory[index].result === lastResult; index--) streak += 1;
     const streakResult = streak === 1 ? lastResult : lastResult === "loss" ? "losses" : `${lastResult}s`;
     const streakRows = streak ? completedHistory.slice(-streak) : [];
-    const streakDetails = streakRows.map(row => { const picked = String(row.pick).toUpperCase(), favorite = String(row.game.favorite).toUpperCase(), spread = Number(row.game.spread || 0), line = spread ? `${picked === favorite ? "-" : "+"}${spread}` : "PK", teamName = value => websiteFormTeamName(String(value).toUpperCase()); return `${teamName(picked)} ${line} (${teamName(row.game.favorite)} ${favoriteScore(row.game)}, ${teamName(row.game.underdog)} ${underdogScore(row.game)})`; }).join("; ");
-    const streakText = lastResult ? `Your current pick streak is ${streak} ${websiteEscapeHtml(streakResult)}${streakDetails ? `: ${websiteEscapeHtml(streakDetails)}` : ""}.` : "";
+    const streakTeams = streakRows.map(row => websiteFormTeamName(String(row.pick).toUpperCase())).join(", ");
+    const streakText = lastResult ? `Current streak: ${streak} ${websiteEscapeHtml(streakResult)}${streakTeams ? ` · ${websiteEscapeHtml(streakTeams)}` : ""}.` : "";
     const opportunityRun = (team, field) => {
       const opportunities = history.filter(row => [row.game.favorite, row.game.underdog].some(value => String(value).toUpperCase() === team));
       let length = 0;
@@ -1320,13 +1327,18 @@ async function preflightWebsiteIdentity(submission, status) {
   if (websiteApprovedNewPlayerName === normalizedName) return true;
   const suggestion = identity.status === "suggestion" ? identity.suggestedName : "";
   const suggestionText = suggestion ? ` We found <strong>${websiteEscapeHtml(suggestion)}</strong> in past results.` : "";
-  status.innerHTML = `We could not match <strong>${websiteEscapeHtml(enteredName)}</strong> exactly.${suggestionText} Should the name be changed, or is this a new player?<span class="identity-actions"><button id="website-change-player-name" type="button">Change name</button><button id="website-confirm-new-player" type="button">New player</button></span>`;
+  const suggestionAction = suggestion ? `<button id="website-use-suggested-player" type="button">Change name to ${websiteEscapeHtml(suggestion)} (recommended)</button>` : "";
+  status.innerHTML = `We could not match <strong>${websiteEscapeHtml(enteredName)}</strong> exactly.${suggestionText} Should the name be changed, or is this a new player?<span class="identity-actions">${suggestionAction}<button id="website-change-player-name" type="button">Change name</button><button id="website-confirm-new-player" type="button">New player</button></span>`;
   document.getElementById("website-confirm-new-player").onclick = () => { websiteApprovedNewPlayerName = normalizedName; document.getElementById("website-picks-form").requestSubmit(); };
+  if (suggestion) document.getElementById("website-use-suggested-player").onclick = () => {
+    websiteApprovedNewPlayerName = "";
+    document.getElementById("website-picks-name").value = suggestion;
+    document.getElementById("website-picks-form").requestSubmit();
+  };
   document.getElementById("website-change-player-name").onclick = () => {
     const input = document.getElementById("website-picks-name");
     websiteApprovedNewPlayerName = "";
-    if (suggestion) input.value = suggestion;
-    status.textContent = suggestion ? `Name changed to ${suggestion}. Review it, then submit again.` : "Change the Name field to the name used in past results, then submit again.";
+    status.textContent = "Change the Name field to the name you want, then submit again.";
     input.focus();
     input.select();
   };
