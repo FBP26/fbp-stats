@@ -95,14 +95,15 @@
   .confirmation-block h3 { margin: 0 0 8px; color: var(--accent); font: 11px Arial, sans-serif; letter-spacing: .8px; text-transform: uppercase; }
   .confirmation-block p { margin: 5px 0; font-size: 13px; }
   .confirmation-metrics { display: grid; grid-template-columns: repeat(3, 1fr); gap: 6px; margin-top: 10px; }
-  .confirmation-metric { padding: 8px 5px; border: 1px solid var(--border); text-align: center; }
-  .confirmation-metric strong { display: block; color: var(--text); font-size: 18px; }
+  .confirmation-metric { min-width: 0; padding: 8px 5px; border: 1px solid var(--border); text-align: center; }
+  .confirmation-metric strong { display: block; overflow-wrap: anywhere; color: var(--text); font-size: 18px; }
   .confirmation-metric span { color: var(--muted); font-size: 10px; text-transform: uppercase; }
+  .confirmation-team-short { display: none; }
   .identity-actions { display: flex; flex-wrap: wrap; gap: 7px; margin-top: 10px; }
   .identity-actions input { flex: 1 1 180px; min-width: 0; }
   .identity-actions button { flex: 0 0 auto; }
   .confirmation-status { min-height: 18px; margin: 7px 0 0 !important; font-size: 12px !important; }
-  @media (max-width: 680px) { .confirmation-grid { grid-template-columns: 1fr; } .confirmation-metrics { grid-template-columns: repeat(3, minmax(0, 1fr)); } }
+  @media (max-width: 680px) { .confirmation-grid { grid-template-columns: 1fr; } .confirmation-metrics { grid-template-columns: repeat(3, minmax(0, 1fr)); } .confirmation-team-full { display: none; } .confirmation-team-short { display: inline; } }
   .profile-chart { min-height: 360px; }
   .profile-grid > *, .profile-chart-stack, .profile-charts > *, .profile-chart, .profile-chart .chart-wrap { min-width: 0; }
   .profile-chart canvas { width: 100% !important; max-width: 100% !important; }
@@ -200,9 +201,6 @@
   .profile-chart-tooltip .streak-game-period { font-size: 10px; }
   .profile-chart-tooltip .tooltip-week-row { display: grid; grid-template-columns: minmax(72px, 1fr) 38px 64px; gap: 12px; text-align: right; }
   .profile-chart-tooltip .tooltip-week-row span:first-child { text-align: left; }
-  .weekly-win-period { display: grid; grid-template-columns: auto auto; align-items: center; gap: 5px; min-width: 126px; }
-  .weekly-win-season { color: var(--muted); font: 10px/1 Arial, sans-serif; }
-  .weekly-win-week { padding: 3px 6px; border-left: 2px solid var(--accent); background: #1d3030; color: var(--accent); font: bold 11px/1 Arial, sans-serif; }
   .weekly-win-record { cursor: help; text-decoration: underline dotted #54d6b299; text-underline-offset: 3px; }
   @media (max-width: 520px) { .profile-chart-tooltip .streak-game-grid { grid-template-columns: 1fr; } }
   .compact-live-title { margin: 0 0 10px; color: var(--accent); font: 11px Arial, sans-serif; text-transform: uppercase; letter-spacing: .7px; }
@@ -1093,7 +1091,7 @@ async function renderWebsitePicksForm() {
   }
 }
 function confirmationMetrics(rows) {
-  return `<div class="confirmation-metrics">${rows.map(([label, value]) => `<div class="confirmation-metric"><strong>${websiteEscapeHtml(value)}</strong><span>${websiteEscapeHtml(label)}</span></div>`).join("")}</div>`;
+  return `<div class="confirmation-metrics">${rows.map(([label, value]) => `<div class="confirmation-metric"><strong>${value?.html || websiteEscapeHtml(value)}</strong><span>${websiteEscapeHtml(label)}</span></div>`).join("")}</div>`;
 }
 function websiteOrdinal(value) {
   const number = Number(value);
@@ -1193,8 +1191,9 @@ function renderConfirmationPicks(submission) {
   const picks = submission.picks.map(pick => String(pick || "").toUpperCase());
   const favorites = websiteActiveGames.reduce((total, game, index) => total + Number(picks[index] === String(game.favorite || "").toUpperCase()), 0);
   const underdogs = picks.filter(Boolean).length - favorites;
-  const bestBet = websiteNaturalTeamName(submission.bestBet);
-  const metrics = confirmationMetrics([["Favorites", String(favorites)], ["Underdogs", String(underdogs)], ["Best Bet", bestBet || "None"]]);
+  const bestBet = websiteNaturalTeamName(submission.bestBet), bestBetShort = String(submission.bestBet || "").toUpperCase();
+  const bestBetMetric = bestBet ? { html: `<span class="confirmation-team-full">${websiteEscapeHtml(bestBet)}</span><span class="confirmation-team-short">${websiteEscapeHtml(bestBetShort)}</span>` } : "None";
+  const metrics = confirmationMetrics([["Favorites", String(favorites)], ["Underdogs", String(underdogs)], ["Best Bet", bestBetMetric]]);
   host.innerHTML = `<h3>Your card by the numbers</h3>${metrics}<div id="confirmation-probability" class="confirmation-status"><p>Comparing your card with the field...</p></div>`;
 }
 async function loadConfirmationProbability(submission) {
@@ -1206,9 +1205,18 @@ async function loadConfirmationProbability(submission) {
     const action = selection.testMode ? `preseason-test&season=${selection.season}&week=${selection.week}` : "current-week";
     const response = await fetch(`${WEBSITE_SUBMISSIONS_ENDPOINT}${separator}action=${action}`, { signal: AbortSignal.timeout(20000) });
     const data = await response.json();
-    const player = (data.players || []).find(row => String(row.name).trim().toLowerCase() === String(submission.name).trim().toLowerCase());
-    if (!player?.winProbability) { host.innerHTML = "<p>Your chance to win will appear after Current Week finishes recalculating.</p>"; return; }
-    const field = data.players || [];
+    if (!response.ok || !data.ok) throw new Error(data.error || "Could not load the live field.");
+    const normalizedName = String(submission.name).trim().toLowerCase();
+    let field = data.players || [];
+    let player = field.find(row => String(row.name).trim().toLowerCase() === normalizedName);
+    if (!player?.winProbability) {
+      const liveData = { ...data, games: (data.games || []).map(game => ({ ...game })), players: field.map(row => ({ ...row, picks: [...(row.picks || [])] })) };
+      if (!player) liveData.players.push({ name: submission.name.trim(), weekName: submission.weekName, picks: submission.picks.map(pick => String(pick || "").toUpperCase()), bestBet: String(submission.bestBet || "").toUpperCase(), tiebreaker: submission.tiebreaker, wins: 0, losses: 0, total: 0, winPercent: "" });
+      websitePreparePlayers(liveData);
+      field = liveData.players;
+      player = field.find(row => String(row.name).trim().toLowerCase() === normalizedName);
+    }
+    if (!player?.winProbability) throw new Error("The live field calculation returned no probability.");
     const probability = parseFloat(String(player.winProbability).replace("%", ""));
     const probabilityRank = 1 + field.filter(row => parseFloat(String(row.winProbability || "0").replace("%", "")) > probability).length;
     const tied = field.filter(row => parseFloat(String(row.winProbability || "0").replace("%", "")) === probability).length > 1;
@@ -1228,7 +1236,7 @@ async function loadConfirmationProbability(submission) {
       leverageText = `<strong>${websiteEscapeHtml(team)}</strong> gives you the most separation from the current field. If that pick hits, you gain ground on ${leverage.opponents} ${leverage.opponents === 1 ? "entry" : "entries"} that went the other way.${bestBetNote}`;
     }
     host.innerHTML = [chanceText, pathsText, leverageText].filter(Boolean).map(text => `<p>${text}</p>`).join("");
-  } catch (error) { host.innerHTML = "<p>Probability is still recalculating; it will appear on Current Week shortly.</p>"; }
+  } catch (error) { host.innerHTML = `<p>The live field could not be calculated right now: ${websiteEscapeHtml(error.message)}</p>`; }
 }
 async function renderConfirmationHistory(submission) {
   const host = document.getElementById("confirmation-history");
@@ -1348,18 +1356,20 @@ async function renderConfirmationHistory(submission) {
     const streakRows = streak ? completedHistory.slice(-streak) : [];
     const streakTeams = streakRows.map(row => websiteFormTeamName(teamDisplay(row.pick, row.game))).join(", ");
     const streakText = lastResult ? `Current streak: ${streak} ${websiteEscapeHtml(streakResult)}${streakTeams ? ` · ${websiteEscapeHtml(streakTeams)}` : ""}.` : "";
-    const opportunityRun = (team, field) => {
+    const opportunityRun = (team, against = false) => {
       const opportunities = history.filter(row => [row.game.favorite, row.game.underdog].some(value => String(value).toUpperCase() === team));
       let length = 0;
-      for (let index = opportunities.length - 1; index >= 0 && String(opportunities[index][field]).toUpperCase() === team; index--) length += 1;
+      for (let index = opportunities.length - 1; index >= 0; index--) {
+        const pickedTeam = String(opportunities[index].pick || "").toUpperCase();
+        if (against ? pickedTeam === team : pickedTeam !== team) break;
+        length += 1;
+      }
       return length + 1;
     };
-    const habitStories = [];
-    currentTeams.forEach(team => { const length = opportunityRun(team, "pick"), teamName = websiteEscapeHtml(websiteFormTeamName(team)); if (length >= 10) habitStories.push(`This is your <strong>${websiteOrdinal(length)} straight ${teamName} game</strong> backing ${teamName}.`); });
-    const currentBestBet = String(submission.bestBet || "").toUpperCase();
-    if (currentBestBet) { const length = opportunityRun(currentBestBet, "bestBet"), teamName = websiteEscapeHtml(websiteFormTeamName(currentBestBet)); if (length >= 10) habitStories.push(`It is also your <strong>${websiteOrdinal(length)} straight ${teamName} game</strong> using ${teamName} as your Best Bet.`); }
-    const habitText = habitStories.join(" ");
-    const stories = [droughtText, bestBetText, streakText, habitText, teamStreakText, rankText].filter(Boolean).slice(0, 6);
+    const backingHabit = currentTeams.map(team => ({ team, length: opportunityRun(team) })).sort((left, right) => right.length - left.length)[0];
+    const fadingHabit = currentOpponents.map(team => ({ team, length: opportunityRun(team, true) })).sort((left, right) => right.length - left.length)[0];
+    const activeRunsText = [backingHabit ? `Counting this card, your longest active backing streak is <strong>${backingHabit.length} straight ${teamName(backingHabit.team)} games</strong>.` : "", fadingHabit ? `Your longest active fade is <strong>${fadingHabit.length} straight ${teamName(fadingHabit.team)} games</strong> picking against them.` : ""].filter(Boolean).join(" ");
+    const stories = [droughtText, bestBetText, activeRunsText, streakText, teamStreakText, rankText].filter(Boolean).slice(0, 6);
     if (!stories.length) stories.push("The archives know you, but this particular card is breaking new ground. We will have better material after the games.");
     host.innerHTML = `<h3>This card in your history</h3>${stories.map(story => `<p>${story}</p>`).join("")}`;
   } catch (error) { host.innerHTML = '<h3>This card in your history</h3><p>The archive is taking the week off. Your submitted picks are still saved.</p>'; }
@@ -3192,7 +3202,7 @@ function websiteWeekNameProfile(rows, name) {
   const newYork = analyzed.find(thread => thread.key === "new-york"), medicine = analyzed.find(thread => thread.key === "medicine"), products = analyzed.find(thread => thread.key === "products"), personal = analyzed.find(thread => thread.key === "personal"), quotes = analyzed.find(thread => thread.key === "quotes");
   const traits = [newYork ? "The recurring New York teams suggest loyalty and a strong sense of home" : "", medicine ? "The medical specificity suggests someone whose work and expertise remain part of how they see the week" : "", products ? "The run of exact product names suggests a collector's eye for mundane details that become funny when isolated" : "", personal ? "The birthdays, holidays, and home-life references suggest comfort letting the group see the real calendar behind the picks" : "", quotes ? "The quoted lines suggest a good memory for bits and pleasure in seeing who catches them" : ""].filter(Boolean);
   const character = newYork ? `${name} ultimately reads as loyal, nostalgic, verbally playful, and confident enough to let some references remain private. The names seem designed to make familiar people hear a voice, not merely identify an entry.` : medicine ? `${name} reads as precise and observant with a dry streak: technical language is treated as normal material for a joke, which suggests comfort with expertise rather than a need to advertise it.` : products ? `${name} reads as an amused curator of odd specificity, someone who notices the exact object or phrase everyone else would pass over and enjoys making the room wonder why it was selected.` : quotes ? `${name} reads as referential and socially playful, someone who enjoys the small moment of recognition when another person catches the source without needing it explained.` : `${name} reads as comfortable with ambiguity and more interested in leaving a distinctive trace than in making every entry immediately legible.`;
-  const portrait = `${traits.join(". ")}${traits.length ? ". " : ""}${character} This is an impression from the writing, not a claim that week names can fully explain a person.`;
+  const portrait = `${traits.join(". ")}${traits.length ? ". " : ""}${character}`;
   const style = medicine?.entries.length >= rows.length * .12 ? "Clinical" : products?.entries.length >= 10 ? "Catalog-like" : allQuestions + allFirstPerson + longThoughts >= rows.length * .3 ? "Talkative" : newYork?.entries.length >= 4 ? "New York" : quotes?.entries.length >= 5 ? "Referential" : "Eclectic";
   return { style, html: `<div class="week-name-profile"><section><h4>What keeps coming up</h4>${threadHtml}</section><section><h4>Then and now</h4>${eraHtml}</section><section><h4>Reading the person behind the names</h4><div class="week-name-portrait"><p>${websiteEscapeHtml(voice)}</p><p>${websiteEscapeHtml(portrait)}</p></div></section></div>` };
 }
@@ -3238,11 +3248,41 @@ function websiteWeekNameProfileInsights(rows, name) {
   const facts = [["Typical length", `${averageChars.toFixed(1)} characters and ${averageWords.toFixed(1)} words. The shortest is ${quote(text(shortest))}; the longest runs ${text(longest).length} characters.`], ["Distinctive words", wordText], ["Holiday scoreboard", holidayText], ["Punctuation habits", `${questions} names use a question mark; ${exclamations} use an exclamation point.`], ["How often the name changes", `${distinct} different names in ${rows.length} entries (${distinctPct}% distinct).`]];
   const factsHtml = facts.map(([label, value]) => `<div class="week-name-fact"><strong>${websiteEscapeHtml(label)}</strong><p>${websiteEscapeHtml(value)}</p></div>`).join("");
   const strongest = threads[0]?.key;
-  const character = strongest === "new-york" ? `${name}'s archive feels rooted: the team references keep returning, while the longer jokes and questions make that loyalty sound conversational rather than ceremonial.` : strongest === "medicine" ? `${name} comes across as precise, technically fluent, and dryly amused by the vocabulary of the job. The humor often depends on treating specialized language as if everyone naturally speaks it.` : strongest === "products" ? `${name} notices exact objects, brand names, and model descriptions that most people would skim past. Turning those details into titles suggests an eye for accidental comedy and a fondness for sustained bits.` : strongest === "personal" ? `${name} uses the weekly name as a public margin note: celebrations and family moments appear often enough that the pool doubles as a record of what mattered that week.` : strongest === "quotes" ? `${name} seems to enjoy recognition more than explanation. The references assume an audience with shared memory, and the pleasure is in seeing who catches the line.` : distinctPct < 60 ? `${name} builds identity through repetition: only ${distinctPct}% of the entries are distinct, so returning to familiar names matters more than constant reinvention.` : `${name}'s strongest habit is variety: ${distinctPct}% of the entries are distinct, so surprise matters more than maintaining one fixed subject.`;
-  const voice = averageWords >= 8 ? `At ${averageWords.toFixed(1)} words per entry, ${name} often writes in complete thoughts rather than labels.` : averageWords <= 3 ? `At ${averageWords.toFixed(1)} words per entry, ${name} prefers compact titles and lets implication do most of the work.` : `${name}'s names average ${averageWords.toFixed(1)} words, long enough to set a scene without usually becoming a full monologue.`;
-  const punctuationRead = questions > rows.length * .15 ? ` Questions are a real signature (${questions} of ${rows.length}), giving many entries the sound of an ongoing conversation.` : exclamations > rows.length * .15 ? ` Exclamation points appear in ${exclamations} entries, so the voice often arrives already energized.` : " Punctuation is relatively restrained, which puts more weight on the choice of nouns and references.";
+  const locationRules = [
+    { place: "Minnesota", pattern: /\b(minnesota|vikings?|skol|twins|timberwolves|gophers)\b/i, read: "from Minnesota or raised in a Vikings household" },
+    { place: "New York", pattern: /\b(new york|big blue|giants|mets|yankees|knicks|rangers|islanders|jets|empire state)\b/i, read: "from the New York area or has deep roots there" },
+    { place: "Richmond", pattern: /\b(richmond|rva|wrir)\b/i, read: "living in or around Richmond, Virginia" },
+    { place: "Indiana", pattern: /\b(indiana|hoosiers?|iu)\b/i, read: "from Indiana or closely tied to it" },
+    { place: "Atlanta", pattern: /\b(atlanta|braves?|falcons|hawks)\b/i, read: "from the Atlanta area or has longstanding roots there" },
+    { place: "New England", pattern: /\b(new england|boston|red sox|celtics|bruins|patriots)\b/i, read: "from New England or closely tied to it" },
+    { place: "Philadelphia", pattern: /\b(philadelphia|philly|eagles|phillies|sixers|flyers)\b/i, read: "from the Philadelphia area or closely tied to it" },
+    { place: "Pittsburgh", pattern: /\b(pittsburgh|steelers|pirates|penguins)\b/i, read: "from western Pennsylvania or closely tied to Pittsburgh" },
+    { place: "Chicago", pattern: /\b(chicago|bears|cubs|white sox|bulls|blackhawks)\b/i, read: "from the Chicago area or closely tied to it" }
+  ];
+  const locationSignals = locationRules.map(rule => ({ ...rule, count: rows.filter(row => rule.pattern.test(text(row))).length })).filter(rule => rule.count >= 2).sort((left, right) => right.count - left.count);
+  const primaryLocation = locationSignals[0], secondaryLocation = locationSignals[1];
+  const background = primaryLocation ? `Best guess: ${name} is ${primaryLocation.read}. ${primaryLocation.count} week names point there${secondaryLocation ? `; ${secondaryLocation.count} references also make ${secondaryLocation.read} plausible` : ""}.` : `The archive does not reveal a clear hometown. Best guess: ${name} has stayed in the same broad social orbit for years, but the place itself remains hidden behind private references.`;
+  const seasons = new Set(rows.map(row => row.season)).size;
+  const eraReferences = rows.filter(row => /fleetwood mac|prince|billy joel|springsteen|beatles|journey|queen\b|star wars|seinfeld|simpsons|full house|ace ventura|godfather|rocky|top gun|no whamm|the longest yard|rug brought the room together|loser baby/i.test(text(row))).length;
+  const familyReferences = rows.filter(row => /\b(family|baby|kid|daughter|son|wife|husband|mom|dad|grandma|grandpa|birthday|wedding|anniversary)\b/i.test(text(row))).length;
+  const ageRange = seasons >= 14 ? eraReferences >= 2 ? "probably in their 40s or 50s" : "probably somewhere from the late 30s through the 50s" : seasons >= 8 ? "probably in their 30s or 40s" : "probably an adult in their 20s through 40s";
+  const lifeStage = familyReferences >= 5 ? ` Family and relationship references appear ${familyReferences} times, suggesting an established family-centered stage of life.` : seasons >= 14 ? ` The ${seasons}-season run suggests a settled adult life and a long-standing friend group.` : "";
+  const age = `Best age guess: ${ageRange}.${eraReferences ? ` The archive contains ${eraReferences} recognizable older music, movie, or television references.` : ""}${lifeStage}`;
+  const priorityReads = [
+    primaryLocation && primaryLocation.count >= 4 ? `${primaryLocation.place} identity and sports` : "",
+    strongest === "medicine" ? "work and medical expertise" : "",
+    strongest === "products" ? "specific objects, products, and sustained jokes" : "",
+    familyReferences >= 5 ? "family and close relationships" : "",
+    holidays.length >= 2 ? "holidays and shared traditions" : "",
+    strongest === "quotes" || eraReferences >= 2 ? "shared music and pop-culture references" : "",
+    "making the group laugh"
+  ].filter(Boolean);
+  const priorityList = priorityReads.slice(0, 4);
+  const priorityText = priorityList.length === 1 ? priorityList[0] : priorityList.length === 2 ? `${priorityList[0]} and ${priorityList[1]}` : `${priorityList.slice(0, -1).join(", ")}, and ${priorityList.at(-1)}`;
+  const priorities = `The names suggest ${name} cares most about ${priorityText}.`;
+  const writing = averageWords >= 8 ? `Talkative and performative: ${name} writes miniature monologues, usually as if speaking directly to the room.` : averageWords <= 3 ? `Compact and allusive: ${name} prefers short titles, callbacks, and private references that trust the room to keep up.` : questions > rows.length * .15 ? `Conversational and teasing: ${name} often frames the name as a question or a line tossed to the room.` : exclamations > rows.length * .15 ? `Punchy and animated: ${name} favors short declarations, exclamations, and lines meant to land immediately.` : distinctPct < 60 ? `Repetitive by design: ${name} builds a recognizable persona by returning to familiar names and bits.` : `Eclectic and reference-driven: ${name} changes subjects often but usually chooses a phrase with a joke, memory, or story behind it.`;
   const style = strongest === "medicine" && threads[0].entries.length >= rows.length * .12 ? "Clinical" : strongest === "products" && threads[0].entries.length >= 10 ? "Catalog-like" : averageWords >= 8 || questions > rows.length * .15 ? "Talkative" : strongest === "new-york" ? "New York" : strongest === "quotes" ? "Referential" : distinctPct < 60 ? "Repetitive" : distinctPct >= 90 ? "Restless" : "Eclectic";
-  return { style, html: `<div class="week-name-profile"><section><h4>What keeps coming up</h4>${threadHtml}</section><section><h4>By the numbers</h4><div class="week-name-facts">${factsHtml}</div></section><section><h4>Reading the person behind the names</h4><div class="week-name-portrait"><p>${websiteEscapeHtml(voice + punctuationRead)}</p><p>${websiteEscapeHtml(character)} This is an impression from the writing, not a claim that week names can fully explain a person.</p></div></section></div>` };
+  return { style, html: `<div class="week-name-profile"><section><h4>What keeps coming up</h4>${threadHtml}</section><section><h4>By the numbers</h4><div class="week-name-facts">${factsHtml}</div></section><section><h4>Best guess at the person</h4><div class="week-name-portrait"><p><strong>Background:</strong> ${websiteEscapeHtml(background)}</p><p><strong>Age and life stage:</strong> ${websiteEscapeHtml(age)}</p><p><strong>Cares most about:</strong> ${websiteEscapeHtml(priorities)}</p><p><strong>Writing style:</strong> ${websiteEscapeHtml(writing)}</p></div></section></div>` };
 }
 function renderProfileWeekNames(name, playerId) {
   const host = document.getElementById("profile-week-name-analysis");
@@ -3267,11 +3307,14 @@ function renderProfileWeekNames(name, playerId) {
   const repeatMetric = ordered[0].uses > 1 ? [ordered[0].display, `Most used · ${ordered[0].uses} times`] : namedWins ? [String(namedWins), `Wins with a unique name`] : [String(names.size), "All names unique"];
   const repeatValue = /^https?:\/\//i.test(repeatMetric[0]) ? /youtu(?:\.be|be\.com)/i.test(repeatMetric[0]) ? "YouTube link" : "Shared link" : repeatMetric[0];
   const metricValue = value => `<strong${String(value).length > 12 ? ' class="compact"' : ""}>${websiteEscapeHtml(value)}</strong>`;
-  const mostUsedHtml = ordered.slice(0, 5).map((item, index) => `<div class="week-name-row"><div><strong>${websiteEscapeHtml(item.display)}</strong><small>${websiteEscapeHtml(websiteWeekNameMeaning(item.display, item.theme, index))}</small></div><span>${item.uses} use${item.uses === 1 ? "" : "s"}</span></div>`).join("");
+  const repeatedNames = ordered.filter(item => item.uses > 1).slice(0, 5);
+  const mostUsedHtml = repeatedNames.map((item, index) => `<div class="week-name-row"><div><strong>${websiteEscapeHtml(item.display)}</strong><small>${websiteEscapeHtml(websiteWeekNameMeaning(item.display, item.theme, index))}</small></div><span>${item.uses} uses</span></div>`).join("");
+  const mostUsedSection = repeatedNames.length ? `<section><h4>Most used</h4><div class="week-name-list">${mostUsedHtml}</div></section>` : "";
   const repeatWinners = winners.filter(item => item.wins.length > 1).slice(0, 5);
   const winnersHtml = repeatWinners.map(item => { const latest = [...item.wins].sort((left, right) => String(right.season || "").localeCompare(String(left.season || "")) || Number(right.weekOrder || 0) - Number(left.weekOrder || 0))[0]; const record = `${latest.displayWins}-${latest.displayLosses}${Number(latest.displayPushes || 0) ? `-${latest.displayPushes}` : ""}`; return `<div class="week-name-row"><div><strong>${websiteEscapeHtml(item.display)}</strong><small>${websiteEscapeHtml(latest.season)} ${String(latest.week).toLowerCase() === "playoffs" ? "Playoffs" : `Week ${websiteEscapeHtml(latest.week)}`} · ${record}</small></div><span>${item.wins.length} wins</span></div>`; }).join("");
   const winnersSection = repeatWinners.length ? `<section><h4>Names attached to multiple wins</h4><div class="week-name-list">${winnersHtml}</div></section>` : "";
-  host.innerHTML = `<div class="week-name-summary"><div>${metricValue(rows.length)}<span>Named weeks</span></div><div>${metricValue(names.size)}<span>Different names</span></div><div>${metricValue(repeatValue)}<span>${websiteEscapeHtml(repeatMetric[1])}</span></div><div>${metricValue(profile.style)}<span>Week-name style</span></div></div>${profile.html}<div class="week-name-columns"><section><h4>Most used</h4><div class="week-name-list">${mostUsedHtml}</div></section>${winnersSection}</div>`;
+  const nameLists = `${mostUsedSection}${winnersSection}`;
+  host.innerHTML = `<div class="week-name-summary"><div>${metricValue(rows.length)}<span>Named weeks</span></div><div>${metricValue(names.size)}<span>Different names</span></div><div>${metricValue(repeatValue)}<span>${websiteEscapeHtml(repeatMetric[1])}</span></div><div>${metricValue(profile.style)}<span>Week-name style</span></div></div>${profile.html}${nameLists ? `<div class="week-name-columns">${nameLists}</div>` : ""}`;
 }
 function renderProfile(name) {
   weeklyTooltipPinnedTarget = null;
@@ -3519,8 +3562,8 @@ function renderProfile(name) {
     const winnerRecordHtml = winnerWeek ? `<span class="weekly-win-record" data-weekly-tooltip="${websiteEscapeHtml(weeklyResultsTooltipHtml(winnerWeek))}">${winnerRecord}</span>` : winnerRecord;
     const runnerRecord = runner ? `${runner.displayWins}-${runner.displayLosses}${Number(runner.displayPushes || 0) ? `-${runner.displayPushes}` : ""}` : "";
     const runnerText = runner ? `${websiteEscapeHtml(runner.name)} · <span class="weekly-win-record" data-weekly-tooltip="${websiteEscapeHtml(weeklyResultsTooltipHtml(runner))}">${runnerRecord}</span>` : "-";
-    const weekLabel = row.Week === "playoffs" ? "Playoffs" : `W${row.Week}`;
-    return `<tr><td class="pg-player"><span class="weekly-win-period"><span class="weekly-win-season">${websiteEscapeHtml(row.Season)}</span><span class="weekly-win-week">${websiteEscapeHtml(weekLabel)}</span></span></td><td class="pg-player">${websiteEscapeHtml(name)}</td><td class="sg-win1">${winnerRecordHtml}</td><td class="pg-sum-cell">${tiebreakCell}</td><td class="pg-sum-cell" style="text-align:left">${runnerText}</td><td class="pg-sum-cell" style="text-align:left">${allPicks || "-"}</td><td class="pg-sum-cell">${bestBetText || "-"}</td></tr>`;
+    const weekLabel = row.Week === "playoffs" ? "Playoffs" : `Week ${row.Week}`;
+    return `<tr><td class="pg-player">${websiteEscapeHtml(`${row.Season} ${weekLabel}`)}</td><td class="pg-player">${websiteEscapeHtml(name)}</td><td class="sg-win1">${winnerRecordHtml}</td><td class="pg-sum-cell">${tiebreakCell}</td><td class="pg-sum-cell" style="text-align:left">${runnerText}</td><td class="pg-sum-cell" style="text-align:left">${allPicks || "-"}</td><td class="pg-sum-cell">${bestBetText || "-"}</td></tr>`;
   }), '</tbody></table>'].join("") : '<div class="profile-list"><div><span>Weekly wins</span><strong>0</strong></div></div>';
   document.getElementById("profile-weekly-wins-detail").innerHTML = winTable;
   const rankRows = [...websiteWeeks].filter(row => row.playerId === playerId || row.name === name);
