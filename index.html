@@ -298,7 +298,7 @@
 <main>
   <section id="view-enter-picks" class="view active">
     <section class="intro"><div><h2>Enter Picks</h2></div><p>Week 1 · 2026-2027</p></section>
-    <div class="panel"><p id="website-entry-context" class="website-entry-context">Loading the active slate...</p><p id="website-test-notice" class="website-test-notice">TEST MODE · Entries and scores are isolated from regular-season standings, logs, awards, and archives.</p><div class="website-instructions">Favorites are on the left. Underdogs on the right.<br>HOME TEAMS are in CAPS. away teams are lower case.<br>Point Spreads will be posted on Tuesdays.<br>Once the point spreads are posted they will not change.</div><form id="website-picks-form"><div class="explorer-controls website-identity-controls"><label>Name<input id="website-picks-name" required autocomplete="name"></label><label><span id="website-week-name-label">Week 1 name</span><input id="website-week-name" required></label></div><div id="website-game-picks" class="website-game-list"></div><div class="explorer-controls website-final-controls" style="margin-top:18px"><label>Best Bet<select id="website-best-bet" required></select></label><label>Tiebreaker · Total net passing yards<input id="website-tiebreaker" inputmode="decimal" pattern="(?:\d+(?:\.\d*)?|\.\d+)" title="Enter an integer or decimal number" required><small style="color:var(--muted);font:11px Arial,sans-serif;text-transform:none;letter-spacing:0">Net passing yards include yards lost to sacks.</small></label></div><button type="submit" style="margin-top:18px">Submit picks</button><p id="website-picks-status" style="color:var(--muted);font:13px Arial,sans-serif"></p></form></div>
+    <div class="panel"><p id="website-entry-context" class="website-entry-context">Loading the active slate...</p><p id="website-test-notice" class="website-test-notice">TEST MODE · Entries and scores are isolated from regular-season standings, logs, awards, and archives.</p><div class="website-instructions">Favorites are on the left. Underdogs on the right.<br>HOME TEAMS are in CAPS. away teams are lower case.<br>Point Spreads will be posted on Tuesdays.<br>Once the point spreads are posted they will not change.</div><form id="website-picks-form"><div class="explorer-controls website-identity-controls"><label>Name<input id="website-picks-name" required autocomplete="name"></label><label><span id="website-week-name-label">Week 1 name</span><input id="website-week-name" required></label></div><div id="website-game-picks" class="website-game-list"></div><div class="explorer-controls website-final-controls" style="margin-top:18px"><label>Best Bet<select id="website-best-bet" required></select></label><label>Tiebreaker · Total net passing yards<input id="website-tiebreaker" type="number" inputmode="decimal" min="-100" max="1200" step="any" title="Enter a number from -100 through 1200" required><small style="color:var(--muted);font:11px Arial,sans-serif;text-transform:none;letter-spacing:0">Net passing yards include yards lost to sacks. Guesses may range from -100 to 1200.</small></label></div><button type="submit" style="margin-top:18px">Submit picks</button><p id="website-picks-status" style="color:var(--muted);font:13px Arial,sans-serif" tabindex="-1"></p></form></div>
   </section>
   <section id="view-picks-confirmation" class="view"><section class="intro"><div><h2>Picks submitted</h2></div><p>Week 1 · 2026-2027</p></section><div class="panel website-confirmation"><p id="confirmation-lead" class="confirmation-lead">Your picks were submitted successfully.</p><div class="confirmation-grid"><section id="confirmation-identity" class="confirmation-block"><h3>Name check</h3><p>Checking your player identity...</p></section><section id="confirmation-week-name" class="confirmation-block"><h3>Your week name</h3><p>Reading the room...</p></section><section id="confirmation-picks" class="confirmation-block"><h3>This week's card</h3><p>Breaking down your picks...</p></section><section id="confirmation-history" class="confirmation-block"><h3>Your tendencies</h3><p>Loading your historical picks...</p></section></div><button id="website-view-week-one" type="button">View Week 1</button></div></section>
   <section id="view-week-one" class="view">
@@ -370,8 +370,8 @@ let websitePicksWeatherRefreshTimer = null;
 const WEBSITE_PICKS_WEATHER_REFRESH_MS = 5 * 60 * 1000;
 const WEBSITE_PATH_DISPLAY_LIMIT = 50;
 const WEBSITE_SIMULATION_LIMIT = 4096;
-const WEBSITE_TIEBREAK_MIN = 0;
-const WEBSITE_TIEBREAK_MAX = 900;
+const WEBSITE_TIEBREAK_MIN = -100;
+const WEBSITE_TIEBREAK_MAX = 1200;
 const WEBSITE_TIEBREAK_MEAN = 453;
 const WEBSITE_TIEBREAK_DEVIATION = 113;
 const WEBSITE_EXACT_SCENARIO_GAME_LIMIT = 6;
@@ -1089,7 +1089,7 @@ function interpretWebsiteWeekName(weekName, playerName) {
   const matches = playerWeeks.filter(row => String(row.weekName || "").trim().toLowerCase() === lower);
   const priorUses = matches.length;
   const record = matches.reduce((total, row) => ({ wins: total.wins + Number(row.displayWins || 0), losses: total.losses + Number(row.displayLosses || 0), pushes: total.pushes + Number(row.displayPushes || 0) }), { wins: 0, losses: 0, pushes: 0 });
-  const history = priorUses ? `This is your ${websiteOrdinal(priorUses + 1)} time using it. The first ${priorUses} went ${record.wins}-${record.losses}${record.pushes ? `-${record.pushes}` : ""}.` : "This is a new one in your archived history.";
+  const history = priorUses ? `This is your ${websiteOrdinal(priorUses + 1)} time using it. The first ${priorUses} went ${record.wins}-${record.losses}${record.pushes ? `-${record.pushes}` : ""}.` : "This is a new one in your week-name vault.";
   const relatedIndianaNames = playerWeeks.filter(row => /\b(hoosiers?|indiana|iu)\b/i.test(String(row.weekName || ""))).map(row => row.weekName);
   if (lower === "big red") {
     const fandom = relatedIndianaNames.length ? ` Add in names like “${relatedIndianaNames[0]}” and the evidence says Indiana fan, not cinnamon-gum loyalist.` : " We are calling it an Indiana rally cry, with cinnamon gum running a respectable second.";
@@ -1098,54 +1098,25 @@ function interpretWebsiteWeekName(weekName, playerName) {
   if (/\b(go )?hoosiers?|indiana|\biu\b/i.test(text)) return { category: "Hoosier file", read: `This one has candy stripes all over it. We are putting “${text}” in the Indiana fan folder. ${history}` };
   if (/catalina|wine mixer|boats? and hoes|prestige worldwide/i.test(text)) return { category: "Movie quote desk", read: `This is almost certainly a Step Brothers reference, probably delivered with far more confidence than the Catalina Wine Mixer deserved. ${history}` };
   if (/we didn['’]?t (start|light) the fire|billy joel/i.test(text)) return { category: "Name that tune", read: `We are hearing Billy Joel's “We Didn't Start the Fire.” Whether the wording is exact is less important than committing to the chorus. ${history}` };
+  if (/^(let['’]?s|lets)\s+go[!.]*$/i.test(text)) return { category: "Pregame chant", read: `“${text}” is the switch-flip before kickoff: the plan is set, it is action time, and everybody is moving. ${history}` };
   if (/^["“']|["”']$/.test(text) || /\b(lyric|song|movie|episode|chapter|quote|sequel|part ii|returns|strikes back)\b/i.test(text)) return { category: "Pop-culture department", read: `Our guess: “${text}” is a movie line, lyric, or sequel joke that makes perfect sense to one group chat. ${history}` };
   if (/\b(i think|i believe|should|deserves?|sucks?|rules?|best|worst|overrated|underrated|love|hate)\b/i.test(text)) return { category: "Opinion desk", read: `“${text}” is not a label; it is a ruling. The court will hear no appeal. ${history}` };
   if (/\b(today|tonight|this week|trade|injury|storm|weather|headline|breaking|election|birthday|wedding|vacation|work|school)\b/i.test(text)) return { category: "This week's alibi", read: `We are tying “${text}” to something that happened in sports or in your life this week. Future historians may struggle, but the room probably gets it. ${history}` };
   if (/[!?]{2,}|\b(lol|haha|oops|again|pain|chaos|disaster|miracle|send help)\b/i.test(text) || /\b\w+\s+mc\w+\b/i.test(text)) return { category: "Comedy department", read: `“${text}” sounds like the title of a bad sequel to last week's decisions. We mean that as a compliment. ${history}` };
-  const guesses = ["a line from a movie everyone quotes incorrectly", "a nickname with a story we would absolutely get wrong", "a group-chat callback that escaped into public", "a rallying cry invented about five minutes before kickoff"];
+  const guesses = ["a movie line that belongs in the pregame speech", "a nickname carrying a story from outside the pool", "a group-chat callback promoted to the main stage", "a rallying cry built for kickoff"];
   const guess = guesses[[...lower].reduce((total, character) => total + character.charCodeAt(0), 0) % guesses.length];
-  return { category: "Our best guess", read: `We are calling “${text}” ${guess}. Accuracy is optional; confidence is not. ${history}` };
+  return { category: "Week-name read", read: `“${text}” reads like ${guess}. ${history}` };
 }
 function renderConfirmationIdentity(submission, identity) {
   const host = document.getElementById("confirmation-identity");
   const effective = identity || { status: "new", submittedName: submission.name.trim(), suggestedName: "" };
-  const suggested = effective.suggestedName;
-  let message = effective.canonicalizedFrom ? `We filed this under <strong>${websiteEscapeHtml(effective.submittedName)}</strong>, the spelling and capitalization you use most often.` : `Welcome back, ${websiteEscapeHtml(effective.submittedName)}. Your name matches league history.`;
+  let message = effective.canonicalizedFrom ? `You entered <strong>${websiteEscapeHtml(effective.canonicalizedFrom)}</strong>. We saved it as <strong>${websiteEscapeHtml(effective.submittedName)}</strong> so this week's picks stay connected to your past results.` : `Welcome back, ${websiteEscapeHtml(effective.submittedName)}. This week's picks are connected to your past results.`;
   if (effective.status === "new") message = `Welcome, ${websiteEscapeHtml(effective.submittedName)}. You look like a new player. Your picks appear on Current Week immediately; live scores and probability update there after kickoff.`;
-  if (effective.status === "reversed") message = `Your week name matches a known player. The name and week-name fields may be reversed.`;
-  if (effective.status === "suggestion") message = effective.reason === "spacing-or-capitalization" ? `Your entry has different spacing or capitalization from league history.` : `This name is close to a player already in league history.`;
-  const correctionOffered = suggested || effective.status === "new";
-  const correctedWeekName = effective.status === "reversed" ? effective.suggestedWeekName : "";
-  host.innerHTML = `<h3>Name check</h3><p>${message}</p>${suggested ? `<p>Did you mean <strong>${websiteEscapeHtml(suggested)}</strong>${correctedWeekName ? `, with <strong>${websiteEscapeHtml(correctedWeekName)}</strong> as the week name` : ""}?</p>` : effective.status === "new" ? "<p>If you are a returning player under another spelling, correct it now. Otherwise, you are all set.</p>" : ""}${correctionOffered ? `<div class="identity-actions"><input id="confirmation-name-correction" value="${websiteEscapeHtml(suggested || effective.submittedName)}" aria-label="Corrected player name"><button id="confirmation-correct-name" type="button">${correctedWeekName ? "Swap fields" : "Update name"}</button></div><p id="confirmation-correction-status" class="confirmation-status"></p>` : ""}`;
-  document.getElementById("confirmation-correct-name")?.addEventListener("click", async () => {
-    const correctedName = document.getElementById("confirmation-name-correction").value.trim();
-    const status = document.getElementById("confirmation-correction-status");
-    if (!correctedName) { status.textContent = "Enter the corrected player name."; return; }
-    status.textContent = "Correcting this submission...";
-    try {
-      const response = await fetch(WEBSITE_SUBMISSIONS_ENDPOINT, { method: "POST", headers: { "Content-Type": "text/plain;charset=utf-8" }, body: JSON.stringify({ action: "correct-submission-name", mode: submission.mode, season: submission.season, week: submission.week, submittedAt: submission.submittedAt, originalName: effective.submittedName, correctedName, correctedWeekName }) });
-      const result = await response.json();
-      if (!response.ok || !result.ok) throw new Error(result.error || "Correction failed.");
-      submission.name = result.correctedName;
-      if (result.correctedWeekName) submission.weekName = result.correctedWeekName;
-      host.innerHTML = `<h3>Name check</h3><p>Name corrected to <strong>${websiteEscapeHtml(result.correctedName)}</strong>. The active board has been recalculated.</p>`;
-      if (result.correctedWeekName) {
-        const interpretation = interpretWebsiteWeekName(result.correctedWeekName, result.correctedName);
-        document.getElementById("confirmation-week-name").innerHTML = `<h3>Your week name · ${websiteEscapeHtml(interpretation.category)}</h3><p>${websiteEscapeHtml(interpretation.read)}</p>`;
-      }
-      renderConfirmationHistory(submission);
-    } catch (error) { status.textContent = /could not be found/i.test(error.message) ? "That confirmation was not connected to a saved submission, or the saved row changed after it was submitted. Your picks were not altered." : `Could not correct the name: ${error.message}`; }
-  });
+  host.innerHTML = `<h3>Name check</h3><p>${message}</p>`;
 }
 function renderConfirmationPicks(submission) {
   const host = document.getElementById("confirmation-picks");
-  const rows = websiteActiveGames.map((game, index) => ({ game, pick: submission.picks[index] }));
-  const underdogCalls = rows.filter(row => row.pick === row.game.underdog).sort((left, right) => Number(right.game.spread || 0) - Number(left.game.spread || 0));
-  const boldest = underdogCalls[0];
-  const closest = [...rows].sort((left, right) => Number(left.game.spread || 0) - Number(right.game.spread || 0))[0];
-  const boldText = boldest ? `Your loudest call is <strong>${websiteEscapeHtml(websiteFormTeamName(boldest.pick))}</strong> getting ${websiteEscapeHtml(boldest.game.spread)} against ${websiteEscapeHtml(websiteFormTeamName(boldest.game.favorite))}. You are asking the oddsmakers to explain themselves.` : `You sided with every favorite. Either the oddsmakers had a great week, or you are setting up a spectacular argument with them.`;
-  const closeText = closest ? `The closest line on your card is ${websiteEscapeHtml(websiteFormTeamName(closest.pick))} in a ${websiteEscapeHtml(closest.game.spread)}-point game. That one may age you.` : "";
-  host.innerHTML = `<h3>A few things that jumped out</h3><p>${boldText}</p><p>${closeText}</p><p id="confirmation-probability" class="confirmation-status">Checking your early chances...</p>`;
+  host.innerHTML = '<h3>A few things that jumped out</h3><div id="confirmation-probability" class="confirmation-status"><p>Comparing your card with the field...</p></div>';
 }
 async function loadConfirmationProbability(submission) {
   const host = document.getElementById("confirmation-probability");
@@ -1157,8 +1128,25 @@ async function loadConfirmationProbability(submission) {
     const response = await fetch(`${WEBSITE_SUBMISSIONS_ENDPOINT}${separator}action=${action}`, { signal: AbortSignal.timeout(20000) });
     const data = await response.json();
     const player = (data.players || []).find(row => String(row.name).trim().toLowerCase() === String(submission.name).trim().toLowerCase());
-    host.textContent = player?.winProbability ? `Right now, the model gives you a ${player.winProbability} chance to win the week. That number will move as games are played.` : "Your chance to win will appear after Current Week finishes recalculating.";
-  } catch (error) { host.textContent = "Probability is still recalculating; it will appear on Current Week shortly."; }
+    if (!player?.winProbability) { host.innerHTML = "<p>Your chance to win will appear after Current Week finishes recalculating.</p>"; return; }
+    const field = data.players || [];
+    const chanceText = `As the field stands now, before more entries are added, your chance to win is <strong>${websiteEscapeHtml(player.winProbability)}</strong>.`;
+    const pathCount = Number(player.pathsToVictory || 0);
+    const pathsText = field.length >= 3 && pathCount ? `You currently have <strong>${pathCount.toLocaleString()}</strong> modeled paths to a win. That total will change as more picks arrive and games are played.` : "";
+    const leverage = websiteActiveGames.map((game, index) => {
+      const pick = String(submission.picks[index] || "").toUpperCase();
+      const opponents = field.filter(row => String(row.name).trim().toLowerCase() !== String(submission.name).trim().toLowerCase() && String(row.picks?.[index] || "").toUpperCase() !== pick).length;
+      const supporters = field.filter(row => String(row.picks?.[index] || "").toUpperCase() === pick).length;
+      return { game, index, pick, opponents, supporters, bestBet: pick === String(submission.bestBet || "").toUpperCase() };
+    }).filter(row => row.pick && row.opponents).sort((left, right) => (right.opponents + Number(right.bestBet)) - (left.opponents + Number(left.bestBet)) || left.supporters - right.supporters)[0];
+    let leverageText = "";
+    if (field.length >= 3 && leverage) {
+      const team = websiteFormTeamName(leverage.pick);
+      const bestBetNote = leverage.bestBet ? " It is also your Best Bet, so that game carries an extra point for you." : "";
+      leverageText = `<strong>${websiteEscapeHtml(team)}</strong> gives you the most separation from the current field. If that pick hits, you gain ground on ${leverage.opponents} ${leverage.opponents === 1 ? "entry" : "entries"} that went the other way.${bestBetNote}`;
+    }
+    host.innerHTML = [chanceText, pathsText, leverageText].filter(Boolean).map(text => `<p>${text}</p>`).join("");
+  } catch (error) { host.innerHTML = "<p>Probability is still recalculating; it will appear on Current Week shortly.</p>"; }
 }
 async function renderConfirmationHistory(submission) {
   const host = document.getElementById("confirmation-history");
@@ -1173,6 +1161,15 @@ async function renderConfirmationHistory(submission) {
     if (!history.length) { host.innerHTML = `<h3>From the archives</h3><p>No archived picks match ${websiteEscapeHtml(submission.name)} yet. Give us a completed week and we will have material.</p>`; return; }
     const currentRows = websiteActiveGames.map((game, index) => ({ game, pick: String(submission.picks[index] || "").toUpperCase() }));
     const currentTeams = [...new Set(currentRows.map(row => row.pick).filter(Boolean))];
+    const currentOpponents = [...new Set(currentRows.map(row => [row.game.favorite, row.game.underdog].map(team => String(team).toUpperCase()).find(team => team !== row.pick)).filter(Boolean))];
+    const completedHistory = history.filter(row => ["win", "loss", "push"].includes(String(row.result).toLowerCase()));
+    const longestWinningRun = rows => {
+      let longest = 0, current = 0;
+      rows.forEach(row => { current = String(row.result).toLowerCase() === "win" ? current + 1 : 0; longest = Math.max(longest, current); });
+      return longest;
+    };
+    const weekSummary = row => websiteWeeks.find(week => week.playerId === playerId && week.season === row.game.season && String(week.week) === String(row.game.week));
+    const pickOutcome = row => String(row.result).toLowerCase() === "win" ? "the pick hit" : String(row.result).toLowerCase() === "loss" ? "the pick missed" : "the pick pushed";
     const lastPickForTeam = team => [...history].reverse().find(row => String(row.pick).toUpperCase() === team);
     const droughts = currentTeams.map(team => ({ team, row: lastPickForTeam(team) })).filter(item => item.row).sort((left, right) => String(left.row.game.gameDate || "").localeCompare(String(right.row.game.gameDate || "")));
     const longestDrought = droughts[0];
@@ -1181,7 +1178,10 @@ async function renderConfirmationHistory(submission) {
       const date = new Date(`${longestDrought.row.game.gameDate || ""}T12:00:00`);
       const years = Number.isNaN(date.getTime()) ? 0 : (Date.now() - date.getTime()) / (365.25 * 24 * 60 * 60 * 1000);
       const when = `${longestDrought.row.game.season} Week ${longestDrought.row.game.week}`;
-      droughtText = years >= 2 ? `You have not picked <strong>${websiteEscapeHtml(websiteFormTeamName(longestDrought.team))}</strong> in over ${Math.floor(years)} years. The last time was ${websiteEscapeHtml(when)}.` : `Welcome back, <strong>${websiteEscapeHtml(websiteFormTeamName(longestDrought.team))}</strong>. You last picked them in ${websiteEscapeHtml(when)}.`;
+      const week = weekSummary(longestDrought.row);
+      const finish = week ? ` You went ${week.displayWins}-${week.displayLosses}${Number(week.displayPushes || 0) ? `-${week.displayPushes}` : ""} that week and finished ${websiteOrdinal(week.rank)}.` : "";
+      const lastTime = `${websiteEscapeHtml(when)}; ${pickOutcome(longestDrought.row)}.${finish}`;
+      droughtText = years >= 2 ? `You have not picked <strong>${websiteEscapeHtml(websiteFormTeamName(longestDrought.team))}</strong> in over ${Math.floor(years)} years. The last time was ${lastTime}` : `Welcome back, <strong>${websiteEscapeHtml(websiteFormTeamName(longestDrought.team))}</strong>. You last picked them in ${lastTime}`;
     }
     const bestBetRow = currentRows.find(row => row.pick === String(submission.bestBet || "").toUpperCase());
     const bestBetOpponent = bestBetRow ? [bestBetRow.game.favorite, bestBetRow.game.underdog].map(team => String(team).toUpperCase()).find(team => team !== bestBetRow.pick) : "";
@@ -1197,11 +1197,36 @@ async function renderConfirmationHistory(submission) {
         bestBetText = `The last time you used a Best Bet against the <strong>${websiteEscapeHtml(websiteFormTeamName(bestBetOpponent))}</strong>, it ${result} (${websiteEscapeHtml(when)}).`;
       }
     }
-    const lastResult = history.at(-1)?.result;
+    const backingRuns = currentTeams.map(team => ({ team, length: longestWinningRun(completedHistory.filter(row => String(row.pick).toUpperCase() === team)) })).sort((left, right) => right.length - left.length);
+    const fadingRuns = currentOpponents.map(team => ({ team, length: longestWinningRun(completedHistory.filter(row => String(row.pick).toUpperCase() !== team && [row.game.favorite, row.game.underdog].map(value => String(value).toUpperCase()).includes(team))) })).sort((left, right) => right.length - left.length);
+    const bestBackingRun = backingRuns.find(run => run.length >= 2);
+    const bestFadingRun = fadingRuns.find(run => run.length >= 2);
+    const teamStreakText = [bestBackingRun ? `Your best run backing a team on this card is ${bestBackingRun.length} straight winning <strong>${websiteEscapeHtml(websiteFormTeamName(bestBackingRun.team))}</strong> picks.` : "", bestFadingRun ? `Your best run against a team on this card is ${bestFadingRun.length} straight wins fading the <strong>${websiteEscapeHtml(websiteFormTeamName(bestFadingRun.team))}</strong>.` : ""].filter(Boolean).join(" ");
+    const teamRank = (team, against = false) => {
+      const records = new Map();
+      websitePicks.forEach(row => {
+        const game = gameById.get(row.gameId);
+        if (!game || !["win", "loss", "push"].includes(String(row.result).toLowerCase())) return;
+        const teams = [game.favorite, game.underdog].map(value => String(value).toUpperCase());
+        const pick = String(row.pick).toUpperCase();
+        if (against ? !teams.includes(team) || pick === team : pick !== team) return;
+        const key = row.playerId || String(row.name).trim().toLowerCase();
+        const record = records.get(key) || { playerId: row.playerId, name: row.name, wins: 0, losses: 0, pushes: 0 };
+        record.wins += Number(row.resultWin || 0); record.losses += Number(row.resultLoss || 0); record.pushes += Number(row.resultPush || 0); records.set(key, record);
+      });
+      const qualified = [...records.values()].filter(record => record.wins + record.losses + record.pushes >= 10).sort((left, right) => right.wins / Math.max(1, right.wins + right.losses) - left.wins / Math.max(1, left.wins + left.losses) || right.wins - left.wins);
+      const index = qualified.findIndex(record => record.playerId === playerId || String(record.name).trim().toLowerCase() === normalized);
+      if (index < 0 || (index !== 0 && index !== qualified.length - 1)) return null;
+      return { team, against, record: qualified[index], rank: index + 1, total: qualified.length };
+    };
+    const currentTeamRanks = [...currentTeams.map(team => teamRank(team)), ...currentOpponents.map(team => teamRank(team, true))];
+    const notableRank = currentTeamRanks.find(result => result?.rank === 1) || currentTeamRanks.find(Boolean);
+    const rankText = notableRank ? `Among ${notableRank.total} players with at least 10 ${notableRank.against ? `picks against the ${websiteEscapeHtml(websiteFormTeamName(notableRank.team))}` : `${websiteEscapeHtml(websiteFormTeamName(notableRank.team))} picks`}, your ${notableRank.record.wins}-${notableRank.record.losses}${notableRank.record.pushes ? `-${notableRank.record.pushes}` : ""} record ranks <strong>${notableRank.rank === 1 ? "best" : "last"}</strong>.` : "";
+    const lastResult = completedHistory.at(-1)?.result;
     let streak = 0;
-    for (let index = history.length - 1; index >= 0 && history[index].result === lastResult; index--) streak += 1;
+    for (let index = completedHistory.length - 1; index >= 0 && completedHistory[index].result === lastResult; index--) streak += 1;
     const streakResult = streak === 1 ? lastResult : lastResult === "loss" ? "losses" : `${lastResult}s`;
-    const stories = [droughtText, bestBetText, lastResult ? `Your current pick streak is ${streak} ${websiteEscapeHtml(streakResult)}.` : ""].filter(Boolean).slice(0, 3);
+    const stories = [droughtText, bestBetText, lastResult ? `Your current pick streak is ${streak} ${websiteEscapeHtml(streakResult)}.` : "", teamStreakText, rankText].filter(Boolean).slice(0, 5);
     if (!stories.length) stories.push("The archives know you, but this particular card is breaking new ground. We will have better material after the games.");
     host.innerHTML = `<h3>From the archives</h3>${stories.map(story => `<p>${story}</p>`).join("")}`;
   } catch (error) { host.innerHTML = '<h3>From the archives</h3><p>The archive is taking the week off. Your submitted picks are still saved.</p>'; }
@@ -1218,6 +1243,30 @@ async function renderWebsiteConfirmation(submission, result) {
 }
 let websiteBestBetMismatchAttempts = 0;
 let websiteBestBetMismatchSignature = "";
+let websiteIdentityReviewSignature = "";
+async function preflightWebsiteIdentity(submission, status) {
+  if (!WEBSITE_SUBMISSIONS_ENDPOINT) return true;
+  status.textContent = "Checking your name...";
+  const response = await fetch(WEBSITE_SUBMISSIONS_ENDPOINT, { method: "POST", headers: { "Content-Type": "text/plain;charset=utf-8" }, body: JSON.stringify({ action: "assess-player-identity", name: submission.name, weekName: submission.weekName }) });
+  const result = await response.json();
+  if (!response.ok || !result.ok) throw new Error(result.error || "Name check failed.");
+  const identity = result.identity || {};
+  if (identity.canonicalizedFrom && identity.submittedName) {
+    submission.name = identity.submittedName;
+    document.getElementById("website-picks-name").value = identity.submittedName;
+    websiteIdentityReviewSignature = "";
+    return true;
+  }
+  if (!identity.suggestedName || !["suggestion", "reversed"].includes(identity.status)) { websiteIdentityReviewSignature = ""; return true; }
+  const signature = `${submission.name.trim().toLowerCase()}|${submission.weekName.toLowerCase()}|${identity.status}|${identity.suggestedName.toLowerCase()}`;
+  if (signature === websiteIdentityReviewSignature) return true;
+  websiteIdentityReviewSignature = signature;
+  status.textContent = identity.status === "reversed"
+    ? `Name check: “${submission.weekName}” matches player ${identity.suggestedName}. Check whether the Name and Week Name fields are swapped. Submit again unchanged if they are intentional.`
+    : `Name check: We found ${identity.suggestedName} in past results. Correct the Name field if that is you, or submit again unchanged if you are someone else.`;
+  status.focus();
+  return false;
+}
 function websiteBestBetMismatch(submission) {
   const bestBet = String(submission.bestBet || "").toUpperCase();
   const gameIndex = websiteActiveGames.findIndex(game => [game.favorite, game.underdog].some(team => String(team).toUpperCase() === bestBet));
@@ -1241,6 +1290,7 @@ function confirmWebsiteBestBetMismatch(submission, status) {
   return false;
 }
 document.getElementById("website-picks-form").addEventListener("change", event => {
+  if (event.target.matches("#website-picks-name, #website-week-name")) websiteIdentityReviewSignature = "";
   if (!event.target.matches('input[type="radio"][name^="game-"], #website-best-bet')) return;
   websiteBestBetMismatchAttempts = 0;
   websiteBestBetMismatchSignature = "";
@@ -1252,9 +1302,10 @@ document.getElementById("website-picks-form").onsubmit = async event => {
   if (!websiteActiveGames.length) { status.textContent = "Stage this week before submitting test picks."; return; }
   const selection = websitePickSelection();
   const submission = { mode: selection.testMode ? "test" : "production", season: selection.season, week: selection.week, phase: selection.phase, name: document.getElementById("website-picks-name").value, weekName: document.getElementById("website-week-name").value.trim(), picks: websiteActiveGames.map((game, index) => form.elements[`game-${index + 1}`].value), bestBet: document.getElementById("website-best-bet").value, tiebreaker: document.getElementById("website-tiebreaker").value };
-  if (!confirmWebsiteBestBetMismatch(submission, status)) return;
-  status.textContent = selection.testMode ? "Submitting isolated test picks..." : "Submitting picks...";
   try {
+    if (!await preflightWebsiteIdentity(submission, status)) return;
+    if (!confirmWebsiteBestBetMismatch(submission, status)) return;
+    status.textContent = selection.testMode ? "Submitting isolated test picks..." : "Submitting picks...";
     let result = { ok: true, identity: { status: "new", submittedName: submission.name.trim(), suggestedName: "" } };
     if (WEBSITE_SUBMISSIONS_ENDPOINT) { const response = await fetch(WEBSITE_SUBMISSIONS_ENDPOINT, { method: "POST", headers: { "Content-Type": "text/plain;charset=utf-8" }, body: JSON.stringify(submission) }); result = await response.json(); if (!response.ok || !result.ok) throw new Error(result.error || "Submission failed."); }
     const storageKey = selection.testMode ? `fbpPreseasonTest-${selection.week}` : "fbpWebsiteSubmissions";
