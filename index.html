@@ -954,7 +954,7 @@ async function loadWebsiteStagedGames(selection) { if (!WEBSITE_SUBMISSIONS_ENDP
 function websiteGameContext(game) {
   const location = [game.venueCity, game.venueState].filter(Boolean).join(", ");
   const weather = [game.temperature !== "" && game.temperature != null ? `${game.temperature}°F` : "", game.weather].filter(Boolean).join(" ");
-  const weatherDetail = game.indoor ? "Indoor" : weather ? `${weather}${game.weatherSource ? ` · ${game.weatherSource}` : ""}` : "Weather unavailable";
+  const weatherDetail = game.indoor ? "Indoor" : weather || "Weather unavailable";
   const details = [game.venueName || game.venue, location, weatherDetail, game.broadcast || game.tv].filter(Boolean);
   return details.length ? `<div class="website-game-context">${details.map(websiteEscapeHtml).join(" · ")}</div>` : "";
 }
