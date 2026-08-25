@@ -124,8 +124,21 @@
   .profile-section h3 { color: var(--accent); font: 11px Arial, sans-serif; letter-spacing: 1px; text-transform: uppercase; margin: 0 0 12px; }
   .week-name-summary { display: grid; grid-template-columns: repeat(4, minmax(0, 1fr)); gap: 18px; padding: 4px 0 18px; border-bottom: 1px solid var(--border); }
   .week-name-summary strong { display: block; color: var(--accent-2); font-size: 24px; font-weight: 500; overflow-wrap: anywhere; }
+  .week-name-summary strong.compact { font-size: 18px; line-height: 1.25; }
   .week-name-summary span { color: var(--muted); font: 11px Arial, sans-serif; text-transform: uppercase; }
-  .week-name-read { max-width: 920px; margin: 18px 0; font: 15px/1.55 Georgia, serif; }
+  .week-name-profile { display: grid; gap: 22px; max-width: 960px; margin: 20px 0 26px; }
+  .week-name-profile > section { padding-top: 16px; border-top: 1px solid var(--border); }
+  .week-name-profile h4 { margin: 0 0 10px; color: var(--accent); font: 11px Arial, sans-serif; letter-spacing: 1px; text-transform: uppercase; }
+  .week-name-profile p { margin: 0 0 10px; font: 15px/1.58 Georgia, serif; }
+  .week-name-thread { display: grid; grid-template-columns: minmax(150px, 210px) minmax(0, 1fr); gap: 20px; padding: 11px 0; border-top: 1px solid #2a374466; }
+  .week-name-thread:first-of-type { border-top: 0; }
+  .week-name-thread strong { color: var(--text); font: 600 14px/1.35 Arial, sans-serif; }
+  .week-name-thread small { display: block; margin-top: 3px; color: var(--muted); font: 11px Arial, sans-serif; }
+  .week-name-thread p { margin: 0; }
+  .week-name-era-grid { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 28px; }
+  .week-name-era-grid h5 { margin: 0 0 7px; color: var(--text); font: 600 13px Arial, sans-serif; }
+  .week-name-era-grid blockquote { margin: 0 0 8px; padding-left: 12px; border-left: 2px solid var(--accent-2); color: var(--muted); font: 14px/1.5 Georgia, serif; }
+  .week-name-portrait { padding-left: 16px; border-left: 3px solid var(--accent); }
   .week-name-columns { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 28px; }
   .week-name-columns h4 { margin: 0 0 9px; color: var(--accent); font: 11px Arial, sans-serif; letter-spacing: 1px; text-transform: uppercase; }
   .week-name-list { display: grid; gap: 0; }
@@ -152,7 +165,7 @@
   .tabulator-row.tabulator-row-even { background: #121920 !important; }
   .tabulator-row:hover { background: #263b40 !important; }
   #loading { color: var(--muted); font: 13px Arial, sans-serif; }
-  @media (max-width: 850px) { .workspace, .profile-grid, .profile-charts, .week-name-columns { grid-template-columns: 1fr; } .week-name-summary { grid-template-columns: repeat(2, minmax(0, 1fr)); } .record-grid { grid-template-columns: repeat(2, 1fr); } .intro { display: block; } .intro p { margin-top: 14px; } }
+  @media (max-width: 850px) { .workspace, .profile-grid, .profile-charts, .week-name-columns, .week-name-era-grid { grid-template-columns: 1fr; } .week-name-summary { grid-template-columns: repeat(2, minmax(0, 1fr)); } .week-name-thread { grid-template-columns: 1fr; gap: 5px; } .record-grid { grid-template-columns: repeat(2, 1fr); } .intro { display: block; } .intro p { margin-top: 14px; } }
   @media (max-width: 560px) { .summary { grid-template-columns: repeat(2, 1fr); } .record-grid { grid-template-columns: 1fr; } .panel-head { align-items: start; flex-direction: column; } .explorer-controls, .path-controls { grid-template-columns: 1fr; } #view-games .explorer-controls, #view-weeks .explorer-controls { max-width: none; } #view-enter-picks .panel { padding: 10px; } .website-matchup { grid-template-columns: minmax(0, 1fr) 40px minmax(0, 1fr); gap: 2px; } .website-side { padding: 6px 0; font-size: 11px; } .website-team-choice { grid-template-columns: 24px minmax(0, 1fr); column-gap: 5px; padding: 5px 4px; } .website-side.right .website-team-choice { grid-template-columns: minmax(0, 1fr) 24px; } .website-team-logo { width: 24px; height: 24px; } .website-team-name { display: none; } .website-team-abbreviation { display: block; } .website-team-record { font-size: 10px; } .website-spread { width: 40px; font-size: 12px; } }
   .picks-grid { border-collapse: collapse; font: 11px Arial, sans-serif; }
   .picks-grid th, .picks-grid td { padding: 2px 5px; border: 1px solid var(--border); text-align: center; vertical-align: middle; white-space: nowrap; }
@@ -182,18 +195,13 @@
   .profile-chart-tooltip .streak-game-grid { grid-template-columns: repeat(2, minmax(150px, 1fr)); gap: 4px; }
   .profile-chart-tooltip .streak-game-card { padding: 5px 7px; }
   .profile-chart-tooltip .streak-game-period { font-size: 10px; }
-  .profile-chart-tooltip.interactive-tooltip { pointer-events: auto; overflow: auto; overscroll-behavior: contain; scrollbar-gutter: stable; }
-  .profile-chart-tooltip.interactive-tooltip .streak-game-grid { min-width: 360px; }
-  .profile-chart-tooltip [data-weekly-drilldown] { cursor: pointer; transition: background .12s ease, border-color .12s ease; }
-  .profile-chart-tooltip [data-weekly-drilldown]:hover { background: #263b40; border-color: var(--accent); }
-  .weekly-drilldown-tooltip { z-index: 1100; width: max-content; min-width: 250px; overflow: auto; overscroll-behavior: contain; pointer-events: auto; }
   .profile-chart-tooltip .tooltip-week-row { display: grid; grid-template-columns: minmax(72px, 1fr) 38px 64px; gap: 12px; text-align: right; }
   .profile-chart-tooltip .tooltip-week-row span:first-child { text-align: left; }
   .weekly-win-period { display: grid; grid-template-columns: auto auto; align-items: center; gap: 5px; min-width: 126px; }
   .weekly-win-season { color: var(--muted); font: 10px/1 Arial, sans-serif; }
   .weekly-win-week { padding: 3px 6px; border-left: 2px solid var(--accent); background: #1d3030; color: var(--accent); font: bold 11px/1 Arial, sans-serif; }
   .weekly-win-record { cursor: help; text-decoration: underline dotted #54d6b299; text-underline-offset: 3px; }
-  @media (max-width: 520px) { .profile-chart-tooltip .streak-game-grid { grid-template-columns: 1fr; } .profile-chart-tooltip.interactive-tooltip .streak-game-grid { min-width: 300px; } }
+  @media (max-width: 520px) { .profile-chart-tooltip .streak-game-grid { grid-template-columns: 1fr; } }
   .compact-live-title { margin: 0 0 10px; color: var(--accent); font: 11px Arial, sans-serif; text-transform: uppercase; letter-spacing: .7px; }
   .weekly-subview { max-width: 980px; margin-top: 24px; padding-top: 18px; border-top: 1px solid var(--border); }
   .player-ledger-list { display: grid; gap: 7px; }
@@ -2869,14 +2877,14 @@ function streakCardsTooltipHtml(row, category) {
   const weekCards = (streak?.weeks || []).map(item => {
     const week = websiteWeeks.find(candidate => candidate.playerId === streak.playerId && candidate.season === item.season && String(candidate.week) === String(item.week));
     const record = week ? `${week.displayWins}-${week.displayLosses}${Number(week.displayPushes || 0) ? `-${week.displayPushes}` : ""}` : `${item.wins ?? 0}-${item.losses ?? 0}`;
-    return `<div class="streak-game-card win" data-weekly-drilldown data-player-id="${websiteEscapeHtml(streak.playerId || "")}" data-season="${websiteEscapeHtml(item.season)}" data-week="${websiteEscapeHtml(item.week)}"><div class="streak-game-period">${websiteEscapeHtml(`${item.season} ${profileWeekLabel(item.week)}`)}</div><div class="streak-game-matchup"><span class="streak-game-side picked">#${websiteEscapeHtml(week?.rank ?? item.rank ?? "-")}</span><span class="streak-game-spread">${websiteEscapeHtml(record)}</span></div></div>`;
+    return `<div class="streak-game-card win"><div class="streak-game-period">${websiteEscapeHtml(`${item.season} ${profileWeekLabel(item.week)}`)}</div><div class="streak-game-matchup"><span class="streak-game-side picked">#${websiteEscapeHtml(week?.rank ?? item.rank ?? "-")}</span><span class="streak-game-spread">${websiteEscapeHtml(record)}</span></div></div>`;
   });
   const gameCards = (streak?.events || []).map(event => {
     const game = websiteGames.find(item => item.gameId === event.gameId), pick = game && websitePicks.find(item => item.gameId === game.gameId && item.playerId === streak.playerId);
     if (!game || !pick) return "";
     const bestBetMode = category.key.startsWith("best_bet"), picked = bestBetMode ? pick.bestBet : pick.pick, result = Number(bestBetMode ? pick.bestBetWin : pick.resultWin) ? "win" : Number(bestBetMode ? pick.bestBetLoss : pick.resultLoss) ? "loss" : "push";
     const favoritePicked = String(game.favorite || "").toUpperCase() === String(picked || "").toUpperCase();
-    return `<div class="streak-game-card ${result}" data-weekly-drilldown data-player-id="${websiteEscapeHtml(streak.playerId || "")}" data-season="${websiteEscapeHtml(game.season)}" data-week="${websiteEscapeHtml(game.week)}"><div class="streak-game-period">${websiteEscapeHtml(`${game.season} ${profileWeekLabel(game.week)} · Game ${game.playoffGameNum || game.gameNum || "?"}`)}</div><div class="streak-game-matchup"><span class="streak-game-side${favoritePicked ? " picked" : ""}">${websiteEscapeHtml(`${teamDisplay(game.favorite, game)} ${favoriteScore(game) ?? "?"}`)}</span><span class="streak-game-spread">${websiteEscapeHtml(game.spread ?? "PK")}</span><span class="streak-game-side${favoritePicked ? "" : " picked"}">${websiteEscapeHtml(`${underdogScore(game) ?? "?"} ${teamDisplay(game.underdog, game)}`)}</span></div></div>`;
+    return `<div class="streak-game-card ${result}"><div class="streak-game-period">${websiteEscapeHtml(`${game.season} ${profileWeekLabel(game.week)} · Game ${game.playoffGameNum || game.gameNum || "?"}`)}</div><div class="streak-game-matchup"><span class="streak-game-side${favoritePicked ? " picked" : ""}">${websiteEscapeHtml(`${teamDisplay(game.favorite, game)} ${favoriteScore(game) ?? "?"}`)}</span><span class="streak-game-spread">${websiteEscapeHtml(game.spread ?? "PK")}</span><span class="streak-game-side${favoritePicked ? "" : " picked"}">${websiteEscapeHtml(`${underdogScore(game) ?? "?"} ${teamDisplay(game.underdog, game)}`)}</span></div></div>`;
   }).filter(Boolean);
   const fallback = String(row.detail || "").split(/\s*·\s*|,\s*/).filter(Boolean).map(item => `<div class="streak-game-card"><div class="streak-game-period">${websiteEscapeHtml(item)}</div></div>`);
   const cards = weekCards.length ? weekCards : gameCards.length ? gameCards : fallback;
@@ -2967,7 +2975,7 @@ function buildPickSummary(playerId, game, pick) {
 function populateGameChoices(latestGame = null) { const season = document.getElementById("game-season").value, week = document.getElementById("game-week").value; const select = document.getElementById("game-choice"); select.innerHTML = ""; websiteGames.filter(game => game.season === season && game.week === week).forEach(game => select.add(new Option(`${game.gameNum}: ${matchupLabel(game)}`, game.gameId))); select.value = latestGame?.gameId || select.options[0]?.value || ""; renderGame(); }
 function renderGame() { const game = websiteGames.find(item => item.gameId === document.getElementById("game-choice").value); if (!game) return; document.getElementById("game-detail").innerHTML = [["Date", game.gameDate], ["Game time", game.gameTime], ["Matchup", matchupLabel(game)], ["Score", `${teamDisplay(game.favorite, game)} ${favoriteScore(game) ?? "?"} · ${teamDisplay(game.underdog, game)} ${underdogScore(game) ?? "?"}`], ["Result", game.atsResult]].map(([label, value]) => `<div><span>${label}</span><strong>${value ?? ""}</strong></div>`).join(""); const matchupTeams = [game.favorite, game.underdog].map(team => String(team || "").trim().toUpperCase()); const rows = websitePicks.filter(pick => pick.gameId === game.gameId).map(pick => ({ ...pick, bestBet: matchupTeams.includes(String(pick.bestBet || "").trim().toUpperCase()) ? pick.bestBet : "" })); if (gamePicksTable) gamePicksTable.destroy(); const columns = [{ title: "Player", field: "name", sorter: "string" }, { title: "Result", field: "result" }, { title: "Pick", field: "pick" }, { title: "Best Bet", field: "bestBet" }]; const showTiebreak = game.week === "super bowl" || (game.isFinalGame && !String(game.week).startsWith("round") && game.week !== "playoffs"); if (showTiebreak) columns.push({ title: "Tiebreak Diff", field: "tiebreakerDiff", sorter: "number" }, { title: "Tiebreaker", field: "tiebreaker", sorter: "number" }, { title: "Actual Tiebreaker", field: "actualTiebreak", sorter: "number" }); gamePicksTable = new Tabulator("#game-picks-table", { data: rows, layout: "fitDataStretch", pagination: true, paginationSize: 50, columns, placeholder: "No picks" }); }
 let profileTooltipHideTimer = null;
-function profileChartTooltip(context, html, compact = false) { let element = document.getElementById("profile-chart-tooltip"); if (!element) { element = document.createElement("div"); element.id = "profile-chart-tooltip"; document.body.appendChild(element); } const tooltip = context.tooltip; if (!tooltip || tooltip.opacity === 0 || !tooltip.dataPoints?.length) { clearTimeout(profileTooltipHideTimer); profileTooltipHideTimer = setTimeout(() => { if (!element.matches(":hover")) element.style.display = "none"; }, 180); return; } clearTimeout(profileTooltipHideTimer); element.className = `profile-chart-tooltip${compact ? " compact-game-tooltip" : ""}`; element.innerHTML = html(tooltip.dataPoints[0].dataIndex); element.classList.toggle("interactive-tooltip", Boolean(element.querySelector("[data-weekly-drilldown]"))); element.style.display = "block"; element.onpointerenter = () => clearTimeout(profileTooltipHideTimer); element.onpointerleave = () => { profileTooltipHideTimer = setTimeout(() => { if (!element.matches(":hover")) element.style.display = "none"; }, 180); }; const rect = context.chart.canvas.getBoundingClientRect(); const left = Math.min(window.innerWidth - element.offsetWidth - 12, Math.max(12, rect.left + tooltip.caretX + 8)); const top = Math.min(window.innerHeight - element.offsetHeight - 12, Math.max(12, rect.top + tooltip.caretY + 8)); element.style.left = `${left}px`; element.style.top = `${top}px`; }
+function profileChartTooltip(context, html, compact = false) { let element = document.getElementById("profile-chart-tooltip"); if (!element) { element = document.createElement("div"); element.id = "profile-chart-tooltip"; document.body.appendChild(element); } const tooltip = context.tooltip; if (!tooltip || tooltip.opacity === 0 || !tooltip.dataPoints?.length) { clearTimeout(profileTooltipHideTimer); profileTooltipHideTimer = setTimeout(() => { if (!element.matches(":hover")) element.style.display = "none"; }, 180); return; } clearTimeout(profileTooltipHideTimer); element.className = `profile-chart-tooltip${compact ? " compact-game-tooltip" : ""}`; element.innerHTML = html(tooltip.dataPoints[0].dataIndex); element.style.display = "block"; element.onpointerenter = () => clearTimeout(profileTooltipHideTimer); element.onpointerleave = () => { profileTooltipHideTimer = setTimeout(() => { if (!element.matches(":hover")) element.style.display = "none"; }, 180); }; const rect = context.chart.canvas.getBoundingClientRect(); const left = Math.min(window.innerWidth - element.offsetWidth - 12, Math.max(12, rect.left + tooltip.caretX + 8)); const top = Math.min(window.innerHeight - element.offsetHeight - 12, Math.max(12, rect.top + tooltip.caretY + 8)); element.style.left = `${left}px`; element.style.top = `${top}px`; }
 function profileWeekLabel(week) { const value = String(week || ""), lower = value.toLowerCase(); return lower === "super bowl" ? "Super Bowl" : lower === "playoffs" ? "Playoffs" : lower.startsWith("round") ? `Round ${value.match(/\d+/)?.[0] || ""}`.trim() : `W${value}`; }
 function profilePeriodOrder(week) { const value = String(week || "").toLowerCase(); if (value === "super bowl") return 1004; const round = Number(value.match(/^round\s*(\d+)/)?.[1]); if (round) return 1000 + round; return Number(value.match(/\d+/)?.[0] || 0); }
 function matchupTooltipHtml(game, result, pickedTeam) { const favoritePoints = favoriteScore(game), underdogPoints = underdogScore(game), picked = String(pickedTeam || "").toUpperCase(), resultClass = result === "win" ? "win" : result === "loss" ? "loss" : "push", favoritePicked = String(game.favorite || "").toUpperCase() === picked, underdogPicked = String(game.underdog || "").toUpperCase() === picked; const value = (text, highlighted = false, className = "") => `<span class="${className} ${highlighted ? resultClass : "neutral"}">${websiteEscapeHtml(text ?? "?")}</span>`; return `<div class="tooltip-matchup">${value(`${teamDisplay(game.favorite, game)} ${favoritePoints}`, favoritePicked, "tooltip-favorite")}${value(game.spread ?? "PK", false, "tooltip-spread")}${value(`${underdogPoints} ${teamDisplay(game.underdog, game)}`, underdogPicked, "tooltip-underdog")}</div>`; }
@@ -3018,31 +3026,14 @@ const historicalRichTooltipPlugin = {
 };
 Chart.register(historicalRichTooltipPlugin);
 let weeklyTooltipPinnedTarget = null;
-let weeklyTooltipHideTimer = null, weeklyDrilldownHideTimer = null;
+let weeklyTooltipHideTimer = null;
 const weeklyRankHoverRows = new Map();
 function positionWeeklyGameTooltip(event) { const element = document.getElementById("weekly-game-tooltip"); if (!element || element.style.display === "none") return; element.style.left = `${Math.min(window.innerWidth - element.offsetWidth - 12, Math.max(12, event.clientX + 12))}px`; element.style.top = `${Math.min(window.innerHeight - element.offsetHeight - 12, Math.max(12, event.clientY + 12))}px`; }
-function showWeeklyGameTooltip(target, event) { let element = document.getElementById("weekly-game-tooltip"); if (!element) { element = document.createElement("div"); element.id = "weekly-game-tooltip"; element.className = "profile-chart-tooltip weekly-game-tooltip"; document.body.appendChild(element); } clearTimeout(weeklyTooltipHideTimer); element.classList.toggle("weekly-rank-tooltip", Boolean(target.dataset.weeklyRankKey)); element.innerHTML = target.dataset.weeklyTooltip || weeklyRankTooltip(weeklyRankHoverRows.get(target.dataset.weeklyRankKey)); element.classList.toggle("interactive-tooltip", Boolean(element.querySelector("[data-weekly-drilldown]"))); element.style.display = "block"; element.onpointerenter = () => clearTimeout(weeklyTooltipHideTimer); element.onpointerleave = () => { weeklyTooltipHideTimer = setTimeout(() => { if (!element.matches(":hover") && !weeklyTooltipPinnedTarget) element.style.display = "none"; }, 180); }; positionWeeklyGameTooltip(event); }
+function showWeeklyGameTooltip(target, event) { let element = document.getElementById("weekly-game-tooltip"); if (!element) { element = document.createElement("div"); element.id = "weekly-game-tooltip"; element.className = "profile-chart-tooltip weekly-game-tooltip"; document.body.appendChild(element); } clearTimeout(weeklyTooltipHideTimer); element.classList.toggle("weekly-rank-tooltip", Boolean(target.dataset.weeklyRankKey)); element.innerHTML = target.dataset.weeklyTooltip || weeklyRankTooltip(weeklyRankHoverRows.get(target.dataset.weeklyRankKey)); element.style.display = "block"; element.onpointerenter = () => clearTimeout(weeklyTooltipHideTimer); element.onpointerleave = () => { weeklyTooltipHideTimer = setTimeout(() => { if (!element.matches(":hover") && !weeklyTooltipPinnedTarget) element.style.display = "none"; }, 180); }; positionWeeklyGameTooltip(event); }
 document.addEventListener("pointerover", event => { const target = event.target.closest?.("[data-weekly-tooltip],[data-weekly-rank-key]"); if (!target || weeklyTooltipPinnedTarget) return; showWeeklyGameTooltip(target, event); });
 document.addEventListener("pointermove", event => { if (!weeklyTooltipPinnedTarget) positionWeeklyGameTooltip(event); });
 document.addEventListener("pointerout", event => { if (!event.target.closest?.("[data-weekly-tooltip],[data-weekly-rank-key]") || weeklyTooltipPinnedTarget) return; const element = document.getElementById("weekly-game-tooltip"); clearTimeout(weeklyTooltipHideTimer); weeklyTooltipHideTimer = setTimeout(() => { if (element && !element.matches(":hover")) element.style.display = "none"; }, 180); });
 document.addEventListener("click", event => { const target = event.target.closest?.("[data-weekly-tooltip],[data-weekly-rank-key]"); const element = document.getElementById("weekly-game-tooltip"); if (!target) { weeklyTooltipPinnedTarget = null; if (element) element.style.display = "none"; return; } weeklyTooltipPinnedTarget = weeklyTooltipPinnedTarget === target ? null : target; if (weeklyTooltipPinnedTarget) showWeeklyGameTooltip(target, event); else if (element) element.style.display = "none"; });
-function showWeeklyDrilldown(target) {
-  const row = websiteWeeks.find(item => item.playerId === target.dataset.playerId && item.season === target.dataset.season && String(item.week) === String(target.dataset.week));
-  if (!row) return;
-  let element = document.getElementById("weekly-drilldown-tooltip");
-  if (!element) { element = document.createElement("div"); element.id = "weekly-drilldown-tooltip"; element.className = "profile-chart-tooltip weekly-drilldown-tooltip"; document.body.appendChild(element); }
-  clearTimeout(weeklyDrilldownHideTimer);
-  element.innerHTML = weeklyResultsTooltipHtml(row);
-  element.style.display = "block";
-  const parent = target.closest(".profile-chart-tooltip"), rect = parent?.getBoundingClientRect() || target.getBoundingClientRect();
-  const right = rect.right + 8, left = rect.left - element.offsetWidth - 8;
-  element.style.left = `${right + element.offsetWidth <= window.innerWidth - 12 ? right : Math.max(12, left)}px`;
-  element.style.top = `${Math.min(window.innerHeight - element.offsetHeight - 12, Math.max(12, target.getBoundingClientRect().top))}px`;
-  element.onpointerenter = () => clearTimeout(weeklyDrilldownHideTimer);
-  element.onpointerleave = () => { weeklyDrilldownHideTimer = setTimeout(() => { if (!element.matches(":hover")) element.style.display = "none"; }, 140); };
-}
-document.addEventListener("pointerover", event => { const target = event.target.closest?.("[data-weekly-drilldown]"); if (target) showWeeklyDrilldown(target); });
-document.addEventListener("pointerout", event => { const target = event.target.closest?.("[data-weekly-drilldown]"); if (!target) return; const element = document.getElementById("weekly-drilldown-tooltip"); clearTimeout(weeklyDrilldownHideTimer); weeklyDrilldownHideTimer = setTimeout(() => { if (element && !element.matches(":hover")) element.style.display = "none"; }, 140); });
 function websiteWeekNameTheme(value) {
   const text = String(value || "").toLowerCase();
   if (/surgery|surgeon|doctor|hospital|patient|procedure|operation|heart|artery|aorta|cardiac|medical|clinic|anterior descending|nerve|maneuver|manoeuver|syndrome|mcburney|queckenstedt|mauriceau|bogros|geriatric|diabetes|coronavirus|on call/i.test(text)) return "Medicine and work";
@@ -3088,6 +3079,62 @@ function websiteWeekNameMeaning(value, theme, variant = 0) {
   const index = variant % options.length;
   return options[index];
 }
+function websiteWeekNameProfile(rows, name) {
+  const text = row => String(row.weekName || "");
+  const rules = [
+    { key: "new-york", label: "New York sports", bonus: 60, test: row => /\bbig blue\b|\bgiants\b|\bmets\b|\byankees\b|\bknicks\b|\brangers\b|\bislanders\b|\bjets\b/i.test(text(row)) },
+    { key: "medicine", label: "Medicine and the job", bonus: 50, test: row => /surgery|surgeon|doctor|hospital|patient|procedure|operation|heart|artery|aorta|cardiac|clinic|anterior descending|nerve|maneuver|syndrome|mcburney|queckenstedt|mauriceau|bogros|geriatric|diabetes|on call/i.test(text(row)) },
+    { key: "products", label: "Products and catalog finds", bonus: 45, test: row => /signature|premium|industrial|mini |cream|candle|helmet|planer|powerwall|cybertruck|atv|dryer|lounger|insoles|walker|drain cover|surprise egg|torch/i.test(text(row)) },
+    { key: "personal", label: "Birthdays, holidays, and home life", bonus: 18, test: row => /birthday|christmas|thanksgiving|wedding|anniversary|vacation|weekend|holiday|family|baby|kid|daughter|son|wife|husband|mom|dad|home/i.test(text(row)) },
+    { key: "quotes", label: "Quoted lines and pop culture", bonus: 16, test: row => /^\s*["“]|movie|film|tv|show|episode|song|lyric|sequel|star wars|office|seinfeld|simpsons|superman|full house|ace ventura|godfather|rocky|top gun|sopranos/i.test(text(row)) },
+    { key: "food", label: "Food, drink, and going out", bonus: 15, test: row => /beer|wine|whiskey|bourbon|vodka|cocktail|pizza|restaurant|dinner|lunch|breakfast|coffee|bar\b|hangover|prosecco/i.test(text(row)) },
+    { key: "sports", label: "Teams, games, and rooting interests", bonus: 12, test: row => websiteWeekNameTheme(text(row)) === "Sports and fandom" },
+    { key: "topical", label: "Headlines and the passing moment", bonus: 10, test: row => websiteWeekNameTheme(text(row)) === "The moment and the news" },
+    { key: "voice", label: "A conversational, performative voice", bonus: 0, test: row => /[?!]/.test(text(row)) || /\b(i|i'm|i've|i’ll|me|my|we|we're|we've|our)\b/i.test(text(row)) || text(row).length >= 55 }
+  ];
+  const analyzed = rules.map(rule => ({ ...rule, entries: rows.filter(rule.test) })).filter(rule => rule.entries.length >= 2).sort((left, right) => (Math.min(right.entries.length, 40) + right.bonus) - (Math.min(left.entries.length, 40) + left.bonus));
+  const threads = analyzed.slice(0, 3);
+  const quote = value => { const cleaned = String(value).trim().replace(/[“”]/g, "'"); return `“${cleaned.slice(0, 112)}${cleaned.length > 112 ? "..." : ""}”`; };
+  const examplesFor = entries => {
+    const usable = entries.filter(row => text(row).trim() && !/^https?:\/\//i.test(text(row)));
+    const first = usable[0], last = [...usable].reverse().find(row => row !== first && text(row).toLowerCase() !== text(first).toLowerCase());
+    return [first, last].filter(Boolean).map(row => quote(text(row)));
+  };
+  const threadCopy = thread => {
+    const examples = examplesFor(thread.entries), sample = examples.length ? `${examples.join(" and ")} are two points in that thread. ` : "";
+    const seasons = new Set(thread.entries.map(row => row.season)).size;
+    if (thread.key === "new-york") { const giants = thread.entries.filter(row => /\bbig blue\b|\bgiants\b/i.test(text(row))).length, mets = thread.entries.filter(row => /\bmets\b/i.test(text(row))).length; return `${sample}Big Blue or the Giants appear ${giants} times${mets ? `, with ${mets} Mets references widening the local picture` : ""}. Spread across ${seasons} seasons, that sounds like durable New York allegiance rather than generic sports chatter.`; }
+    if (thread.key === "medicine") return `${sample}The vocabulary is unusually specific and recurring. It reads like work or trained knowledge leaking naturally into the pool, not medical words chosen at random.`;
+    if (thread.key === "products") return `${sample}The specificity is the joke: ordinary shopping-list objects are promoted into weekly headlines, creating a recognizable running device.`;
+    if (thread.key === "personal") return `${sample}These names use the pool as a loose calendar, preserving celebrations and ordinary life alongside the picks.`;
+    if (thread.key === "quotes") return `${sample}The phrasing expects recognition and rewards people who share the reference; the name box becomes a tiny quote exchange.`;
+    if (thread.key === "food") return `${sample}Meals and drinks work as social timestamps here, suggesting the surrounding occasion matters as much as the games.`;
+    if (thread.key === "sports") return `${sample}Repeated team language makes fandom part of the weekly voice instead of a one-off prediction.`;
+    if (thread.key === "topical") return `${sample}These entries behave like dated marginal notes, keeping whatever was in the air that week attached to the pool record.`;
+    const questions = thread.entries.filter(row => /\?/.test(text(row))).length, firstPerson = thread.entries.filter(row => /\b(i|i'm|i've|i’ll|me|my|we|our)\b/i.test(text(row))).length;
+    return `${sample}${questions} questions and ${firstPerson} first-person entries make the archive sound spoken and audience-aware. These are lines delivered to the room, not filing labels.`;
+  };
+  const threadHtml = threads.length ? threads.map(thread => `<div class="week-name-thread"><div><strong>${websiteEscapeHtml(thread.label)}</strong><small>${thread.entries.length} matching names</small></div><p>${websiteEscapeHtml(threadCopy(thread))}</p></div>`).join("") : '<p>The archive is varied enough that no subject repeats often enough to call it a defining thread.</p>';
+  const periodSize = Math.max(1, Math.floor(rows.length / 3)), earlierRows = rows.slice(0, periodSize), recentRows = rows.slice(-periodSize);
+  const periodExamples = periodRows => {
+    const preferred = threads.map(thread => [...periodRows].reverse().find(row => thread.test(row) && text(row).length >= 12 && text(row).length <= 120 && !/^https?:\/\//i.test(text(row)))).filter(Boolean);
+    const fallback = [...periodRows].reverse().find(row => !preferred.includes(row) && text(row).length >= 12 && text(row).length <= 120 && !/^https?:\/\//i.test(text(row)));
+    return [...new Set([...preferred, fallback].filter(Boolean))].slice(0, 2).map(row => quote(text(row)));
+  };
+  const periodStats = periodRows => ({ average: periodRows.reduce((total, row) => total + text(row).length, 0) / periodRows.length, questions: periodRows.filter(row => /\?/.test(text(row))).length, personal: periodRows.filter(row => /\b(i|i'm|i've|i’ll|me|my|we|our)\b/i.test(text(row))).length });
+  const earlierStats = periodStats(earlierRows), recentStats = periodStats(recentRows), earlierExamples = periodExamples(earlierRows), recentExamples = periodExamples(recentRows);
+  const eraNote = stats => `${stats.average >= 45 ? "The names often unfold as full thoughts" : "The names tend to arrive as compact signals"}${stats.questions ? `, with ${stats.questions} questions addressed to the room` : ""}${stats.personal ? ` and ${stats.personal} first-person entries` : ""}.`;
+  const change = recentStats.average > earlierStats.average + 8 ? "The recent voice has become more expansive and sentence-like." : recentStats.average < earlierStats.average - 8 ? "The recent voice is tighter and more compressed than the early archive." : "The basic voice has stayed recognizable even as the references changed.";
+  const eraHtml = rows.length === 1 ? `<p>There is one saved example, ${websiteEscapeHtml(quote(text(rows[0])))}. It offers a glimpse of the voice, but not enough distance to claim a change over time.</p>` : `<div class="week-name-era-grid"><div><h5>Earlier archive</h5><blockquote>${websiteEscapeHtml(earlierExamples.join(" / "))}</blockquote><p>${websiteEscapeHtml(eraNote(earlierStats))}</p></div><div><h5>More recently</h5><blockquote>${websiteEscapeHtml(recentExamples.join(" / "))}</blockquote><p>${websiteEscapeHtml(eraNote(recentStats))}</p></div></div><p>${websiteEscapeHtml(change)}</p>`;
+  const allQuestions = rows.filter(row => /\?/.test(text(row))).length, allFirstPerson = rows.filter(row => /\b(i|i'm|i've|i’ll|me|my|we|our)\b/i.test(text(row))).length, longThoughts = rows.filter(row => text(row).length >= 55).length;
+  const voice = allQuestions + allFirstPerson + longThoughts >= rows.length * .3 ? `${name} comes across as verbal, quick-associative, and aware of an audience. With ${allQuestions} questions, ${allFirstPerson} first-person entries, and ${longThoughts} names long enough to become miniature monologues, the weekly form often reads like a small stage.` : `${name} comes across as selective and economical, usually trusting one image or reference to carry the week.`;
+  const newYork = analyzed.find(thread => thread.key === "new-york"), medicine = analyzed.find(thread => thread.key === "medicine"), products = analyzed.find(thread => thread.key === "products"), personal = analyzed.find(thread => thread.key === "personal"), quotes = analyzed.find(thread => thread.key === "quotes");
+  const traits = [newYork ? "The recurring New York teams suggest loyalty and a strong sense of home" : "", medicine ? "The medical specificity suggests someone whose work and expertise remain part of how they see the week" : "", products ? "The run of exact product names suggests a collector's eye for mundane details that become funny when isolated" : "", personal ? "The birthdays, holidays, and home-life references suggest comfort letting the group see the real calendar behind the picks" : "", quotes ? "The quoted lines suggest a good memory for bits and pleasure in seeing who catches them" : ""].filter(Boolean);
+  const character = newYork ? `${name} ultimately reads as loyal, nostalgic, verbally playful, and confident enough to let some references remain private. The names seem designed to make familiar people hear a voice, not merely identify an entry.` : medicine ? `${name} reads as precise and observant with a dry streak: technical language is treated as normal material for a joke, which suggests comfort with expertise rather than a need to advertise it.` : products ? `${name} reads as an amused curator of odd specificity, someone who notices the exact object or phrase everyone else would pass over and enjoys making the room wonder why it was selected.` : quotes ? `${name} reads as referential and socially playful, someone who enjoys the small moment of recognition when another person catches the source without needing it explained.` : `${name} reads as comfortable with ambiguity and more interested in leaving a distinctive trace than in making every entry immediately legible.`;
+  const portrait = `${traits.join(". ")}${traits.length ? ". " : ""}${character} This is an impression from the writing, not a claim that week names can fully explain a person.`;
+  const style = medicine?.entries.length >= rows.length * .12 ? "Clinical" : products?.entries.length >= 10 ? "Catalog-like" : allQuestions + allFirstPerson + longThoughts >= rows.length * .3 ? "Talkative" : newYork?.entries.length >= 4 ? "New York" : quotes?.entries.length >= 5 ? "Referential" : "Eclectic";
+  return { style, html: `<div class="week-name-profile"><section><h4>What keeps coming up</h4>${threadHtml}</section><section><h4>Then and now</h4>${eraHtml}</section><section><h4>Reading the person behind the names</h4><div class="week-name-portrait"><p>${websiteEscapeHtml(voice)}</p><p>${websiteEscapeHtml(portrait)}</p></div></section></div>` };
+}
 function renderProfileWeekNames(name, playerId) {
   const host = document.getElementById("profile-week-name-analysis");
   if (!host) return;
@@ -3106,46 +3153,14 @@ function renderProfileWeekNames(name, playerId) {
   names.forEach(item => { item.display = [...item.variants].sort((left, right) => right[1] - left[1] || left[0].localeCompare(right[0]))[0][0]; item.theme = websiteWeekNameTheme(item.display); });
   const ordered = [...names.values()].sort((left, right) => right.uses - left.uses || right.wins.length - left.wins.length || left.display.localeCompare(right.display));
   const winners = ordered.filter(item => item.wins.length).sort((left, right) => right.wins.length - left.wins.length || right.uses - left.uses);
-  const themes = new Map();
-  rows.forEach(row => { const theme = websiteWeekNameTheme(row.weekName); themes.set(theme, (themes.get(theme) || 0) + 1); });
-  const themeOrder = [...themes].sort((left, right) => right[1] - left[1]);
-  const primary = themeOrder[0];
-  const secondary = themeOrder[1];
-  const styleTheme = primary[0] === "Inside jokes and wildcards" && secondary?.[1] >= Math.max(8, rows.length * .1) ? secondary[0] : primary[0];
-  const persona = {
-    "Pop culture and quotes": "They communicate through references and enjoy rewarding anyone who catches the line.",
-    "Hype and rally cries": "They use the league as a weekly pep rally and like arriving with momentum.",
-    "Sports and fandom": "They wear their rooting interests openly and let fandom lead the introduction.",
-    "The moment and the news": "They treat each week name as a timestamp and notice what the room is already talking about.",
-    "Medicine and work": "They use the archive as a second notebook for medicine, anatomy, and life on the job.",
-    "Life outside the pool": "They make the pool part of the rest of life instead of keeping the two worlds separate.",
-    "Comedy and self-commentary": "They play to the room, narrate the chaos, and would rather get a laugh than sound formal.",
-    "Inside jokes and wildcards": "They prefer surprise, private references, and leaving just enough unexplained."
-  }[styleTheme];
-  const variety = primary[1] / rows.length < .45 && secondary ? ` Their range is part of the pattern: ${secondary[0].toLowerCase()} is nearly as common.` : "";
-  const themeSummary = themeOrder.slice(0, 3).map(([theme, count]) => `${theme} (${count})`).join(", ");
-  const periodSize = Math.max(1, Math.floor(rows.length / 3));
-  const earlierRows = rows.slice(0, periodSize), recentRows = rows.slice(-periodSize);
-  const periodSummary = periodRows => {
-    const counts = new Map();
-    periodRows.forEach(row => { const theme = websiteWeekNameTheme(row.weekName); counts.set(theme, (counts.get(theme) || 0) + 1); });
-    const orderedThemes = [...counts].sort((left, right) => right[1] - left[1]);
-    const lead = orderedThemes[0]?.[0] || "No clear category";
-    const runnerUp = orderedThemes[1]?.[0];
-    const exampleFor = theme => { const row = [...periodRows].reverse().find(item => websiteWeekNameTheme(item.weekName) === theme); if (!row) return ""; const value = row.weekName.length > 55 ? `${row.weekName.slice(0, 52)}...` : row.weekName; return `“${value}”`; };
-    const examples = [exampleFor(lead), runnerUp ? exampleFor(runnerUp) : ""].filter(Boolean);
-    return { lead, runnerUp, examples };
-  };
-  const earlier = periodSummary(earlierRows), recent = periodSummary(recentRows);
-  const earlierText = `${earlier.lead}${earlier.runnerUp ? `, followed by ${earlier.runnerUp.toLowerCase()}` : ""}${earlier.examples.length ? `; examples include ${earlier.examples.join(" and ")}` : ""}`;
-  const recentText = `${recent.lead}${recent.runnerUp ? `, followed by ${recent.runnerUp.toLowerCase()}` : ""}${recent.examples.length ? `; recent examples include ${recent.examples.join(" and ")}` : ""}`;
-  const changeText = earlier.lead === recent.lead ? `${earlier.lead} has remained the main thread, although the examples and secondary topics have changed.` : `The emphasis shifted from ${earlier.lead.toLowerCase()} toward ${recent.lead.toLowerCase()}.`;
-  const style = { "Pop culture and quotes": "Referential", "Hype and rally cries": "Energetic", "Sports and fandom": "Devoted", "The moment and the news": "Topical", "Medicine and work": "Clinical", "Life outside the pool": "Personal", "Comedy and self-commentary": "Wry", "Inside jokes and wildcards": "Cryptic" }[styleTheme] || "Eclectic";
+  const profile = websiteWeekNameProfile(rows, name);
   const namedWins = winners.reduce((total, item) => total + item.wins.length, 0);
   const repeatMetric = ordered[0].uses > 1 ? [ordered[0].display, `Most used · ${ordered[0].uses} times`] : namedWins ? [String(namedWins), `Wins with a unique name`] : [String(names.size), "All names unique"];
+  const repeatValue = /^https?:\/\//i.test(repeatMetric[0]) ? /youtu(?:\.be|be\.com)/i.test(repeatMetric[0]) ? "YouTube link" : "Shared link" : repeatMetric[0];
+  const metricValue = value => `<strong${String(value).length > 12 ? ' class="compact"' : ""}>${websiteEscapeHtml(value)}</strong>`;
   const mostUsedHtml = ordered.slice(0, 8).map((item, index) => `<div class="week-name-row"><div><strong>${websiteEscapeHtml(item.display)}</strong><small>${websiteEscapeHtml(websiteWeekNameMeaning(item.display, item.theme, index))}</small></div><span>${item.uses} use${item.uses === 1 ? "" : "s"}</span></div>`).join("");
   const winnersHtml = winners.length ? winners.slice(0, 8).map(item => { const latest = [...item.wins].sort((left, right) => String(right.season || "").localeCompare(String(left.season || "")) || Number(right.weekOrder || 0) - Number(left.weekOrder || 0))[0]; const record = `${latest.displayWins}-${latest.displayLosses}${Number(latest.displayPushes || 0) ? `-${latest.displayPushes}` : ""}`; return `<div class="week-name-row"><div><strong>${websiteEscapeHtml(item.display)}</strong><small>${websiteEscapeHtml(latest.season)} ${String(latest.week).toLowerCase() === "playoffs" ? "Playoffs" : `Week ${websiteEscapeHtml(latest.week)}`} · ${record}</small></div><span>${item.wins.length} win${item.wins.length === 1 ? "" : "s"}</span></div>`; }).join("") : '<p class="analysis-note">No weekly win is connected to a saved week name yet.</p>';
-  host.innerHTML = `<div class="week-name-summary"><div><strong>${rows.length}</strong><span>Named weeks</span></div><div><strong>${names.size}</strong><span>Different names</span></div><div><strong>${websiteEscapeHtml(repeatMetric[0])}</strong><span>${websiteEscapeHtml(repeatMetric[1])}</span></div><div><strong>${websiteEscapeHtml(style)}</strong><span>Week-name style</span></div></div><p class="week-name-read"><strong>Common Categories:</strong> ${websiteEscapeHtml(themeSummary)}.<br><strong>Earlier topics:</strong> ${websiteEscapeHtml(earlierText)}.<br><strong>Recent topics:</strong> ${websiteEscapeHtml(recentText)}.<br><strong>Change over time:</strong> ${websiteEscapeHtml(changeText)}<br><strong>Pool personality:</strong> ${websiteEscapeHtml(styleTheme)} best captures the pattern. ${websiteEscapeHtml(persona + variety)} This is a playful read of week-name choices, not an actual psychological assessment.</p><div class="week-name-columns"><section><h4>Most used</h4><div class="week-name-list">${mostUsedHtml}</div></section><section><h4>Names attached to wins</h4><div class="week-name-list">${winnersHtml}</div></section></div>`;
+  host.innerHTML = `<div class="week-name-summary"><div>${metricValue(rows.length)}<span>Named weeks</span></div><div>${metricValue(names.size)}<span>Different names</span></div><div>${metricValue(repeatValue)}<span>${websiteEscapeHtml(repeatMetric[1])}</span></div><div>${metricValue(profile.style)}<span>Week-name style</span></div></div>${profile.html}<div class="week-name-columns"><section><h4>Most used</h4><div class="week-name-list">${mostUsedHtml}</div></section><section><h4>Names attached to wins</h4><div class="week-name-list">${winnersHtml}</div></section></div>`;
 }
 function renderProfile(name) {
   weeklyTooltipPinnedTarget = null;
