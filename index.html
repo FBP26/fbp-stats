@@ -1130,6 +1130,14 @@ function interpretWebsiteWeekName(weekName, playerName) {
   const record = matches.reduce((total, row) => ({ wins: total.wins + Number(row.displayWins || 0), losses: total.losses + Number(row.displayLosses || 0), pushes: total.pushes + Number(row.displayPushes || 0) }), { wins: 0, losses: 0, pushes: 0 });
   const history = priorUses ? ` You have used it ${priorUses} ${priorUses === 1 ? "time" : "times"} before; those weeks went ${record.wins}-${record.losses}${record.pushes ? `-${record.pushes}` : ""}.` : "";
   const relatedIndianaNames = playerWeeks.filter(row => /\b(hoosiers?|indiana|iu)\b/i.test(String(row.weekName || ""))).map(row => row.weekName);
+  const identityText = value => String(value || "").toLowerCase().replace(/[^a-z0-9]+/g, "");
+  if (identityText(text) && identityText(text) === identityText(playerName)) {
+    const chronological = [...playerWeeks].sort((left, right) => String(left.season).localeCompare(String(right.season)) || Number(left.weekOrder || 0) - Number(right.weekOrder || 0));
+    let activeRun = 0;
+    for (let index = chronological.length - 1; index >= 0 && identityText(chronological[index].weekName) === identityText(text); index--) activeRun += 1;
+    const run = activeRun >= 2 ? ` It has also been your name for the last ${activeRun} archived entries.` : "";
+    return { category: "Signature name", read: `“${text}” matches your player name and has become your default signature rather than a one-week reference.${run} Repeating the name gives it the cadence of a chant or title, but the strongest explanation is continuity: this is how you identify yourself in the pool.${history}` };
+  }
   if (lower === "aorta") {
     const medicalNames = playerWeeks.filter(row => /\b(surgery|surgeon|doctor|hospital|patient|procedure|operation|on call|coronavirus|heart)\b/i.test(String(row.weekName || ""))).length;
     const archive = medicalNames >= 3 ? `It also fits your archive: at least ${medicalNames} earlier names mention medicine, surgery, patients, procedures, or being on call, so this may be another useful timestamp from work.` : "It may also be a useful timestamp for something happening at work.";
@@ -1154,7 +1162,12 @@ function interpretWebsiteWeekName(weekName, playerName) {
   if (/\b(i think|i believe|should|deserves?|sucks?|rules?|best|worst|overrated|underrated|love|hate)\b/i.test(text)) return { category: "Opinion desk", read: `“${text}” is not a label; it is a ruling. The court will hear no appeal. ${history}` };
   if (/\b(today|tonight|this week|trade|injury|storm|weather|headline|breaking|election|birthday|wedding|vacation|work|school)\b/i.test(text)) return { category: "This week's alibi", read: `We are tying “${text}” to something that happened in sports or in your life this week. Future historians may struggle, but the room probably gets it. ${history}` };
   if (/[!?]{2,}|\b(lol|haha|oops|again|pain|chaos|disaster|miracle|send help)\b/i.test(text) || /\b\w+\s+mc\w+\b/i.test(text)) return { category: "Comedy department", read: `“${text}” sounds like the title of a bad sequel to last week's decisions. We mean that as a compliment. ${history}` };
-  return { category: "Week-name note", read: `We do not have enough context to explain “${text},” so we are leaving it as written instead of inventing a story.${history}` };
+  const theme = websiteWeekNameTheme(text);
+  const related = theme === "Inside jokes and wildcards" ? [] : playerWeeks.filter(row => { const value = String(row.weekName || "").trim(); return value && value.toLowerCase() !== lower && websiteWeekNameTheme(value) === theme; });
+  const relatedExample = related.at(-1)?.weekName;
+  const shape = /^https?:\/\//i.test(text) ? "a link saved as a timestamp for the week" : /\?$/.test(text) ? "a question tossed to the rest of the pool" : text.length >= 55 ? "a miniature monologue, meant to sound spoken rather than labeled" : text.split(/\s+/).length <= 2 ? "a compact nickname or private reference" : "a phrase chosen for its voice and the reaction it might get from the room";
+  const archive = relatedExample ? ` It fits beside “${relatedExample}” in your archive, so this is not the first time you have used that kind of material.` : " The archive does not identify the exact source, so this is a reading of the wording rather than a claim of certainty.";
+  return { category: "Our best read", read: `Our best read is that “${text}” is ${shape}.${archive}${history}` };
 }
 function renderConfirmationIdentity(submission, identity) {
   const host = document.getElementById("confirmation-identity");
@@ -1225,35 +1238,66 @@ async function renderConfirmationHistory(submission) {
     };
     const weekSummary = row => { const gameWeek = String(row.game.week).toLowerCase(), summaryWeek = gameWeek.startsWith("round") || gameWeek === "super bowl" ? "playoffs" : gameWeek; return websiteWeeks.find(week => week.playerId === playerId && week.season === row.game.season && String(week.week).toLowerCase() === summaryWeek); };
     const pickOutcome = row => String(row.result).toLowerCase() === "win" ? "the pick hit" : String(row.result).toLowerCase() === "loss" ? "the pick missed" : "the pick pushed";
-    const lastPickForTeam = team => [...history].reverse().find(row => String(row.pick).toUpperCase() === team);
-    const droughts = currentTeams.map(team => ({ team, row: lastPickForTeam(team) })).filter(item => item.row).sort((left, right) => String(left.row.game.gameDate || "").localeCompare(String(right.row.game.gameDate || "")));
-    const longestDrought = droughts[0];
+    const resultRecord = (rows, field = "result") => rows.reduce((record, row) => { const result = String(row[field] || "").toLowerCase(); if (result === "win") record.wins += 1; else if (result === "loss") record.losses += 1; else if (result === "push") record.pushes += 1; return record; }, { wins: 0, losses: 0, pushes: 0 });
+    const recordLabel = record => `${record.wins}-${record.losses}${record.pushes ? `-${record.pushes}` : ""}`;
+    const gapSince = row => {
+      if (!row) return { days: Infinity, label: "never" };
+      const date = new Date(`${row.game.gameDate || ""}T12:00:00`);
+      if (Number.isNaN(date.getTime())) return { days: 0, label: "an unknown amount of time" };
+      const days = Math.max(0, Math.floor((Date.now() - date.getTime()) / (24 * 60 * 60 * 1000)));
+      const months = Math.floor(days / 30.44), years = Math.floor(months / 12);
+      return { days, label: years >= 2 ? `over ${years} years` : months >= 2 ? `about ${months} months` : `${Math.max(1, days)} days` };
+    };
+    const opponentIn = row => [row.game.favorite, row.game.underdog].map(team => String(team).toUpperCase()).find(team => team !== String(row.pick).toUpperCase()) || "";
+    const droughtCandidates = currentRows.filter(current => current.pick).flatMap(current => {
+      const team = current.pick;
+      const opponent = [current.game.favorite, current.game.underdog].map(value => String(value).toUpperCase()).find(value => value !== team) || "";
+      const forRows = completedHistory.filter(row => String(row.pick).toUpperCase() === team);
+      const againstRows = completedHistory.filter(row => String(row.pick).toUpperCase() !== opponent && [row.game.favorite, row.game.underdog].map(value => String(value).toUpperCase()).includes(opponent));
+      return [{ mode: "for", team, opponent, current, rows: forRows, last: forRows.at(-1) }, { mode: "against", team: opponent, currentPick: team, current, rows: againstRows, last: againstRows.at(-1) }];
+    }).filter(candidate => candidate.mode === "for" ? candidate.team && candidate.opponent : candidate.team && candidate.currentPick && candidate.currentPick !== candidate.team);
+    const longestDrought = droughtCandidates.sort((left, right) => gapSince(right.last).days - gapSince(left.last).days || left.rows.length - right.rows.length)[0];
     let droughtText = "";
     if (longestDrought) {
-      const date = new Date(`${longestDrought.row.game.gameDate || ""}T12:00:00`);
-      const years = Number.isNaN(date.getTime()) ? 0 : (Date.now() - date.getTime()) / (365.25 * 24 * 60 * 60 * 1000);
-      const when = `${longestDrought.row.game.season} ${weeklyRankWeekLabel(String(longestDrought.row.game.week).toLowerCase())}`;
-      const week = weekSummary(longestDrought.row);
-      const finish = week ? ` You went ${week.displayWins}-${week.displayLosses}${Number(week.displayPushes || 0) ? `-${week.displayPushes}` : ""} that week and finished ${websiteOrdinal(week.rank)}.` : "";
-      const lastTime = `${websiteEscapeHtml(when)}; ${pickOutcome(longestDrought.row)}.${finish}`;
-      droughtText = years >= 2 ? `You have not picked <strong>${websiteEscapeHtml(websiteFormTeamName(longestDrought.team))}</strong> in over ${Math.floor(years)} years. The last time was ${lastTime}` : `Welcome back, <strong>${websiteEscapeHtml(websiteFormTeamName(longestDrought.team))}</strong>. You last picked them in ${lastTime}`;
+      const gap = gapSince(longestDrought.last), teamName = websiteEscapeHtml(websiteFormTeamName(longestDrought.team)), record = recordLabel(resultRecord(longestDrought.rows));
+      if (!longestDrought.last) {
+        const matchup = longestDrought.mode === "for" ? `backing them against the ${websiteEscapeHtml(websiteFormTeamName(longestDrought.opponent))}` : `fading them with the ${websiteEscapeHtml(websiteFormTeamName(longestDrought.currentPick))}`;
+        droughtText = `After comparing every pick and opponent on this card, the standout is <strong>${teamName}</strong>: this is your first archived pick ${longestDrought.mode === "for" ? "on" : "against"} them, ${matchup}.`;
+      } else {
+        const when = `${longestDrought.last.game.season} ${weeklyRankWeekLabel(String(longestDrought.last.game.week).toLowerCase())}`;
+        const week = weekSummary(longestDrought.last);
+        const finish = week ? ` You went ${week.displayWins}-${week.displayLosses}${Number(week.displayPushes || 0) ? `-${week.displayPushes}` : ""} that week and finished ${websiteOrdinal(week.rank)}.` : "";
+        const lastOpponent = websiteEscapeHtml(websiteFormTeamName(opponentIn(longestDrought.last)));
+        if (longestDrought.mode === "for") droughtText = `After comparing every pick and opponent on this card, your longest gap is with a team you are backing: it has been <strong>${websiteEscapeHtml(gap.label)}</strong> since you picked the <strong>${teamName}</strong>. The last time was against the ${lastOpponent} in ${websiteEscapeHtml(when)}; ${pickOutcome(longestDrought.last)}.${finish} Your archived record picking them is ${record}.`;
+        else droughtText = `After comparing every pick and opponent on this card, your longest gap is against a team you are fading: it has been <strong>${websiteEscapeHtml(gap.label)}</strong> since you picked against the <strong>${teamName}</strong>. In ${websiteEscapeHtml(when)}, you backed the ${websiteEscapeHtml(websiteFormTeamName(String(longestDrought.last.pick).toUpperCase()))} against them and ${pickOutcome(longestDrought.last)}.${finish} Your archived record when fading them is ${record}.`;
+      }
     }
     const bestBetRow = currentRows.find(row => row.pick === String(submission.bestBet || "").toUpperCase());
     const bestBetOpponent = bestBetRow ? [bestBetRow.game.favorite, bestBetRow.game.underdog].map(team => String(team).toUpperCase()).find(team => team !== bestBetRow.pick) : "";
-    const priorBestBets = bestBetOpponent ? history.filter(row => String(row.bestBet).toUpperCase() === String(row.pick).toUpperCase() && String(row.pick).toUpperCase() !== bestBetOpponent && [row.game.favorite, row.game.underdog].map(team => String(team).toUpperCase()).includes(bestBetOpponent)) : [];
-    const lastBestBet = priorBestBets.at(-1);
+    const currentBestBetTeam = String(submission.bestBet || "").toUpperCase();
+    const bestBetForRows = currentBestBetTeam ? completedHistory.filter(row => String(row.bestBet).toUpperCase() === currentBestBetTeam && String(row.bestBet).toUpperCase() === String(row.pick).toUpperCase()) : [];
+    const bestBetAgainstRows = bestBetOpponent ? completedHistory.filter(row => String(row.bestBet).toUpperCase() === String(row.pick).toUpperCase() && String(row.pick).toUpperCase() !== bestBetOpponent && [row.game.favorite, row.game.underdog].map(team => String(team).toUpperCase()).includes(bestBetOpponent)) : [];
+    const bestBetCandidates = [{ mode: "for", team: currentBestBetTeam, opponent: bestBetOpponent, rows: bestBetForRows, last: bestBetForRows.at(-1) }, { mode: "against", team: bestBetOpponent, currentPick: currentBestBetTeam, rows: bestBetAgainstRows, last: bestBetAgainstRows.at(-1) }].filter(candidate => candidate.mode === "for" ? candidate.team && candidate.opponent : candidate.team && candidate.currentPick && candidate.currentPick !== candidate.team);
+    const bestBetCallback = bestBetCandidates.sort((left, right) => gapSince(right.last).days - gapSince(left.last).days || left.rows.length - right.rows.length)[0];
     let bestBetText = "";
-    if (lastBestBet) {
+    if (bestBetCallback && !bestBetCallback.last) {
+      const teamName = websiteEscapeHtml(websiteFormTeamName(bestBetCallback.team));
+      bestBetText = bestBetCallback.mode === "for" ? `Comparing both sides of this Best Bet matchup, the standout is the <strong>${teamName}</strong>: this is your first archived Best Bet on them.` : `Comparing both sides of this Best Bet matchup, the standout is the <strong>${teamName}</strong>: this is your first archived Best Bet against them.`;
+    } else if (bestBetCallback?.last) {
+      const lastBestBet = bestBetCallback.last;
       const week = weekSummary(lastBestBet);
       const picked = String(lastBestBet.pick).toUpperCase();
+      const opponent = opponentIn(lastBestBet);
       const favorite = String(lastBestBet.game.favorite).toUpperCase();
       const spread = Number(lastBestBet.game.spread || 0);
       const line = spread ? `${picked === favorite ? "-" : "+"}${spread}` : "PK";
       const when = `${lastBestBet.game.season} ${profileWeekLabel(lastBestBet.game.week)}`;
-      const score = `${websiteFormTeamName(picked)} ${lastBestBet.pickScore}, ${websiteFormTeamName(bestBetOpponent)} ${lastBestBet.againstPickScore}`;
+      const score = `${websiteFormTeamName(picked)} ${lastBestBet.pickScore}, ${websiteFormTeamName(opponent)} ${lastBestBet.againstPickScore}`;
       const result = lastBestBet.bestBetResult === "win" ? "won" : lastBestBet.bestBetResult === "loss" ? "lost" : "pushed";
       const finish = week?.rank ? ` You finished ${websiteOrdinal(week.rank)} out of ${week.playerCount || "the field"} with a ${week.displayWins}-${week.displayLosses}${Number(week.displayPushes || 0) ? `-${week.displayPushes}` : ""} record.` : "";
-      bestBetText = `The last time you used a Best Bet against the <strong>${websiteEscapeHtml(websiteFormTeamName(bestBetOpponent))}</strong>, you picked <strong>${websiteEscapeHtml(websiteFormTeamName(picked))} ${websiteEscapeHtml(line)}</strong> and ${result}. The final was ${websiteEscapeHtml(score)} (${websiteEscapeHtml(when)}).${finish}`;
+      const gap = gapSince(lastBestBet), record = recordLabel(resultRecord(bestBetCallback.rows, "bestBetResult"));
+      if (bestBetCallback.mode === "for") bestBetText = `Comparing both sides of this Best Bet matchup, the longer gap is on the team you selected: it has been <strong>${websiteEscapeHtml(gap.label)}</strong> since you made the <strong>${websiteEscapeHtml(websiteFormTeamName(bestBetCallback.team))}</strong> your Best Bet. Last time, they faced the ${websiteEscapeHtml(websiteFormTeamName(opponent))}; you had ${websiteEscapeHtml(websiteFormTeamName(picked))} ${websiteEscapeHtml(line)} and ${result}. The final was ${websiteEscapeHtml(score)} (${websiteEscapeHtml(when)}).${finish} Your archived Best Bet record on them is ${record}.`;
+      else bestBetText = `Comparing both sides of this Best Bet matchup, the longer gap is against the opponent: it has been <strong>${websiteEscapeHtml(gap.label)}</strong> since you used a Best Bet against the <strong>${websiteEscapeHtml(websiteFormTeamName(bestBetCallback.team))}</strong>. Last time, you picked <strong>${websiteEscapeHtml(websiteFormTeamName(picked))} ${websiteEscapeHtml(line)}</strong> and ${result}. The final was ${websiteEscapeHtml(score)} (${websiteEscapeHtml(when)}).${finish} Your archived Best Bet record against them is ${record}.`;
     }
     const backingRuns = currentTeams.map(team => ({ team, length: longestWinningRun(completedHistory.filter(row => String(row.pick).toUpperCase() === team)) })).sort((left, right) => right.length - left.length);
     const fadingRuns = currentOpponents.map(team => ({ team, length: longestWinningRun(completedHistory.filter(row => String(row.pick).toUpperCase() !== team && [row.game.favorite, row.game.underdog].map(value => String(value).toUpperCase()).includes(team))) })).sort((left, right) => right.length - left.length);
@@ -1282,10 +1326,10 @@ async function renderConfirmationHistory(submission) {
     const rankText = notableRank ? `Among ${notableRank.total} players with at least 10 ${notableRank.against ? `picks against the ${websiteEscapeHtml(websiteFormTeamName(notableRank.team))}` : `${websiteEscapeHtml(websiteFormTeamName(notableRank.team))} picks`}, your ${notableRank.record.wins}-${notableRank.record.losses}${notableRank.record.pushes ? `-${notableRank.record.pushes}` : ""} record ranks <strong>${notableRank.rank === 1 ? "best" : "last"}</strong>.` : "";
     const lastResult = completedHistory.at(-1)?.result;
     let streak = 0;
-    for (let index = completedHistory.length - 1; index >= 0 && completedHistory[index].result === lastResult; index--) streak += 1;
+    for (let index = completedHistory.length - 1; index >= 0 && String(completedHistory[index].result).toLowerCase() === String(lastResult).toLowerCase(); index--) streak += 1;
     const streakResult = streak === 1 ? lastResult : lastResult === "loss" ? "losses" : `${lastResult}s`;
     const streakRows = streak ? completedHistory.slice(-streak) : [];
-    const streakTeams = streakRows.map(row => websiteFormTeamName(String(row.pick).toUpperCase())).join(", ");
+    const streakTeams = streakRows.map(row => websiteFormTeamName(teamDisplay(row.pick, row.game))).join(", ");
     const streakText = lastResult ? `Current streak: ${streak} ${websiteEscapeHtml(streakResult)}${streakTeams ? ` · ${websiteEscapeHtml(streakTeams)}` : ""}.` : "";
     const opportunityRun = (team, field) => {
       const opportunities = history.filter(row => [row.game.favorite, row.game.underdog].some(value => String(value).toUpperCase() === team));
