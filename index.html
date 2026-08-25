@@ -340,6 +340,7 @@
 </main>
 <script>
 const DATA_DIR = "./data";
+const WEBSITE_WEEK_HISTORY_VERSION = "20260825-week-names";
 const requestedStartupRoute = location.hash.slice(1) === "weekly-rank" ? "weeks" : location.hash.slice(1);
 if (location.hash === "#weekly-rank") history.replaceState(null, "", "#weeks");
 let startupRoutePending = true;
@@ -853,6 +854,11 @@ function renderWebsiteContenderPaths(data) {
   const host = document.getElementById("week-one-paths");
   if (!host || !(data.players || []).length) return;
   const analysis = websiteContenderPaths(data);
+  if (analysis.scenarios.variable.length > WEBSITE_EXACT_SCENARIO_GAME_LIMIT) {
+    host.innerHTML = "";
+    document.getElementById("week-one-scenarios").innerHTML = "";
+    return;
+  }
   const rows = analysis.contenders.map((contender, contenderIndex) => {
     const narrative = websiteContenderDetailMode === "complete" ? websiteContenderNarrative(analysis, contender) : websiteSimpleContenderNarrative(analysis, contender, contenderIndex);
     return `<tr><td><strong>${contender.player.name}</strong></td><td>${websiteProbabilityText(contender.probability * 100)}</td><td>${narrative}</td></tr>`;
@@ -878,6 +884,12 @@ function renderWebsitePersonalizedSankey(data) {
   if (!host || !(data.players || []).length) return;
   const analysisData = websiteAnalysisData(data);
   const scenarios = websiteScenarioOutcomes(analysisData);
+  if (scenarios.variable.length > WEBSITE_EXACT_SCENARIO_GAME_LIMIT) {
+    host.innerHTML = "";
+    if (websiteSankeyChart) websiteSankeyChart.destroy();
+    websiteSankeyChart = null;
+    return;
+  }
   const indexes = websiteSampleScenarioIndexes(scenarios.total, WEBSITE_SIMULATION_LIMIT);
   const edges = new Map();
   const labels = { start: "Current standings" };
@@ -1061,31 +1073,44 @@ async function renderWebsitePicksForm() {
 function confirmationMetrics(rows) {
   return `<div class="confirmation-metrics">${rows.map(([label, value]) => `<div class="confirmation-metric"><strong>${websiteEscapeHtml(value)}</strong><span>${websiteEscapeHtml(label)}</span></div>`).join("")}</div>`;
 }
-function interpretWebsiteWeekName(weekName) {
+function websiteOrdinal(value) {
+  const number = Number(value);
+  const suffix = number % 100 >= 11 && number % 100 <= 13 ? "th" : { 1: "st", 2: "nd", 3: "rd" }[number % 10] || "th";
+  return `${number}${suffix}`;
+}
+function websitePlayerWeekHistory(name) {
+  const normalized = String(name || "").trim().toLowerCase();
+  return websiteWeeks.filter(row => String(row.name || "").trim().toLowerCase() === normalized);
+}
+function interpretWebsiteWeekName(weekName, playerName) {
   const text = String(weekName || "").trim();
   const lower = text.toLowerCase();
-  const storedNames = ["fbpWebsiteSubmissions", ...[1, 2, 3, 4].map(week => `fbpPreseasonTest-${week}`)].flatMap(key => { try { return JSON.parse(localStorage.getItem(key) || "[]"); } catch (error) { return []; } }).map(row => String(row.weekName || "").trim().toLowerCase()).filter(Boolean);
-  if (storedNames.filter(value => value === lower).length > 1) return { category: "The reliable go-to", read: `You have used “${text}” before. This reads less like a one-week reference and more like your dependable house style.` };
-  if (/^["“']|["”']$/.test(text) || /\b(lyric|song|movie|episode|chapter|quote|sequel|part ii|returns|strikes back)\b/i.test(text)) return { category: "Possible cultural reference", read: `“${text}” looks like it may be quoting or riffing on a song, movie, show, or recurring bit. That is a best guess, not a confirmed source.` };
-  if (/\b(i think|i believe|should|deserves?|sucks?|rules?|best|worst|overrated|underrated|love|hate)\b/i.test(text)) return { category: "Opinion desk", read: `“${text}” reads like a verdict: concise, committed, and probably intended to start an argument.` };
-  if (/\b(today|tonight|this week|trade|injury|storm|weather|headline|breaking|election|birthday|wedding|vacation|work|school)\b/i.test(text)) return { category: "Current-event signal", read: `“${text}” sounds tied to something happening now, either in sports or in your week outside the pool.` };
-  if (/[!?]{2,}|\b(lol|haha|oops|again|pain|chaos|disaster|miracle|send help)\b/i.test(text) || /\b\w+\s+mc\w+\b/i.test(text)) return { category: "Comedy department", read: `“${text}” reads like a joke, reaction, or deliberately dramatic bit rather than a literal label.` };
-  return { category: "Open interpretation", read: `“${text}” could be personal, topical, or simply the name that felt right. There is not enough signal to claim a specific reference.` };
-}
-function websiteIsPrimetime(game) {
-  const kickoff = String(game.kickoffGroup || game.kickoff || "").toLowerCase();
-  if (/^(thu|mon)/.test(kickoff) || /^sun\s+(8|9|10|11)/.test(kickoff)) return true;
-  if (!game.gameDate || !game.gameTime) return false;
-  const day = new Date(`${game.gameDate}T12:00:00`).getDay();
-  const hourMatch = String(game.gameTime).match(/(\d{1,2}):\d{2}\s*(AM|PM)/i);
-  const hour = hourMatch ? (Number(hourMatch[1]) % 12) + (hourMatch[2].toUpperCase() === "PM" ? 12 : 0) : 0;
-  return day === 1 || day === 4 || (day === 0 && hour >= 20);
+  const playerWeeks = websitePlayerWeekHistory(playerName);
+  const matches = playerWeeks.filter(row => String(row.weekName || "").trim().toLowerCase() === lower);
+  const priorUses = matches.length;
+  const record = matches.reduce((total, row) => ({ wins: total.wins + Number(row.displayWins || 0), losses: total.losses + Number(row.displayLosses || 0), pushes: total.pushes + Number(row.displayPushes || 0) }), { wins: 0, losses: 0, pushes: 0 });
+  const history = priorUses ? `This is your ${websiteOrdinal(priorUses + 1)} time using it. The first ${priorUses} went ${record.wins}-${record.losses}${record.pushes ? `-${record.pushes}` : ""}.` : "This is a new one in your archived history.";
+  const relatedIndianaNames = playerWeeks.filter(row => /\b(hoosiers?|indiana|iu)\b/i.test(String(row.weekName || ""))).map(row => row.weekName);
+  if (lower === "big red") {
+    const fandom = relatedIndianaNames.length ? ` Add in names like “${relatedIndianaNames[0]}” and the evidence says Indiana fan, not cinnamon-gum loyalist.` : " We are calling it an Indiana rally cry, with cinnamon gum running a respectable second.";
+    return { category: "Our best guess", read: `“${text}” could be the gum, Indiana's rally cry, or a very confident Clifford reference.${fandom} ${history}` };
+  }
+  if (/\b(go )?hoosiers?|indiana|\biu\b/i.test(text)) return { category: "Hoosier file", read: `This one has candy stripes all over it. We are putting “${text}” in the Indiana fan folder. ${history}` };
+  if (/catalina|wine mixer|boats? and hoes|prestige worldwide/i.test(text)) return { category: "Movie quote desk", read: `This is almost certainly a Step Brothers reference, probably delivered with far more confidence than the Catalina Wine Mixer deserved. ${history}` };
+  if (/we didn['’]?t (start|light) the fire|billy joel/i.test(text)) return { category: "Name that tune", read: `We are hearing Billy Joel's “We Didn't Start the Fire.” Whether the wording is exact is less important than committing to the chorus. ${history}` };
+  if (/^["“']|["”']$/.test(text) || /\b(lyric|song|movie|episode|chapter|quote|sequel|part ii|returns|strikes back)\b/i.test(text)) return { category: "Pop-culture department", read: `Our guess: “${text}” is a movie line, lyric, or sequel joke that makes perfect sense to one group chat. ${history}` };
+  if (/\b(i think|i believe|should|deserves?|sucks?|rules?|best|worst|overrated|underrated|love|hate)\b/i.test(text)) return { category: "Opinion desk", read: `“${text}” is not a label; it is a ruling. The court will hear no appeal. ${history}` };
+  if (/\b(today|tonight|this week|trade|injury|storm|weather|headline|breaking|election|birthday|wedding|vacation|work|school)\b/i.test(text)) return { category: "This week's alibi", read: `We are tying “${text}” to something that happened in sports or in your life this week. Future historians may struggle, but the room probably gets it. ${history}` };
+  if (/[!?]{2,}|\b(lol|haha|oops|again|pain|chaos|disaster|miracle|send help)\b/i.test(text) || /\b\w+\s+mc\w+\b/i.test(text)) return { category: "Comedy department", read: `“${text}” sounds like the title of a bad sequel to last week's decisions. We mean that as a compliment. ${history}` };
+  const guesses = ["a line from a movie everyone quotes incorrectly", "a nickname with a story we would absolutely get wrong", "a group-chat callback that escaped into public", "a rallying cry invented about five minutes before kickoff"];
+  const guess = guesses[[...lower].reduce((total, character) => total + character.charCodeAt(0), 0) % guesses.length];
+  return { category: "Our best guess", read: `We are calling “${text}” ${guess}. Accuracy is optional; confidence is not. ${history}` };
 }
 function renderConfirmationIdentity(submission, identity) {
   const host = document.getElementById("confirmation-identity");
   const effective = identity || { status: "new", submittedName: submission.name.trim(), suggestedName: "" };
   const suggested = effective.suggestedName;
-  let message = `Welcome back, ${websiteEscapeHtml(effective.submittedName)}. Your name matches league history.`;
+  let message = effective.canonicalizedFrom ? `We filed this under <strong>${websiteEscapeHtml(effective.submittedName)}</strong>, the spelling and capitalization you use most often.` : `Welcome back, ${websiteEscapeHtml(effective.submittedName)}. Your name matches league history.`;
   if (effective.status === "new") message = `Welcome, ${websiteEscapeHtml(effective.submittedName)}. You look like a new player. Your picks appear on Current Week immediately; live scores and probability update there after kickoff.`;
   if (effective.status === "reversed") message = `Your week name matches a known player. The name and week-name fields may be reversed.`;
   if (effective.status === "suggestion") message = effective.reason === "spacing-or-capitalization" ? `Your entry has different spacing or capitalization from league history.` : `This name is close to a player already in league history.`;
@@ -1105,22 +1130,22 @@ function renderConfirmationIdentity(submission, identity) {
       if (result.correctedWeekName) submission.weekName = result.correctedWeekName;
       host.innerHTML = `<h3>Name check</h3><p>Name corrected to <strong>${websiteEscapeHtml(result.correctedName)}</strong>. The active board has been recalculated.</p>`;
       if (result.correctedWeekName) {
-        const interpretation = interpretWebsiteWeekName(result.correctedWeekName);
+        const interpretation = interpretWebsiteWeekName(result.correctedWeekName, result.correctedName);
         document.getElementById("confirmation-week-name").innerHTML = `<h3>Your week name · ${websiteEscapeHtml(interpretation.category)}</h3><p>${websiteEscapeHtml(interpretation.read)}</p>`;
       }
       renderConfirmationHistory(submission);
-    } catch (error) { status.textContent = `Could not correct the name: ${error.message}`; }
+    } catch (error) { status.textContent = /could not be found/i.test(error.message) ? "That confirmation was not connected to a saved submission, or the saved row changed after it was submitted. Your picks were not altered." : `Could not correct the name: ${error.message}`; }
   });
 }
 function renderConfirmationPicks(submission) {
   const host = document.getElementById("confirmation-picks");
   const rows = websiteActiveGames.map((game, index) => ({ game, pick: submission.picks[index] }));
-  const favorites = rows.filter(row => row.pick === row.game.favorite).length;
-  const homes = rows.filter(row => String(row.pick).toUpperCase() === String(row.game.home).toUpperCase()).length;
-  const primetime = rows.filter(row => websiteIsPrimetime(row.game)).length;
-  const primetimePicks = rows.filter(row => websiteIsPrimetime(row.game)).map(row => websiteFormTeamName(row.pick)).join(", ");
-  const paths = Math.pow(2, Math.min(rows.length, 30)).toLocaleString();
-  host.innerHTML = `<h3>This week's card</h3><p>You took ${favorites} favorite${favorites === 1 ? "" : "s"} and ${rows.length - favorites} underdog${rows.length - favorites === 1 ? "" : "s"}; ${homes} picks are home teams.</p><p>${primetime ? `Prime-time card: ${websiteEscapeHtml(primetimePicks)}.` : "No prime-time games are on this slate."}</p><p>Your Best Bet is <strong>${websiteEscapeHtml(websiteFormTeamName(submission.bestBet))}</strong>. Before other entries and game information are considered, ${rows.length} binary game choices create ${paths} raw winner combinations.</p>${confirmationMetrics([["Favorites", favorites], ["Home", homes], ["Prime time", primetime]])}<p id="confirmation-probability" class="confirmation-status">Calculating your opening probability...</p>`;
+  const underdogCalls = rows.filter(row => row.pick === row.game.underdog).sort((left, right) => Number(right.game.spread || 0) - Number(left.game.spread || 0));
+  const boldest = underdogCalls[0];
+  const closest = [...rows].sort((left, right) => Number(left.game.spread || 0) - Number(right.game.spread || 0))[0];
+  const boldText = boldest ? `Your loudest call is <strong>${websiteEscapeHtml(websiteFormTeamName(boldest.pick))}</strong> getting ${websiteEscapeHtml(boldest.game.spread)} against ${websiteEscapeHtml(websiteFormTeamName(boldest.game.favorite))}. You are asking the oddsmakers to explain themselves.` : `You sided with every favorite. Either the oddsmakers had a great week, or you are setting up a spectacular argument with them.`;
+  const closeText = closest ? `The closest line on your card is ${websiteEscapeHtml(websiteFormTeamName(closest.pick))} in a ${websiteEscapeHtml(closest.game.spread)}-point game. That one may age you.` : "";
+  host.innerHTML = `<h3>A few things that jumped out</h3><p>${boldText}</p><p>${closeText}</p><p id="confirmation-probability" class="confirmation-status">Checking your early chances...</p>`;
 }
 async function loadConfirmationProbability(submission) {
   const host = document.getElementById("confirmation-probability");
@@ -1132,12 +1157,12 @@ async function loadConfirmationProbability(submission) {
     const response = await fetch(`${WEBSITE_SUBMISSIONS_ENDPOINT}${separator}action=${action}`, { signal: AbortSignal.timeout(20000) });
     const data = await response.json();
     const player = (data.players || []).find(row => String(row.name).trim().toLowerCase() === String(submission.name).trim().toLowerCase());
-    host.textContent = player?.winProbability ? `Opening win probability: ${player.winProbability}, across ${Number(player.pathsToVictory || 0).toLocaleString()} currently modeled winning paths.` : "Probability will appear after the active board finishes recalculating.";
+    host.textContent = player?.winProbability ? `Right now, the model gives you a ${player.winProbability} chance to win the week. That number will move as games are played.` : "Your chance to win will appear after Current Week finishes recalculating.";
   } catch (error) { host.textContent = "Probability is still recalculating; it will appear on Current Week shortly."; }
 }
 async function renderConfirmationHistory(submission) {
   const host = document.getElementById("confirmation-history");
-  host.innerHTML = '<h3>Your tendencies</h3><p>Loading your historical picks...</p>';
+  host.innerHTML = '<h3>From the archives</h3><p>Looking for a good callback...</p>';
   try {
     await loadDrilldown();
     const normalized = String(submission.name).trim().toLowerCase();
@@ -1145,35 +1170,81 @@ async function renderConfirmationHistory(submission) {
     const playerId = player?.playerId || websitePicks.find(row => String(row.name).trim().toLowerCase() === normalized)?.playerId;
     const gameById = new Map(websiteGames.map(game => [game.gameId, game]));
     const history = websitePicks.filter(row => row.playerId === playerId || String(row.name).trim().toLowerCase() === normalized).map(row => ({ ...row, game: gameById.get(row.gameId) })).filter(row => row.game).sort((left, right) => `${left.game.gameDate || ""} ${left.game.gameTime || ""}`.localeCompare(`${right.game.gameDate || ""} ${right.game.gameTime || ""}`));
-    if (!history.length) { host.innerHTML = `<h3>Your tendencies</h3><p>No archived picks match ${websiteEscapeHtml(submission.name)} yet. After completed weeks are archived, this section will learn favorite, home, prime-time, team, and streak tendencies.</p>`; return; }
-    const recent = history.slice(-50);
-    const count = predicate => recent.filter(predicate).length;
-    const favoriteRate = Math.round(100 * count(row => String(row.pick).toUpperCase() === String(row.game.favorite).toUpperCase()) / recent.length);
-    const homeRate = Math.round(100 * count(row => String(row.pick).toUpperCase() === String(row.game.home).toUpperCase()) / recent.length);
-    const primeRows = recent.filter(row => websiteIsPrimetime(row.game));
-    const teamCounts = new Map();
-    recent.forEach(row => teamCounts.set(String(row.pick).toUpperCase(), (teamCounts.get(String(row.pick).toUpperCase()) || 0) + 1));
-    const topTeam = [...teamCounts].sort((left, right) => right[1] - left[1] || left[0].localeCompare(right[0]))[0];
-    const againstUsual = topTeam && websiteActiveGames.some((game, index) => [game.favorite, game.underdog].some(team => String(team).toUpperCase() === topTeam[0]) && String(submission.picks[index]).toUpperCase() !== topTeam[0]);
+    if (!history.length) { host.innerHTML = `<h3>From the archives</h3><p>No archived picks match ${websiteEscapeHtml(submission.name)} yet. Give us a completed week and we will have material.</p>`; return; }
+    const currentRows = websiteActiveGames.map((game, index) => ({ game, pick: String(submission.picks[index] || "").toUpperCase() }));
+    const currentTeams = [...new Set(currentRows.map(row => row.pick).filter(Boolean))];
+    const lastPickForTeam = team => [...history].reverse().find(row => String(row.pick).toUpperCase() === team);
+    const droughts = currentTeams.map(team => ({ team, row: lastPickForTeam(team) })).filter(item => item.row).sort((left, right) => String(left.row.game.gameDate || "").localeCompare(String(right.row.game.gameDate || "")));
+    const longestDrought = droughts[0];
+    let droughtText = "";
+    if (longestDrought) {
+      const date = new Date(`${longestDrought.row.game.gameDate || ""}T12:00:00`);
+      const years = Number.isNaN(date.getTime()) ? 0 : (Date.now() - date.getTime()) / (365.25 * 24 * 60 * 60 * 1000);
+      const when = `${longestDrought.row.game.season} Week ${longestDrought.row.game.week}`;
+      droughtText = years >= 2 ? `You have not picked <strong>${websiteEscapeHtml(websiteFormTeamName(longestDrought.team))}</strong> in over ${Math.floor(years)} years. The last time was ${websiteEscapeHtml(when)}.` : `Welcome back, <strong>${websiteEscapeHtml(websiteFormTeamName(longestDrought.team))}</strong>. You last picked them in ${websiteEscapeHtml(when)}.`;
+    }
+    const bestBetRow = currentRows.find(row => row.pick === String(submission.bestBet || "").toUpperCase());
+    const bestBetOpponent = bestBetRow ? [bestBetRow.game.favorite, bestBetRow.game.underdog].map(team => String(team).toUpperCase()).find(team => team !== bestBetRow.pick) : "";
+    const priorBestBets = bestBetOpponent ? history.filter(row => String(row.bestBet).toUpperCase() === String(row.pick).toUpperCase() && String(row.pick).toUpperCase() !== bestBetOpponent && [row.game.favorite, row.game.underdog].map(team => String(team).toUpperCase()).includes(bestBetOpponent)) : [];
+    const lastBestBet = priorBestBets.at(-1);
+    let bestBetText = "";
+    if (lastBestBet) {
+      const week = websiteWeeks.find(row => row.playerId === playerId && row.season === lastBestBet.game.season && String(row.week) === String(lastBestBet.game.week));
+      const when = `${lastBestBet.game.season} Week ${lastBestBet.game.week}`;
+      if (Number(week?.rank) === 1) bestBetText = `The last time you used a Best Bet against the <strong>${websiteEscapeHtml(websiteFormTeamName(bestBetOpponent))}</strong>, you won the pool. That was ${websiteEscapeHtml(when)}.`;
+      else {
+        const result = lastBestBet.bestBetResult === "win" ? "hit" : lastBestBet.bestBetResult === "loss" ? "missed" : "pushed";
+        bestBetText = `The last time you used a Best Bet against the <strong>${websiteEscapeHtml(websiteFormTeamName(bestBetOpponent))}</strong>, it ${result} (${websiteEscapeHtml(when)}).`;
+      }
+    }
     const lastResult = history.at(-1)?.result;
     let streak = 0;
     for (let index = history.length - 1; index >= 0 && history[index].result === lastResult; index--) streak += 1;
     const streakResult = streak === 1 ? lastResult : lastResult === "loss" ? "losses" : `${lastResult}s`;
-    const currentFavoriteRate = Math.round(100 * websiteActiveGames.filter((game, index) => submission.picks[index] === game.favorite).length / websiteActiveGames.length);
-    const comparison = currentFavoriteRate >= favoriteRate + 15 ? "This card is much more favorite-heavy than your recent norm." : currentFavoriteRate <= favoriteRate - 15 ? "This card is much more underdog-heavy than your recent norm." : "This card is close to your usual favorite/underdog balance.";
-    host.innerHTML = `<h3>Your tendencies</h3><p>Across your latest ${recent.length} archived picks, you took favorites ${favoriteRate}% of the time and home teams ${homeRate}% of the time. ${comparison}</p><p>Your most-picked recent team is <strong>${websiteEscapeHtml(topTeam[0])}</strong> (${topTeam[1]} picks). ${againstUsual ? `This week you picked against ${websiteEscapeHtml(topTeam[0])}, a break from that habit.` : "You did not pick against that team this week."}</p><p>${lastResult ? `Current result streak: ${streak} ${websiteEscapeHtml(streakResult)}.` : "No scored result streak is available."}</p>${confirmationMetrics([["Fav rate", `${favoriteRate}%`], ["Home rate", `${homeRate}%`], ["Prime-time", primeRows.length]])}`;
-  } catch (error) { host.innerHTML = '<h3>Your tendencies</h3><p>Historical analysis is unavailable right now. Your submitted picks are still saved.</p>'; }
+    const stories = [droughtText, bestBetText, lastResult ? `Your current pick streak is ${streak} ${websiteEscapeHtml(streakResult)}.` : ""].filter(Boolean).slice(0, 3);
+    if (!stories.length) stories.push("The archives know you, but this particular card is breaking new ground. We will have better material after the games.");
+    host.innerHTML = `<h3>From the archives</h3>${stories.map(story => `<p>${story}</p>`).join("")}`;
+  } catch (error) { host.innerHTML = '<h3>From the archives</h3><p>The archive is taking the week off. Your submitted picks are still saved.</p>'; }
 }
 async function renderWebsiteConfirmation(submission, result) {
   submission.submittedAt = result?.submittedAt || submission.submittedAt || "";
   document.getElementById("confirmation-lead").textContent = submission.mode === "test" ? "Test picks submitted. Season records were not changed." : `Picks submitted for ${submission.name.trim()}.`;
   renderConfirmationIdentity(submission, result?.identity);
-  const interpretation = interpretWebsiteWeekName(submission.weekName);
+  const interpretation = interpretWebsiteWeekName(submission.weekName, submission.name);
   document.getElementById("confirmation-week-name").innerHTML = `<h3>Your week name · ${websiteEscapeHtml(interpretation.category)}</h3><p>${websiteEscapeHtml(interpretation.read)}</p>`;
   renderConfirmationPicks(submission);
   renderConfirmationHistory(submission);
   loadConfirmationProbability(submission);
 }
+let websiteBestBetMismatchAttempts = 0;
+let websiteBestBetMismatchSignature = "";
+function websiteBestBetMismatch(submission) {
+  const bestBet = String(submission.bestBet || "").toUpperCase();
+  const gameIndex = websiteActiveGames.findIndex(game => [game.favorite, game.underdog].some(team => String(team).toUpperCase() === bestBet));
+  if (gameIndex < 0) return null;
+  const pick = String(submission.picks[gameIndex] || "").toUpperCase();
+  if (!pick || pick === bestBet) return null;
+  return { bestBet, pick, gameIndex, signature: `${gameIndex}:${pick}:${bestBet}` };
+}
+function confirmWebsiteBestBetMismatch(submission, status) {
+  const mismatch = websiteBestBetMismatch(submission);
+  if (!mismatch) { websiteBestBetMismatchAttempts = 0; websiteBestBetMismatchSignature = ""; return true; }
+  if (mismatch.signature !== websiteBestBetMismatchSignature) { websiteBestBetMismatchAttempts = 0; websiteBestBetMismatchSignature = mismatch.signature; }
+  websiteBestBetMismatchAttempts += 1;
+  if (websiteBestBetMismatchAttempts > 2) return true;
+  const bestBetName = websiteFormTeamName(mismatch.bestBet);
+  const pickName = websiteFormTeamName(mismatch.pick);
+  status.textContent = websiteBestBetMismatchAttempts === 1
+    ? `Best Bet warning 1 of 2: You picked the ${pickName} in that game, but your Best Bet is the ${bestBetName}. Submit again if you really mean to bet against your own pick.`
+    : `Best Bet warning 2 of 2: The ${bestBetName} are still against your ${pickName} pick. Submit once more and we will accept it exactly this way.`;
+  status.focus();
+  return false;
+}
+document.getElementById("website-picks-form").addEventListener("change", event => {
+  if (!event.target.matches('input[type="radio"][name^="game-"], #website-best-bet')) return;
+  websiteBestBetMismatchAttempts = 0;
+  websiteBestBetMismatchSignature = "";
+});
 document.getElementById("website-picks-form").onsubmit = async event => {
   event.preventDefault();
   const form = event.currentTarget;
@@ -1181,6 +1252,7 @@ document.getElementById("website-picks-form").onsubmit = async event => {
   if (!websiteActiveGames.length) { status.textContent = "Stage this week before submitting test picks."; return; }
   const selection = websitePickSelection();
   const submission = { mode: selection.testMode ? "test" : "production", season: selection.season, week: selection.week, phase: selection.phase, name: document.getElementById("website-picks-name").value, weekName: document.getElementById("website-week-name").value.trim(), picks: websiteActiveGames.map((game, index) => form.elements[`game-${index + 1}`].value), bestBet: document.getElementById("website-best-bet").value, tiebreaker: document.getElementById("website-tiebreaker").value };
+  if (!confirmWebsiteBestBetMismatch(submission, status)) return;
   status.textContent = selection.testMode ? "Submitting isolated test picks..." : "Submitting picks...";
   try {
     let result = { ok: true, identity: { status: "new", submittedName: submission.name.trim(), suggestedName: "" } };
@@ -1191,6 +1263,7 @@ document.getElementById("website-picks-form").onsubmit = async event => {
     document.querySelector("#view-picks-confirmation .intro p").textContent = selection.testMode ? `Preseason Week ${selection.week} test` : `Week ${selection.week} · ${selection.season}-${selection.season + 1}`;
     await renderWebsiteConfirmation(submission, result);
     form.reset(); resetWebsiteBestBet(); showWebsiteConfirmation();
+    websiteBestBetMismatchAttempts = 0; websiteBestBetMismatchSignature = "";
   } catch (error) { status.textContent = `Could not submit picks: ${error.message}`; }
 };
 function websiteWeekOneFallback() { return { favorites: WEBSITE_WEEK_ONE_GAMES.map(game => game.favorite), favoriteScores: Array(16).fill(""), spreads: WEBSITE_WEEK_ONE_GAMES.map(game => game.spread), underdogScores: Array(16).fill(""), underdogs: WEBSITE_WEEK_ONE_GAMES.map(game => game.underdog), actualTiebreaker: "", players: JSON.parse(localStorage.getItem("fbpWebsiteSubmissions") || "[]").map(row => ({ name: row.name, weekName: row.weekName, picks: row.picks, bestBet: row.bestBet, tiebreaker: row.tiebreaker, wins: "", losses: "", total: "", winPercent: "", winProbability: "", pathsToVictory: "" })) }; }
@@ -3093,7 +3166,7 @@ function renderProfile(name) {
   renderSortableWeeklyRankTable("profile-weekly-rank-sheet", rankRows);
 }
 function initViews() { document.querySelectorAll("#nav button[data-view]").forEach(btn => btn.onclick = async () => { showView(btn.dataset.view); if (btn.dataset.view === "games" || btn.dataset.view === "weeks" || btn.dataset.view === "season" || btn.dataset.view === "players") await loadDrilldown(); if (btn.dataset.view === "weeks") { renderWeek(); renderWeekRace(); renderWinnerContributions(true); renderPicksGrid(); setTimeout(() => { orientWeekChart(); addGamePushMarkers(); }, 0); } if (btn.dataset.view === "weekly-rank") renderWeeklyRankView(); if (btn.dataset.view === "players") renderProfile(document.getElementById("profile-player").value); }); document.getElementById("profile-player").onchange = async event => { await loadDrilldown(); renderProfile(event.target.value); }; document.getElementById("season-choice").onchange = () => renderSeason(true); document.getElementById("season-race-metric").onchange = () => { const season = document.getElementById("season-choice").value; const standings = seasonStandings(season); const weeks = seasonWeekList(season); renderSeasonRace(standings, weeks, seasonProgress(standings, weeks)); }; document.getElementById("season-player").onchange = () => { const season = document.getElementById("season-choice").value; renderSeasonPlayer(seasonStandings(season), seasonWeekList(season)); }; document.getElementById("streak-category").onchange = renderStreaks; document.getElementById("game-season").onchange = populateGameWeeks; document.getElementById("game-week").onchange = populateGameChoices; document.getElementById("game-choice").onchange = renderGame; document.getElementById("week-season").onchange = populateWeekChoices; document.getElementById("week-choice").onchange = () => { renderWeek(); renderWeekRace(); }; document.getElementById("week-race-players").onchange = renderWeekRace; document.getElementById("weekly-rank-player").onchange = renderWeeklyRank; document.getElementById("weekly-rank-display").onchange = renderWeeklyRank; const requested = location.hash.slice(1); showView(["alltime", "season", "streaks", "weeks", "weekly-rank", "games", "players"].includes(requested) ? requested : "alltime"); }
-async function init() { manifest = await (await fetch(`${DATA_DIR}/manifest.json`)).json(); for (const entry of manifest) { tableData[entry.key] = await (await fetch(`${DATA_DIR}/${entry.key}.json`)).json(); } [websitePlayers, websiteSeasons, websiteWeeks, websiteAwards, websiteRecords, websiteStreaks] = await Promise.all(["players.json", "seasons.json", "player_weeks.json", "awards.json", "records.json", "streaks.json"].map(async file => await (await fetch(`${DATA_DIR}/${file}`)).json())); dashboard = await (await fetch(`${DATA_DIR}/dashboard.json`)).json(); const players = [...new Set(dashboard.map(row => row.Name))].sort(); const profileSelect = document.getElementById("profile-player"); players.forEach(name => profileSelect.add(new Option(name, name))); const defaultPlayer = players.includes("RJ") ? "RJ" : players[0] || ""; profileSelect.value = defaultPlayer; initViews(); if (location.hash === "#players") await loadDrilldown(); renderProfile(profileSelect.value); populateStreakCategories(); populateWeeklyRankPlayers(); renderAllTime(); if (location.hash === "#games") await loadDrilldown(); if (location.hash === "#weekly-rank") renderWeeklyRankView(); }
+async function init() { manifest = await (await fetch(`${DATA_DIR}/manifest.json`)).json(); for (const entry of manifest) { tableData[entry.key] = await (await fetch(`${DATA_DIR}/${entry.key}.json`)).json(); } [websitePlayers, websiteSeasons, websiteWeeks, websiteAwards, websiteRecords, websiteStreaks] = await Promise.all(["players.json", "seasons.json", "player_weeks.json", "awards.json", "records.json", "streaks.json"].map(async file => await (await fetch(`${DATA_DIR}/${file}${file === "player_weeks.json" ? `?v=${WEBSITE_WEEK_HISTORY_VERSION}` : ""}`)).json())); dashboard = await (await fetch(`${DATA_DIR}/dashboard.json`)).json(); const players = [...new Set(dashboard.map(row => row.Name))].sort(); const profileSelect = document.getElementById("profile-player"); players.forEach(name => profileSelect.add(new Option(name, name))); const defaultPlayer = players.includes("RJ") ? "RJ" : players[0] || ""; profileSelect.value = defaultPlayer; initViews(); if (location.hash === "#players") await loadDrilldown(); renderProfile(profileSelect.value); populateStreakCategories(); populateWeeklyRankPlayers(); renderAllTime(); if (location.hash === "#games") await loadDrilldown(); if (location.hash === "#weekly-rank") renderWeeklyRankView(); }
 function renderPicksGrid() {
   const el = document.getElementById("week-picks-grid");
   if (!el || !websitePicks.length) return;
