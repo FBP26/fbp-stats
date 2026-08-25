@@ -1119,7 +1119,7 @@ function interpretWebsiteWeekName(weekName, playerName) {
   const matches = playerWeeks.filter(row => String(row.weekName || "").trim().toLowerCase() === lower);
   const priorUses = matches.length;
   const record = matches.reduce((total, row) => ({ wins: total.wins + Number(row.displayWins || 0), losses: total.losses + Number(row.displayLosses || 0), pushes: total.pushes + Number(row.displayPushes || 0) }), { wins: 0, losses: 0, pushes: 0 });
-  const history = priorUses ? `This is your ${websiteOrdinal(priorUses + 1)} time using it. The first ${priorUses} went ${record.wins}-${record.losses}${record.pushes ? `-${record.pushes}` : ""}.` : "This is a new one in your week-name vault.";
+  const history = priorUses ? ` You have used it ${priorUses} ${priorUses === 1 ? "time" : "times"} before; those weeks went ${record.wins}-${record.losses}${record.pushes ? `-${record.pushes}` : ""}.` : "";
   const relatedIndianaNames = playerWeeks.filter(row => /\b(hoosiers?|indiana|iu)\b/i.test(String(row.weekName || ""))).map(row => row.weekName);
   if (lower === "aorta") {
     const medicalNames = playerWeeks.filter(row => /\b(surgery|surgeon|doctor|hospital|patient|procedure|operation|on call|coronavirus|heart)\b/i.test(String(row.weekName || ""))).length;
@@ -1133,20 +1133,20 @@ function interpretWebsiteWeekName(weekName, playerName) {
   if (/\b(go )?hoosiers?|indiana|\biu\b/i.test(text)) return { category: "Hoosier file", read: `This one has candy stripes all over it. We are putting “${text}” in the Indiana fan folder. ${history}` };
   if (/catalina|wine mixer|boats? and hoes|prestige worldwide/i.test(text)) return { category: "Movie quote desk", read: `This is almost certainly a Step Brothers reference, probably delivered with far more confidence than the Catalina Wine Mixer deserved. ${history}` };
   if (/we didn['’]?t (start|light) the fire|billy joel/i.test(text)) return { category: "Name that tune", read: `We are hearing Billy Joel's “We Didn't Start the Fire.” Whether the wording is exact is less important than committing to the chorus. ${history}` };
-  if (/^(let['’]?s|lets)\s+go[!.]*$/i.test(text)) return { category: "Pregame chant", read: `“${text}” is the switch-flip before kickoff: the plan is set, it is action time, and everybody is moving. ${history}` };
+  if (/^(let['’]?s|lets)\s+go\s+(braves?|atlanta)[!.]*$/i.test(text)) return { category: "Braves country", read: `Straightforward Atlanta Braves support. The week name says exactly who you want to win.${history}` };
+  if (/^(let['’]?s|lets)\s+go[!.]*$/i.test(text)) return { category: "Ready to go", read: `“${text}” is a simple expression of excitement.${history}` };
   if (/^["“']|["”']$/.test(text) || /\b(lyric|song|movie|episode|chapter|quote|sequel|part ii|returns|strikes back)\b/i.test(text)) return { category: "Pop-culture department", read: `Our guess: “${text}” is a movie line, lyric, or sequel joke that makes perfect sense to one group chat. ${history}` };
   if (/\b(i think|i believe|should|deserves?|sucks?|rules?|best|worst|overrated|underrated|love|hate)\b/i.test(text)) return { category: "Opinion desk", read: `“${text}” is not a label; it is a ruling. The court will hear no appeal. ${history}` };
   if (/\b(today|tonight|this week|trade|injury|storm|weather|headline|breaking|election|birthday|wedding|vacation|work|school)\b/i.test(text)) return { category: "This week's alibi", read: `We are tying “${text}” to something that happened in sports or in your life this week. Future historians may struggle, but the room probably gets it. ${history}` };
   if (/[!?]{2,}|\b(lol|haha|oops|again|pain|chaos|disaster|miracle|send help)\b/i.test(text) || /\b\w+\s+mc\w+\b/i.test(text)) return { category: "Comedy department", read: `“${text}” sounds like the title of a bad sequel to last week's decisions. We mean that as a compliment. ${history}` };
-  const guesses = ["a movie or TV reference with some history behind it", "a personal memory marker from outside the pool", "a group-chat callback promoted to the main stage", "a note about whatever mattered most this week"];
-  const guess = guesses[[...lower].reduce((total, character) => total + character.charCodeAt(0), 0) % guesses.length];
-  return { category: "Week-name read", read: `“${text}” reads like ${guess}. ${history}` };
+  return { category: "Week-name note", read: `We do not have enough context to explain “${text},” so we are leaving it as written instead of inventing a story.${history}` };
 }
 function renderConfirmationIdentity(submission, identity) {
   const host = document.getElementById("confirmation-identity");
   const effective = identity || { status: "new", submittedName: submission.name.trim(), suggestedName: "" };
   const spacingOnly = effective.canonicalizedFrom && String(effective.canonicalizedFrom).trim() === effective.submittedName;
-  let message = effective.canonicalizedFrom ? spacingOnly ? `We removed extra spacing from your name and matched you with <strong>${websiteEscapeHtml(effective.submittedName)}</strong>. Your picks are connected to your past results.` : `You entered <strong>${websiteEscapeHtml(effective.canonicalizedFrom)}</strong>. We saved it as <strong>${websiteEscapeHtml(effective.submittedName)}</strong> so this week's picks stay connected to your past results.` : `Welcome back, ${websiteEscapeHtml(effective.submittedName)}. This week's picks are connected to your past results.`;
+  const formattingNote = effective.canonicalizedFrom ? spacingOnly ? " We removed the extra spacing from your name." : ` You entered <strong>${websiteEscapeHtml(effective.canonicalizedFrom)}</strong>; we saved it as <strong>${websiteEscapeHtml(effective.submittedName)}</strong>.` : "";
+  let message = `Welcome back, ${websiteEscapeHtml(effective.submittedName)}.${formattingNote}`;
   if (["new", "suggestion", "reversed"].includes(effective.status)) message = `Welcome, ${websiteEscapeHtml(effective.submittedName)}. We saved you as a new player. Your picks appear on Current Week immediately; live scores and probability update there after kickoff.`;
   else { const participation = websiteParticipationSummary(effective.submittedName); if (participation) message += ` ${participation}`; }
   host.innerHTML = `<h3>Name check</h3><p>${message}</p>`;
@@ -1244,7 +1244,7 @@ async function renderConfirmationHistory(submission) {
     const fadingRuns = currentOpponents.map(team => ({ team, length: longestWinningRun(completedHistory.filter(row => String(row.pick).toUpperCase() !== team && [row.game.favorite, row.game.underdog].map(value => String(value).toUpperCase()).includes(team))) })).sort((left, right) => right.length - left.length);
     const bestBackingRun = backingRuns.find(run => run.length >= 2);
     const bestFadingRun = fadingRuns.find(run => run.length >= 2);
-    const teamStreakText = [bestBackingRun ? `Your best run backing a team on this card is ${bestBackingRun.length} straight winning <strong>${websiteEscapeHtml(websiteFormTeamName(bestBackingRun.team))}</strong> picks.` : "", bestFadingRun ? `Your best run against a team on this card is ${bestFadingRun.length} straight wins fading the <strong>${websiteEscapeHtml(websiteFormTeamName(bestFadingRun.team))}</strong>.` : ""].filter(Boolean).join(" ");
+    const teamStreakText = [bestBackingRun ? `Among teams you picked this week, your longest run of correct picks is ${bestBackingRun.length} straight with the <strong>${websiteEscapeHtml(websiteFormTeamName(bestBackingRun.team))}</strong>.` : "", bestFadingRun ? `Among their opponents, your longest run is ${bestFadingRun.length} straight correct picks against the <strong>${websiteEscapeHtml(websiteFormTeamName(bestFadingRun.team))}</strong>.` : ""].filter(Boolean).join(" ");
     const teamRank = (team, against = false) => {
       const records = new Map();
       websitePicks.forEach(row => {
@@ -1320,7 +1320,7 @@ async function preflightWebsiteIdentity(submission, status) {
   if (websiteApprovedNewPlayerName === normalizedName) return true;
   const suggestion = identity.status === "suggestion" ? identity.suggestedName : "";
   const suggestionText = suggestion ? ` We found <strong>${websiteEscapeHtml(suggestion)}</strong> in past results.` : "";
-  status.innerHTML = `We could not match <strong>${websiteEscapeHtml(enteredName)}</strong> exactly.${suggestionText} Is this a new player, or should the name be changed?<span class="identity-actions"><button id="website-confirm-new-player" type="button">New player</button><button id="website-change-player-name" type="button">Change name</button></span>`;
+  status.innerHTML = `We could not match <strong>${websiteEscapeHtml(enteredName)}</strong> exactly.${suggestionText} Should the name be changed, or is this a new player?<span class="identity-actions"><button id="website-change-player-name" type="button">Change name</button><button id="website-confirm-new-player" type="button">New player</button></span>`;
   document.getElementById("website-confirm-new-player").onclick = () => { websiteApprovedNewPlayerName = normalizedName; document.getElementById("website-picks-form").requestSubmit(); };
   document.getElementById("website-change-player-name").onclick = () => {
     const input = document.getElementById("website-picks-name");
