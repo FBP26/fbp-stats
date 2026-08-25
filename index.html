@@ -1092,6 +1092,26 @@ function websitePlayerWeekHistory(name) {
   const normalized = String(name || "").trim().toLowerCase();
   return websiteWeeks.filter(row => String(row.name || "").trim().toLowerCase() === normalized);
 }
+function websiteParticipationSummary(name) {
+  const normalized = String(name || "").trim().toLowerCase();
+  const player = websitePlayers.find(row => String(row.name || "").trim().toLowerCase() === normalized);
+  if (!player) return "";
+  const periods = [...new Map(websiteWeeks.map(row => [`${row.season}|${row.week}`, { season: String(row.season), week: String(row.week), order: Number(row.weekOrder || 0) }])).values()].sort((left, right) => left.season.localeCompare(right.season) || left.order - right.order);
+  const periodIndex = new Map(periods.map((period, index) => [`${period.season}|${period.week}`, index]));
+  const rowsByPlayer = websiteWeeks.reduce((map, row) => { const rows = map.get(row.playerId) || []; rows.push(row); map.set(row.playerId, rows); return map; }, new Map());
+  const metrics = rows => {
+    const indexes = [...new Set(rows.map(row => periodIndex.get(`${row.season}|${row.week}`)).filter(index => index != null))].sort((left, right) => left - right);
+    let streak = 0;
+    if (indexes.at(-1) === periods.length - 1) for (let index = indexes.length - 1; index >= 0 && indexes[index] === periods.length - 1 - streak; index--) streak += 1;
+    return { weeks: rows.length, streak };
+  };
+  const allMetrics = [...rowsByPlayer.entries()].map(([playerId, rows]) => ({ playerId, ...metrics(rows) }));
+  const historical = metrics(rowsByPlayer.get(player.playerId) || []);
+  const current = { weeks: historical.weeks + 1, streak: historical.streak + 1 };
+  const weekRank = 1 + allMetrics.filter(row => row.playerId !== player.playerId && row.weeks > current.weeks).length;
+  const streakRank = 1 + allMetrics.filter(row => row.playerId !== player.playerId && row.streak > current.streak).length;
+  return `This is your <strong>${websiteOrdinal(current.weeks)}</strong> pool week and your <strong>${websiteOrdinal(current.streak)} in a row</strong>. That ranks ${websiteOrdinal(weekRank)} of ${allMetrics.length} all time in weeks entered and ${websiteOrdinal(streakRank)} in active attendance streaks.`;
+}
 function interpretWebsiteWeekName(weekName, playerName) {
   const text = String(weekName || "").trim();
   const lower = text.toLowerCase();
@@ -1101,6 +1121,11 @@ function interpretWebsiteWeekName(weekName, playerName) {
   const record = matches.reduce((total, row) => ({ wins: total.wins + Number(row.displayWins || 0), losses: total.losses + Number(row.displayLosses || 0), pushes: total.pushes + Number(row.displayPushes || 0) }), { wins: 0, losses: 0, pushes: 0 });
   const history = priorUses ? `This is your ${websiteOrdinal(priorUses + 1)} time using it. The first ${priorUses} went ${record.wins}-${record.losses}${record.pushes ? `-${record.pushes}` : ""}.` : "This is a new one in your week-name vault.";
   const relatedIndianaNames = playerWeeks.filter(row => /\b(hoosiers?|indiana|iu)\b/i.test(String(row.weekName || ""))).map(row => row.weekName);
+  if (lower === "aorta") {
+    const medicalNames = playerWeeks.filter(row => /\b(surgery|surgeon|doctor|hospital|patient|procedure|operation|on call|coronavirus|heart)\b/i.test(String(row.weekName || ""))).length;
+    const archive = medicalNames >= 3 ? `It also fits your archive: at least ${medicalNames} earlier names mention medicine, surgery, patients, procedures, or being on call, so this may be another useful timestamp from work.` : "It may also be a useful timestamp for something happening at work.";
+    return { category: "Anatomy desk", read: `The aorta is the body's largest artery, carrying oxygen-rich blood from the heart's left ventricle into the systemic circulation. ${archive} ${history}` };
+  }
   if (lower === "big red") {
     const fandom = relatedIndianaNames.length ? ` Add in names like “${relatedIndianaNames[0]}” and the evidence says Indiana fan, not cinnamon-gum loyalist.` : " We are calling it an Indiana rally cry, with cinnamon gum running a respectable second.";
     return { category: "Our best guess", read: `“${text}” could be the gum, Indiana's rally cry, or a very confident Clifford reference.${fandom} ${history}` };
@@ -1113,7 +1138,7 @@ function interpretWebsiteWeekName(weekName, playerName) {
   if (/\b(i think|i believe|should|deserves?|sucks?|rules?|best|worst|overrated|underrated|love|hate)\b/i.test(text)) return { category: "Opinion desk", read: `“${text}” is not a label; it is a ruling. The court will hear no appeal. ${history}` };
   if (/\b(today|tonight|this week|trade|injury|storm|weather|headline|breaking|election|birthday|wedding|vacation|work|school)\b/i.test(text)) return { category: "This week's alibi", read: `We are tying “${text}” to something that happened in sports or in your life this week. Future historians may struggle, but the room probably gets it. ${history}` };
   if (/[!?]{2,}|\b(lol|haha|oops|again|pain|chaos|disaster|miracle|send help)\b/i.test(text) || /\b\w+\s+mc\w+\b/i.test(text)) return { category: "Comedy department", read: `“${text}” sounds like the title of a bad sequel to last week's decisions. We mean that as a compliment. ${history}` };
-  const guesses = ["a movie line that belongs in the pregame speech", "a nickname carrying a story from outside the pool", "a group-chat callback promoted to the main stage", "a rallying cry built for kickoff"];
+  const guesses = ["a movie or TV reference with some history behind it", "a personal memory marker from outside the pool", "a group-chat callback promoted to the main stage", "a note about whatever mattered most this week"];
   const guess = guesses[[...lower].reduce((total, character) => total + character.charCodeAt(0), 0) % guesses.length];
   return { category: "Week-name read", read: `“${text}” reads like ${guess}. ${history}` };
 }
@@ -1123,6 +1148,7 @@ function renderConfirmationIdentity(submission, identity) {
   const spacingOnly = effective.canonicalizedFrom && String(effective.canonicalizedFrom).trim() === effective.submittedName;
   let message = effective.canonicalizedFrom ? spacingOnly ? `We removed extra spacing from your name and matched you with <strong>${websiteEscapeHtml(effective.submittedName)}</strong>. Your picks are connected to your past results.` : `You entered <strong>${websiteEscapeHtml(effective.canonicalizedFrom)}</strong>. We saved it as <strong>${websiteEscapeHtml(effective.submittedName)}</strong> so this week's picks stay connected to your past results.` : `Welcome back, ${websiteEscapeHtml(effective.submittedName)}. This week's picks are connected to your past results.`;
   if (["new", "suggestion", "reversed"].includes(effective.status)) message = `Welcome, ${websiteEscapeHtml(effective.submittedName)}. We saved you as a new player. Your picks appear on Current Week immediately; live scores and probability update there after kickoff.`;
+  else { const participation = websiteParticipationSummary(effective.submittedName); if (participation) message += ` ${participation}`; }
   host.innerHTML = `<h3>Name check</h3><p>${message}</p>`;
 }
 function renderConfirmationPicks(submission) {
@@ -1141,7 +1167,10 @@ async function loadConfirmationProbability(submission) {
     const player = (data.players || []).find(row => String(row.name).trim().toLowerCase() === String(submission.name).trim().toLowerCase());
     if (!player?.winProbability) { host.innerHTML = "<p>Your chance to win will appear after Current Week finishes recalculating.</p>"; return; }
     const field = data.players || [];
-    const chanceText = `As the field stands now, before more entries are added, your chance to win is <strong>${websiteEscapeHtml(player.winProbability)}</strong>.`;
+    const probability = parseFloat(String(player.winProbability).replace("%", ""));
+    const probabilityRank = 1 + field.filter(row => parseFloat(String(row.winProbability || "0").replace("%", "")) > probability).length;
+    const tied = field.filter(row => parseFloat(String(row.winProbability || "0").replace("%", "")) === probability).length > 1;
+    const chanceText = `As the field stands now, before more entries are added, your chance to win is <strong>${websiteEscapeHtml(player.winProbability)}</strong>. That ranks ${tied ? "tied for " : ""}<strong>${websiteOrdinal(probabilityRank)}</strong> out of ${field.length} entries.`;
     const pathCount = Number(player.pathsToVictory || 0);
     const pathsText = field.length >= 3 && pathCount ? `You currently have <strong>${pathCount.toLocaleString()}</strong> modeled paths to a win. That total will change as more picks arrive and games are played.` : "";
     const leverage = websiteActiveGames.map((game, index) => {
@@ -1179,7 +1208,7 @@ async function renderConfirmationHistory(submission) {
       rows.forEach(row => { current = String(row.result).toLowerCase() === "win" ? current + 1 : 0; longest = Math.max(longest, current); });
       return longest;
     };
-    const weekSummary = row => websiteWeeks.find(week => week.playerId === playerId && week.season === row.game.season && String(week.week) === String(row.game.week));
+    const weekSummary = row => { const gameWeek = String(row.game.week).toLowerCase(), summaryWeek = gameWeek.startsWith("round") || gameWeek === "super bowl" ? "playoffs" : gameWeek; return websiteWeeks.find(week => week.playerId === playerId && week.season === row.game.season && String(week.week).toLowerCase() === summaryWeek); };
     const pickOutcome = row => String(row.result).toLowerCase() === "win" ? "the pick hit" : String(row.result).toLowerCase() === "loss" ? "the pick missed" : "the pick pushed";
     const lastPickForTeam = team => [...history].reverse().find(row => String(row.pick).toUpperCase() === team);
     const droughts = currentTeams.map(team => ({ team, row: lastPickForTeam(team) })).filter(item => item.row).sort((left, right) => String(left.row.game.gameDate || "").localeCompare(String(right.row.game.gameDate || "")));
@@ -1188,7 +1217,7 @@ async function renderConfirmationHistory(submission) {
     if (longestDrought) {
       const date = new Date(`${longestDrought.row.game.gameDate || ""}T12:00:00`);
       const years = Number.isNaN(date.getTime()) ? 0 : (Date.now() - date.getTime()) / (365.25 * 24 * 60 * 60 * 1000);
-      const when = `${longestDrought.row.game.season} Week ${longestDrought.row.game.week}`;
+      const when = `${longestDrought.row.game.season} ${weeklyRankWeekLabel(String(longestDrought.row.game.week).toLowerCase())}`;
       const week = weekSummary(longestDrought.row);
       const finish = week ? ` You went ${week.displayWins}-${week.displayLosses}${Number(week.displayPushes || 0) ? `-${week.displayPushes}` : ""} that week and finished ${websiteOrdinal(week.rank)}.` : "";
       const lastTime = `${websiteEscapeHtml(when)}; ${pickOutcome(longestDrought.row)}.${finish}`;
@@ -1200,13 +1229,16 @@ async function renderConfirmationHistory(submission) {
     const lastBestBet = priorBestBets.at(-1);
     let bestBetText = "";
     if (lastBestBet) {
-      const week = websiteWeeks.find(row => row.playerId === playerId && row.season === lastBestBet.game.season && String(row.week) === String(lastBestBet.game.week));
-      const when = `${lastBestBet.game.season} Week ${lastBestBet.game.week}`;
-      if (Number(week?.rank) === 1) bestBetText = `The last time you used a Best Bet against the <strong>${websiteEscapeHtml(websiteFormTeamName(bestBetOpponent))}</strong>, you won the pool. That was ${websiteEscapeHtml(when)}.`;
-      else {
-        const result = lastBestBet.bestBetResult === "win" ? "hit" : lastBestBet.bestBetResult === "loss" ? "missed" : "pushed";
-        bestBetText = `The last time you used a Best Bet against the <strong>${websiteEscapeHtml(websiteFormTeamName(bestBetOpponent))}</strong>, it ${result} (${websiteEscapeHtml(when)}).`;
-      }
+      const week = weekSummary(lastBestBet);
+      const picked = String(lastBestBet.pick).toUpperCase();
+      const favorite = String(lastBestBet.game.favorite).toUpperCase();
+      const spread = Number(lastBestBet.game.spread || 0);
+      const line = spread ? `${picked === favorite ? "-" : "+"}${spread}` : "PK";
+      const when = `${lastBestBet.game.season} ${profileWeekLabel(lastBestBet.game.week)}`;
+      const score = `${websiteFormTeamName(picked)} ${lastBestBet.pickScore}, ${websiteFormTeamName(bestBetOpponent)} ${lastBestBet.againstPickScore}`;
+      const result = lastBestBet.bestBetResult === "win" ? "won" : lastBestBet.bestBetResult === "loss" ? "lost" : "pushed";
+      const finish = week?.rank ? ` You finished ${websiteOrdinal(week.rank)} out of ${week.playerCount || "the field"} with a ${week.displayWins}-${week.displayLosses}${Number(week.displayPushes || 0) ? `-${week.displayPushes}` : ""} record.` : "";
+      bestBetText = `The last time you used a Best Bet against the <strong>${websiteEscapeHtml(websiteFormTeamName(bestBetOpponent))}</strong>, you picked <strong>${websiteEscapeHtml(websiteFormTeamName(picked))} ${websiteEscapeHtml(line)}</strong> and ${result}. The final was ${websiteEscapeHtml(score)} (${websiteEscapeHtml(when)}).${finish}`;
     }
     const backingRuns = currentTeams.map(team => ({ team, length: longestWinningRun(completedHistory.filter(row => String(row.pick).toUpperCase() === team)) })).sort((left, right) => right.length - left.length);
     const fadingRuns = currentOpponents.map(team => ({ team, length: longestWinningRun(completedHistory.filter(row => String(row.pick).toUpperCase() !== team && [row.game.favorite, row.game.underdog].map(value => String(value).toUpperCase()).includes(team))) })).sort((left, right) => right.length - left.length);
@@ -1237,7 +1269,21 @@ async function renderConfirmationHistory(submission) {
     let streak = 0;
     for (let index = completedHistory.length - 1; index >= 0 && completedHistory[index].result === lastResult; index--) streak += 1;
     const streakResult = streak === 1 ? lastResult : lastResult === "loss" ? "losses" : `${lastResult}s`;
-    const stories = [droughtText, bestBetText, lastResult ? `Your current pick streak is ${streak} ${websiteEscapeHtml(streakResult)}.` : "", teamStreakText, rankText].filter(Boolean).slice(0, 5);
+    const streakRows = streak ? completedHistory.slice(-streak) : [];
+    const streakDetails = streakRows.map(row => { const picked = String(row.pick).toUpperCase(), favorite = String(row.game.favorite).toUpperCase(), spread = Number(row.game.spread || 0), line = spread ? `${picked === favorite ? "-" : "+"}${spread}` : "PK", teamName = value => websiteFormTeamName(String(value).toUpperCase()); return `${teamName(picked)} ${line} (${teamName(row.game.favorite)} ${favoriteScore(row.game)}, ${teamName(row.game.underdog)} ${underdogScore(row.game)})`; }).join("; ");
+    const streakText = lastResult ? `Your current pick streak is ${streak} ${websiteEscapeHtml(streakResult)}${streakDetails ? `: ${websiteEscapeHtml(streakDetails)}` : ""}.` : "";
+    const opportunityRun = (team, field) => {
+      const opportunities = history.filter(row => [row.game.favorite, row.game.underdog].some(value => String(value).toUpperCase() === team));
+      let length = 0;
+      for (let index = opportunities.length - 1; index >= 0 && String(opportunities[index][field]).toUpperCase() === team; index--) length += 1;
+      return length + 1;
+    };
+    const habitStories = [];
+    currentTeams.forEach(team => { const length = opportunityRun(team, "pick"), teamName = websiteEscapeHtml(websiteFormTeamName(team)); if (length >= 10) habitStories.push(`This is your <strong>${websiteOrdinal(length)} straight ${teamName} game</strong> backing ${teamName}.`); });
+    const currentBestBet = String(submission.bestBet || "").toUpperCase();
+    if (currentBestBet) { const length = opportunityRun(currentBestBet, "bestBet"), teamName = websiteEscapeHtml(websiteFormTeamName(currentBestBet)); if (length >= 10) habitStories.push(`It is also your <strong>${websiteOrdinal(length)} straight ${teamName} game</strong> using ${teamName} as your Best Bet.`); }
+    const habitText = habitStories.join(" ");
+    const stories = [droughtText, bestBetText, streakText, habitText, teamStreakText, rankText].filter(Boolean).slice(0, 6);
     if (!stories.length) stories.push("The archives know you, but this particular card is breaking new ground. We will have better material after the games.");
     host.innerHTML = `<h3>From the archives</h3>${stories.map(story => `<p>${story}</p>`).join("")}`;
   } catch (error) { host.innerHTML = '<h3>From the archives</h3><p>The archive is taking the week off. Your submitted picks are still saved.</p>'; }
@@ -1600,7 +1646,7 @@ function renderProfileLegacy(name) {
   document.getElementById("profile-stats").innerHTML = stats.map(([label, value]) => `<div><span>${label}</span><strong>${value}</strong></div>`).join("");
   const extra = (title, values) => `<div class="profile-section"><h3>${title}</h3><div class="profile-list">${values.map(([label, value]) => `<div><span>${label}</span><strong>${value ?? "0"}</strong></div>`).join("")}</div></div>`;
   const bestWeekLabel = bestWeek ? `${bestWeek.Wins}-${bestWeek.Losses} (${bestWeek.Season} W${bestWeek.Week})` : "0";
-  document.getElementById("profile-extra-stats").innerHTML = extra("Competition", [["Regular weeks", regular.length], ["Regular wins", regular.reduce((sum, row) => sum + Number(row.Wins || 0), 0)], ["Playoff weeks", playoffs.length], ["Playoff wins", playoffs.reduce((sum, row) => sum + Number(row.Wins || 0), 0)]]) + extra("Best weeks and titles", [["Best week", bestWeekLabel], ["Best weekly record", weeklyChamps?.["Best Week Record"]], ["Best playoff record", playoffChamps?.["Best Playoff Record"]], ["Season championships", seasonChamps?.["Championships Won"]], ["Season runner-ups", seasonChamps?.["2nd Place"]], ["Season best win %", seasonChamps ? (Number(seasonChamps["Best Season Win %"] || 0) * 100).toFixed(2) + "%" : "0"]]) + extra("Streak records", streaks.map(([label, key, column]) => [label, (tableData[key] || []).find(row => row.Name === name)?.[column]]));
+  document.getElementById("profile-extra-stats").innerHTML = extra("Competition", [["Regular weeks", regular.length], ["Regular wins", regular.reduce((sum, row) => sum + Number(row.Wins || 0), 0)], ["Playoff weeks", playoffs.length], ["Playoff wins", playoffs.reduce((sum, row) => sum + Number(row.Wins || 0), 0)]]) + extra("Best weeks and titles", [["Best week", weeklyChamps?.["Best Week Record"] || bestWeekLabel], ["Best playoff record", playoffChamps?.["Best Playoff Record"]], ["Season championships", seasonChamps?.["Championships Won"]], ["Season runner-ups", seasonChamps?.["2nd Place"]], ["Season best win %", seasonChamps ? (Number(seasonChamps["Best Season Win %"] || 0) * 100).toFixed(2) + "%" : "0"]]) + extra("Streak records", streaks.map(([label, key, column]) => [label, (tableData[key] || []).find(row => row.Name === name)?.[column]]));
   const seasons = [...new Set(weekly.map(row => row.Season))].sort();
   const playerAwards = websiteAwards.filter(row => row.playerId === playerId);
   const awardsFor = (season, type) => playerAwards.filter(row => row.season === season && row.awardType === type);
@@ -3082,8 +3128,9 @@ function renderProfile(name) {
   if (!overall) { renderProfileWeekNames(name, playerId); return; }
   const stats = [["Wins", overall.Wins], ["Losses", overall.Losses], ["Win percentage", (Number(overall["%"] || 0) * 100).toFixed(2) + "%"], ["Plus/minus", overall["Plus/Minus"]]];
   document.getElementById("profile-stats").innerHTML = stats.map(([label, value]) => `<div><span>${label}</span><strong>${value}</strong></div>`).join("");
-  const extra = (title, values) => `<div class="profile-section"><h3>${title}</h3><div class="profile-list">${values.map(([label, value]) => `<div><span>${label}</span><strong>${value ?? "0"}</strong></div>`).join("")}</div></div>`;
-  const bestWeekLabel = bestWeek ? `${bestWeek.Wins}-${bestWeek.Losses}${Number(bestWeek.Pushes || 0) ? `-${bestWeek.Pushes}` : ""} (${bestWeek.Season} ${bestWeek.Week === "playoffs" ? "Playoffs" : `W${bestWeek.Week}`}, ${(Number(bestWeek.WinPct || 0) * 100).toFixed(1)}%)` : "0";
+  const extra = (title, values) => `<div class="profile-section"><h3>${title}</h3><div class="profile-list">${values.map(([label, value, tooltip]) => `<div${tooltip ? ` data-weekly-tooltip="${websiteEscapeHtml(tooltip)}"` : ""}><span>${websiteEscapeHtml(label)}</span><strong>${websiteEscapeHtml(value ?? "0")}</strong></div>`).join("")}</div></div>`;
+  const bestWeekLabel = weeklyChamps?.["Best Week Record"] || (bestWeek ? `${bestWeek.Wins}-${bestWeek.Losses}` : "0");
+  const bestWeekTooltip = bestWeek ? weeklyResultsTooltipHtml(bestWeek, { playerId, name }) : "";
   const bestWeeks = [...regular].sort((a, b) => Number(b.WinPct || 0) - Number(a.WinPct || 0) || Number(b.Wins || 0) - Number(a.Wins || 0) || Number(a.Rank || 99) - Number(b.Rank || 99)).slice(0, 5);
   const recentSelect = document.getElementById("profile-recent-lookback");
   const recentView = document.getElementById("profile-recent-view")?.value || "form";
@@ -3123,7 +3170,7 @@ function renderProfile(name) {
   });
   document.getElementById("profile-extra-stats").innerHTML =
     extra("Money and winning", [["Total money won", "$" + Number(money?.["Total Money Won"] || 0).toLocaleString()], ["Weekly money", "$" + Number(money?.["Weekly Money"] || 0).toLocaleString()], ["Playoff money", "$" + Number(money?.["Playoff Money"] || 0).toLocaleString()], ["Season money", "$" + Number(money?.["Season Money"] || 0).toLocaleString()], ["Weeks won", money?.["Weeks Won"] || 0], ["Weekly 2nds", weeklyChamps?.["2nd Place"] || 0], ["Weekly 3rds", weeklyChamps?.["3rd Place"] || 0], ["Playoff titles", playoffChamps?.["Playoffs Won"] || 0], ["Season titles", seasonChamps?.["Championships Won"] || 0], ["Season runner-ups", seasonChamps?.["2nd Place"] || 0]]) +
-    extra("Best weeks", [["Best week", bestWeekLabel], ["Best weekly record", weeklyChamps?.["Best Week Record"]], ["Best playoff record", playoffChamps?.["Best Playoff Record"]], ["Top 5 finishes", weeklyChamps?.["Top 5"] || 0], ["Top 10 finishes", weeklyChamps?.["Top 10"] || 0], ["800 club", weeklyChamps?.["800 Club"] || 0], ["700 club", weeklyChamps?.["700 Club"] || 0]]) +
+    extra("Best weeks", [["Best week", bestWeekLabel, bestWeekTooltip], ["Best playoff record", playoffChamps?.["Best Playoff Record"]], ["Top 5 finishes", weeklyChamps?.["Top 5"] || 0], ["Top 10 finishes", weeklyChamps?.["Top 10"] || 0], ["800 club", weeklyChamps?.["800 Club"] || 0], ["700 club", weeklyChamps?.["700 Club"] || 0]]) +
     extra("Streak details", streakDetailRows);
   renderProfileWeekNames(name, playerId);
   const seasons = [...new Set(weekly.map(row => row.Season))].sort();
