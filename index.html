@@ -8,7 +8,7 @@
 <script src="https://cdn.jsdelivr.net/npm/chart.js@4.4.3/dist/chart.umd.min.js"></script>
 <script src="https://cdn.jsdelivr.net/npm/chartjs-chart-sankey@0.14.0/dist/chartjs-chart-sankey.min.js"></script>
 <script src="https://unpkg.com/tabulator-tables@5.6.0/dist/js/tabulator.min.js"></script>
-<script src="historical-ui.js?v=20260824-5"></script>
+<script src="historical-ui.js?v=20260824-6"></script>
 <style>
   :root { --bg: #0d1117; --panel: #151c24; --panel-2: #1b2530; --border: #2a3744; --text: #e8eef5; --muted: #91a0ae; --accent: #54d6b2; --accent-2: #ffb454; --danger: #ff7180; }
   * { box-sizing: border-box; }
@@ -52,6 +52,7 @@
   .record-card h3 { color: var(--accent); font-size: 12px; font-family: Arial, sans-serif; letter-spacing: .8px; text-transform: uppercase; margin: 0 0 12px; }
   .record-card strong { display: block; font-size: 30px; font-weight: 400; }
   .record-card p { color: var(--muted); font: 13px Arial, sans-serif; margin: 8px 0 0; }
+  .record-card[data-weekly-tooltip] { cursor: help; }
   .profile-grid { display: grid; grid-template-columns: minmax(220px, .7fr) minmax(0, 1.3fr); gap: 14px; }
   .profile-name { font-size: 42px; font-weight: 400; margin: 0 0 16px; }
   .profile-list { display: grid; gap: 11px; font: 13px Arial, sans-serif; }
@@ -147,6 +148,21 @@
   .distribution-tooltip .tooltip-season-header { margin-top: 6px; padding-top: 6px; color: var(--accent-2); border-top: 1px solid #52606d; font-weight: bold; text-align: left; }
   .distribution-tooltip .tooltip-week-row { display: grid; grid-template-columns: minmax(72px, 1fr) 38px 64px; gap: 12px; border-top: 0; font-family: Consolas, monospace; text-align: right; }
   .distribution-tooltip .tooltip-week-row span:first-child { text-align: left; }
+  .profile-chart-tooltip .streak-game-grid { grid-template-columns: repeat(2, minmax(150px, 1fr)); gap: 4px; }
+  .profile-chart-tooltip .streak-game-card { padding: 5px 7px; }
+  .profile-chart-tooltip .streak-game-period { font-size: 10px; }
+  .profile-chart-tooltip.interactive-tooltip { pointer-events: auto; overflow: auto; overscroll-behavior: contain; scrollbar-gutter: stable; }
+  .profile-chart-tooltip.interactive-tooltip .streak-game-grid { min-width: 360px; }
+  .profile-chart-tooltip [data-weekly-drilldown] { cursor: pointer; transition: background .12s ease, border-color .12s ease; }
+  .profile-chart-tooltip [data-weekly-drilldown]:hover { background: #263b40; border-color: var(--accent); }
+  .weekly-drilldown-tooltip { z-index: 1100; width: max-content; min-width: 250px; overflow: auto; overscroll-behavior: contain; pointer-events: auto; }
+  .profile-chart-tooltip .tooltip-week-row { display: grid; grid-template-columns: minmax(72px, 1fr) 38px 64px; gap: 12px; text-align: right; }
+  .profile-chart-tooltip .tooltip-week-row span:first-child { text-align: left; }
+  .weekly-win-period { display: grid; grid-template-columns: auto auto; align-items: center; gap: 5px; min-width: 126px; }
+  .weekly-win-season { color: var(--muted); font: 10px/1 Arial, sans-serif; }
+  .weekly-win-week { padding: 3px 6px; border-left: 2px solid var(--accent); background: #1d3030; color: var(--accent); font: bold 11px/1 Arial, sans-serif; }
+  .weekly-win-record { cursor: help; text-decoration: underline dotted #54d6b299; text-underline-offset: 3px; }
+  @media (max-width: 520px) { .profile-chart-tooltip .streak-game-grid { grid-template-columns: 1fr; } .profile-chart-tooltip.interactive-tooltip .streak-game-grid { min-width: 300px; } }
   .compact-live-title { margin: 0 0 10px; color: var(--accent); font: 11px Arial, sans-serif; text-transform: uppercase; letter-spacing: .7px; }
   .weekly-subview { max-width: 980px; margin-top: 24px; padding-top: 18px; border-top: 1px solid var(--border); }
   .player-ledger-list { display: grid; gap: 7px; }
@@ -221,6 +237,37 @@
   .week-recap-item strong { display: block; margin-top: 6px; font-size: 17px; font-weight: 400; line-height: 1.35; }
   .winner-draft { padding: 16px; border: 1px solid var(--border); background: #121920; font: 14px/1.65 Georgia, "Times New Roman", serif; white-space: pre-wrap; }
   .week-facts { margin: 12px 0 0; padding-left: 20px; color: var(--muted); font: 13px/1.55 Arial, sans-serif; }
+  .live-race { margin-top: 28px; padding-top: 22px; border-top: 1px solid var(--border); }
+  .live-race-head { display: flex; align-items: end; justify-content: space-between; gap: 14px; flex-wrap: wrap; margin-bottom: 14px; }
+  .live-race-head h3 { margin: 0 0 4px; color: var(--accent); font: 11px Arial, sans-serif; letter-spacing: 1px; text-transform: uppercase; }
+  .live-race-head p { margin: 0; color: var(--muted); font: 12px/1.45 Arial, sans-serif; }
+  .live-race-controls { display: flex; align-items: end; flex-wrap: wrap; gap: 8px; }
+  .live-race-controls label { width: 138px; }
+  .live-race-controls button { min-height: 36px; border: 1px solid var(--border); border-radius: 5px; background: var(--panel-2); color: var(--text); padding: 7px 11px; font: 12px Arial, sans-serif; cursor: pointer; }
+  .live-race-controls button:hover { border-color: var(--accent); color: var(--accent); }
+  .live-race-time { min-width: 170px; padding: 9px 10px; color: var(--accent-2); font: 12px Consolas, monospace; text-align: right; }
+  .live-race-track { position: relative; height: 500px; overflow: hidden; border: 1px solid var(--border); background: repeating-linear-gradient(to bottom, #10171e 0, #10171e 48px, #202c38 49px, #202c38 50px); }
+  .live-racer { position: absolute; inset: 0 10px auto 10px; display: grid; grid-template-columns: 28px minmax(82px, 150px) minmax(120px, 1fr) 76px; align-items: center; gap: 8px; height: 48px; transition: transform 700ms cubic-bezier(.2,.75,.25,1), opacity 260ms ease; }
+  .live-racer-rank { color: var(--muted); font: bold 12px Consolas, monospace; text-align: right; }
+  .live-racer-name { overflow: hidden; color: var(--text); font: bold 12px Arial, sans-serif; text-overflow: ellipsis; white-space: nowrap; }
+  .live-racer-lane { position: relative; height: 20px; border-left: 1px solid #52606d; }
+  .live-racer-bar { position: absolute; inset: 3px auto 3px 0; max-width: calc(100% - 20px); min-width: 3px; border: 1px solid color-mix(in srgb, var(--runner-color) 72%, white); background: color-mix(in srgb, var(--runner-color) 74%, transparent); transition: width 700ms cubic-bezier(.2,.75,.25,1); }
+  .live-racer-value { color: var(--text); font: bold 11px Consolas, monospace; text-align: right; }
+  .pixel-runner { position: absolute; right: -19px; top: -7px; width: 18px; height: 24px; image-rendering: pixelated; animation: pixelRunnerBob 320ms steps(2, end) infinite; }
+  .pixel-runner i { position: absolute; display: block; background: var(--runner-color); }
+  .pixel-runner .helmet { left: 7px; top: 0; width: 8px; height: 6px; border-right: 2px solid #e8eef5; box-shadow: -2px 2px 0 #d49a6a; }
+  .pixel-runner .body { left: 6px; top: 7px; width: 9px; height: 8px; border-left: 2px solid #e8eef5; }
+  .pixel-runner .arm { left: 2px; top: 8px; width: 5px; height: 3px; transform-origin: right center; animation: pixelRunnerArm 320ms steps(2, end) infinite; }
+  .pixel-runner .leg-a, .pixel-runner .leg-b { top: 15px; width: 3px; height: 8px; transform-origin: top center; }
+  .pixel-runner .leg-a { left: 7px; animation: pixelRunnerLegA 320ms steps(2, end) infinite; }
+  .pixel-runner .leg-b { left: 12px; animation: pixelRunnerLegB 320ms steps(2, end) infinite; }
+  @keyframes pixelRunnerBob { 50% { transform: translateY(1px); } }
+  @keyframes pixelRunnerArm { 50% { transform: rotate(28deg); } }
+  @keyframes pixelRunnerLegA { 50% { transform: rotate(34deg); } }
+  @keyframes pixelRunnerLegB { 50% { transform: rotate(-34deg); } }
+  .live-race-empty { display: grid; min-height: 220px; place-items: center; padding: 24px; color: var(--muted); font: 13px/1.55 Arial, sans-serif; text-align: center; }
+  @media (prefers-reduced-motion: reduce) { .live-racer, .live-racer-bar { transition: none; } .pixel-runner, .pixel-runner i { animation: none !important; } }
+  @media (max-width: 620px) { .live-racer { grid-template-columns: 20px 58px minmax(56px, 1fr) 40px; gap: 4px; } .live-racer-name, .live-racer-value { font-size: 10px; } .live-race-time { width: 100%; text-align: left; } }
   @media (max-width: 850px) { .week-recap-grid { grid-template-columns: 1fr; } }
 </style>
 </head>
@@ -234,7 +281,7 @@
   <section id="view-picks-confirmation" class="view"><section class="intro"><div><h2>Picks submitted</h2></div><p>Week 1 · 2026-2027</p></section><div class="panel website-confirmation"><p>Your picks were submitted successfully.</p><p>Your name and picks are available immediately.</p><button id="website-view-week-one" type="button">View Week 1</button></div></section>
   <section id="view-week-one" class="view">
     <section class="intro"><div><h2>Week 1</h2></div><p>2026-2027 submissions and weekly standings.</p></section>
-    <div class="panel"><div id="week-one-status"></div><div id="week-one-table" style="overflow-x:auto"></div><div id="week-one-recap"></div><div id="week-one-scenarios" class="weekly-subview"></div><div id="week-one-sankey" class="weekly-subview"></div><div id="week-one-paths" class="weekly-subview"></div></div>
+    <div class="panel"><div id="week-one-status"></div><div id="week-one-table" style="overflow-x:auto"></div><section id="week-one-live-race" class="live-race"></section><div id="week-one-recap"></div><div id="week-one-scenarios" class="weekly-subview"></div><div id="week-one-sankey" class="weekly-subview"></div><div id="week-one-paths" class="weekly-subview"></div></div>
   </section>
   <section id="view-alltime" class="view">
     <section class="intro"><div><h2>All Time</h2></div><p>Seventeen seasons of results in one place: the career leaders, every champion, and how the long-timers built their records.</p></section>
@@ -296,11 +343,78 @@ const WEBSITE_EXACT_SCENARIO_GAME_LIMIT = 6;
 let websiteScenarioMode = "current";
 let websiteContenderDetailMode = "simple";
 let websiteSankeyChart = null;
+let websiteRaceSnapshots = [], websiteRaceFrame = 0, websiteRaceTimer = null, websiteRaceRows = new Map();
 function websiteProbabilityText(percent) {
   const value = Number(percent);
   if (!Number.isFinite(value)) return "";
   if (value > 0 && value < .01) return "0.01%";
   return `${value.toFixed(2)}%`;
+}
+function websiteRaceColor(name) {
+  let hash = 0;
+  String(name).split("").forEach(character => { hash = ((hash << 5) - hash + character.charCodeAt(0)) | 0; });
+  return `hsl(${Math.abs(hash) % 360} 72% 58%)`;
+}
+function websiteRaceMetric() { return document.getElementById("website-race-metric")?.value || "winProbability"; }
+function stopWebsiteRace() {
+  if (websiteRaceTimer) clearTimeout(websiteRaceTimer);
+  websiteRaceTimer = null;
+  const button = document.getElementById("website-race-play");
+  if (button) button.textContent = "Play race";
+}
+function showWebsiteRaceFrame(frame, animate = true) {
+  if (!websiteRaceSnapshots.length) return;
+  websiteRaceFrame = Math.max(0, Math.min(frame, websiteRaceSnapshots.length - 1));
+  const snapshot = websiteRaceSnapshots[websiteRaceFrame], metric = websiteRaceMetric();
+  const ranked = [...snapshot.players].sort((left, right) => Number(right[metric] || 0) - Number(left[metric] || 0) || left.name.localeCompare(right.name)).slice(0, 10);
+  const maximum = metric === "winProbability" ? 100 : Math.max(1, ...ranked.map(player => Number(player[metric] || 0)));
+  websiteRaceRows.forEach(row => { row.style.opacity = "0"; });
+  ranked.forEach((player, index) => {
+    const row = websiteRaceRows.get(player.name);
+    if (!row) return;
+    const value = Number(player[metric] || 0), width = Math.max(value > 0 ? 2 : 0, value / maximum * 92);
+    if (!animate) row.style.transition = "none";
+    row.style.opacity = "1";
+    row.style.transform = `translateY(${index * 50}px)`;
+    row.querySelector(".live-racer-rank").textContent = `#${index + 1}`;
+    row.querySelector(".live-racer-bar").style.width = `${width}%`;
+    row.querySelector(".live-racer-value").textContent = metric === "winProbability" ? websiteProbabilityText(value) : value.toLocaleString(undefined, { maximumFractionDigits: 3 });
+    if (!animate) requestAnimationFrame(() => { row.style.transition = ""; });
+  });
+  const stamp = new Date(snapshot.timestamp);
+  document.getElementById("website-race-time").textContent = `${stamp.toLocaleString([], { weekday: "short", hour: "numeric", minute: "2-digit" })} · ${websiteRaceFrame + 1}/${websiteRaceSnapshots.length}`;
+}
+function advanceWebsiteRace() {
+  if (!websiteRaceTimer) return;
+  showWebsiteRaceFrame(websiteRaceFrame >= websiteRaceSnapshots.length - 1 ? 0 : websiteRaceFrame + 1);
+  websiteRaceTimer = setTimeout(advanceWebsiteRace, Number(document.getElementById("website-race-speed")?.value || 900));
+}
+function renderWebsiteRace(data) {
+  const host = document.getElementById("week-one-live-race");
+  if (!host) return;
+  stopWebsiteRace();
+  const snapshots = Array.isArray(data.raceSnapshots) ? [...data.raceSnapshots] : [];
+  const current = { timestamp: data.updatedAt || new Date().toISOString(), players: (data.players || []).map(player => ({ name: player.name, winProbability: parseFloat(player.winProbability || 0) || 0, pathsToVictory: Number(player.pathsToVictory || 0) })) };
+  const latestStored = snapshots[snapshots.length - 1];
+  if (current.players.length && (!latestStored || current.timestamp !== latestStored.timestamp)) snapshots.push(current);
+  websiteRaceSnapshots = snapshots.filter(snapshot => snapshot?.timestamp && Array.isArray(snapshot.players) && snapshot.players.length);
+  if (!websiteRaceSnapshots.length) { host.innerHTML = '<div class="live-race-head"><div><h3>Live Weekly Race</h3><p>Win probability and paths will build here every five minutes once the live refresh starts.</p></div></div><div class="live-race-empty">No race snapshots yet. The first production refresh will create the opening frame.</div>'; return; }
+  const names = [...new Set(websiteRaceSnapshots.flatMap(snapshot => snapshot.players.map(player => player.name)))];
+  host.innerHTML = '<div class="live-race-head"><div><h3>Live Weekly Race</h3><p>Pixel runners move with the top 10 as live probability and winning paths change.</p></div><div class="live-race-controls"><label>Race by<select id="website-race-metric"><option value="winProbability">Win probability</option><option value="pathsToVictory">Paths to victory</option></select></label><button id="website-race-play" type="button">Play race</button><button id="website-race-restart" type="button">Restart</button><label>Speed<select id="website-race-speed"><option value="1400">0.75x</option><option value="900" selected>1x</option><option value="500">2x</option></select></label><output id="website-race-time" class="live-race-time" aria-live="polite"></output></div></div><div id="website-race-track" class="live-race-track"></div>';
+  const track = document.getElementById("website-race-track");
+  websiteRaceRows = new Map();
+  names.forEach(name => {
+    const row = document.createElement("div");
+    row.className = "live-racer";
+    row.style.setProperty("--runner-color", websiteRaceColor(name));
+    row.innerHTML = `<span class="live-racer-rank"></span><span class="live-racer-name">${websiteEscapeHtml(name)}</span><span class="live-racer-lane"><span class="live-racer-bar"><span class="pixel-runner" aria-hidden="true"><i class="helmet"></i><i class="body"></i><i class="arm"></i><i class="leg-a"></i><i class="leg-b"></i></span></span></span><span class="live-racer-value"></span>`;
+    track.appendChild(row);
+    websiteRaceRows.set(name, row);
+  });
+  document.getElementById("website-race-metric").onchange = () => showWebsiteRaceFrame(websiteRaceFrame, false);
+  document.getElementById("website-race-play").onclick = event => { if (websiteRaceTimer) { stopWebsiteRace(); return; } event.currentTarget.textContent = "Pause"; websiteRaceTimer = setTimeout(advanceWebsiteRace, 0); };
+  document.getElementById("website-race-restart").onclick = () => { stopWebsiteRace(); showWebsiteRaceFrame(0, false); };
+  showWebsiteRaceFrame(websiteRaceSnapshots.length - 1, false);
 }
 function websiteGameWinner(data, index) {
   const game = data.games[index] || {};
@@ -997,6 +1111,7 @@ async function renderWebsiteWeekOne() {
     if (!/^\d+(?:\.\d+)?$/.test(String(data.actualTiebreaker || ""))) data.actualTiebreaker = "";
     websitePreparePlayers(data);
     renderWebsiteWeekOneGrid(data, "Week X");
+    renderWebsiteRace(data);
     decorateWebsiteWeekOneHeaders(data);
     renderWebsiteWeekRecap(data);
     renderWebsitePaths(data);
@@ -1902,7 +2017,8 @@ function renderAllTime() {
   }
   const cardOrder = ["Best career win %", "Best week ever", "Best plus/minus", "Most season titles", "Most playoff titles", "Most weekly wins", "Most weekly runner-ups", "Most 800 club weeks", "Most weeks above .500 in a row", "Most seasons in a row with a weekly win", "Longest run of correct picks", "Longest best bet hit streak", "Longest top 5 streak", "Longest top 10 streak", "Longest money streak", "Best run on one team", "Biggest win over 2nd place", "Tightest tiebreaker win", "Most money won", "Biggest career profit", "Never missed a season", "Lowest career win %", "Worst week ever", "Longest run of wrong picks", "Longest best bet cold streak", "Worst run on one team", "Longest drought between weekly wins"];
   cards.sort((a, b) => (cardOrder.indexOf(a[0]) === -1 ? 999 : cardOrder.indexOf(a[0])) - (cardOrder.indexOf(b[0]) === -1 ? 999 : cardOrder.indexOf(b[0])));
-  document.getElementById("alltime-cards").innerHTML = cards.map(([title, value, sub]) => `<div class="panel record-card"><h3>${title}</h3><strong>${value}</strong><p>${sub}</p></div>`).join("");
+  const recordCardBrief = detail => String(detail || "").split(/\s+·\s+|\s+\(/)[0].trim();
+  document.getElementById("alltime-cards").innerHTML = cards.map(([title, value, sub]) => `<div class="panel record-card" data-weekly-tooltip="${websiteEscapeHtml(`<strong>${websiteEscapeHtml(title)} · ${websiteEscapeHtml(value)}</strong><div>${websiteEscapeHtml(sub)}</div>`)}"><h3>${title}</h3><strong>${value}</strong><p>${websiteEscapeHtml(recordCardBrief(sub))}</p></div>`).join("");
   const weeklyWinLeaders = (tableData.weekly_champs || [])
     .map(row => ({ name: row.Name, wins: Number(row["Weeks Won"] || 0), top5: Number(row["Top 5"] || 0), top10: Number(row["Top 10"] || 0), played: Number(row.Played || 0) }))
     .filter(row => row.wins > 0)
@@ -2389,17 +2505,24 @@ function streakCardsTooltipHtml(row, category) {
     picks.forEach(item => { if (Number(category.key === "win_streak" ? item.pick.resultWin : item.pick.resultLoss)) { current.push(item); if (current.length > longest.length) longest = [...current]; } else current = []; });
     streak = { playerId, events: longest.map(item => ({ gameId: item.game.gameId })) };
   }
+  if ((!streak || Number(streak.length || streak.events?.length || 0) !== Number(row.length)) && (category.key === "best_bet_hit_streak" || category.key === "best_bet_miss_streak")) {
+    const playerId = websitePlayers.find(player => player.name === row.name)?.playerId;
+    const bets = websitePicks.filter(pick => pick.playerId === playerId && (Number(pick.bestBetWin || 0) || Number(pick.bestBetLoss || 0) || Number(pick.bestBetPush || 0))).map(pick => ({ pick, game: websiteGames.find(game => game.gameId === pick.gameId) })).filter(item => item.game).sort((left, right) => Date.parse(left.game.gameDate || "") - Date.parse(right.game.gameDate || "") || Number(left.game.playoffGameNum || left.game.gameNum || 0) - Number(right.game.playoffGameNum || right.game.gameNum || 0));
+    let current = [], longest = [];
+    bets.forEach(item => { if (Number(category.key === "best_bet_hit_streak" ? item.pick.bestBetWin : item.pick.bestBetLoss)) { current.push(item); if (current.length > longest.length) longest = [...current]; } else current = []; });
+    streak = { playerId, length: longest.length, events: longest.map(item => ({ gameId: item.game.gameId })) };
+  }
   const weekCards = (streak?.weeks || []).map(item => {
     const week = websiteWeeks.find(candidate => candidate.playerId === streak.playerId && candidate.season === item.season && String(candidate.week) === String(item.week));
     const record = week ? `${week.displayWins}-${week.displayLosses}${Number(week.displayPushes || 0) ? `-${week.displayPushes}` : ""}` : `${item.wins ?? 0}-${item.losses ?? 0}`;
-    return `<div class="streak-game-card win"><div class="streak-game-period">${websiteEscapeHtml(`${item.season} ${profileWeekLabel(item.week)}`)}</div><div class="streak-game-matchup"><span class="streak-game-side picked">#${websiteEscapeHtml(week?.rank ?? item.rank ?? "-")}</span><span class="streak-game-spread">${websiteEscapeHtml(record)}</span></div></div>`;
+    return `<div class="streak-game-card win" data-weekly-drilldown data-player-id="${websiteEscapeHtml(streak.playerId || "")}" data-season="${websiteEscapeHtml(item.season)}" data-week="${websiteEscapeHtml(item.week)}"><div class="streak-game-period">${websiteEscapeHtml(`${item.season} ${profileWeekLabel(item.week)}`)}</div><div class="streak-game-matchup"><span class="streak-game-side picked">#${websiteEscapeHtml(week?.rank ?? item.rank ?? "-")}</span><span class="streak-game-spread">${websiteEscapeHtml(record)}</span></div></div>`;
   });
   const gameCards = (streak?.events || []).map(event => {
     const game = websiteGames.find(item => item.gameId === event.gameId), pick = game && websitePicks.find(item => item.gameId === game.gameId && item.playerId === streak.playerId);
     if (!game || !pick) return "";
     const bestBetMode = category.key.startsWith("best_bet"), picked = bestBetMode ? pick.bestBet : pick.pick, result = Number(bestBetMode ? pick.bestBetWin : pick.resultWin) ? "win" : Number(bestBetMode ? pick.bestBetLoss : pick.resultLoss) ? "loss" : "push";
     const favoritePicked = String(game.favorite || "").toUpperCase() === String(picked || "").toUpperCase();
-    return `<div class="streak-game-card ${result}"><div class="streak-game-period">${websiteEscapeHtml(`${game.season} ${profileWeekLabel(game.week)} · Game ${game.playoffGameNum || game.gameNum || "?"}`)}</div><div class="streak-game-matchup"><span class="streak-game-side${favoritePicked ? " picked" : ""}">${websiteEscapeHtml(`${teamDisplay(game.favorite, game)} ${favoriteScore(game) ?? "?"}`)}</span><span class="streak-game-spread">${websiteEscapeHtml(game.spread ?? "PK")}</span><span class="streak-game-side${favoritePicked ? "" : " picked"}">${websiteEscapeHtml(`${underdogScore(game) ?? "?"} ${teamDisplay(game.underdog, game)}`)}</span></div></div>`;
+    return `<div class="streak-game-card ${result}" data-weekly-drilldown data-player-id="${websiteEscapeHtml(streak.playerId || "")}" data-season="${websiteEscapeHtml(game.season)}" data-week="${websiteEscapeHtml(game.week)}"><div class="streak-game-period">${websiteEscapeHtml(`${game.season} ${profileWeekLabel(game.week)} · Game ${game.playoffGameNum || game.gameNum || "?"}`)}</div><div class="streak-game-matchup"><span class="streak-game-side${favoritePicked ? " picked" : ""}">${websiteEscapeHtml(`${teamDisplay(game.favorite, game)} ${favoriteScore(game) ?? "?"}`)}</span><span class="streak-game-spread">${websiteEscapeHtml(game.spread ?? "PK")}</span><span class="streak-game-side${favoritePicked ? "" : " picked"}">${websiteEscapeHtml(`${underdogScore(game) ?? "?"} ${teamDisplay(game.underdog, game)}`)}</span></div></div>`;
   }).filter(Boolean);
   const fallback = String(row.detail || "").split(/\s*·\s*|,\s*/).filter(Boolean).map(item => `<div class="streak-game-card"><div class="streak-game-period">${websiteEscapeHtml(item)}</div></div>`);
   const cards = weekCards.length ? weekCards : gameCards.length ? gameCards : fallback;
@@ -2489,7 +2612,8 @@ function buildPickSummary(playerId, game, pick) {
 }
 function populateGameChoices(latestGame = null) { const season = document.getElementById("game-season").value, week = document.getElementById("game-week").value; const select = document.getElementById("game-choice"); select.innerHTML = ""; websiteGames.filter(game => game.season === season && game.week === week).forEach(game => select.add(new Option(`${game.gameNum}: ${matchupLabel(game)}`, game.gameId))); select.value = latestGame?.gameId || select.options[0]?.value || ""; renderGame(); }
 function renderGame() { const game = websiteGames.find(item => item.gameId === document.getElementById("game-choice").value); if (!game) return; document.getElementById("game-detail").innerHTML = [["Date", game.gameDate], ["Game time", game.gameTime], ["Matchup", matchupLabel(game)], ["Score", `${teamDisplay(game.favorite, game)} ${favoriteScore(game) ?? "?"} · ${teamDisplay(game.underdog, game)} ${underdogScore(game) ?? "?"}`], ["Result", game.atsResult]].map(([label, value]) => `<div><span>${label}</span><strong>${value ?? ""}</strong></div>`).join(""); const matchupTeams = [game.favorite, game.underdog].map(team => String(team || "").trim().toUpperCase()); const rows = websitePicks.filter(pick => pick.gameId === game.gameId).map(pick => ({ ...pick, bestBet: matchupTeams.includes(String(pick.bestBet || "").trim().toUpperCase()) ? pick.bestBet : "" })); if (gamePicksTable) gamePicksTable.destroy(); const columns = [{ title: "Player", field: "name", sorter: "string" }, { title: "Result", field: "result" }, { title: "Pick", field: "pick" }, { title: "Best Bet", field: "bestBet" }]; const showTiebreak = game.week === "super bowl" || (game.isFinalGame && !String(game.week).startsWith("round") && game.week !== "playoffs"); if (showTiebreak) columns.push({ title: "Tiebreak Diff", field: "tiebreakerDiff", sorter: "number" }, { title: "Tiebreaker", field: "tiebreaker", sorter: "number" }, { title: "Actual Tiebreaker", field: "actualTiebreak", sorter: "number" }); gamePicksTable = new Tabulator("#game-picks-table", { data: rows, layout: "fitDataStretch", pagination: true, paginationSize: 50, columns, placeholder: "No picks" }); }
-function profileChartTooltip(context, html, compact = false) { let element = document.getElementById("profile-chart-tooltip"); if (!element) { element = document.createElement("div"); element.id = "profile-chart-tooltip"; document.body.appendChild(element); } element.className = `profile-chart-tooltip${compact ? " compact-game-tooltip" : ""}`; const tooltip = context.tooltip; if (!tooltip || tooltip.opacity === 0 || !tooltip.dataPoints?.length) { element.style.display = "none"; return; } element.innerHTML = html(tooltip.dataPoints[0].dataIndex); element.style.display = "block"; const rect = context.chart.canvas.getBoundingClientRect(); const left = Math.min(window.innerWidth - element.offsetWidth - 12, Math.max(12, rect.left + tooltip.caretX + 12)); const top = Math.min(window.innerHeight - element.offsetHeight - 12, Math.max(12, rect.top + tooltip.caretY + 12)); element.style.left = `${left}px`; element.style.top = `${top}px`; }
+let profileTooltipHideTimer = null;
+function profileChartTooltip(context, html, compact = false) { let element = document.getElementById("profile-chart-tooltip"); if (!element) { element = document.createElement("div"); element.id = "profile-chart-tooltip"; document.body.appendChild(element); } const tooltip = context.tooltip; if (!tooltip || tooltip.opacity === 0 || !tooltip.dataPoints?.length) { clearTimeout(profileTooltipHideTimer); profileTooltipHideTimer = setTimeout(() => { if (!element.matches(":hover")) element.style.display = "none"; }, 180); return; } clearTimeout(profileTooltipHideTimer); element.className = `profile-chart-tooltip${compact ? " compact-game-tooltip" : ""}`; element.innerHTML = html(tooltip.dataPoints[0].dataIndex); element.classList.toggle("interactive-tooltip", Boolean(element.querySelector("[data-weekly-drilldown]"))); element.style.display = "block"; element.onpointerenter = () => clearTimeout(profileTooltipHideTimer); element.onpointerleave = () => { profileTooltipHideTimer = setTimeout(() => { if (!element.matches(":hover")) element.style.display = "none"; }, 180); }; const rect = context.chart.canvas.getBoundingClientRect(); const left = Math.min(window.innerWidth - element.offsetWidth - 12, Math.max(12, rect.left + tooltip.caretX + 8)); const top = Math.min(window.innerHeight - element.offsetHeight - 12, Math.max(12, rect.top + tooltip.caretY + 8)); element.style.left = `${left}px`; element.style.top = `${top}px`; }
 function profileWeekLabel(week) { const value = String(week || ""), lower = value.toLowerCase(); return lower === "super bowl" ? "Super Bowl" : lower === "playoffs" ? "Playoffs" : lower.startsWith("round") ? `Round ${value.match(/\d+/)?.[0] || ""}`.trim() : `W${value}`; }
 function profilePeriodOrder(week) { const value = String(week || "").toLowerCase(); if (value === "super bowl") return 1004; const round = Number(value.match(/^round\s*(\d+)/)?.[1]); if (round) return 1000 + round; return Number(value.match(/\d+/)?.[0] || 0); }
 function matchupTooltipHtml(game, result, pickedTeam) { const favoritePoints = favoriteScore(game), underdogPoints = underdogScore(game), picked = String(pickedTeam || "").toUpperCase(), resultClass = result === "win" ? "win" : result === "loss" ? "loss" : "push", favoritePicked = String(game.favorite || "").toUpperCase() === picked, underdogPicked = String(game.underdog || "").toUpperCase() === picked; const value = (text, highlighted = false, className = "") => `<span class="${className} ${highlighted ? resultClass : "neutral"}">${websiteEscapeHtml(text ?? "?")}</span>`; return `<div class="tooltip-matchup">${value(`${teamDisplay(game.favorite, game)} ${favoritePoints}`, favoritePicked, "tooltip-favorite")}${value(game.spread ?? "PK", false, "tooltip-spread")}${value(`${underdogPoints} ${teamDisplay(game.underdog, game)}`, underdogPicked, "tooltip-underdog")}</div>`; }
@@ -2540,13 +2664,31 @@ const historicalRichTooltipPlugin = {
 };
 Chart.register(historicalRichTooltipPlugin);
 let weeklyTooltipPinnedTarget = null;
+let weeklyTooltipHideTimer = null, weeklyDrilldownHideTimer = null;
 const weeklyRankHoverRows = new Map();
 function positionWeeklyGameTooltip(event) { const element = document.getElementById("weekly-game-tooltip"); if (!element || element.style.display === "none") return; element.style.left = `${Math.min(window.innerWidth - element.offsetWidth - 12, Math.max(12, event.clientX + 12))}px`; element.style.top = `${Math.min(window.innerHeight - element.offsetHeight - 12, Math.max(12, event.clientY + 12))}px`; }
-function showWeeklyGameTooltip(target, event) { let element = document.getElementById("weekly-game-tooltip"); if (!element) { element = document.createElement("div"); element.id = "weekly-game-tooltip"; element.className = "profile-chart-tooltip weekly-game-tooltip"; document.body.appendChild(element); } element.classList.toggle("weekly-rank-tooltip", Boolean(target.dataset.weeklyRankKey)); element.innerHTML = target.dataset.weeklyTooltip || weeklyRankTooltip(weeklyRankHoverRows.get(target.dataset.weeklyRankKey)); element.style.display = "block"; positionWeeklyGameTooltip(event); }
+function showWeeklyGameTooltip(target, event) { let element = document.getElementById("weekly-game-tooltip"); if (!element) { element = document.createElement("div"); element.id = "weekly-game-tooltip"; element.className = "profile-chart-tooltip weekly-game-tooltip"; document.body.appendChild(element); } clearTimeout(weeklyTooltipHideTimer); element.classList.toggle("weekly-rank-tooltip", Boolean(target.dataset.weeklyRankKey)); element.innerHTML = target.dataset.weeklyTooltip || weeklyRankTooltip(weeklyRankHoverRows.get(target.dataset.weeklyRankKey)); element.classList.toggle("interactive-tooltip", Boolean(element.querySelector("[data-weekly-drilldown]"))); element.style.display = "block"; element.onpointerenter = () => clearTimeout(weeklyTooltipHideTimer); element.onpointerleave = () => { weeklyTooltipHideTimer = setTimeout(() => { if (!element.matches(":hover") && !weeklyTooltipPinnedTarget) element.style.display = "none"; }, 180); }; positionWeeklyGameTooltip(event); }
 document.addEventListener("pointerover", event => { const target = event.target.closest?.("[data-weekly-tooltip],[data-weekly-rank-key]"); if (!target || weeklyTooltipPinnedTarget) return; showWeeklyGameTooltip(target, event); });
 document.addEventListener("pointermove", event => { if (!weeklyTooltipPinnedTarget) positionWeeklyGameTooltip(event); });
-document.addEventListener("pointerout", event => { if (!event.target.closest?.("[data-weekly-tooltip],[data-weekly-rank-key]") || weeklyTooltipPinnedTarget) return; const element = document.getElementById("weekly-game-tooltip"); if (element) element.style.display = "none"; });
+document.addEventListener("pointerout", event => { if (!event.target.closest?.("[data-weekly-tooltip],[data-weekly-rank-key]") || weeklyTooltipPinnedTarget) return; const element = document.getElementById("weekly-game-tooltip"); clearTimeout(weeklyTooltipHideTimer); weeklyTooltipHideTimer = setTimeout(() => { if (element && !element.matches(":hover")) element.style.display = "none"; }, 180); });
 document.addEventListener("click", event => { const target = event.target.closest?.("[data-weekly-tooltip],[data-weekly-rank-key]"); const element = document.getElementById("weekly-game-tooltip"); if (!target) { weeklyTooltipPinnedTarget = null; if (element) element.style.display = "none"; return; } weeklyTooltipPinnedTarget = weeklyTooltipPinnedTarget === target ? null : target; if (weeklyTooltipPinnedTarget) showWeeklyGameTooltip(target, event); else if (element) element.style.display = "none"; });
+function showWeeklyDrilldown(target) {
+  const row = websiteWeeks.find(item => item.playerId === target.dataset.playerId && item.season === target.dataset.season && String(item.week) === String(target.dataset.week));
+  if (!row) return;
+  let element = document.getElementById("weekly-drilldown-tooltip");
+  if (!element) { element = document.createElement("div"); element.id = "weekly-drilldown-tooltip"; element.className = "profile-chart-tooltip weekly-drilldown-tooltip"; document.body.appendChild(element); }
+  clearTimeout(weeklyDrilldownHideTimer);
+  element.innerHTML = weeklyResultsTooltipHtml(row);
+  element.style.display = "block";
+  const parent = target.closest(".profile-chart-tooltip"), rect = parent?.getBoundingClientRect() || target.getBoundingClientRect();
+  const right = rect.right + 8, left = rect.left - element.offsetWidth - 8;
+  element.style.left = `${right + element.offsetWidth <= window.innerWidth - 12 ? right : Math.max(12, left)}px`;
+  element.style.top = `${Math.min(window.innerHeight - element.offsetHeight - 12, Math.max(12, target.getBoundingClientRect().top))}px`;
+  element.onpointerenter = () => clearTimeout(weeklyDrilldownHideTimer);
+  element.onpointerleave = () => { weeklyDrilldownHideTimer = setTimeout(() => { if (!element.matches(":hover")) element.style.display = "none"; }, 140); };
+}
+document.addEventListener("pointerover", event => { const target = event.target.closest?.("[data-weekly-drilldown]"); if (target) showWeeklyDrilldown(target); });
+document.addEventListener("pointerout", event => { const target = event.target.closest?.("[data-weekly-drilldown]"); if (!target) return; const element = document.getElementById("weekly-drilldown-tooltip"); clearTimeout(weeklyDrilldownHideTimer); weeklyDrilldownHideTimer = setTimeout(() => { if (element && !element.matches(":hover")) element.style.display = "none"; }, 140); });
 function renderProfile(name) {
   weeklyTooltipPinnedTarget = null;
   const weeklyTooltip = document.getElementById("weekly-game-tooltip");
@@ -2786,8 +2928,13 @@ function renderProfile(name) {
     const tiedRecord = runner && Number(runner.displayWins) === Number(row.Wins) && Number(runner.displayLosses) === Number(row.Losses);
     const wonByTiebreak = tiedRecord && actualTiebreak != null && actualTiebreak !== "" ? tiebreakDiff({ tiebreaker, actualTiebreak }) : "";
     const tiebreakCell = `${tiebreakText}${wonByTiebreak === "" ? "" : ` (won by ${wonByTiebreak})`}`;
-    const runnerText = runner ? `${runner.name} · ${runner.displayWins}-${runner.displayLosses}${Number(runner.displayPushes || 0) ? `-${runner.displayPushes}` : ""}` : "-";
-    return `<tr><td class="pg-player">${row.Season} ${row.Week === "playoffs" ? "Playoffs" : `W${row.Week}`}</td><td class="pg-player">${websiteEscapeHtml(name)}</td><td class="sg-win1">${row.Wins}-${row.Losses}${Number(row.Pushes || 0) ? `-${row.Pushes}` : ""}</td><td class="pg-sum-cell">${tiebreakCell}</td><td class="pg-sum-cell" style="text-align:left">${runnerText}</td><td class="pg-sum-cell" style="text-align:left">${allPicks || "-"}</td><td class="pg-sum-cell">${bestBetText || "-"}</td></tr>`;
+    const winnerWeek = websiteWeeks.find(item => item.playerId === playerId && item.season === row.Season && String(item.week) === String(row.Week));
+    const winnerRecord = `${row.Wins}-${row.Losses}${Number(row.Pushes || 0) ? `-${row.Pushes}` : ""}`;
+    const winnerRecordHtml = winnerWeek ? `<span class="weekly-win-record" data-weekly-tooltip="${websiteEscapeHtml(weeklyResultsTooltipHtml(winnerWeek))}">${winnerRecord}</span>` : winnerRecord;
+    const runnerRecord = runner ? `${runner.displayWins}-${runner.displayLosses}${Number(runner.displayPushes || 0) ? `-${runner.displayPushes}` : ""}` : "";
+    const runnerText = runner ? `${websiteEscapeHtml(runner.name)} · <span class="weekly-win-record" data-weekly-tooltip="${websiteEscapeHtml(weeklyResultsTooltipHtml(runner))}">${runnerRecord}</span>` : "-";
+    const weekLabel = row.Week === "playoffs" ? "Playoffs" : `W${row.Week}`;
+    return `<tr><td class="pg-player"><span class="weekly-win-period"><span class="weekly-win-season">${websiteEscapeHtml(row.Season)}</span><span class="weekly-win-week">${websiteEscapeHtml(weekLabel)}</span></span></td><td class="pg-player">${websiteEscapeHtml(name)}</td><td class="sg-win1">${winnerRecordHtml}</td><td class="pg-sum-cell">${tiebreakCell}</td><td class="pg-sum-cell" style="text-align:left">${runnerText}</td><td class="pg-sum-cell" style="text-align:left">${allPicks || "-"}</td><td class="pg-sum-cell">${bestBetText || "-"}</td></tr>`;
   }), '</tbody></table>'].join("") : '<div class="profile-list"><div><span>Weekly wins</span><strong>0</strong></div></div>';
   document.getElementById("profile-weekly-wins-detail").innerHTML = winTable;
   const rankRows = [...websiteWeeks].filter(row => row.playerId === playerId || row.name === name);
