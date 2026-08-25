@@ -122,6 +122,15 @@
   .streak-game-spread { color: var(--accent-2); font: bold 11px Consolas, monospace; text-align: center; }
   .profile-section { margin-top: 14px; }
   .profile-section h3 { color: var(--accent); font: 11px Arial, sans-serif; letter-spacing: 1px; text-transform: uppercase; margin: 0 0 12px; }
+  .week-name-summary { display: grid; grid-template-columns: repeat(3, minmax(0, 1fr)); gap: 18px; padding: 4px 0 18px; border-bottom: 1px solid var(--border); }
+  .week-name-summary strong { display: block; color: var(--accent-2); font-size: 24px; font-weight: 500; }
+  .week-name-summary span { color: var(--muted); font: 11px Arial, sans-serif; text-transform: uppercase; }
+  .week-name-read { max-width: 920px; margin: 18px 0; font: 15px/1.55 Georgia, serif; }
+  .week-name-columns { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 28px; }
+  .week-name-columns h4 { margin: 0 0 9px; color: var(--accent); font: 11px Arial, sans-serif; letter-spacing: 1px; text-transform: uppercase; }
+  .week-name-list { display: grid; gap: 0; }
+  .week-name-row { display: grid; grid-template-columns: minmax(0, 1fr) auto; gap: 14px; padding: 9px 0; border-top: 1px solid var(--border); font: 13px/1.35 Arial, sans-serif; }
+  .week-name-row small { display: block; margin-top: 3px; color: var(--muted); }
   .profile-charts { display: grid; grid-template-columns: repeat(2, 1fr); gap: 14px; margin-top: 14px; }
   .explorer-controls { display: grid; grid-template-columns: 220px minmax(240px, 1fr); gap: 12px; margin-bottom: 14px; }
   #website-picks-form .website-identity-controls, #website-picks-form .website-final-controls { grid-template-columns: 1fr; gap: 7px; margin-bottom: 8px; }
@@ -143,7 +152,7 @@
   .tabulator-row.tabulator-row-even { background: #121920 !important; }
   .tabulator-row:hover { background: #263b40 !important; }
   #loading { color: var(--muted); font: 13px Arial, sans-serif; }
-  @media (max-width: 850px) { .workspace, .profile-grid, .profile-charts { grid-template-columns: 1fr; } .record-grid { grid-template-columns: repeat(2, 1fr); } .intro { display: block; } .intro p { margin-top: 14px; } }
+  @media (max-width: 850px) { .workspace, .profile-grid, .profile-charts, .week-name-columns { grid-template-columns: 1fr; } .record-grid { grid-template-columns: repeat(2, 1fr); } .intro { display: block; } .intro p { margin-top: 14px; } }
   @media (max-width: 560px) { .summary { grid-template-columns: repeat(2, 1fr); } .record-grid { grid-template-columns: 1fr; } .panel-head { align-items: start; flex-direction: column; } .explorer-controls, .path-controls { grid-template-columns: 1fr; } #view-games .explorer-controls, #view-weeks .explorer-controls { max-width: none; } #view-enter-picks .panel { padding: 10px; } .website-matchup { grid-template-columns: minmax(0, 1fr) 40px minmax(0, 1fr); gap: 2px; } .website-side { padding: 6px 0; font-size: 11px; } .website-team-choice { grid-template-columns: 24px minmax(0, 1fr); column-gap: 5px; padding: 5px 4px; } .website-side.right .website-team-choice { grid-template-columns: minmax(0, 1fr) 24px; } .website-team-logo { width: 24px; height: 24px; } .website-team-name { display: none; } .website-team-abbreviation { display: block; } .website-team-record { font-size: 10px; } .website-spread { width: 40px; font-size: 12px; } }
   .picks-grid { border-collapse: collapse; font: 11px Arial, sans-serif; }
   .picks-grid th, .picks-grid td { padding: 2px 5px; border: 1px solid var(--border); text-align: center; vertical-align: middle; white-space: nowrap; }
@@ -330,6 +339,7 @@
     <label style="max-width:280px">Player<select id="profile-player"></select></label>
     <div class="profile-grid" style="margin-top:16px"><div class="panel"><h3 id="profile-name" class="profile-name"></h3><div id="profile-stats" class="profile-list"></div><div id="profile-extra-stats"></div></div><div class="profile-chart-stack"><div class="panel profile-chart"><div class="panel-head"><h3>Wins and money by season</h3></div><div class="chart-wrap"><canvas id="profile-history-chart"></canvas></div></div><div class="panel profile-chart"><div class="panel-head"><h3>Best weeks</h3></div><div class="chart-wrap"><canvas id="profile-best-weeks-chart"></canvas></div></div><div class="panel profile-chart"><div class="panel-head"><h3>Performance and streak runs</h3><label>View<select id="profile-recent-view" aria-label="Performance and streak view" onchange="renderProfile(document.getElementById('profile-player').value)"><option value="correct" selected>Correct-pick streak</option><option value="wrong">Wrong-pick streak</option><option value="best_bet_hit">Best-bet hit streak</option><option value="best_bet_miss">Best-bet miss streak</option><option value="best_team_pick">Best team run</option><option value="worst_team_pick">Worst team run</option><option value="money">Money streak</option><option value="top5">Top-5 streak</option><option value="top10">Top-10 streak</option><option value="no_first">Weeks without a win</option><option value="form">Weekly form</option></select></label><label id="profile-lookback-label">Lookback<select id="profile-recent-lookback" aria-label="Performance lookback" onchange="renderProfile(document.getElementById('profile-player').value)"><option value="5">Most recent 5</option><option value="10" selected>Most recent 10</option><option value="100-picks">Last 100 picks</option><option value="all">All picks</option></select></label></div><div class="chart-wrap"><canvas id="profile-recent-chart"></canvas></div></div></div></div>
     <div class="profile-charts"><div class="panel profile-chart"><div class="panel-head"><h3>Cumulative money won</h3></div><div class="chart-wrap"><canvas id="profile-money-chart"></canvas></div></div><div class="panel profile-chart"><div class="panel-head"><h3>Plus/minus over time</h3></div><div class="chart-wrap"><canvas id="profile-plus-minus-chart"></canvas></div></div><div class="panel profile-chart"><div class="panel-head"><h3>Weekly distribution</h3></div><div class="chart-wrap"><canvas id="profile-finish-chart"></canvas></div></div><div class="panel profile-chart"><div class="panel-head"><h3>Best bets</h3><label>View<select id="profile-best-bet-view" aria-label="Best bets view" onchange="renderProfile(document.getElementById('profile-player').value)"><option value="season">By season</option><option value="most">Most bet teams</option><option value="least">Least bet teams</option><option value="best">Best team records</option><option value="worst">Worst team records</option><option value="volume-time">Volume over time</option><option value="rate-time">Hit rate over time</option></select></label></div><div class="chart-wrap"><canvas id="profile-best-bet-chart"></canvas></div></div><div class="panel profile-chart"><div class="panel-head"><h3>Team picks</h3><label>View<select id="profile-team-view" aria-label="Team picks view" onchange="renderProfile(document.getElementById('profile-player').value)"><option value="picked-most">Top 10 picked</option><option value="picked-least">Bottom 10 picked</option><option value="against-most">Top 10 picked against</option><option value="against-least">Bottom 10 picked against</option><option value="picked-best">Best records picking</option><option value="picked-worst">Worst records picking</option><option value="against-best">Best records picking against</option><option value="against-worst">Worst records picking against</option><option value="picked-time">Pick volume over time</option><option value="picked-rate-time">Pick win rate over time</option><option value="against-time">Against volume over time</option><option value="against-rate-time">Against win rate over time</option></select></label><label id="profile-team-add-label" hidden>Add team<select id="profile-team-add" aria-label="Add team to Team Picks chart" onchange="renderProfile(document.getElementById('profile-player').value)"><option value="">None</option></select></label></div><div class="chart-wrap"><canvas id="profile-team-chart"></canvas></div></div><div class="panel profile-chart"><div class="panel-head"><h3>700 / 800 club</h3></div><div class="chart-wrap"><canvas id="profile-club-chart"></canvas></div></div></div>
+    <div class="panel" style="margin-top:14px"><h3 style="margin:0 0 12px;color:var(--accent);font:11px Arial,sans-serif;letter-spacing:1px;text-transform:uppercase">Week names</h3><div id="profile-week-name-analysis"></div></div>
     <div class="panel" style="margin-top:14px"><h3 style="margin:0 0 12px;color:var(--accent);font:11px Arial,sans-serif;letter-spacing:1px;text-transform:uppercase">Weekly wins detail</h3><div id="profile-weekly-wins-detail" style="overflow-x:auto"></div></div>
     <div class="panel" style="margin-top:14px"><h3 style="margin:0 0 8px;color:var(--accent);font:11px Arial,sans-serif;letter-spacing:1px;text-transform:uppercase">Weekly Rank</h3><p class="analysis-note">Every recorded weekly finish for the selected player, newest first.</p><div id="profile-weekly-rank-sheet" style="overflow-x:auto;margin-top:14px"></div></div>
   </section>
@@ -1110,8 +1120,9 @@ function interpretWebsiteWeekName(weekName, playerName) {
 function renderConfirmationIdentity(submission, identity) {
   const host = document.getElementById("confirmation-identity");
   const effective = identity || { status: "new", submittedName: submission.name.trim(), suggestedName: "" };
-  let message = effective.canonicalizedFrom ? `You entered <strong>${websiteEscapeHtml(effective.canonicalizedFrom)}</strong>. We saved it as <strong>${websiteEscapeHtml(effective.submittedName)}</strong> so this week's picks stay connected to your past results.` : `Welcome back, ${websiteEscapeHtml(effective.submittedName)}. This week's picks are connected to your past results.`;
-  if (effective.status === "new") message = `Welcome, ${websiteEscapeHtml(effective.submittedName)}. You look like a new player. Your picks appear on Current Week immediately; live scores and probability update there after kickoff.`;
+  const spacingOnly = effective.canonicalizedFrom && String(effective.canonicalizedFrom).trim() === effective.submittedName;
+  let message = effective.canonicalizedFrom ? spacingOnly ? `We removed extra spacing from your name and matched you with <strong>${websiteEscapeHtml(effective.submittedName)}</strong>. Your picks are connected to your past results.` : `You entered <strong>${websiteEscapeHtml(effective.canonicalizedFrom)}</strong>. We saved it as <strong>${websiteEscapeHtml(effective.submittedName)}</strong> so this week's picks stay connected to your past results.` : `Welcome back, ${websiteEscapeHtml(effective.submittedName)}. This week's picks are connected to your past results.`;
+  if (["new", "suggestion", "reversed"].includes(effective.status)) message = `Welcome, ${websiteEscapeHtml(effective.submittedName)}. We saved you as a new player. Your picks appear on Current Week immediately; live scores and probability update there after kickoff.`;
   host.innerHTML = `<h3>Name check</h3><p>${message}</p>`;
 }
 function renderConfirmationPicks(submission) {
@@ -1243,7 +1254,7 @@ async function renderWebsiteConfirmation(submission, result) {
 }
 let websiteBestBetMismatchAttempts = 0;
 let websiteBestBetMismatchSignature = "";
-let websiteIdentityReviewSignature = "";
+let websiteApprovedNewPlayerName = "";
 async function preflightWebsiteIdentity(submission, status) {
   if (!WEBSITE_SUBMISSIONS_ENDPOINT) return true;
   status.textContent = "Checking your name...";
@@ -1254,16 +1265,25 @@ async function preflightWebsiteIdentity(submission, status) {
   if (identity.canonicalizedFrom && identity.submittedName) {
     submission.name = identity.submittedName;
     document.getElementById("website-picks-name").value = identity.submittedName;
-    websiteIdentityReviewSignature = "";
+    websiteApprovedNewPlayerName = "";
     return true;
   }
-  if (!identity.suggestedName || !["suggestion", "reversed"].includes(identity.status)) { websiteIdentityReviewSignature = ""; return true; }
-  const signature = `${submission.name.trim().toLowerCase()}|${submission.weekName.toLowerCase()}|${identity.status}|${identity.suggestedName.toLowerCase()}`;
-  if (signature === websiteIdentityReviewSignature) return true;
-  websiteIdentityReviewSignature = signature;
-  status.textContent = identity.status === "reversed"
-    ? `Name check: “${submission.weekName}” matches player ${identity.suggestedName}. Check whether the Name and Week Name fields are swapped. Submit again unchanged if they are intentional.`
-    : `Name check: We found ${identity.suggestedName} in past results. Correct the Name field if that is you, or submit again unchanged if you are someone else.`;
+  if (identity.status === "known") { websiteApprovedNewPlayerName = ""; return true; }
+  const enteredName = submission.name.trim();
+  const normalizedName = enteredName.toLowerCase();
+  if (websiteApprovedNewPlayerName === normalizedName) return true;
+  const suggestion = identity.status === "suggestion" ? identity.suggestedName : "";
+  const suggestionText = suggestion ? ` We found <strong>${websiteEscapeHtml(suggestion)}</strong> in past results.` : "";
+  status.innerHTML = `We could not match <strong>${websiteEscapeHtml(enteredName)}</strong> exactly.${suggestionText} Is this a new player, or should the name be changed?<span class="identity-actions"><button id="website-confirm-new-player" type="button">New player</button><button id="website-change-player-name" type="button">Change name</button></span>`;
+  document.getElementById("website-confirm-new-player").onclick = () => { websiteApprovedNewPlayerName = normalizedName; document.getElementById("website-picks-form").requestSubmit(); };
+  document.getElementById("website-change-player-name").onclick = () => {
+    const input = document.getElementById("website-picks-name");
+    websiteApprovedNewPlayerName = "";
+    if (suggestion) input.value = suggestion;
+    status.textContent = suggestion ? `Name changed to ${suggestion}. Review it, then submit again.` : "Change the Name field to the name used in past results, then submit again.";
+    input.focus();
+    input.select();
+  };
   status.focus();
   return false;
 }
@@ -1290,7 +1310,7 @@ function confirmWebsiteBestBetMismatch(submission, status) {
   return false;
 }
 document.getElementById("website-picks-form").addEventListener("change", event => {
-  if (event.target.matches("#website-picks-name, #website-week-name")) websiteIdentityReviewSignature = "";
+  if (event.target.matches("#website-picks-name")) websiteApprovedNewPlayerName = "";
   if (!event.target.matches('input[type="radio"][name^="game-"], #website-best-bet')) return;
   websiteBestBetMismatchAttempts = 0;
   websiteBestBetMismatchSignature = "";
@@ -1314,7 +1334,7 @@ document.getElementById("website-picks-form").onsubmit = async event => {
     document.querySelector("#view-picks-confirmation .intro p").textContent = selection.testMode ? `Preseason Week ${selection.week} test` : `Week ${selection.week} · ${selection.season}-${selection.season + 1}`;
     await renderWebsiteConfirmation(submission, result);
     form.reset(); resetWebsiteBestBet(); showWebsiteConfirmation();
-    websiteBestBetMismatchAttempts = 0; websiteBestBetMismatchSignature = "";
+    websiteBestBetMismatchAttempts = 0; websiteBestBetMismatchSignature = ""; websiteApprovedNewPlayerName = "";
   } catch (error) { status.textContent = `Could not submit picks: ${error.message}`; }
 };
 function websiteWeekOneFallback() { return { favorites: WEBSITE_WEEK_ONE_GAMES.map(game => game.favorite), favoriteScores: Array(16).fill(""), spreads: WEBSITE_WEEK_ONE_GAMES.map(game => game.spread), underdogScores: Array(16).fill(""), underdogs: WEBSITE_WEEK_ONE_GAMES.map(game => game.underdog), actualTiebreaker: "", players: JSON.parse(localStorage.getItem("fbpWebsiteSubmissions") || "[]").map(row => ({ name: row.name, weekName: row.weekName, picks: row.picks, bestBet: row.bestBet, tiebreaker: row.tiebreaker, wins: "", losses: "", total: "", winPercent: "", winProbability: "", pathsToVictory: "" })) }; }
@@ -2965,6 +2985,69 @@ function showWeeklyDrilldown(target) {
 }
 document.addEventListener("pointerover", event => { const target = event.target.closest?.("[data-weekly-drilldown]"); if (target) showWeeklyDrilldown(target); });
 document.addEventListener("pointerout", event => { const target = event.target.closest?.("[data-weekly-drilldown]"); if (!target) return; const element = document.getElementById("weekly-drilldown-tooltip"); clearTimeout(weeklyDrilldownHideTimer); weeklyDrilldownHideTimer = setTimeout(() => { if (element && !element.matches(":hover")) element.style.display = "none"; }, 140); });
+function websiteWeekNameTheme(value) {
+  const text = String(value || "").toLowerCase();
+  if (/catalina|wine mixer|prestige worldwide|billy joel|movie|film|tv|show|episode|song|music|lyric|quote|sequel|star wars|office|seinfeld|simpsons|pivot!?|soft kitty|superman|may the force|winter is coming|how you doin|no soup|festivus|dunder mifflin|game of thrones|ted lasso|yellowstone|sopranos|godfather|rocky|top gun|swift|beyonc[eé]|beatles|springsteen|journey|queen\b/i.test(text)) return "Pop culture and quotes";
+  if (/let['’]?s go|lets go|game time|ready|believe|we got this|bring it|here we go|do it|lock in|all in|onward/i.test(text)) return "Hype and rally cries";
+  if (/hoosier|indiana|\biu\b|football|basketball|baseball|soccer|hockey|golf|nfl|nba|mlb|nhl|super bowl|playoff|champ|touchdown|coach|quarterback|bayern|premier league|world cup|chiefs|bills|browns|packers|cowboys|eagles|steelers|bears|colts|ravens|49ers|niners|vikings|lions|jets|giants|patriots|dolphins|raiders|broncos|chargers|rams|seahawks|commanders|falcons|panthers|saints|buccaneers|jaguars|texans|titans|cardinals|bengals/i.test(text)) return "Sports and fandom";
+  if (/breaking|headline|today|tonight|this week|trade|injury|weather|storm|election|record|fact|news|deadline|score/i.test(text)) return "The moment and the news";
+  if (/birthday|wedding|vacation|work|school|family|baby|kid|mom|dad|home|trip|holiday|christmas|thanksgiving/i.test(text)) return "Life outside the pool";
+  if (/lol|haha|oops|pain|chaos|disaster|miracle|send help|sucks|worst|again|joke|funny|clown|idiot|dumb/i.test(text)) return "Comedy and self-commentary";
+  return "Inside jokes and wildcards";
+}
+function websiteWeekNameMeaning(value, theme) {
+  const text = String(value || "").trim();
+  if (/^(let['’]?s|lets)\s+go[!.]*$/i.test(text)) return "A pregame switch-flip: the plan is set and it is time to move.";
+  if (/^big red$/i.test(text)) return "A rally cry with Indiana, cinnamon-gum, and Clifford possibilities.";
+  const meanings = {
+    "Pop culture and quotes": "A reference meant for the people who recognize it immediately.",
+    "Hype and rally cries": "A way to turn the name box into a pregame huddle.",
+    "Sports and fandom": "A flag planted for a team, player, or sports identity.",
+    "The moment and the news": "A time capsule for whatever mattered that week.",
+    "Life outside the pool": "A small piece of real life brought into the league.",
+    "Comedy and self-commentary": "A joke, reaction, or running commentary on the week.",
+    "Inside jokes and wildcards": "An inside reference or surprise designed to make the room ask questions."
+  };
+  return meanings[theme];
+}
+function renderProfileWeekNames(name, playerId) {
+  const host = document.getElementById("profile-week-name-analysis");
+  if (!host) return;
+  const rows = websiteWeeks.filter(row => (playerId && row.playerId === playerId) || String(row.name || "").trim().toLowerCase() === String(name || "").trim().toLowerCase()).filter(row => String(row.weekName || "").trim());
+  if (!rows.length) { host.innerHTML = `<p class="analysis-note">No week names are in ${websiteEscapeHtml(name)}'s name vault yet.</p>`; return; }
+  const names = new Map();
+  rows.forEach(row => {
+    const display = String(row.weekName).trim().replace(/\s+/g, " ");
+    const key = display.toLowerCase();
+    const item = names.get(key) || { display, uses: 0, wins: [], variants: new Map() };
+    item.uses += 1;
+    item.variants.set(display, (item.variants.get(display) || 0) + 1);
+    if (Number(row.rank) === 1) item.wins.push(row);
+    names.set(key, item);
+  });
+  names.forEach(item => { item.display = [...item.variants].sort((left, right) => right[1] - left[1] || left[0].localeCompare(right[0]))[0][0]; item.theme = websiteWeekNameTheme(item.display); });
+  const ordered = [...names.values()].sort((left, right) => right.uses - left.uses || right.wins.length - left.wins.length || left.display.localeCompare(right.display));
+  const winners = ordered.filter(item => item.wins.length).sort((left, right) => right.wins.length - left.wins.length || right.uses - left.uses);
+  const themes = new Map();
+  rows.forEach(row => { const theme = websiteWeekNameTheme(row.weekName); themes.set(theme, (themes.get(theme) || 0) + 1); });
+  const themeOrder = [...themes].sort((left, right) => right[1] - left[1]);
+  const primary = themeOrder[0];
+  const secondary = themeOrder[1];
+  const persona = {
+    "Pop culture and quotes": "They communicate through references and enjoy rewarding anyone who catches the line.",
+    "Hype and rally cries": "They use the league as a weekly pep rally and like arriving with momentum.",
+    "Sports and fandom": "They wear their rooting interests openly and let fandom lead the introduction.",
+    "The moment and the news": "They treat each week name as a timestamp and notice what the room is already talking about.",
+    "Life outside the pool": "They make the pool part of the rest of life instead of keeping the two worlds separate.",
+    "Comedy and self-commentary": "They play to the room, narrate the chaos, and would rather get a laugh than sound formal.",
+    "Inside jokes and wildcards": "They prefer surprise, private references, and leaving just enough unexplained."
+  }[primary[0]];
+  const variety = primary[1] / rows.length < .45 && secondary ? ` Their range is part of the pattern: ${secondary[0].toLowerCase()} is nearly as common.` : "";
+  const themeSummary = themeOrder.slice(0, 3).map(([theme, count]) => `${theme} (${count})`).join(", ");
+  const mostUsedHtml = ordered.slice(0, 8).map(item => `<div class="week-name-row"><div><strong>${websiteEscapeHtml(item.display)}</strong><small>${websiteEscapeHtml(websiteWeekNameMeaning(item.display, item.theme))}</small></div><span>${item.uses} use${item.uses === 1 ? "" : "s"}</span></div>`).join("");
+  const winnersHtml = winners.length ? winners.slice(0, 8).map(item => { const latest = [...item.wins].sort((left, right) => String(right.season || "").localeCompare(String(left.season || "")) || Number(right.weekOrder || 0) - Number(left.weekOrder || 0))[0]; const record = `${latest.displayWins}-${latest.displayLosses}${Number(latest.displayPushes || 0) ? `-${latest.displayPushes}` : ""}`; return `<div class="week-name-row"><div><strong>${websiteEscapeHtml(item.display)}</strong><small>${websiteEscapeHtml(latest.season)} ${String(latest.week).toLowerCase() === "playoffs" ? "Playoffs" : `Week ${websiteEscapeHtml(latest.week)}`} · ${record}</small></div><span>${item.wins.length} win${item.wins.length === 1 ? "" : "s"}</span></div>`; }).join("") : '<p class="analysis-note">No weekly win is connected to a saved week name yet.</p>';
+  host.innerHTML = `<div class="week-name-summary"><div><strong>${rows.length}</strong><span>Named weeks</span></div><div><strong>${names.size}</strong><span>Different names</span></div><div><strong>${winners.reduce((total, item) => total + item.wins.length, 0)}</strong><span>Wins with a name</span></div></div><p class="week-name-read"><strong>What they talk about:</strong> ${websiteEscapeHtml(themeSummary)}.<br><strong>Pool personality read:</strong> ${websiteEscapeHtml(primary[0])} leads the file. ${websiteEscapeHtml(persona + variety)} This is a playful read of week-name choices, not an actual psychological assessment.</p><div class="week-name-columns"><section><h4>Most used</h4><div class="week-name-list">${mostUsedHtml}</div></section><section><h4>Names attached to wins</h4><div class="week-name-list">${winnersHtml}</div></section></div>`;
+}
 function renderProfile(name) {
   weeklyTooltipPinnedTarget = null;
   const weeklyTooltip = document.getElementById("weekly-game-tooltip");
@@ -2996,7 +3079,7 @@ function renderProfile(name) {
     ["Weeks without a win", "no_first_streak", "No-1st Streak (Weeks)", "No-1st Streak Range"]
   ];
   document.getElementById("profile-name").textContent = name || "Choose a player";
-  if (!overall) return;
+  if (!overall) { renderProfileWeekNames(name, playerId); return; }
   const stats = [["Wins", overall.Wins], ["Losses", overall.Losses], ["Win percentage", (Number(overall["%"] || 0) * 100).toFixed(2) + "%"], ["Plus/minus", overall["Plus/Minus"]]];
   document.getElementById("profile-stats").innerHTML = stats.map(([label, value]) => `<div><span>${label}</span><strong>${value}</strong></div>`).join("");
   const extra = (title, values) => `<div class="profile-section"><h3>${title}</h3><div class="profile-list">${values.map(([label, value]) => `<div><span>${label}</span><strong>${value ?? "0"}</strong></div>`).join("")}</div></div>`;
@@ -3042,6 +3125,7 @@ function renderProfile(name) {
     extra("Money and winning", [["Total money won", "$" + Number(money?.["Total Money Won"] || 0).toLocaleString()], ["Weekly money", "$" + Number(money?.["Weekly Money"] || 0).toLocaleString()], ["Playoff money", "$" + Number(money?.["Playoff Money"] || 0).toLocaleString()], ["Season money", "$" + Number(money?.["Season Money"] || 0).toLocaleString()], ["Weeks won", money?.["Weeks Won"] || 0], ["Weekly 2nds", weeklyChamps?.["2nd Place"] || 0], ["Weekly 3rds", weeklyChamps?.["3rd Place"] || 0], ["Playoff titles", playoffChamps?.["Playoffs Won"] || 0], ["Season titles", seasonChamps?.["Championships Won"] || 0], ["Season runner-ups", seasonChamps?.["2nd Place"] || 0]]) +
     extra("Best weeks", [["Best week", bestWeekLabel], ["Best weekly record", weeklyChamps?.["Best Week Record"]], ["Best playoff record", playoffChamps?.["Best Playoff Record"]], ["Top 5 finishes", weeklyChamps?.["Top 5"] || 0], ["Top 10 finishes", weeklyChamps?.["Top 10"] || 0], ["800 club", weeklyChamps?.["800 Club"] || 0], ["700 club", weeklyChamps?.["700 Club"] || 0]]) +
     extra("Streak details", streakDetailRows);
+  renderProfileWeekNames(name, playerId);
   const seasons = [...new Set(weekly.map(row => row.Season))].sort();
   const playerAwards = websiteAwards.filter(row => row.playerId === playerId);
   const awardsFor = (season, type) => playerAwards.filter(row => row.season === season && row.awardType === type);
