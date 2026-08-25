@@ -122,8 +122,8 @@
   .streak-game-spread { color: var(--accent-2); font: bold 11px Consolas, monospace; text-align: center; }
   .profile-section { margin-top: 14px; }
   .profile-section h3 { color: var(--accent); font: 11px Arial, sans-serif; letter-spacing: 1px; text-transform: uppercase; margin: 0 0 12px; }
-  .week-name-summary { display: grid; grid-template-columns: repeat(3, minmax(0, 1fr)); gap: 18px; padding: 4px 0 18px; border-bottom: 1px solid var(--border); }
-  .week-name-summary strong { display: block; color: var(--accent-2); font-size: 24px; font-weight: 500; }
+  .week-name-summary { display: grid; grid-template-columns: repeat(4, minmax(0, 1fr)); gap: 18px; padding: 4px 0 18px; border-bottom: 1px solid var(--border); }
+  .week-name-summary strong { display: block; color: var(--accent-2); font-size: 24px; font-weight: 500; overflow-wrap: anywhere; }
   .week-name-summary span { color: var(--muted); font: 11px Arial, sans-serif; text-transform: uppercase; }
   .week-name-read { max-width: 920px; margin: 18px 0; font: 15px/1.55 Georgia, serif; }
   .week-name-columns { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 28px; }
@@ -152,7 +152,7 @@
   .tabulator-row.tabulator-row-even { background: #121920 !important; }
   .tabulator-row:hover { background: #263b40 !important; }
   #loading { color: var(--muted); font: 13px Arial, sans-serif; }
-  @media (max-width: 850px) { .workspace, .profile-grid, .profile-charts, .week-name-columns { grid-template-columns: 1fr; } .record-grid { grid-template-columns: repeat(2, 1fr); } .intro { display: block; } .intro p { margin-top: 14px; } }
+  @media (max-width: 850px) { .workspace, .profile-grid, .profile-charts, .week-name-columns { grid-template-columns: 1fr; } .week-name-summary { grid-template-columns: repeat(2, minmax(0, 1fr)); } .record-grid { grid-template-columns: repeat(2, 1fr); } .intro { display: block; } .intro p { margin-top: 14px; } }
   @media (max-width: 560px) { .summary { grid-template-columns: repeat(2, 1fr); } .record-grid { grid-template-columns: 1fr; } .panel-head { align-items: start; flex-direction: column; } .explorer-controls, .path-controls { grid-template-columns: 1fr; } #view-games .explorer-controls, #view-weeks .explorer-controls { max-width: none; } #view-enter-picks .panel { padding: 10px; } .website-matchup { grid-template-columns: minmax(0, 1fr) 40px minmax(0, 1fr); gap: 2px; } .website-side { padding: 6px 0; font-size: 11px; } .website-team-choice { grid-template-columns: 24px minmax(0, 1fr); column-gap: 5px; padding: 5px 4px; } .website-side.right .website-team-choice { grid-template-columns: minmax(0, 1fr) 24px; } .website-team-logo { width: 24px; height: 24px; } .website-team-name { display: none; } .website-team-abbreviation { display: block; } .website-team-record { font-size: 10px; } .website-spread { width: 40px; font-size: 12px; } }
   .picks-grid { border-collapse: collapse; font: 11px Arial, sans-serif; }
   .picks-grid th, .picks-grid td { padding: 2px 5px; border: 1px solid var(--border); text-align: center; vertical-align: middle; white-space: nowrap; }
@@ -3033,37 +3033,57 @@ document.addEventListener("pointerover", event => { const target = event.target.
 document.addEventListener("pointerout", event => { const target = event.target.closest?.("[data-weekly-drilldown]"); if (!target) return; const element = document.getElementById("weekly-drilldown-tooltip"); clearTimeout(weeklyDrilldownHideTimer); weeklyDrilldownHideTimer = setTimeout(() => { if (element && !element.matches(":hover")) element.style.display = "none"; }, 140); });
 function websiteWeekNameTheme(value) {
   const text = String(value || "").toLowerCase();
+  if (/surgery|surgeon|doctor|hospital|patient|procedure|operation|heart|artery|aorta|cardiac|medical|clinic|anterior descending|nerve|maneuver|manoeuver|syndrome|mcburney|queckenstedt|mauriceau|bogros|geriatric|diabetes|coronavirus|on call/i.test(text)) return "Medicine and work";
   if (/catalina|wine mixer|prestige worldwide|billy joel|movie|film|tv|show|episode|song|music|lyric|quote|sequel|star wars|office|seinfeld|simpsons|pivot!?|soft kitty|superman|may the force|winter is coming|how you doin|no soup|festivus|dunder mifflin|game of thrones|ted lasso|yellowstone|sopranos|godfather|rocky|top gun|swift|beyonc[eé]|beatles|springsteen|journey|queen\b/i.test(text)) return "Pop culture and quotes";
+  if (/hoosier|indiana|\biu\b|football|basketball|baseball|soccer|hockey|golf|nfl|nba|mlb|nhl|super bowl|playoff|champ|touchdown|coach|quarterback|braves|atlanta|bayern|premier league|world cup|chiefs|bills|browns|packers|cowboys|eagles|steelers|bears|colts|ravens|49ers|niners|vikings|lions|jets|giants|patriots|dolphins|raiders|broncos|chargers|rams|seahawks|commanders|falcons|panthers|saints|buccaneers|jaguars|texans|titans|cardinals|bengals/i.test(text)) return "Sports and fandom";
   if (/let['’]?s go|lets go|game time|ready|believe|we got this|bring it|here we go|do it|lock in|all in|onward/i.test(text)) return "Hype and rally cries";
-  if (/hoosier|indiana|\biu\b|football|basketball|baseball|soccer|hockey|golf|nfl|nba|mlb|nhl|super bowl|playoff|champ|touchdown|coach|quarterback|bayern|premier league|world cup|chiefs|bills|browns|packers|cowboys|eagles|steelers|bears|colts|ravens|49ers|niners|vikings|lions|jets|giants|patriots|dolphins|raiders|broncos|chargers|rams|seahawks|commanders|falcons|panthers|saints|buccaneers|jaguars|texans|titans|cardinals|bengals/i.test(text)) return "Sports and fandom";
   if (/breaking|headline|today|tonight|this week|trade|injury|weather|storm|election|record|fact|news|deadline|score/i.test(text)) return "The moment and the news";
   if (/birthday|wedding|vacation|work|school|family|baby|kid|mom|dad|home|trip|holiday|christmas|thanksgiving/i.test(text)) return "Life outside the pool";
   if (/lol|haha|oops|pain|chaos|disaster|miracle|send help|sucks|worst|again|joke|funny|clown|idiot|dumb/i.test(text)) return "Comedy and self-commentary";
   return "Inside jokes and wildcards";
 }
-function websiteWeekNameMeaning(value, theme) {
-  const text = String(value || "").trim();
+function websiteRepairWeekName(value) {
+  const text = String(value || "");
+  if (!/(?:\u00c3|\u00c2|\u00e2[\u0080-\u2122]|\u00f0\u0178)/.test(text)) return text;
+  const windows1252 = new Map([["\u20ac", 128], ["\u201a", 130], ["\u0192", 131], ["\u201e", 132], ["\u2026", 133], ["\u2020", 134], ["\u2021", 135], ["\u02c6", 136], ["\u2030", 137], ["\u0160", 138], ["\u2039", 139], ["\u0152", 140], ["\u017d", 142], ["\u2018", 145], ["\u2019", 146], ["\u201c", 147], ["\u201d", 148], ["\u2022", 149], ["\u2013", 150], ["\u2014", 151], ["\u02dc", 152], ["\u2122", 153], ["\u0161", 154], ["\u203a", 155], ["\u0153", 156], ["\u017e", 158], ["\u0178", 159]]);
+  const bytes = [];
+  for (const character of text) {
+    const code = character.codePointAt(0);
+    if (code <= 255) bytes.push(code);
+    else if (windows1252.has(character)) bytes.push(windows1252.get(character));
+    else return text;
+  }
+  try { return new TextDecoder("utf-8", { fatal: true }).decode(new Uint8Array(bytes)); } catch { return text; }
+}
+function websiteWeekNameMeaning(value, theme, variant = 0) {
+  const text = websiteRepairWeekName(value).trim();
   if (/^(let['’]?s|lets)\s+go[!.]*$/i.test(text)) return "A pregame switch-flip: the plan is set and it is time to move.";
   if (/^big red$/i.test(text)) return "A rally cry with Indiana, cinnamon-gum, and Clifford possibilities.";
+  if (/^https?:\/\//i.test(text)) return "A link preserved as that week's timestamp.";
+  if (/\?$/.test(text)) return "A question left hanging for the rest of the pool.";
+  if (/\b(surgery|surgeon|doctor|hospital|patient|procedure|operation|heart|artery|aorta|on call)\b/i.test(text)) return "A medical or work reference marking what was on the mind that week.";
   const meanings = {
-    "Pop culture and quotes": "A reference meant for the people who recognize it immediately.",
-    "Hype and rally cries": "A way to turn the name box into a pregame huddle.",
-    "Sports and fandom": "A flag planted for a team, player, or sports identity.",
-    "The moment and the news": "A time capsule for whatever mattered that week.",
-    "Life outside the pool": "A small piece of real life brought into the league.",
-    "Comedy and self-commentary": "A joke, reaction, or running commentary on the week.",
-    "Inside jokes and wildcards": "An inside reference or surprise designed to make the room ask questions."
+    "Pop culture and quotes": ["A reference for anyone who recognizes the source.", "A borrowed line doing the work of a full introduction.", "A piece of pop culture promoted to week-name status."],
+    "Hype and rally cries": ["A short burst of confidence for the week ahead.", "A direct statement of momentum or intent.", "A few words meant to raise the temperature."],
+    "Sports and fandom": ["A clear signal of where the rooting interest sits.", "A team, player, or sports reference carrying the week.", "Fandom brought directly into the name box."],
+    "The moment and the news": ["A timestamp for what people were discussing that week.", "A headline or current event preserved in the archive.", "A note tied closely to that particular moment."],
+    "Medicine and work": ["A medical reference marking what was on the mind that week.", "A term from the operating room, clinic, or anatomy book.", "Work and medicine carried directly into the week name."],
+    "Life outside the pool": ["A piece of life outside football saved with the picks.", "A personal milestone, plan, or everyday detail from that week.", "The rest of life making an appearance in the pool."],
+    "Comedy and self-commentary": ["A joke or reaction aimed at the room.", "A running commentary on how the week was going.", "A punch line that also works as a timestamp."],
+    "Inside jokes and wildcards": ["A private reference whose full story lives outside the archive.", "An intentionally unexplained entry with its own history.", "A wildcard that resists a confident interpretation."]
   };
-  return meanings[theme];
+  const options = meanings[theme] || meanings["Inside jokes and wildcards"];
+  const index = variant % options.length;
+  return options[index];
 }
 function renderProfileWeekNames(name, playerId) {
   const host = document.getElementById("profile-week-name-analysis");
   if (!host) return;
-  const rows = websiteWeeks.filter(row => (playerId && row.playerId === playerId) || String(row.name || "").trim().toLowerCase() === String(name || "").trim().toLowerCase()).filter(row => String(row.weekName || "").trim());
+  const rows = websiteWeeks.filter(row => (playerId && row.playerId === playerId) || String(row.name || "").trim().toLowerCase() === String(name || "").trim().toLowerCase()).filter(row => String(row.weekName || "").trim()).map(row => ({ ...row, weekName: websiteRepairWeekName(row.weekName).trim().replace(/\s+/g, " ") })).sort((left, right) => String(left.season).localeCompare(String(right.season)) || Number(left.weekOrder || 0) - Number(right.weekOrder || 0));
   if (!rows.length) { host.innerHTML = `<p class="analysis-note">No week names are in ${websiteEscapeHtml(name)}'s name vault yet.</p>`; return; }
   const names = new Map();
   rows.forEach(row => {
-    const display = String(row.weekName).trim().replace(/\s+/g, " ");
+    const display = row.weekName;
     const key = display.toLowerCase();
     const item = names.get(key) || { display, uses: 0, wins: [], variants: new Map() };
     item.uses += 1;
@@ -3079,20 +3099,41 @@ function renderProfileWeekNames(name, playerId) {
   const themeOrder = [...themes].sort((left, right) => right[1] - left[1]);
   const primary = themeOrder[0];
   const secondary = themeOrder[1];
+  const styleTheme = primary[0] === "Inside jokes and wildcards" && secondary?.[1] >= Math.max(8, rows.length * .1) ? secondary[0] : primary[0];
   const persona = {
     "Pop culture and quotes": "They communicate through references and enjoy rewarding anyone who catches the line.",
     "Hype and rally cries": "They use the league as a weekly pep rally and like arriving with momentum.",
     "Sports and fandom": "They wear their rooting interests openly and let fandom lead the introduction.",
     "The moment and the news": "They treat each week name as a timestamp and notice what the room is already talking about.",
+    "Medicine and work": "They use the archive as a second notebook for medicine, anatomy, and life on the job.",
     "Life outside the pool": "They make the pool part of the rest of life instead of keeping the two worlds separate.",
     "Comedy and self-commentary": "They play to the room, narrate the chaos, and would rather get a laugh than sound formal.",
     "Inside jokes and wildcards": "They prefer surprise, private references, and leaving just enough unexplained."
-  }[primary[0]];
+  }[styleTheme];
   const variety = primary[1] / rows.length < .45 && secondary ? ` Their range is part of the pattern: ${secondary[0].toLowerCase()} is nearly as common.` : "";
   const themeSummary = themeOrder.slice(0, 3).map(([theme, count]) => `${theme} (${count})`).join(", ");
-  const mostUsedHtml = ordered.slice(0, 8).map(item => `<div class="week-name-row"><div><strong>${websiteEscapeHtml(item.display)}</strong><small>${websiteEscapeHtml(websiteWeekNameMeaning(item.display, item.theme))}</small></div><span>${item.uses} use${item.uses === 1 ? "" : "s"}</span></div>`).join("");
+  const periodSize = Math.max(1, Math.floor(rows.length / 3));
+  const earlierRows = rows.slice(0, periodSize), recentRows = rows.slice(-periodSize);
+  const periodSummary = periodRows => {
+    const counts = new Map();
+    periodRows.forEach(row => { const theme = websiteWeekNameTheme(row.weekName); counts.set(theme, (counts.get(theme) || 0) + 1); });
+    const orderedThemes = [...counts].sort((left, right) => right[1] - left[1]);
+    const lead = orderedThemes[0]?.[0] || "No clear category";
+    const runnerUp = orderedThemes[1]?.[0];
+    const exampleFor = theme => { const row = [...periodRows].reverse().find(item => websiteWeekNameTheme(item.weekName) === theme); if (!row) return ""; const value = row.weekName.length > 55 ? `${row.weekName.slice(0, 52)}...` : row.weekName; return `“${value}”`; };
+    const examples = [exampleFor(lead), runnerUp ? exampleFor(runnerUp) : ""].filter(Boolean);
+    return { lead, runnerUp, examples };
+  };
+  const earlier = periodSummary(earlierRows), recent = periodSummary(recentRows);
+  const earlierText = `${earlier.lead}${earlier.runnerUp ? `, followed by ${earlier.runnerUp.toLowerCase()}` : ""}${earlier.examples.length ? `; examples include ${earlier.examples.join(" and ")}` : ""}`;
+  const recentText = `${recent.lead}${recent.runnerUp ? `, followed by ${recent.runnerUp.toLowerCase()}` : ""}${recent.examples.length ? `; recent examples include ${recent.examples.join(" and ")}` : ""}`;
+  const changeText = earlier.lead === recent.lead ? `${earlier.lead} has remained the main thread, although the examples and secondary topics have changed.` : `The emphasis shifted from ${earlier.lead.toLowerCase()} toward ${recent.lead.toLowerCase()}.`;
+  const style = { "Pop culture and quotes": "Referential", "Hype and rally cries": "Energetic", "Sports and fandom": "Devoted", "The moment and the news": "Topical", "Medicine and work": "Clinical", "Life outside the pool": "Personal", "Comedy and self-commentary": "Wry", "Inside jokes and wildcards": "Cryptic" }[styleTheme] || "Eclectic";
+  const namedWins = winners.reduce((total, item) => total + item.wins.length, 0);
+  const repeatMetric = ordered[0].uses > 1 ? [ordered[0].display, `Most used · ${ordered[0].uses} times`] : namedWins ? [String(namedWins), `Wins with a unique name`] : [String(names.size), "All names unique"];
+  const mostUsedHtml = ordered.slice(0, 8).map((item, index) => `<div class="week-name-row"><div><strong>${websiteEscapeHtml(item.display)}</strong><small>${websiteEscapeHtml(websiteWeekNameMeaning(item.display, item.theme, index))}</small></div><span>${item.uses} use${item.uses === 1 ? "" : "s"}</span></div>`).join("");
   const winnersHtml = winners.length ? winners.slice(0, 8).map(item => { const latest = [...item.wins].sort((left, right) => String(right.season || "").localeCompare(String(left.season || "")) || Number(right.weekOrder || 0) - Number(left.weekOrder || 0))[0]; const record = `${latest.displayWins}-${latest.displayLosses}${Number(latest.displayPushes || 0) ? `-${latest.displayPushes}` : ""}`; return `<div class="week-name-row"><div><strong>${websiteEscapeHtml(item.display)}</strong><small>${websiteEscapeHtml(latest.season)} ${String(latest.week).toLowerCase() === "playoffs" ? "Playoffs" : `Week ${websiteEscapeHtml(latest.week)}`} · ${record}</small></div><span>${item.wins.length} win${item.wins.length === 1 ? "" : "s"}</span></div>`; }).join("") : '<p class="analysis-note">No weekly win is connected to a saved week name yet.</p>';
-  host.innerHTML = `<div class="week-name-summary"><div><strong>${rows.length}</strong><span>Named weeks</span></div><div><strong>${names.size}</strong><span>Different names</span></div><div><strong>${winners.reduce((total, item) => total + item.wins.length, 0)}</strong><span>Wins with a name</span></div></div><p class="week-name-read"><strong>What they talk about:</strong> ${websiteEscapeHtml(themeSummary)}.<br><strong>Pool personality read:</strong> ${websiteEscapeHtml(primary[0])} leads the file. ${websiteEscapeHtml(persona + variety)} This is a playful read of week-name choices, not an actual psychological assessment.</p><div class="week-name-columns"><section><h4>Most used</h4><div class="week-name-list">${mostUsedHtml}</div></section><section><h4>Names attached to wins</h4><div class="week-name-list">${winnersHtml}</div></section></div>`;
+  host.innerHTML = `<div class="week-name-summary"><div><strong>${rows.length}</strong><span>Named weeks</span></div><div><strong>${names.size}</strong><span>Different names</span></div><div><strong>${websiteEscapeHtml(repeatMetric[0])}</strong><span>${websiteEscapeHtml(repeatMetric[1])}</span></div><div><strong>${websiteEscapeHtml(style)}</strong><span>Week-name style</span></div></div><p class="week-name-read"><strong>Common Categories:</strong> ${websiteEscapeHtml(themeSummary)}.<br><strong>Earlier topics:</strong> ${websiteEscapeHtml(earlierText)}.<br><strong>Recent topics:</strong> ${websiteEscapeHtml(recentText)}.<br><strong>Change over time:</strong> ${websiteEscapeHtml(changeText)}<br><strong>Pool personality:</strong> ${websiteEscapeHtml(styleTheme)} best captures the pattern. ${websiteEscapeHtml(persona + variety)} This is a playful read of week-name choices, not an actual psychological assessment.</p><div class="week-name-columns"><section><h4>Most used</h4><div class="week-name-list">${mostUsedHtml}</div></section><section><h4>Names attached to wins</h4><div class="week-name-list">${winnersHtml}</div></section></div>`;
 }
 function renderProfile(name) {
   weeklyTooltipPinnedTarget = null;
