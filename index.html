@@ -316,27 +316,20 @@
   .live-race-controls button { min-height: 36px; border: 1px solid var(--border); border-radius: 5px; background: var(--panel-2); color: var(--text); padding: 7px 11px; font: 12px Arial, sans-serif; cursor: pointer; }
   .live-race-controls button:hover { border-color: var(--accent); color: var(--accent); }
   .live-race-time { min-width: 170px; padding: 9px 10px; color: var(--accent-2); font: 12px Consolas, monospace; text-align: right; }
-  .live-race-track { position: relative; height: 500px; overflow: hidden; border: 1px solid var(--border); background: repeating-linear-gradient(to bottom, #10171e 0, #10171e 48px, #202c38 49px, #202c38 50px); }
-  .live-racer { position: absolute; inset: 0 10px auto 10px; display: grid; grid-template-columns: 28px minmax(82px, 150px) minmax(120px, 1fr) 76px; align-items: center; gap: 8px; height: 48px; transition: transform 700ms cubic-bezier(.2,.75,.25,1), opacity 260ms ease; }
-  .live-racer-rank { color: var(--muted); font: bold 12px Consolas, monospace; text-align: right; }
+  .live-race-track { position: relative; height: 500px; overflow: hidden; border-block: 1px solid var(--border); background: repeating-linear-gradient(to right, transparent 0, transparent calc(25% - 1px), #52606d33 25%); }
+  .live-racer { position: absolute; inset: 0 10px auto 10px; display: grid; grid-template-columns: 34px minmax(82px, 150px) minmax(120px, 1fr) 76px; align-items: center; gap: 10px; height: 50px; border-bottom: 1px solid #202c3866; transition: transform 700ms cubic-bezier(.2,.75,.25,1), opacity 260ms ease; }
+  .live-racer-rank { color: var(--accent-2); font: bold 13px Consolas, monospace; text-align: right; }
   .live-racer-name { overflow: hidden; color: var(--text); font: bold 12px Arial, sans-serif; text-overflow: ellipsis; white-space: nowrap; }
-  .live-racer-lane { position: relative; height: 20px; border-left: 1px solid #52606d; }
-  .live-racer-bar { position: absolute; inset: 3px auto 3px 0; max-width: calc(100% - 20px); min-width: 3px; border: 1px solid color-mix(in srgb, var(--runner-color) 72%, white); background: color-mix(in srgb, var(--runner-color) 74%, transparent); transition: width 700ms cubic-bezier(.2,.75,.25,1); }
+  .live-racer-lane { position: relative; height: 24px; border-left: 1px solid #52606d; }
+  .live-racer-bar { position: absolute; inset: 4px auto 4px 0; max-width: calc(100% - 9px); min-width: 3px; border-radius: 2px; background: color-mix(in srgb, var(--runner-color) 78%, #111820); box-shadow: inset 0 0 0 1px color-mix(in srgb, var(--runner-color) 65%, white); transition: width 700ms cubic-bezier(.2,.75,.25,1); }
+  .live-racer-marker { position: absolute; top: 50%; right: -8px; width: 14px; height: 14px; border: 3px solid #10171e; border-radius: 50%; background: var(--runner-color); box-shadow: 0 0 0 1px color-mix(in srgb, var(--runner-color) 70%, white); transform: translateY(-50%); }
   .live-racer-value { color: var(--text); font: bold 11px Consolas, monospace; text-align: right; }
-  .pixel-runner { position: absolute; right: -19px; top: -7px; width: 18px; height: 24px; image-rendering: pixelated; animation: pixelRunnerBob 320ms steps(2, end) infinite; }
-  .pixel-runner i { position: absolute; display: block; background: var(--runner-color); }
-  .pixel-runner .helmet { left: 7px; top: 0; width: 8px; height: 6px; border-right: 2px solid #e8eef5; box-shadow: -2px 2px 0 #d49a6a; }
-  .pixel-runner .body { left: 6px; top: 7px; width: 9px; height: 8px; border-left: 2px solid #e8eef5; }
-  .pixel-runner .arm { left: 2px; top: 8px; width: 5px; height: 3px; transform-origin: right center; animation: pixelRunnerArm 320ms steps(2, end) infinite; }
-  .pixel-runner .leg-a, .pixel-runner .leg-b { top: 15px; width: 3px; height: 8px; transform-origin: top center; }
-  .pixel-runner .leg-a { left: 7px; animation: pixelRunnerLegA 320ms steps(2, end) infinite; }
-  .pixel-runner .leg-b { left: 12px; animation: pixelRunnerLegB 320ms steps(2, end) infinite; }
   @keyframes pixelRunnerBob { 50% { transform: translateY(1px); } }
   @keyframes pixelRunnerArm { 50% { transform: rotate(28deg); } }
   @keyframes pixelRunnerLegA { 50% { transform: rotate(34deg); } }
   @keyframes pixelRunnerLegB { 50% { transform: rotate(-34deg); } }
   .live-race-empty { display: grid; min-height: 220px; place-items: center; padding: 24px; color: var(--muted); font: 13px/1.55 Arial, sans-serif; text-align: center; }
-  @media (prefers-reduced-motion: reduce) { .live-racer, .live-racer-bar { transition: none; } .pixel-runner, .pixel-runner i { animation: none !important; } }
+  @media (prefers-reduced-motion: reduce) { .live-racer, .live-racer-bar { transition: none; } }
   @media (max-width: 620px) { .live-racer { grid-template-columns: 20px 58px minmax(56px, 1fr) 40px; gap: 4px; } .live-racer-name, .live-racer-value { font-size: 10px; } .live-race-time { width: 100%; text-align: left; } }
   @media (max-width: 850px) { .week-recap-grid { grid-template-columns: 1fr; } }
 </style>
@@ -504,7 +497,7 @@ function showWebsiteRaceFrame(frame, animate = true) {
   websiteRaceFrame = Math.max(0, Math.min(frame, websiteRaceSnapshots.length - 1));
   const snapshot = websiteRaceSnapshots[websiteRaceFrame], metric = websiteRaceMetric();
   const ranked = [...snapshot.players].sort((left, right) => Number(right[metric] || 0) - Number(left[metric] || 0) || left.name.localeCompare(right.name)).slice(0, 10);
-  const maximum = metric === "winProbability" ? 100 : Math.max(1, ...ranked.map(player => Number(player[metric] || 0)));
+  const maximum = Math.max(1, ...ranked.map(player => Number(player[metric] || 0)));
   websiteRaceRows.forEach(row => { row.style.opacity = "0"; });
   ranked.forEach((player, index) => {
     const row = websiteRaceRows.get(player.name);
@@ -537,14 +530,14 @@ function renderWebsiteRace(data) {
   websiteRaceSnapshots = snapshots.filter(snapshot => snapshot?.timestamp && Array.isArray(snapshot.players) && snapshot.players.length);
   if (!websiteRaceSnapshots.length) { host.innerHTML = '<div class="live-race-head"><div><h3>Live Weekly Race</h3><p>Win probability and paths will build here every five minutes once the live refresh starts.</p></div></div><div class="live-race-empty">No race snapshots yet. The first production refresh will create the opening frame.</div>'; return; }
   const names = [...new Set(websiteRaceSnapshots.flatMap(snapshot => snapshot.players.map(player => player.name)))];
-  host.innerHTML = '<div class="live-race-head"><div><h3>Live Weekly Race</h3><p>Pixel runners move with the top 10 as live probability and winning paths change.</p></div><div class="live-race-controls"><label>Race by<select id="website-race-metric"><option value="winProbability">Win probability</option><option value="pathsToVictory">Paths to victory</option></select></label><button id="website-race-play" type="button">Play race</button><button id="website-race-restart" type="button">Restart</button><label>Speed<select id="website-race-speed"><option value="1400">0.75x</option><option value="900" selected>1x</option><option value="500">2x</option></select></label><output id="website-race-time" class="live-race-time" aria-live="polite"></output></div></div><div id="website-race-track" class="live-race-track"></div>';
+  host.innerHTML = '<div class="live-race-head"><div><h3>Live Weekly Race</h3><p>The top 10 reorder as results change. Bars are scaled to the leader; labels show actual values.</p></div><div class="live-race-controls"><label>Race by<select id="website-race-metric"><option value="winProbability">Win probability</option><option value="pathsToVictory">Paths to victory</option></select></label><button id="website-race-play" type="button">Play race</button><button id="website-race-restart" type="button">Restart</button><label>Speed<select id="website-race-speed"><option value="1400">0.75x</option><option value="900" selected>1x</option><option value="500">2x</option></select></label><output id="website-race-time" class="live-race-time" aria-live="polite"></output></div></div><div id="website-race-track" class="live-race-track"></div>';
   const track = document.getElementById("website-race-track");
   websiteRaceRows = new Map();
   names.forEach(name => {
     const row = document.createElement("div");
     row.className = "live-racer";
     row.style.setProperty("--runner-color", websiteRaceColor(name));
-    row.innerHTML = `<span class="live-racer-rank"></span><span class="live-racer-name">${websiteEscapeHtml(name)}</span><span class="live-racer-lane"><span class="live-racer-bar"><span class="pixel-runner" aria-hidden="true"><i class="helmet"></i><i class="body"></i><i class="arm"></i><i class="leg-a"></i><i class="leg-b"></i></span></span></span><span class="live-racer-value"></span>`;
+    row.innerHTML = `<span class="live-racer-rank"></span><span class="live-racer-name">${websiteEscapeHtml(name)}</span><span class="live-racer-lane"><span class="live-racer-bar"><span class="live-racer-marker" aria-hidden="true"></span></span></span><span class="live-racer-value"></span>`;
     track.appendChild(row);
     websiteRaceRows.set(name, row);
   });
@@ -1784,6 +1777,7 @@ async function renderSelectedWebsiteWeek() {
     if (!response.ok || !data.ok) throw new Error(data.error || "Could not load the preseason test.");
     websitePreparePlayers(data);
     renderWebsiteWeekOneGrid(data, `Preseason ${selection.week} test`);
+    renderWebsiteRace(data);
     decorateWebsiteWeekOneHeaders(data);
     renderWebsitePlayerLedgers(data);
     renderWebsitePaths(data);
