@@ -726,7 +726,7 @@ function websitePreparePlayers(data) {
   });
   websiteSortPlayers(data.players);
 }
-function websiteSortPlayers(players) { const difference = player => player.tiebreakDifference === "" || player.tiebreakDifference == null || !Number.isFinite(Number(player.tiebreakDifference)) ? Number.POSITIVE_INFINITY : Math.abs(Number(player.tiebreakDifference)); return players.sort((left, right) => parseFloat(right.winPercent || 0) - parseFloat(left.winPercent || 0) || difference(left) - difference(right) || left.name.localeCompare(right.name)); }
+function websiteSortPlayers(players) { const difference = player => player.tiebreakDifference === "" || player.tiebreakDifference == null || !Number.isFinite(Number(player.tiebreakDifference)) ? Number.POSITIVE_INFINITY : Math.abs(Number(player.tiebreakDifference)); const pregame = players.every(player => Number(player.wins || 0) + Number(player.losses || 0) === 0); return players.sort((left, right) => (pregame ? parseFloat(right.winProbability || 0) - parseFloat(left.winProbability || 0) : parseFloat(right.winPercent || 0) - parseFloat(left.winPercent || 0)) || difference(left) - difference(right) || left.name.localeCompare(right.name)); }
 function renderWebsitePlayerLedgers(data) {
   const host = document.getElementById("week-one-ledger");
   if (!host || !(data.players || []).length) return;
@@ -1255,6 +1255,9 @@ function interpretWebsiteWeekName(weekName, playerName) {
     const archive = dolphinsNames.length ? `Your archive makes the meaning clear: ${dolphinsNames.length} earlier names mention the Dolphins or Dolfan${examples.length ? `, including ${examples.join(", ")}` : ""}.` : "The usual sports meaning is a Miami Dolphins cheer.";
     return { category: "Dolphins file", read: `“Fins” is common shorthand for the Miami Dolphins. ${archive} Best read: this is direct Dolphins support, with the exclamation points adding emphasis rather than hiding another joke.${history}` };
   }
+  if (/^happy\s+labou?r\s+day[!.]*$/i.test(text)) {
+    return { category: "Labor Day", read: `Labor Day is the U.S. federal holiday observed on the first Monday in September. It honors the contributions and achievements of American workers and the labor movement, while the long weekend also commonly marks the unofficial end of summer. “${text}” reads as a direct holiday greeting to the pool rather than a hidden reference.${history}` };
+  }
   if (/\bgolfing with the boys\b/i.test(text)) {
     const conversationalExample = playerWeeks.map(row => String(row.weekName || "").trim()).find(value => /no eagles good thing we would all be in a coma/i.test(value));
     const archive = conversationalExample ? ` It fits beside “${conversationalExample}” because both read like messages spoken to the room rather than titles: one shares a casual plan with friends, while the other turns a football observation into exaggerated group-chat banter.` : " It reads like a casual update to friends rather than a slogan or reference.";
@@ -1321,7 +1324,10 @@ async function loadConfirmationProbability(submission) {
     }).filter(row => row.pick && row.opponents).sort((left, right) => (right.opponents + Number(right.bestBet)) - (left.opponents + Number(left.bestBet)) || left.supporters - right.supporters)[0];
     const chanceText = `As the field stands now, your chance to win is <strong>${websiteEscapeHtml(player.winProbability)}</strong>. That ranks ${tied ? "tied for " : ""}<strong>${websiteOrdinal(probabilityRank)}</strong> out of ${field.length} entries.`;
     const pathsText = `You currently have <strong>${Math.round(pathCount).toLocaleString()}</strong> modeled paths to victory. This changes as more picks arrive and games are played.`;
-    const leverageText = leverage ? `<strong>${websiteEscapeHtml(websiteNaturalTeamName(leverage.pick))}</strong> gives you the most separation from the current field. If that pick hits, you gain ground on ${leverage.opponents} ${leverage.opponents === 1 ? "entry" : "entries"} that picked the other side.${leverage.bestBet ? " It is also your Best Bet, so it carries an extra point." : ""}` : "No pick separates you from the current field yet.";
+    const leverageOpponent = leverage ? [leverage.game.favorite, leverage.game.underdog].map(team => String(team).toUpperCase()).find(team => team !== leverage.pick) : "";
+    const leverageSpread = leverage ? Number(leverage.game.spread || 0) : 0;
+    const leverageOpponentLine = leverage ? `${websiteNaturalTeamName(leverageOpponent)} ${leverageSpread ? `${leverageOpponent === String(leverage.game.favorite).toUpperCase() ? "-" : "+"}${leverageSpread}` : "PK"}` : "";
+    const leverageText = leverage ? `Your <strong>${websiteEscapeHtml(websiteNaturalTeamName(leverage.pick))}</strong> pick gives you the most separation from the current field. If it hits, you gain ground on ${leverage.opponents} ${leverage.opponents === 1 ? "entry" : "entries"} backing <strong>${websiteEscapeHtml(leverageOpponentLine)}</strong>.${leverage.bestBet ? " It is also your Best Bet, so it carries an extra point." : ""}` : "No pick separates you from the current field yet.";
     host.innerHTML = [chanceText, pathsText, leverageText].map(text => `<p>${text}</p>`).join("");
   } catch (error) { host.innerHTML = `<p>The live field could not be calculated right now: ${websiteEscapeHtml(error.message)}</p>`; }
 }
@@ -1373,6 +1379,14 @@ async function renderConfirmationHistory(submission) {
       const conjunction = pickedScore > opponentScore && ats === "did not cover" || pickedScore < opponentScore && ats === "covered" ? "but" : "and";
       return `${straightUp}${conjunction === "but" ? ", but" : " and"} ${ats}`;
     };
+    const priorWeekFinish = row => {
+      const week = websiteWeeks.find(weekRow => (weekRow.playerId === playerId || String(weekRow.name).trim().toLowerCase() === normalized) && String(weekRow.season) === String(row.game.season) && String(weekRow.week).toLowerCase() === String(row.game.week).toLowerCase());
+      return Number(week?.rank) > 0 ? ` and wound up in <strong>${websiteOrdinal(Number(week.rank))} place</strong> that week` : "";
+    };
+    const missedTeamChances = (team, last) => {
+      const lastIndex = last ? history.indexOf(last) : -1;
+      return history.slice(lastIndex + 1).filter(row => [row.game.favorite, row.game.underdog].some(value => String(value).toUpperCase() === team) && String(row.pick).toUpperCase() !== team).length;
+    };
     const droughtCandidates = currentRows.filter(current => current.pick).flatMap(current => {
       const team = current.pick;
       const opponent = [current.game.favorite, current.game.underdog].map(value => String(value).toUpperCase()).find(value => value !== team) || "";
@@ -1389,7 +1403,12 @@ async function renderConfirmationHistory(submission) {
         droughtText = `This is your first archived pick ${longestDrought.mode === "for" ? "on" : "against"} the <strong>${selectedTeam}</strong>, ${matchup}.`;
       } else {
         const when = `${longestDrought.last.game.season} ${weeklyRankWeekLabel(String(longestDrought.last.game.week).toLowerCase())}`;
-        if (longestDrought.mode === "for") droughtText = `It's been <strong>${websiteEscapeHtml(gap.label)}</strong> since you picked the <strong>${selectedTeam}</strong>. Your record picking the ${selectedTeam} is ${record}. The last time you picked them, ${previousGame(longestDrought.last)} (${websiteEscapeHtml(when)}).`;
+        if (longestDrought.mode === "for") {
+          const result = String(longestDrought.last.result).toLowerCase() === "win" ? "covered" : String(longestDrought.last.result).toLowerCase() === "loss" ? "did not cover" : "pushed";
+          const opponent = teamName(opponentIn(longestDrought.last));
+          const missed = missedTeamChances(longestDrought.team, longestDrought.last);
+          droughtText = `The last time you picked the <strong>${selectedTeam}</strong>, they ${result} against the <strong>${opponent}</strong> (${websiteEscapeHtml(when)})${priorWeekFinish(longestDrought.last)}. ${missed ? `You have not picked the ${selectedTeam} in the ${missed} chances since.` : `That was your most recent chance to pick them.`} Your career record picking the ${selectedTeam} is ${record}.`;
+        }
         else droughtText = `It's been <strong>${websiteEscapeHtml(gap.label)}</strong> since you picked against the <strong>${selectedTeam}</strong>. Your record picking against the ${selectedTeam} is ${record}. The last time you faded them, ${previousGame(longestDrought.last)} (${websiteEscapeHtml(when)}).`;
       }
     }
@@ -1461,9 +1480,9 @@ async function renderConfirmationHistory(submission) {
     };
     const backingHabit = currentTeams.map(team => ({ team, ...opportunityRun(team) })).sort((left, right) => right.length - left.length)[0];
     const fadingHabit = currentOpponents.map(team => ({ team, ...opportunityRun(team, true) })).sort((left, right) => right.length - left.length)[0];
-    const activeRunRecord = habit => habit.rows.length ? ` You went <strong>${recordLabel(resultRecord(habit.rows))}</strong> in the ${habit.rows.length} completed games in that run; this card is still pending.` : " This card starts the run, so there is no completed record yet.";
+    const activeRunRecord = habit => habit.rows.length ? ` You went <strong>${recordLabel(resultRecord(habit.rows))}</strong> in the ${habit.rows.length} completed ${habit.rows.length === 1 ? "game" : "games"} in that run; this card is still pending.` : " This card starts the run, so there is no completed record yet.";
     const activeRunsText = [backingHabit ? `Counting this card, your longest active backing streak is <strong>${backingHabit.length} straight ${teamName(backingHabit.team)} games</strong>.${activeRunRecord(backingHabit)}` : "", fadingHabit ? `Your longest active fade is <strong>${fadingHabit.length} straight ${teamName(fadingHabit.team)} games</strong> picking against them.${activeRunRecord(fadingHabit)}` : ""].filter(Boolean).join(" ");
-    const stories = [droughtText, bestBetText, activeRunsText, streakText, teamStreakText, rankText].filter(Boolean).slice(0, 6);
+    const stories = [activeRunsText, teamStreakText, streakText, droughtText, bestBetText, rankText].filter(Boolean).slice(0, 6);
     if (!stories.length) stories.push("The archives know you, but this particular card is breaking new ground. We will have better material after the games.");
     const historyRow = ({ type, team, choice, run, runRows = [], rows = [], last }) => {
       const gap = gapSince(last), runRecord = recordLabel(resultRecord(runRows)), careerRecord = recordLabel(resultRecord(rows));
