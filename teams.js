@@ -264,29 +264,29 @@ function renderTeams() {
     options: { responsive: true, maintainAspectRatio: false, interaction: { mode: "index", intersect: false }, scales: { x: { ticks: { color: "#91a0ae", maxRotation: 60, minRotation: 45 }, grid: { color: "#2a3744" } }, y: { beginAtZero: true, max: 100, ticks: { color: "#91a0ae", callback: value => value + "%" }, grid: { color: "#2a3744" } } }, plugins: { legend: { labels: { color: "#e8eef5", filter: item => item.text !== "50% break-even" } }, tooltip: { filter: item => item.dataset.label !== "50% break-even", callbacks: { afterBody: items => { const row = trend[items[0].dataIndex]; return [`Average support: ${pct(row.supportRate)} across ${row.supportGames} games`, `Team ATS: ${record(row.covers, row.noCovers, row.gamePushes)} (${pct(row.coverRate)})`]; } } } } }
   });
 
-  const supportThreshold = .2, contrarianByPlayer = new Map();
-  let lowSupportGames = 0;
+  const opponentStats = new Map();
   websiteGames.filter(game => (season === "all" || game.season === season) && [game.favorite, game.underdog].map(value => String(value || "").toUpperCase()).includes(selectedTeam)).forEach(game => {
-    const gamePicks = (buildTeamsAnalytics().picksByGame.get(game.gameId) || []).filter(pick => pick.pick), teamPicks = gamePicks.filter(pick => String(pick.pick || "").toUpperCase() === selectedTeam);
-    if (!teamPicks.length || teamPicks.length / gamePicks.length >= supportThreshold) return;
-    lowSupportGames += 1;
-    teamPicks.forEach(pick => {
-      const key = pick.playerId || pick.name, row = contrarianByPlayer.get(key) || { player: pick.name || websitePlayers.find(player => player.playerId === pick.playerId)?.name || key, picks: 0, wins: 0, losses: 0, pushes: 0 };
-      row.picks += 1; row.wins += Number(pick.resultWin || 0); row.losses += Number(pick.resultLoss || 0); row.pushes += Number(pick.resultPush || 0);
-      contrarianByPlayer.set(key, row);
-    });
+    const teams = [game.favorite, game.underdog].map(value => String(value || "").toUpperCase()), opponent = teams.find(team => team !== selectedTeam);
+    const gamePicks = (buildTeamsAnalytics().picksByGame.get(game.gameId) || []).filter(pick => pick.pick);
+    const direct = gamePicks.find(pick => String(pick.pick || "").toUpperCase() === selectedTeam), opposite = gamePicks.find(pick => String(pick.pick || "").toUpperCase() !== selectedTeam);
+    if (!opponent || (!direct && !opposite)) return;
+    const win = direct ? Number(direct.resultWin || 0) : Number(opposite.resultLoss || 0), loss = direct ? Number(direct.resultLoss || 0) : Number(opposite.resultWin || 0), push = direct ? Number(direct.resultPush || 0) : Number(opposite.resultPush || 0);
+    if (!(win || loss || push)) return;
+    const row = opponentStats.get(opponent) || { opponent, wins: 0, losses: 0, pushes: 0, meetings: [] };
+    row.wins += win; row.losses += loss; row.pushes += push; row.meetings.push({ season: game.season, week: game.week, spread: game.spread, win, loss, push });
+    opponentStats.set(opponent, row);
   });
-  const allContrarians = [...contrarianByPlayer.values()].map(row => ({ ...row, rate: teamRate(row.wins, row.losses) })).sort((left, right) => right.picks - left.picks || right.rate - left.rate || left.player.localeCompare(right.player));
-  const repeatContrarians = allContrarians.filter(row => row.picks >= 2), eligibleContrarians = repeatContrarians.length ? repeatContrarians : allContrarians, contrarians = eligibleContrarians.slice(0, 10), oneOffs = allContrarians.length - repeatContrarians.length, omittedSupporters = eligibleContrarians.length - contrarians.length;
-  document.getElementById("teams-consensus-title").textContent = `${selectedTeam}: Low-Support Pickers`;
-  document.getElementById("teams-consensus-note").textContent = lowSupportGames ? `A low-support pick means choosing ${selectedTeam} when fewer than 20% of that game's submitted picks were on ${selectedTeam}. ${lowSupportGames} games qualified; bars show the top 10 repeat supporters by number of qualifying picks and their ATS win rate.${omittedSupporters ? ` ${omittedSupporters} additional repeat ${omittedSupporters === 1 ? "supporter is" : "supporters are"} not charted.` : ""}${oneOffs ? ` ${oneOffs} ${oneOffs === 1 ? "player made" : "players made"} one such pick and ${oneOffs === 1 ? "is" : "are"} not charted.` : ""}` : `${selectedTeam} never had a submitted pick below 20% pool support in the selected seasons.`;
+  const allOpponents = [...opponentStats.values()].map(row => ({ ...row, rate: teamRate(row.wins, row.losses) }));
+  const repeatOpponents = allOpponents.filter(row => row.meetings.length >= 3), opponents = (repeatOpponents.length ? repeatOpponents : allOpponents).sort((left, right) => right.rate - left.rate || right.meetings.length - left.meetings.length || left.opponent.localeCompare(right.opponent)).slice(0, 10);
+  document.getElementById("teams-consensus-title").textContent = `${selectedTeam}: Best ATS Matchups`;
+  document.getElementById("teams-consensus-note").textContent = opponents.length ? `How often ${selectedTeam} covered against each specific opponent. The chart prefers matchups with at least three archived meetings and shows up to ten, ordered by cover rate.` : `No graded matchup history is available for ${selectedTeam} in the selected seasons.`;
   if (teamsConsensusChart) teamsConsensusChart.destroy();
-  document.getElementById("teams-consensus-chart").parentElement.style.height = `${Math.max(335, contrarians.length * 28 + 70)}px`;
+  document.getElementById("teams-consensus-chart").parentElement.style.height = `${Math.max(335, opponents.length * 30 + 70)}px`;
   teamsConsensusChart = new Chart(document.getElementById("teams-consensus-chart"), {
     type: "bar",
-    data: { labels: contrarians.map(row => `${row.player} · ${row.picks} ${row.picks === 1 ? "pick" : "picks"}`), datasets: [{ label: "ATS win %", data: contrarians.map(row => Number((row.rate * 100).toFixed(1))), barText: contrarians.map(row => row.wins + row.losses ? `${(row.rate * 100).toFixed(1)}%` : "No decision"), backgroundColor: contrarians.map(row => row.rate >= .5 ? "#54d6b299" : "#ffb45499"), borderColor: contrarians.map(row => row.rate >= .5 ? "#54d6b2" : "#ffb454"), borderWidth: 1 }] },
+    data: { labels: opponents.map(row => `${selectedTeam} vs ${row.opponent}`), datasets: [{ label: "ATS cover %", data: opponents.map(row => Number((row.rate * 100).toFixed(1))), barText: opponents.map(row => [`${(row.rate * 100).toFixed(1)}%`, record(row.wins, row.losses, row.pushes)]), backgroundColor: opponents.map(row => row.rate >= .5 ? "#54d6b299" : "#ff8f7099"), borderColor: opponents.map(row => row.rate >= .5 ? "#54d6b2" : "#ff8f70"), borderWidth: 1 }] },
     plugins: [teamsBarValueLabels],
-    options: { indexAxis: "y", responsive: true, maintainAspectRatio: false, scales: { x: { beginAtZero: true, max: 100, ticks: { color: "#91a0ae", callback: value => value + "%" }, grid: { color: "#2a3744" } }, y: { ticks: { color: "#e8eef5" }, grid: { color: "#2a3744" } } }, plugins: { legend: { display: false }, tooltip: { callbacks: { afterBody: items => { const row = contrarians[items[0].dataIndex]; return [`Contrarian picks: ${row.picks}`, `ATS record: ${record(row.wins, row.losses, row.pushes)}`, row.wins + row.losses ? `ATS win rate: ${pct(row.rate)}` : "ATS win rate: no graded decisions"]; } } } } }
+    options: { indexAxis: "y", responsive: true, maintainAspectRatio: false, scales: { x: { beginAtZero: true, max: 100, ticks: { color: "#91a0ae", callback: value => value + "%" }, grid: { color: "#2a3744" } }, y: { ticks: { color: "#e8eef5" }, grid: { color: "#2a3744" } } }, plugins: { legend: { display: false }, tooltip: { callbacks: { afterBody: items => { const row = opponents[items[0].dataIndex], seasons = [...new Set(row.meetings.map(meeting => meeting.season))]; return [`${selectedTeam} ATS: ${record(row.wins, row.losses, row.pushes)} (${pct(row.rate)})`, `${row.meetings.length} archived meetings`, `Seasons: ${seasons[0]}${seasons.length > 1 ? ` to ${seasons.at(-1)}` : ""}`, ...row.meetings.slice(-3).reverse().map(meeting => `${meeting.season} ${String(meeting.week).toLowerCase().includes("round") || String(meeting.week).toLowerCase().includes("bowl") ? meeting.week : `W${meeting.week}`} · ${selectedTeam} ${meeting.win ? "covered" : meeting.loss ? "did not cover" : "pushed"} · spread ${meeting.spread}`)]; } } } } }
   });
 
   const tableRows = [...rows].sort((left, right) => right.picks - left.picks).map(row => ({

@@ -198,22 +198,22 @@
   .tabulator-row:hover { background: #263b40 !important; }
   #loading { color: var(--muted); font: 13px Arial, sans-serif; }
   @media (max-width: 850px) { .workspace, .profile-grid, .profile-charts, .week-name-columns, .week-name-facts, .behavior-grid, .name-dossier-grid { grid-template-columns: 1fr; } .week-name-summary, .behavior-summary { grid-template-columns: repeat(2, minmax(0, 1fr)); } .week-name-thread { grid-template-columns: 1fr; gap: 5px; } .week-name-fact:nth-child(2) { border-top: 1px solid #2a374466; } .record-grid { grid-template-columns: repeat(2, 1fr); } .intro { display: block; } .intro p { margin-top: 14px; } }
-  @media (max-width: 560px) { .summary { grid-template-columns: repeat(2, 1fr); } .record-grid { grid-template-columns: 1fr; } .panel-head { align-items: start; flex-direction: column; } .explorer-controls, .path-controls { grid-template-columns: 1fr; } #view-games .explorer-controls, #view-weeks .explorer-controls { max-width: none; } #view-enter-picks .panel { padding: 10px; } .website-matchup { grid-template-columns: minmax(0, 1fr) 40px minmax(0, 1fr); gap: 2px; } .website-side { padding: 6px 0; font-size: 11px; } .website-team-choice { grid-template-columns: 24px minmax(0, 1fr); column-gap: 5px; padding: 5px 4px; } .website-side.right .website-team-choice { grid-template-columns: minmax(0, 1fr) 24px; } .website-team-logo { width: 24px; height: 24px; } .website-team-name { display: none; } .website-team-abbreviation { display: block; } .website-team-record { font-size: 10px; } .website-spread { width: 40px; font-size: 12px; } }
+  @media (max-width: 560px) { main { padding: 18px 10px 44px; } .summary { grid-template-columns: repeat(2, 1fr); } .record-grid { grid-template-columns: 1fr; } .panel-head { align-items: start; flex-direction: column; } .explorer-controls, .path-controls { grid-template-columns: 1fr; } #view-games .explorer-controls, #view-weeks .explorer-controls { max-width: none; } #view-enter-picks .intro { margin-bottom: 12px; } #view-enter-picks .panel { padding: 8px; } #view-enter-picks .website-instructions { margin-bottom: 10px; font-size: 11px; line-height: 1.35; } #website-picks-form .website-identity-controls { grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 6px; } .website-game-group legend { padding-top: 4px; } .website-game-row { padding: 1px 0 2px; } .website-matchup { grid-template-columns: minmax(0, 1fr) 36px minmax(0, 1fr); gap: 1px; } .website-side { min-height: 34px; padding: 2px 0; font-size: 11px; } .website-team-choice { grid-template-columns: 22px minmax(0, 1fr); grid-template-areas: "logo name"; column-gap: 4px; padding: 3px; } .website-side.right .website-team-choice { grid-template-columns: minmax(0, 1fr) 22px; grid-template-areas: "name logo"; } .website-team-logo { width: 22px; height: 22px; } .website-team-name { display: none; } .website-team-abbreviation { display: block; } .website-team-record, .website-game-context { display: none; } .website-spread { width: 36px; min-height: 24px; font-size: 11px; } }
   .picks-grid { border-collapse: collapse; font: 11px Arial, sans-serif; }
   .picks-grid th, .picks-grid td { padding: 2px 5px; border: 1px solid var(--border); text-align: center; vertical-align: middle; white-space: nowrap; }
   .weekly-pick-win, .weekly-bb-win { color: var(--accent); font-weight: bold; }
   .weekly-pick-loss, .weekly-bb-loss { color: var(--danger); font-weight: bold; }
   .weekly-pick-push, .weekly-bb-push { color: #f1e48b; font-weight: bold; }
   [class^="weekly-pick-"], [class^="weekly-bb-"] { cursor: default; }
-  .profile-chart-tooltip { position: fixed; z-index: 1000; max-width: min(430px, calc(100vw - 24px)); max-height: min(520px, calc(100vh - 24px)); overflow: auto; pointer-events: auto; padding: 10px 12px; border: 1px solid var(--border); border-radius: 6px; background: #0b1016f2; box-shadow: 0 12px 32px #0008; color: var(--text); font: 12px/1.4 Arial, sans-serif; }
-  .profile-chart-tooltip strong { display: block; margin-bottom: 6px; color: var(--accent-2); }
-  .profile-chart-tooltip div { padding: 2px 0; border-top: 1px solid #2a374466; }
+  .profile-chart-tooltip { position: fixed; z-index: 1000; max-width: min(430px, calc(100vw - 16px)); max-height: calc(100dvh - 16px); overflow: auto; overscroll-behavior: contain; pointer-events: auto; padding: 7px 9px; border: 1px solid var(--border); border-radius: 6px; background: #0b1016f2; box-shadow: 0 12px 32px #0008; color: var(--text); font: 11px/1.25 Arial, sans-serif; }
+  .profile-chart-tooltip strong { display: block; margin-bottom: 4px; color: var(--accent-2); }
+  .profile-chart-tooltip div { padding: 1px 0; border-top: 1px solid #2a374466; }
   .profile-chart-tooltip .win { color: var(--accent); font-weight: bold; }
   .profile-chart-tooltip .loss { color: var(--danger); font-weight: bold; }
   .profile-chart-tooltip .push { color: #f1e48b; font-weight: bold; }
   .profile-chart-tooltip .neutral { color: #b8c4cf; font-weight: normal; }
   .weekly-game-tooltip, .profile-chart-tooltip.compact-game-tooltip { width: max-content; min-width: 132px; padding: 6px 7px; text-align: center; }
-  .weekly-game-tooltip.weekly-rank-tooltip { max-height: min(460px, calc(100vh - 24px)); }
+  .weekly-game-tooltip.weekly-rank-tooltip { max-height: calc(100dvh - 16px); }
   .weekly-game-tooltip .tooltip-close { position: sticky; z-index: 1; top: 0; float: right; width: 24px; height: 24px; margin: -2px -2px 3px 7px; padding: 0; border: 1px solid var(--border); border-radius: 4px; background: #202c38; color: var(--text); font: bold 17px/1 Arial, sans-serif; cursor: pointer; }
   .weekly-game-tooltip .tooltip-close:hover, .weekly-game-tooltip .tooltip-close:focus-visible { border-color: var(--accent); color: var(--accent); outline: none; }
   .weekly-game-tooltip div, .profile-chart-tooltip.compact-game-tooltip div { padding: 1px 0; border-top: 0; line-height: 1.2; }
@@ -226,13 +226,13 @@
   .distribution-tooltip .tooltip-season-header { margin-top: 6px; padding-top: 6px; color: var(--accent-2); border-top: 1px solid #52606d; font-weight: bold; text-align: left; }
   .distribution-tooltip .tooltip-week-row { display: grid; grid-template-columns: minmax(72px, 1fr) 38px 64px; gap: 12px; border-top: 0; font-family: Consolas, monospace; text-align: right; }
   .distribution-tooltip .tooltip-week-row span:first-child { text-align: left; }
-  .profile-chart-tooltip .streak-game-grid { grid-template-columns: repeat(2, minmax(150px, 1fr)); gap: 4px; }
-  .profile-chart-tooltip .streak-game-card { padding: 5px 7px; }
+  .profile-chart-tooltip .streak-game-grid { grid-template-columns: repeat(2, minmax(140px, 1fr)); gap: 3px; }
+  .profile-chart-tooltip .streak-game-card { padding: 3px 5px; }
   .profile-chart-tooltip .streak-game-period { font-size: 10px; }
   .profile-chart-tooltip .tooltip-week-row { display: grid; grid-template-columns: minmax(72px, 1fr) 38px 64px; gap: 12px; text-align: right; }
   .profile-chart-tooltip .tooltip-week-row span:first-child { text-align: left; }
   .weekly-win-record { cursor: pointer; text-decoration: underline dotted #54d6b299; text-underline-offset: 3px; }
-  @media (max-width: 520px) { .profile-chart-tooltip .streak-game-grid { grid-template-columns: 1fr; } }
+  @media (max-width: 520px) { .profile-chart-tooltip { max-width: calc(100vw - 12px); max-height: calc(100dvh - 12px); padding: 5px 6px; font-size: 10px; line-height: 1.15; } .profile-chart-tooltip .streak-game-grid { grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 2px; } .profile-chart-tooltip .streak-game-card { padding: 2px 3px; } .profile-chart-tooltip .streak-game-period { margin-bottom: 2px; font-size: 8px; } .profile-chart-tooltip .streak-game-matchup { grid-template-columns: minmax(0, 1fr) 30px minmax(0, 1fr); gap: 2px; } }
   .compact-live-title { margin: 0 0 10px; color: var(--accent); font: 11px Arial, sans-serif; text-transform: uppercase; letter-spacing: .7px; }
   .weekly-subview { max-width: 980px; margin-top: 24px; padding-top: 18px; border-top: 1px solid var(--border); }
   .player-ledger-list { display: grid; gap: 7px; }
@@ -317,6 +317,7 @@
   .live-race-controls button:hover { border-color: var(--accent); color: var(--accent); }
   .live-race-time { min-width: 170px; padding: 9px 10px; color: var(--accent-2); font: 12px Consolas, monospace; text-align: right; }
   .live-race-track { position: relative; height: 500px; overflow: hidden; border-block: 1px solid var(--border); background: repeating-linear-gradient(to right, transparent 0, transparent calc(25% - 1px), #52606d33 25%); }
+  .live-race-leader { position: absolute; inset: 50% 2% auto; overflow: hidden; color: #ffffff0b; font: bold clamp(68px, 16vw, 190px)/.8 Georgia, serif; letter-spacing: 0; text-align: center; text-overflow: ellipsis; white-space: nowrap; transform: translateY(-50%); transition: opacity 350ms ease; pointer-events: none; }
   .live-racer { position: absolute; inset: 0 10px auto 10px; display: grid; grid-template-columns: 34px minmax(82px, 150px) minmax(120px, 1fr) 76px; align-items: center; gap: 10px; height: 50px; border-bottom: 1px solid #202c3866; transition: transform 700ms cubic-bezier(.2,.75,.25,1), opacity 260ms ease; }
   .live-racer-rank { color: var(--accent-2); font: bold 13px Consolas, monospace; text-align: right; }
   .live-racer-name { overflow: hidden; color: var(--text); font: bold 12px Arial, sans-serif; text-overflow: ellipsis; white-space: nowrap; }
@@ -337,14 +338,14 @@
 <body>
 <header><nav id="nav"><button data-view="enter-picks">Enter Picks</button><button data-view="week-one">Current Week</button><button data-view="weeks">Weeks</button><button data-view="season">Seasons</button><button data-view="players">Players</button><button data-view="names">Names</button><button data-view="teams">Teams</button><button data-view="alltime">All Time</button><button data-view="streaks">Streaks</button><button data-view="games">Games</button></nav></header>
 <main>
-  <section id="view-enter-picks" class="view active">
+  <section id="view-enter-picks" class="view">
     <section class="intro"><div><h2>Enter Picks</h2></div><p>Week 1 · 2026-2027</p></section>
-    <div class="panel"><p id="website-entry-context" class="website-entry-context">Loading the active slate...</p><p id="website-test-notice" class="website-test-notice">TEST MODE · Entries and scores are isolated from regular-season standings, logs, awards, and archives.</p><div class="website-instructions">Favorites are on the left. Underdogs on the right.<br>HOME TEAMS are in CAPS. away teams are lower case.<br>Point Spreads will be posted on Tuesdays.<br>Once the point spreads are posted they will not change.</div><form id="website-picks-form"><div class="explorer-controls website-identity-controls"><label>Name<input id="website-picks-name" required autocomplete="name"></label><label><span id="website-week-name-label">Week 1 name</span><input id="website-week-name" required></label></div><div id="website-game-picks" class="website-game-list"></div><div class="explorer-controls website-final-controls" style="margin-top:18px"><label>Best Bet<select id="website-best-bet" required></select></label><label>Tiebreaker · Total net passing yards<input id="website-tiebreaker" type="number" inputmode="decimal" min="-100" max="1200" step="any" title="Enter a number from -100 through 1200" required><small style="color:var(--muted);font:11px Arial,sans-serif;text-transform:none;letter-spacing:0">Net passing yards include yards lost to sacks. Guesses may range from -100 to 1200.</small></label></div><button type="submit" style="margin-top:18px">Submit picks</button><p id="website-picks-status" style="color:var(--muted);font:13px Arial,sans-serif" tabindex="-1"></p></form></div>
+    <div class="panel"><p id="website-entry-context" class="website-entry-context">Loading the active slate...</p><p id="website-test-notice" class="website-test-notice">TEST MODE · Entries and scores are isolated from regular-season standings, logs, awards, and archives.</p><div class="website-instructions">Favorites left; underdogs right. HOME teams are in CAPS.<br>Spreads post Tuesday and lock when posted.</div><form id="website-picks-form"><div class="explorer-controls website-identity-controls"><label>Name<input id="website-picks-name" required autocomplete="name"></label><label><span id="website-week-name-label">Week 1 name</span><input id="website-week-name" required></label></div><div id="website-game-picks" class="website-game-list"></div><div class="explorer-controls website-final-controls" style="margin-top:18px"><label>Best Bet<select id="website-best-bet" required></select></label><label>Tiebreaker · Total net passing yards<input id="website-tiebreaker" type="number" inputmode="decimal" min="-100" max="1200" step="any" title="Enter a number from -100 through 1200" required><small style="color:var(--muted);font:11px Arial,sans-serif;text-transform:none;letter-spacing:0">Net passing yards include yards lost to sacks. Guesses may range from -100 to 1200.</small></label></div><button type="submit" style="margin-top:18px">Submit picks</button><p id="website-picks-status" style="color:var(--muted);font:13px Arial,sans-serif" tabindex="-1"></p></form></div>
   </section>
   <section id="view-picks-confirmation" class="view"><section class="intro"><div><h2>Picks submitted</h2></div><p>Week 1 · 2026-2027</p></section><div class="panel website-confirmation"><p id="confirmation-lead" class="confirmation-lead">Your picks were submitted successfully.</p><div class="confirmation-grid"><section id="confirmation-identity" class="confirmation-block"><h3>Your pool history</h3><p>Finding your place in the archive...</p></section><section id="confirmation-week-name" class="confirmation-block"><h3>Your week name</h3><p>Reading the room...</p></section><section id="confirmation-picks" class="confirmation-block"><h3>Live outlook</h3><p>Comparing your card with the field...</p></section><section id="confirmation-history" class="confirmation-block"><h3>This card in your history</h3><p>Loading your historical picks...</p></section></div><button id="website-view-week-one" type="button">View Week 1</button></div></section>
-  <section id="view-week-one" class="view">
+  <section id="view-week-one" class="view active">
     <section class="intro"><div><h2>Week 1</h2></div><p>2026-2027 submissions and weekly standings.</p></section>
-    <div class="panel"><div id="week-one-status"></div><div id="week-one-table" style="overflow-x:auto"></div><section id="week-one-live-race" class="live-race"></section><div id="week-one-recap"></div><div id="week-one-scenarios" class="weekly-subview"></div><div id="week-one-sankey" class="weekly-subview"></div><div id="week-one-paths" class="weekly-subview"></div></div>
+    <div class="panel"><div id="week-one-status"><p class="website-instructions">Loading the active week...</p></div><div id="week-one-table" style="overflow-x:auto"></div><section id="week-one-live-race" class="live-race"></section><div id="week-one-recap"></div><div id="week-one-scenarios" class="weekly-subview"></div><div id="week-one-sankey" class="weekly-subview"></div><div id="week-one-paths" class="weekly-subview"></div></div>
   </section>
   <section id="view-alltime" class="view">
     <section class="intro"><div><h2>All Time</h2></div><p>Seventeen seasons of results in one place: the career leaders, every champion, and how the long-timers built their records.</p></section>
@@ -371,7 +372,8 @@
     <label style="max-width:280px">Player<select id="profile-player"></select></label>
     <div class="profile-grid" style="margin-top:16px"><div class="panel"><h3 id="profile-name" class="profile-name"></h3><div id="profile-stats" class="profile-list"></div><div id="profile-extra-stats"></div></div><div class="profile-chart-stack"><div class="panel profile-chart"><div class="panel-head"><h3>Wins and money by season</h3></div><div class="chart-wrap"><canvas id="profile-history-chart"></canvas></div></div><div class="panel profile-chart"><div class="panel-head"><h3>Best weeks</h3></div><div class="chart-wrap"><canvas id="profile-best-weeks-chart"></canvas></div></div><div class="panel profile-chart"><div class="panel-head"><h3>Performance and streak runs</h3><label>View<select id="profile-recent-view" aria-label="Performance and streak view" onchange="renderProfile(document.getElementById('profile-player').value)"><option value="correct" selected>Correct-pick streak</option><option value="wrong">Wrong-pick streak</option><option value="best_bet_hit">Best-bet hit streak</option><option value="best_bet_miss">Best-bet miss streak</option><option value="best_team_pick">Best team run</option><option value="worst_team_pick">Worst team run</option><option value="money">Money streak</option><option value="top5">Top-5 streak</option><option value="top10">Top-10 streak</option><option value="no_first">Weeks without a win</option><option value="form">Weekly form</option></select></label><label id="profile-lookback-label">Lookback<select id="profile-recent-lookback" aria-label="Performance lookback" onchange="renderProfile(document.getElementById('profile-player').value)"><option value="5">Most recent 5</option><option value="10" selected>Most recent 10</option><option value="100-picks">Last 100 picks</option><option value="all">All picks</option></select></label></div><div class="chart-wrap"><canvas id="profile-recent-chart"></canvas></div></div></div></div>
     <div class="profile-charts"><div class="panel profile-chart"><div class="panel-head"><h3>Cumulative money won</h3></div><div class="chart-wrap"><canvas id="profile-money-chart"></canvas></div></div><div class="panel profile-chart"><div class="panel-head"><h3>Plus/minus over time</h3></div><div class="chart-wrap"><canvas id="profile-plus-minus-chart"></canvas></div></div><div class="panel profile-chart"><div class="panel-head"><h3>Weekly distribution</h3></div><div class="chart-wrap"><canvas id="profile-finish-chart"></canvas></div></div><div class="panel profile-chart"><div class="panel-head"><h3>Best bets</h3><label>View<select id="profile-best-bet-view" aria-label="Best bets view" onchange="renderProfile(document.getElementById('profile-player').value)"><option value="season">By season</option><option value="most">Most bet teams</option><option value="least">Least bet teams</option><option value="best">Best team records</option><option value="worst">Worst team records</option><option value="volume-time">Volume over time</option><option value="rate-time">Hit rate over time</option></select></label></div><div class="chart-wrap"><canvas id="profile-best-bet-chart"></canvas></div></div><div class="panel profile-chart"><div class="panel-head"><h3>Team picks</h3><label>View<select id="profile-team-view" aria-label="Team picks view" onchange="renderProfile(document.getElementById('profile-player').value)"><option value="picked-most">Top 10 picked</option><option value="picked-least">Bottom 10 picked</option><option value="against-most">Top 10 picked against</option><option value="against-least">Bottom 10 picked against</option><option value="picked-best">Best records picking</option><option value="picked-worst">Worst records picking</option><option value="against-best">Best records picking against</option><option value="against-worst">Worst records picking against</option><option value="picked-time">Pick volume over time</option><option value="picked-rate-time">Pick win rate over time</option><option value="against-time">Against volume over time</option><option value="against-rate-time">Against win rate over time</option></select></label><label id="profile-team-add-label" hidden>Add team<select id="profile-team-add" aria-label="Add team to Team Picks chart" onchange="renderProfile(document.getElementById('profile-player').value)"><option value="">None</option></select></label></div><div class="chart-wrap"><canvas id="profile-team-chart"></canvas></div></div><div class="panel profile-chart"><div class="panel-head"><h3>700 / 800 club</h3></div><div class="chart-wrap"><canvas id="profile-club-chart"></canvas></div></div></div>
-    <div class="panel" style="margin-top:14px"><h3 style="margin:0 0 8px;color:var(--accent);font:11px Arial,sans-serif;letter-spacing:1px;text-transform:uppercase">Pick behavior</h3><div id="profile-pick-behavior"><p class="analysis-note">Loading the pick archive...</p></div></div>
+    <div class="panel" style="margin-top:14px"><h3 style="margin:0 0 8px;color:var(--accent);font:11px Arial,sans-serif;letter-spacing:1px;text-transform:uppercase">Pick behavior</h3><div id="profile-pick-behavior"><p class="analysis-note">Loading the pick archive...</p></div><div class="chart-wrap wide-chart" id="profile-situational-chart-wrap"><canvas id="profile-situational-chart"></canvas></div></div>
+    <div class="profile-charts" style="margin-top:14px"><div class="panel profile-chart"><div class="panel-head"><h3>Best Games</h3></div><p class="analysis-note">Wins ranked by how many other players picked the opposite side.</p><div class="chart-wrap"><canvas id="profile-best-games-chart"></canvas></div></div><div class="panel profile-chart"><div class="panel-head"><h3>Record by Final Score</h3><label>Team<select id="profile-score-team" aria-label="Score stats team filter" onchange="renderPlayerScoreCharts(document.getElementById('profile-player').value)"><option value="all">All teams</option></select></label></div><label>Combined score at least <output id="profile-score-threshold-value">40</output><input id="profile-score-threshold" type="range" min="0" max="100" step="5" value="40" oninput="renderPlayerScoreCharts(document.getElementById('profile-player').value)"></label><div id="profile-score-summary" class="summary"></div><div class="chart-wrap"><canvas id="profile-score-chart"></canvas></div></div></div>
     <div class="panel" style="margin-top:14px"><h3 style="margin:0 0 12px;color:var(--accent);font:11px Arial,sans-serif;letter-spacing:1px;text-transform:uppercase">Weekly wins detail</h3><div id="profile-weekly-wins-detail" style="overflow-x:auto"></div></div>
     <div class="panel" style="margin-top:14px"><h3 style="margin:0 0 8px;color:var(--accent);font:11px Arial,sans-serif;letter-spacing:1px;text-transform:uppercase">Weekly Rank</h3><p class="analysis-note">Every recorded weekly finish for the selected player, newest first.</p><div id="profile-weekly-rank-sheet" style="overflow-x:auto;margin-top:14px"></div></div>
   </section>
@@ -388,7 +390,7 @@
 <script>
 const DATA_DIR = "./data";
 const WEBSITE_WEEK_HISTORY_VERSION = "20260825-week-names";
-const requestedStartupRoute = location.hash.slice(1) === "weekly-rank" ? "weeks" : location.hash.slice(1);
+const requestedStartupRoute = location.hash.slice(1) === "weekly-rank" ? "weeks" : location.hash.slice(1) || "week-one";
 if (location.hash === "#weekly-rank") history.replaceState(null, "", "#weeks");
 let startupRoutePending = true;
 const WEBSITE_SUBMISSIONS_ENDPOINT = "https://script.google.com/macros/s/AKfycbxZUgJm6LstCEomhmrlJYa_nH7tsmxC_4UZwYdroIZbs-PeI6KdPqUZtsF9fZvr_YuNWQ/exec";
@@ -442,6 +444,8 @@ function showWebsiteConfirmation() { showView("picks-confirmation"); }
 function resetWebsiteBestBet() { const bestBet = document.getElementById("website-best-bet"); if (!bestBet) return; if (!bestBet.options.length || bestBet.options[0].value !== "") bestBet.insertBefore(new Option("Choose a best bet", ""), bestBet.options[0] || null); bestBet.value = ""; }
 const WEBSITE_TEAM_NAMES = { ari:"arizona",atl:"atlanta",bal:"baltimore",buf:"buffalo",car:"carolina",chi:"chicago",cin:"cincinnati",cle:"cleveland",dal:"dallas",den:"denver",det:"detroit",gb:"green bay",hou:"houston",ind:"indianapolis",jax:"jacksonville",kc:"kansas city",lar:"la rams",lac:"la chargers",lv:"las vegas",mia:"miami",min:"minnesota",ne:"new england",no:"new orleans",nyg:"ny giants",nyj:"ny jets",phi:"philadelphia",pit:"pittsburgh",sea:"seattle",sf:"san francisco",tb:"tampa bay",ten:"tennessee",was:"washington" };
 const WEBSITE_FORM_TEAM_NAMES = { ari:"cardinals",atl:"falcons",bal:"ravens",buf:"bills",car:"panthers",chi:"bears",cin:"bengals",cle:"browns",dal:"cowboys",den:"broncos",det:"lions",gb:"packers",hou:"texans",ind:"colts",jax:"jaguars",kc:"chiefs",lar:"rams",lac:"chargers",lv:"raiders",mia:"dolphins",min:"vikings",ne:"patriots",no:"saints",nyg:"giants",nyj:"jets",phi:"eagles",pit:"steelers",sea:"seahawks",sf:"49ers",tb:"buccaneers",ten:"titans",was:"commanders" };
+const WEBSITE_TEAM_DIVISIONS = { ari:"NFC West",atl:"NFC South",bal:"AFC North",buf:"AFC East",car:"NFC South",chi:"NFC North",cin:"AFC North",cle:"AFC North",dal:"NFC East",den:"AFC West",det:"NFC North",gb:"NFC North",hou:"AFC South",ind:"AFC South",jax:"AFC South",kc:"AFC West",lar:"NFC West",lac:"AFC West",lv:"AFC West",mia:"AFC East",min:"NFC North",ne:"AFC East",no:"NFC South",nyg:"NFC East",nyj:"AFC East",phi:"NFC East",pit:"AFC North",sea:"NFC West",sf:"NFC West",tb:"NFC South",ten:"AFC South",was:"NFC East" };
+const WEBSITE_TEAM_TIME_ZONES = { ari:"Mountain",atl:"Eastern",bal:"Eastern",buf:"Eastern",car:"Eastern",chi:"Central",cin:"Eastern",cle:"Eastern",dal:"Central",den:"Mountain",det:"Eastern",gb:"Central",hou:"Central",ind:"Eastern",jax:"Eastern",kc:"Central",lar:"Pacific",lac:"Pacific",lv:"Pacific",mia:"Eastern",min:"Central",ne:"Eastern",no:"Central",nyg:"Eastern",nyj:"Eastern",phi:"Eastern",pit:"Eastern",sea:"Pacific",sf:"Pacific",tb:"Eastern",ten:"Central",was:"Eastern" };
 const WEBSITE_TEAM_LOGO_CODES = { was:"wsh" };
 function websiteTeamName(abbreviation) { const name = WEBSITE_TEAM_NAMES[abbreviation.toLowerCase()] || abbreviation; return abbreviation === abbreviation.toUpperCase() ? name.toUpperCase() : name; }
 function websiteFormTeamName(abbreviation) { const name = WEBSITE_FORM_TEAM_NAMES[abbreviation.toLowerCase()] || abbreviation; return abbreviation === abbreviation.toUpperCase() ? name.toUpperCase() : name; }
@@ -472,7 +476,7 @@ const WEBSITE_TIEBREAK_DEVIATION = 113;
 const WEBSITE_EXACT_SCENARIO_GAME_LIMIT = 6;
 let websiteScenarioMode = "current";
 let websiteContenderDetailMode = "simple";
-let websiteSankeyChart = null;
+let websiteSankeyChart = null, websiteConfirmationSplitChart = null;
 let websiteRaceSnapshots = [], websiteRaceFrame = 0, websiteRaceTimer = null, websiteRaceRows = new Map();
 function websiteProbabilityText(percent) {
   const value = Number(percent);
@@ -498,6 +502,8 @@ function showWebsiteRaceFrame(frame, animate = true) {
   const snapshot = websiteRaceSnapshots[websiteRaceFrame], metric = websiteRaceMetric();
   const ranked = [...snapshot.players].sort((left, right) => Number(right[metric] || 0) - Number(left[metric] || 0) || left.name.localeCompare(right.name)).slice(0, 10);
   const maximum = Math.max(1, ...ranked.map(player => Number(player[metric] || 0)));
+  const leader = document.getElementById("website-race-leader");
+  if (leader) leader.textContent = ranked[0]?.name || "";
   websiteRaceRows.forEach(row => { row.style.opacity = "0"; });
   ranked.forEach((player, index) => {
     const row = websiteRaceRows.get(player.name);
@@ -508,7 +514,7 @@ function showWebsiteRaceFrame(frame, animate = true) {
     row.style.transform = `translateY(${index * 50}px)`;
     row.querySelector(".live-racer-rank").textContent = `#${index + 1}`;
     row.querySelector(".live-racer-bar").style.width = `${width}%`;
-    row.querySelector(".live-racer-value").textContent = metric === "winProbability" ? websiteProbabilityText(value) : value.toLocaleString(undefined, { maximumFractionDigits: 3 });
+    row.querySelector(".live-racer-value").textContent = metric === "winProbability" || metric === "winPercent" ? websiteProbabilityText(value) : value.toLocaleString(undefined, { maximumFractionDigits: 3 });
     if (!animate) requestAnimationFrame(() => { row.style.transition = ""; });
   });
   const stamp = new Date(snapshot.timestamp);
@@ -524,13 +530,13 @@ function renderWebsiteRace(data) {
   if (!host) return;
   stopWebsiteRace();
   const snapshots = Array.isArray(data.raceSnapshots) ? [...data.raceSnapshots] : [];
-  const current = { timestamp: data.updatedAt || new Date().toISOString(), players: (data.players || []).map(player => ({ name: player.name, winProbability: parseFloat(player.winProbability || 0) || 0, pathsToVictory: Number(player.pathsToVictory || 0) })) };
+  const current = { timestamp: data.updatedAt || new Date().toISOString(), players: (data.players || []).map(player => ({ name: player.name, winProbability: parseFloat(player.winProbability || 0) || 0, pathsToVictory: Number(player.pathsToVictory || 0), winPercent: parseFloat(player.winPercent || 0) || 0 })) };
   const latestStored = snapshots[snapshots.length - 1];
   if (current.players.length && (!latestStored || current.timestamp !== latestStored.timestamp)) snapshots.push(current);
   websiteRaceSnapshots = snapshots.filter(snapshot => snapshot?.timestamp && Array.isArray(snapshot.players) && snapshot.players.length);
   if (!websiteRaceSnapshots.length) { host.innerHTML = '<div class="live-race-head"><div><h3>Live Weekly Race</h3><p>Win probability and paths will build here every five minutes once the live refresh starts.</p></div></div><div class="live-race-empty">No race snapshots yet. The first production refresh will create the opening frame.</div>'; return; }
   const names = [...new Set(websiteRaceSnapshots.flatMap(snapshot => snapshot.players.map(player => player.name)))];
-  host.innerHTML = '<div class="live-race-head"><div><h3>Live Weekly Race</h3><p>The top 10 reorder as results change. Bars are scaled to the leader; labels show actual values.</p></div><div class="live-race-controls"><label>Race by<select id="website-race-metric"><option value="winProbability">Win probability</option><option value="pathsToVictory">Paths to victory</option></select></label><button id="website-race-play" type="button">Play race</button><button id="website-race-restart" type="button">Restart</button><label>Speed<select id="website-race-speed"><option value="1400">0.75x</option><option value="900" selected>1x</option><option value="500">2x</option></select></label><output id="website-race-time" class="live-race-time" aria-live="polite"></output></div></div><div id="website-race-track" class="live-race-track"></div>';
+  host.innerHTML = '<div class="live-race-head"><div><h3>Live Weekly Race</h3><p>The top 10 reorder as results change. Bars are scaled to the leader; labels show actual values.</p></div><div class="live-race-controls"><label>Race by<select id="website-race-metric"><option value="winProbability">Win probability</option><option value="winPercent">Win %</option><option value="pathsToVictory">Paths to victory</option></select></label><button id="website-race-play" type="button">Play race</button><button id="website-race-restart" type="button">Restart</button><label>Speed<select id="website-race-speed"><option value="1400">0.75x</option><option value="900" selected>1x</option><option value="500">2x</option></select></label><output id="website-race-time" class="live-race-time" aria-live="polite"></output></div></div><div id="website-race-track" class="live-race-track"><div id="website-race-leader" class="live-race-leader" aria-hidden="true"></div></div>';
   const track = document.getElementById("website-race-track");
   websiteRaceRows = new Map();
   names.forEach(name => {
@@ -1084,6 +1090,7 @@ renderWebsiteSankey = renderWebsitePersonalizedSankey;
 let websiteRegularSelection = { season: 2026, week: 1, phase: "REGULAR_SEASON", staged: false };
 let websiteEntrySelection = { testMode: false, ...websiteRegularSelection };
 let websiteLastWeekData = null;
+let websiteDiscoveredPreseasonData = null;
 function websitePickSelection() { return websiteEntrySelection; }
 function updateWebsiteWeekLabels(selection) {
   const seasonLabel = `${selection.season}-${selection.season + 1}`;
@@ -1106,7 +1113,7 @@ async function loadActiveRegularWeek() {
   updateWebsiteWeekLabels(websiteEntrySelection);
   return websiteRegularSelection;
 }
-async function selectStagedPreseasonWeek() { if (!WEBSITE_SUBMISSIONS_ENDPOINT) return false; const regular = await loadActiveRegularWeek(); if (regular.staged) return false; const separator = WEBSITE_SUBMISSIONS_ENDPOINT.includes("?") ? "&" : "?"; const weeks = [4, 3, 2, 1]; const results = await Promise.all(weeks.map(async week => { try { const response = await fetch(`${WEBSITE_SUBMISSIONS_ENDPOINT}${separator}action=preseason-test&season=2026&week=${week}`, { signal: AbortSignal.timeout(20000) }); const data = await response.json(); return response.ok && data.ok && (data.games || []).length ? week : null; } catch (error) { return null; } })); const week = results.find(Boolean); if (!week) return false; websiteEntrySelection = { testMode: true, season: 2026, week, phase: "PRESEASON" }; updateWebsiteWeekLabels(websiteEntrySelection); document.getElementById("website-game-picks").dataset.ready = ""; return true; }
+async function selectStagedPreseasonWeek() { if (!WEBSITE_SUBMISSIONS_ENDPOINT) return false; const regular = await loadActiveRegularWeek(); if (regular.staged) return false; const separator = WEBSITE_SUBMISSIONS_ENDPOINT.includes("?") ? "&" : "?"; for (const week of [4, 3, 2, 1]) { try { const response = await fetch(`${WEBSITE_SUBMISSIONS_ENDPOINT}${separator}action=preseason-test&season=2026&week=${week}`, { signal: AbortSignal.timeout(20000) }); const data = await response.json(); if (!response.ok || !data.ok || !(data.games || []).length) continue; websiteDiscoveredPreseasonData = data; websiteEntrySelection = { testMode: true, season: 2026, week, phase: "PRESEASON" }; updateWebsiteWeekLabels(websiteEntrySelection); document.getElementById("website-game-picks").dataset.ready = ""; return true; } catch (error) { console.warn(`Preseason Week ${week} discovery failed: ${error.message}`); } } return false; }
 async function loadWebsiteStagedGames(selection) { if (!WEBSITE_SUBMISSIONS_ENDPOINT) return selection.testMode ? [] : WEBSITE_WEEK_ONE_GAMES; const separator = WEBSITE_SUBMISSIONS_ENDPOINT.includes("?") ? "&" : "?"; const url = `${WEBSITE_SUBMISSIONS_ENDPOINT}${separator}action=week-config&season=${selection.season}&week=${selection.week}&phase=${selection.phase}`; const response = await fetch(url); const data = await response.json(); if (!response.ok || !data.ok) throw new Error(data.error || "Could not load the staged games."); return (data.games || []).map((game, index) => ({ ...game, id: game.gameId || `game-${index + 1}`, time: game.kickoffGroup || game.kickoff || `Game ${index + 1}` })); }
 function websiteGameContext(game) {
   const location = [game.venueCity, game.venueState].filter(Boolean).join(", ");
@@ -1298,7 +1305,23 @@ function renderConfirmationIdentity(submission, identity) {
 }
 function renderConfirmationPicks(submission) {
   const host = document.getElementById("confirmation-picks");
-  host.innerHTML = `<h3>Live outlook</h3><div id="confirmation-probability" class="confirmation-status"><p>Comparing your card with the field...</p></div>`;
+  host.innerHTML = `<h3>Live outlook</h3><div id="confirmation-probability" class="confirmation-status"><p>Comparing your card with the field...</p></div><div class="chart-wrap" style="height:340px;margin-top:14px"><canvas id="confirmation-split-chart"></canvas></div>`;
+  const rows = websiteActiveGames.map((game, index) => {
+    const pick = String(submission.picks[index] || "").toUpperCase(), favorite = String(game.favorite || "").toUpperCase(), underdog = String(game.underdog || "").toUpperCase(), home = String(game.home || "").toUpperCase(), away = String(game.away || "").toUpperCase();
+    const timeMatch = String(game.kickoffGroup || game.kickoff || game.time || "").match(/(\d{1,2}):(\d{2})(?:\s*(AM|PM))?/i);
+    let kickoffHour = null;
+    if (timeMatch) { kickoffHour = Number(timeMatch[1]) % 12 + (String(timeMatch[3] || "PM").toUpperCase() === "PM" ? 12 : 0) + Number(timeMatch[2]) / 60; }
+    return { game, pick, favorite, underdog, home, away, kickoffHour, venueZone: WEBSITE_TEAM_TIME_ZONES[home.toLowerCase()] || "", divisional: WEBSITE_TEAM_DIVISIONS[home.toLowerCase()] && WEBSITE_TEAM_DIVISIONS[home.toLowerCase()] === WEBSITE_TEAM_DIVISIONS[away.toLowerCase()] };
+  });
+  const splits = [
+    ["Home teams", row => row.pick === row.home], ["Road teams", row => row.pick === row.away],
+    ["Favorites", row => row.pick === row.favorite], ["Underdogs", row => row.pick === row.underdog],
+    ["1 PM games", row => row.kickoffHour >= 13 && row.kickoffHour < 14], ["Late / night games", row => row.kickoffHour >= 16],
+    ["Eastern venues", row => row.venueZone === "Eastern"], ["Central venues", row => row.venueZone === "Central"],
+    ["Mountain / Pacific", row => ["Mountain", "Pacific"].includes(row.venueZone)], ["Division games", row => row.divisional]
+  ].map(([label, test]) => ({ label, rows: rows.filter(test) }));
+  if (websiteConfirmationSplitChart) websiteConfirmationSplitChart.destroy();
+  websiteConfirmationSplitChart = new Chart(document.getElementById("confirmation-split-chart"), { type: "bar", data: { labels: splits.map(split => split.label), datasets: [{ label: "Picks", data: splits.map(split => split.rows.length), backgroundColor: splits.map((split, index) => index % 2 ? "#ffb45499" : "#54d6b299"), borderColor: splits.map((split, index) => index % 2 ? "#ffb454" : "#54d6b2"), borderWidth: 1 }] }, options: { indexAxis: "y", responsive: true, maintainAspectRatio: false, scales: { x: { beginAtZero: true, suggestedMax: Math.max(4, rows.length), ticks: { color: "#91a0ae", precision: 0 }, grid: { color: "#2a3744" }, title: { display: true, text: "Picks on this card", color: "#91a0ae" } }, y: { ticks: { color: "#e8eef5" }, grid: { display: false } } }, plugins: { legend: { display: false }, tooltip: { callbacks: { afterBody: items => { const split = splits[items[0].dataIndex], details = split.rows.slice(0, 5).map(row => { const opponent = [row.favorite, row.underdog].find(team => team !== row.pick) || ""; return `${websiteFormTeamName(row.pick)} vs ${websiteFormTeamName(opponent)}`; }); if (split.rows.length > details.length) details.push(`+${split.rows.length - details.length} more`); return details.length ? details : ["No picks in this split"]; } } } } } });
 }
 async function loadConfirmationProbability(submission) {
   const host = document.getElementById("confirmation-probability");
@@ -1514,7 +1537,7 @@ async function renderConfirmationHistory(submission) {
 }
 async function renderWebsiteConfirmation(submission, result) {
   submission.submittedAt = result?.submittedAt || submission.submittedAt || "";
-  document.getElementById("confirmation-lead").textContent = submission.mode === "test" ? "Test picks submitted. Season records were not changed." : `Picks submitted for ${submission.name.trim()}.`;
+  document.getElementById("confirmation-lead").textContent = result?.unchanged ? `These picks were already saved for ${submission.name.trim()}. The original submission was kept.` : submission.mode === "test" ? "Test picks submitted. Season records were not changed." : `Picks submitted for ${submission.name.trim()}.`;
   renderConfirmationIdentity(submission, result?.identity);
   const interpretation = interpretWebsiteWeekName(submission.weekName, submission.name);
   document.getElementById("confirmation-week-name").innerHTML = `<h3>Your week name · ${websiteEscapeHtml(interpretation.category)}</h3><p>${websiteEscapeHtml(interpretation.read)}</p>`;
@@ -1600,6 +1623,27 @@ function confirmWebsiteBestBetMismatch(submission, status) {
   status.focus();
   return false;
 }
+async function findExistingWebsiteSubmission(submission) {
+  if (!WEBSITE_SUBMISSIONS_ENDPOINT) return null;
+  const selection = websitePickSelection(), separator = WEBSITE_SUBMISSIONS_ENDPOINT.includes("?") ? "&" : "?";
+  const action = selection.testMode ? `preseason-test&season=${selection.season}&week=${selection.week}` : "current-week";
+  const response = await fetch(`${WEBSITE_SUBMISSIONS_ENDPOINT}${separator}action=${action}`, { signal: AbortSignal.timeout(20000) });
+  const data = await response.json();
+  if (!response.ok || !data.ok) throw new Error(data.error || "Could not check your existing picks.");
+  const normalizedName = String(submission.name || "").trim().toLowerCase();
+  return (data.players || []).find(player => String(player.name || "").trim().toLowerCase() === normalizedName) || null;
+}
+function compareWebsiteSubmission(existing, submission) {
+  if (!existing) return { same: false, changes: [] };
+  const normalized = value => String(value ?? "").trim().toUpperCase();
+  const existingPicks = existing.picks || [], changedPicks = submission.picks.filter((pick, index) => normalized(pick) !== normalized(existingPicks[index])).length;
+  const changes = [];
+  if (changedPicks) changes.push(`${changedPicks} game ${changedPicks === 1 ? "pick" : "picks"}`);
+  if (normalized(submission.bestBet) !== normalized(existing.bestBet)) changes.push("Best Bet");
+  if (Number(submission.tiebreaker) !== Number(existing.tiebreaker)) changes.push("tiebreaker");
+  if (String(submission.weekName || "").trim() !== String(existing.weekName || "").trim()) changes.push("week name");
+  return { same: changes.length === 0 && existingPicks.length === submission.picks.length, changes };
+}
 document.getElementById("website-picks-form").addEventListener("change", event => {
   websiteTrackEvent("picks_started", "enter-picks");
   if (event.target.matches("#website-picks-name")) websiteApprovedNewPlayerName = "";
@@ -1617,6 +1661,22 @@ document.getElementById("website-picks-form").onsubmit = async event => {
   try {
     if (!await preflightWebsiteIdentity(submission, status)) return;
     if (!confirmWebsiteBestBetMismatch(submission, status)) return;
+    status.textContent = "Checking for an existing entry...";
+    const existing = await findExistingWebsiteSubmission(submission);
+    const comparison = compareWebsiteSubmission(existing, submission);
+    if (comparison.same) {
+      const original = { ...submission, submittedAt: existing.submittedAt || "", weekName: existing.weekName || submission.weekName, picks: [...existing.picks], bestBet: existing.bestBet, tiebreaker: existing.tiebreaker };
+      status.textContent = "Those exact picks are already saved. The original submission was kept.";
+      document.querySelector("#view-picks-confirmation .intro p").textContent = selection.testMode ? `Preseason Week ${selection.week} test` : `Week ${selection.week} · ${selection.season}-${selection.season + 1}`;
+      await renderWebsiteConfirmation(original, { unchanged: true, submittedAt: original.submittedAt, identity: { status: "known", submittedName: original.name.trim(), suggestedName: "" } });
+      form.reset(); resetWebsiteBestBet(); showWebsiteConfirmation();
+      return;
+    }
+    if (existing && !globalThis.confirm(`You already submitted for this week. Replace the original entry with changes to: ${comparison.changes.join(", ")}?`)) {
+      status.textContent = "Original picks kept. No changes were submitted.";
+      status.focus();
+      return;
+    }
     status.textContent = selection.testMode ? "Submitting isolated test picks..." : "Submitting picks...";
     let result = { ok: true, identity: { status: "new", submittedName: submission.name.trim(), suggestedName: "" } };
     if (WEBSITE_SUBMISSIONS_ENDPOINT) { const response = await fetch(WEBSITE_SUBMISSIONS_ENDPOINT, { method: "POST", headers: { "Content-Type": "text/plain;charset=utf-8" }, body: JSON.stringify(submission) }); result = await response.json(); if (!response.ok || !result.ok) throw new Error(result.error || "Submission failed."); }
@@ -1754,12 +1814,12 @@ function decorateWebsiteWeekOneHeadersLive(data) {
 }
 renderWebsiteWeekOneGrid = function(data) { websiteSortPlayers(data.players || []); return renderWebsiteWeekOneGridClean(data); };
 decorateWebsiteWeekOneHeaders = decorateWebsiteWeekOneHeadersLive;
-async function renderSelectedWebsiteWeek() {
+async function renderSelectedWebsiteWeek(activeWeekKnown = false) {
   clearTimeout(websiteLiveRefreshTimer);
   websiteLiveRefreshTimer = null;
   const selection = websitePickSelection();
   if (!selection.testMode) {
-    try { await loadActiveRegularWeek(); } catch (error) { console.warn(error.message); }
+    if (!activeWeekKnown) try { await loadActiveRegularWeek(); } catch (error) { console.warn(error.message); }
     const active = websitePickSelection();
     document.querySelector("#view-week-one .intro h2").textContent = `Week ${active.week}`;
     document.querySelector("#view-week-one .intro p").textContent = `${active.season}-${active.season + 1} submissions and weekly standings.`;
@@ -1771,10 +1831,14 @@ async function renderSelectedWebsiteWeek() {
     renderWebsiteWeekOneGrid(loading, "Loading test");
   }
   try {
-    const separator = WEBSITE_SUBMISSIONS_ENDPOINT.includes("?") ? "&" : "?";
-    const response = await fetch(`${WEBSITE_SUBMISSIONS_ENDPOINT}${separator}action=preseason-test&season=${selection.season}&week=${selection.week}`, { signal: AbortSignal.timeout(20000) });
-    const data = await response.json();
-    if (!response.ok || !data.ok) throw new Error(data.error || "Could not load the preseason test.");
+    let data = websiteDiscoveredPreseasonData;
+    websiteDiscoveredPreseasonData = null;
+    if (!data || Number(data.season) !== selection.season || Number(data.week) !== selection.week) {
+      const separator = WEBSITE_SUBMISSIONS_ENDPOINT.includes("?") ? "&" : "?";
+      const response = await fetch(`${WEBSITE_SUBMISSIONS_ENDPOINT}${separator}action=preseason-test&season=${selection.season}&week=${selection.week}`, { signal: AbortSignal.timeout(20000) });
+      data = await response.json();
+      if (!response.ok || !data.ok) throw new Error(data.error || "Could not load the preseason test.");
+    }
     websitePreparePlayers(data);
     renderWebsiteWeekOneGrid(data, `Preseason ${selection.week} test`);
     renderWebsiteRace(data);
@@ -1792,13 +1856,15 @@ async function renderSelectedWebsiteWeek() {
 }
 document.addEventListener("click",event=>{const button=event.target.closest("#nav button[data-view]");if(!button)return;if(button.dataset.view==="enter-picks")setTimeout(()=>{renderWebsitePicksForm();resetWebsiteBestBet();},0);if(button.dataset.view==="week-one")setTimeout(renderSelectedWebsiteWeek,0);});
 document.getElementById("website-view-week-one")?.addEventListener("click",()=>{showView("week-one");renderSelectedWebsiteWeek();});
-let profileChart = null, profileMoneyChart = null, profilePlusMinusChart = null, profilePlacementChart = null, profileBestWeeksChart = null, profileRecentChart = null, profileBestBetChart = null, profileTeamChart = null, profileClubChart = null, gamePicksTable = null, weekChart = null, weekTable = null, weekRaceChart = null, winnerContributionChart = null, weeklyRankChart = null, streakChart = null, streakTable = null, seasonTopChart = null, seasonTable = null, seasonRaceChart = null, seasonPlayerChart = null, seasonMoneyChart = null, seasonConsistencyChart = null, seasonBbChart = null, seasonTeamsChart = null, seasonContrarianChart = null, seasonTbChart = null, allTimeTopChart = null, allTimePlusMinusChart = null, allTimePlusMinusTrendChart = null, allTimeGamesChart = null, allTimeArcsChart = null, allTimeMoneyChart = null, allTimeTurnoutChart = null, allTimeStreakChart = null, allTimeTeamPicksChart = null, allTimeContrarianChart = null, allTimeSeasonWeeksChart = null, manifest = [], dashboard = [], tableData = {}, websiteWeeks = [], websiteAwards = [], websiteSeasons = [], websitePlayers = [], websiteRecords = [], websiteStreaks = [], websiteGames = [], websitePicks = [];
-let allTimeAttendanceChart = null;
+let profileChart = null, profileMoneyChart = null, profilePlusMinusChart = null, profilePlacementChart = null, profileBestWeeksChart = null, profileRecentChart = null, profileBestBetChart = null, profileTeamChart = null, profileClubChart = null, profileBestGamesChart = null, profileScoreChart = null, profileSituationalChart = null, gamePicksTable = null, weekChart = null, weekTable = null, weekRaceChart = null, winnerContributionChart = null, weeklyRankChart = null, streakChart = null, streakTable = null, seasonTopChart = null, seasonTable = null, seasonRaceChart = null, seasonPlayerChart = null, seasonMoneyChart = null, seasonConsistencyChart = null, seasonBbChart = null, seasonTeamsChart = null, seasonContrarianChart = null, seasonTbChart = null, allTimeTopChart = null, allTimePlusMinusChart = null, allTimePlusMinusTrendChart = null, allTimeGamesChart = null, allTimeArcsChart = null, allTimeMoneyChart = null, allTimeTurnoutChart = null, allTimeStreakChart = null, allTimeTeamPicksChart = null, allTimeContrarianChart = null, allTimeSeasonWeeksChart = null, manifest = [], dashboard = [], tableData = {}, websiteWeeks = [], websiteAwards = [], websiteSeasons = [], websitePlayers = [], websiteRecords = [], websiteStreaks = [], websiteGames = [], websitePicks = [];
+let allTimeAttendanceChart = null, allTimeRaceChart = null, allTimeRaceFrames = [], allTimeRaceFrame = 0, allTimeRaceTimer = null;
 let teamsLeaderChart = null, teamsTrendChart = null, teamsConsensusChart = null, teamsLeaderboardTable = null, teamsBestBetTable = null, teamsAffinityTable = null;
 let allTimePlusMinusExtraPlayers = [];
 const colors = ["#54d6b2", "#ffb454", "#8ca7ff", "#ff7180", "#d79bff", "#f1e48b", "#65c7e8"];
 const weekBarLabels = { id: "weekBarLabels", afterDatasetsDraw(chart) { if (!["week-chart", "season-top-chart", "season-bb-chart", "season-money-chart", "season-tb-chart", "alltime-top-chart", "alltime-plus-minus-chart", "alltime-weekly-wins-chart", "alltime-games-chart", "alltime-money-chart", "streak-chart"].includes(chart.canvas.id)) return; const context = chart.ctx; const meta = chart.getDatasetMeta(0); context.save(); context.font = "15px Arial"; context.textBaseline = "middle"; context.fillStyle = "#0d1117"; context.textAlign = "left"; meta.data.forEach((bar, index) => { context.fillText(chart.data.datasets[0].barText?.[index] ?? chart.data.labels[index], Math.max(chart.chartArea.left + 8, bar.x - bar.width + 8), bar.y); }); context.restore(); } };
 Chart.register(weekBarLabels);
+const allTimeRaceBarLabels = { id: "allTimeRaceBarLabels", afterDatasetsDraw(chart) { if (chart.canvas.id !== "alltime-race-chart") return; const dataset = chart.data.datasets[0], context = chart.ctx, meta = chart.getDatasetMeta(0); context.save(); context.font = "bold 12px Arial"; context.textBaseline = "middle"; meta.data.forEach((bar, index) => { const text = dataset.barText?.[index]; if (!text) return; const positive = Number(dataset.data[index]) >= 0, roomInside = Math.abs(bar.x - bar.base) >= context.measureText(text).width + 16; context.textAlign = roomInside ? positive ? "right" : "left" : positive ? "left" : "right"; context.fillStyle = roomInside ? "#0d1117" : "#e8eef5"; context.fillText(text, bar.x + (roomInside ? positive ? -8 : 8 : positive ? 8 : -8), bar.y); }); context.restore(); } };
+Chart.register(allTimeRaceBarLabels);
 const seasonChampionBarLabels = { id: "seasonChampionBarLabels", afterDatasetsDraw(chart) { if (chart.canvas.id !== "alltime-season-weeks-chart") return; const dataset = chart.data.datasets[0]; const context = chart.ctx; chart.getDatasetMeta(0).data.forEach((bar, index) => { const label = dataset.barText?.[index]; if (!label) return; context.save(); context.textAlign = "center"; context.textBaseline = "middle"; context.fillStyle = "#0d1117"; const fitFont = text => { let size = 14; while (size > 7) { context.font = `bold ${size}px Arial`; if (context.measureText(text).width <= bar.width * .9) break; size -= 1; } return size; }; const nameSize = fitFont(label.name); context.font = `bold ${nameSize}px Arial`; const pctSize = fitFont(label.pct); const labelY = Math.max(chart.chartArea.top + nameSize + 3, bar.y + nameSize + 3); context.font = `bold ${nameSize}px Arial`; context.fillText(label.name, bar.x, labelY); context.font = `bold ${pctSize}px Arial`; context.fillText(label.pct, bar.x, labelY + Math.max(nameSize, pctSize) + 3); context.restore(); }); } };
 Chart.register(seasonChampionBarLabels);
 const plusMinusLineFocus = { id: "plusMinusLineFocus", beforeDatasetDraw(chart, args) { if (chart.canvas.id !== "alltime-plus-minus-trend-chart") return; const focused = chart.$focusedDatasetIndex; if (focused == null || focused === args.index) return; chart.ctx.save(); chart.ctx.globalAlpha = .16; }, afterDatasetDraw(chart, args) { if (chart.canvas.id !== "alltime-plus-minus-trend-chart") return; const focused = chart.$focusedDatasetIndex; if (focused == null || focused === args.index) return; chart.ctx.restore(); }, afterEvent(chart, args) { if (chart.canvas.id !== "alltime-plus-minus-trend-chart" || args.event.type !== "click") return; const elements = chart.getElementsAtEventForMode(args.event, "nearest", { intersect: true }, true); if (!elements.length) { chart.$focusedDatasetIndex = null; chart.update("none"); return; } const clicked = elements[0].datasetIndex; chart.$focusedDatasetIndex = chart.$focusedDatasetIndex === clicked ? null : clicked; chart.update("none"); } };
@@ -2338,6 +2404,59 @@ function allTimeCareers() {
   });
   return [...byPlayer.values()].map(player => ({ ...player, seasonCount: player.seasons.size, winPct: player.wins + player.losses ? player.wins / (player.wins + player.losses) : 0 }));
 }
+function stopAllTimeRace() {
+  if (allTimeRaceTimer) clearTimeout(allTimeRaceTimer);
+  allTimeRaceTimer = null;
+  const button = document.getElementById("alltime-race-play");
+  if (button) button.textContent = "Play race";
+}
+function showAllTimeRaceFrame(index) {
+  if (!allTimeRaceChart || !allTimeRaceFrames.length) return;
+  allTimeRaceFrame = Math.max(0, Math.min(index, allTimeRaceFrames.length - 1));
+  const frame = allTimeRaceFrames[allTimeRaceFrame], metric = document.getElementById("alltime-race-metric")?.value || "wins";
+  const eligible = metric === "winPct" ? frame.players.filter(player => player.decisions >= 100) : frame.players;
+  const leaders = [...eligible].sort((left, right) => Number(right[metric]) - Number(left[metric]) || right.wins - left.wins || left.name.localeCompare(right.name)).slice(0, 10);
+  allTimeRaceChart.data.labels = leaders.map(player => player.name);
+  allTimeRaceChart.data.datasets[0].data = leaders.map(player => player[metric]);
+  allTimeRaceChart.data.datasets[0].barText = leaders.map(player => metric === "plusMinus" ? `${player.plusMinus >= 0 ? "+" : ""}${player.plusMinus}` : metric === "winPct" ? `${player.winPct.toFixed(1)}%` : `${player.wins} wins`);
+  allTimeRaceChart.data.datasets[0].backgroundColor = leaders.map((player, rank) => ["#d4af37bb", "#c0c0c0bb", "#cd7f32bb"][rank] || websiteRaceColor(player.name));
+  allTimeRaceChart.options.scales.x.title.text = metric === "wins" ? "Cumulative total wins" : metric === "winPct" ? "Cumulative win % · minimum 100 graded picks" : "Cumulative wins minus losses";
+  allTimeRaceChart.options.scales.x.min = metric === "winPct" ? 0 : undefined;
+  allTimeRaceChart.options.scales.x.max = metric === "winPct" ? 100 : undefined;
+  allTimeRaceChart.update();
+  document.getElementById("alltime-race-time").textContent = `${frame.label} · ${allTimeRaceFrame + 1}/${allTimeRaceFrames.length}`;
+}
+function advanceAllTimeRace() {
+  if (!allTimeRaceTimer) return;
+  showAllTimeRaceFrame(allTimeRaceFrame >= allTimeRaceFrames.length - 1 ? 0 : allTimeRaceFrame + 1);
+  allTimeRaceTimer = setTimeout(advanceAllTimeRace, 120);
+}
+function renderAllTimeRace() {
+  if (!websiteGames.length || !websitePicks.length) return;
+  stopAllTimeRace();
+  const topChart = document.getElementById("alltime-top-chart"), panel = topChart?.closest(".panel");
+  if (!document.getElementById("alltime-race-chart") && panel) topChart.closest(".chart-wrap").insertAdjacentHTML("afterend", '<hr class="chart-divider"><h3 style="margin:28px 0 8px;color:var(--accent);font:11px Arial,sans-serif;letter-spacing:1px;text-transform:uppercase">All-Time Race</h3><div class="explorer-controls"><label>Race by<select id="alltime-race-metric"><option value="wins">Total wins</option><option value="winPct">Win % (100+ picks)</option><option value="plusMinus">Plus/minus</option></select></label><label>Advance by<select id="alltime-race-step"><option value="game">Every game</option><option value="week">Every week</option></select></label><button id="alltime-race-play" type="button">Play race</button><button id="alltime-race-restart" type="button">Restart</button><output id="alltime-race-time" class="live-race-time"></output></div><div class="chart-wrap wide-chart race-chart-wrap"><canvas id="alltime-race-chart"></canvas></div>');
+  const step = document.getElementById("alltime-race-step")?.value || "game", gameById = new Map(websiteGames.map(game => [game.gameId, game])), groups = new Map();
+  websitePicks.forEach(pick => {
+    const game = gameById.get(pick.gameId);
+    if (!game || !(Number(pick.resultWin || 0) || Number(pick.resultLoss || 0) || Number(pick.resultPush || 0))) return;
+    const key = step === "week" ? `${game.season}|${String(game.weekOrder || game.week).padStart(2, "0")}` : `${game.gameDate || game.season}|${String(game.gameNum || 0).padStart(2, "0")}|${game.gameId}`;
+    if (!groups.has(key)) groups.set(key, { label: step === "week" ? `${game.season} W${game.week}` : `${game.season} W${game.week} G${game.gameNum}`, picks: [] });
+    groups.get(key).picks.push(pick);
+  });
+  const totals = new Map();
+  allTimeRaceFrames = [...groups].sort(([left], [right]) => left.localeCompare(right)).map(([, group]) => {
+    group.picks.forEach(pick => { const player = websitePlayers.find(item => item.playerId === pick.playerId), total = totals.get(pick.playerId) || { name: player?.name || pick.name || pick.playerId, wins: 0, losses: 0, decisions: 0, plusMinus: 0, winPct: 0 }; const win = Number(pick.resultWin || 0), loss = Number(pick.resultLoss || 0); total.wins += win; total.losses += loss; total.decisions += win + loss; total.plusMinus += win - loss; total.winPct = total.decisions ? total.wins / total.decisions * 100 : 0; totals.set(pick.playerId, total); });
+    return { label: group.label, players: [...totals.values()].map(player => ({ ...player })) };
+  });
+  if (allTimeRaceChart) allTimeRaceChart.destroy();
+  allTimeRaceChart = new Chart(document.getElementById("alltime-race-chart"), { type: "bar", data: { labels: [], datasets: [{ data: [], borderWidth: 1 }] }, options: { indexAxis: "y", responsive: true, maintainAspectRatio: false, animation: { duration: 90 }, scales: { x: { beginAtZero: true, ticks: { color: "#91a0ae" }, grid: { color: "#2a3744" }, title: { display: true, text: "Cumulative wins", color: "#91a0ae" } }, y: { ticks: { color: "#e8eef5" }, grid: { display: false } } }, plugins: { legend: { display: false } } } });
+  document.getElementById("alltime-race-metric").onchange = () => showAllTimeRaceFrame(allTimeRaceFrame);
+  document.getElementById("alltime-race-step").onchange = renderAllTimeRace;
+  document.getElementById("alltime-race-play").onclick = event => { if (allTimeRaceTimer) { stopAllTimeRace(); return; } event.currentTarget.textContent = "Pause"; allTimeRaceTimer = setTimeout(advanceAllTimeRace, 0); };
+  document.getElementById("alltime-race-restart").onclick = () => { stopAllTimeRace(); showAllTimeRaceFrame(0); };
+  showAllTimeRaceFrame(allTimeRaceFrames.length - 1);
+}
 function renderAllTime() {
   if (!websiteGames.length || !websitePicks.length) { loadDrilldown().then(renderAllTime); return; }
   const normalizeTiedWeeklyWinners = rows => {
@@ -2365,6 +2484,7 @@ function renderAllTime() {
   };
   normalizeTiedWeeklyWinners(websiteWeeks);
   if (!websiteWeeks.length) return;
+  renderAllTimeRace();
   const allTimeIntro = document.querySelector("#view-alltime .intro p");
   if (allTimeIntro) allTimeIntro.textContent = "The full record book: career efficiency, plus/minus, games played, money won, season finishes, championships, and the long-running marks that define the pool.";
   const allTimePanel = document.querySelector("#view-alltime .panel");
@@ -3204,7 +3324,7 @@ function buildPickSummary(playerId, game, pick) {
 function populateGameChoices(latestGame = null) { const season = document.getElementById("game-season").value, week = document.getElementById("game-week").value; const select = document.getElementById("game-choice"); select.innerHTML = ""; websiteGames.filter(game => game.season === season && game.week === week).forEach(game => select.add(new Option(`${game.gameNum}: ${matchupLabel(game)}`, game.gameId))); select.value = latestGame?.gameId || select.options[0]?.value || ""; renderGame(); }
 function renderGame() { const game = websiteGames.find(item => item.gameId === document.getElementById("game-choice").value); if (!game) return; document.getElementById("game-detail").innerHTML = [["Date", game.gameDate], ["Game time", game.gameTime], ["Matchup", matchupLabel(game)], ["Score", `${teamDisplay(game.favorite, game)} ${favoriteScore(game) ?? "?"} · ${teamDisplay(game.underdog, game)} ${underdogScore(game) ?? "?"}`], ["Result", game.atsResult]].map(([label, value]) => `<div><span>${label}</span><strong>${value ?? ""}</strong></div>`).join(""); const matchupTeams = [game.favorite, game.underdog].map(team => String(team || "").trim().toUpperCase()); const rows = websitePicks.filter(pick => pick.gameId === game.gameId).map(pick => ({ ...pick, bestBet: matchupTeams.includes(String(pick.bestBet || "").trim().toUpperCase()) ? pick.bestBet : "" })); if (gamePicksTable) gamePicksTable.destroy(); const columns = [{ title: "Player", field: "name", sorter: "string" }, { title: "Result", field: "result" }, { title: "Pick", field: "pick" }, { title: "Best Bet", field: "bestBet" }]; const showTiebreak = game.week === "super bowl" || (game.isFinalGame && !String(game.week).startsWith("round") && game.week !== "playoffs"); if (showTiebreak) columns.push({ title: "Tiebreak Diff", field: "tiebreakerDiff", sorter: "number" }, { title: "Tiebreaker", field: "tiebreaker", sorter: "number" }, { title: "Actual Tiebreaker", field: "actualTiebreak", sorter: "number" }); gamePicksTable = new Tabulator("#game-picks-table", { data: rows, layout: "fitDataStretch", pagination: true, paginationSize: 50, columns, placeholder: "No picks" }); }
 let profileTooltipHideTimer = null;
-function profileChartTooltip(context, html, compact = false) { let element = document.getElementById("profile-chart-tooltip"); if (!element) { element = document.createElement("div"); element.id = "profile-chart-tooltip"; document.body.appendChild(element); } const tooltip = context.tooltip; if (!tooltip || tooltip.opacity === 0 || !tooltip.dataPoints?.length) { clearTimeout(profileTooltipHideTimer); profileTooltipHideTimer = setTimeout(() => { if (!element.matches(":hover")) element.style.display = "none"; }, 180); return; } clearTimeout(profileTooltipHideTimer); element.className = `profile-chart-tooltip${compact ? " compact-game-tooltip" : ""}`; element.innerHTML = html(tooltip.dataPoints[0].dataIndex); element.style.display = "block"; element.onclick = event => { event.stopPropagation(); element.style.display = "none"; }; element.onpointerenter = () => clearTimeout(profileTooltipHideTimer); element.onpointerleave = () => { profileTooltipHideTimer = setTimeout(() => { if (!element.matches(":hover")) element.style.display = "none"; }, 180); }; const rect = context.chart.canvas.getBoundingClientRect(); const left = Math.min(window.innerWidth - element.offsetWidth - 12, Math.max(12, rect.left + tooltip.caretX + 8)); const top = Math.min(window.innerHeight - element.offsetHeight - 12, Math.max(12, rect.top + tooltip.caretY + 8)); element.style.left = `${left}px`; element.style.top = `${top}px`; }
+function profileChartTooltip(context, html, compact = false) { let element = document.getElementById("profile-chart-tooltip"); if (!element) { element = document.createElement("div"); element.id = "profile-chart-tooltip"; document.body.appendChild(element); } const tooltip = context.tooltip; if (!tooltip || tooltip.opacity === 0 || !tooltip.dataPoints?.length) { clearTimeout(profileTooltipHideTimer); profileTooltipHideTimer = setTimeout(() => { if (!element.matches(":hover")) element.style.display = "none"; }, 180); return; } clearTimeout(profileTooltipHideTimer); element.className = `profile-chart-tooltip${compact ? " compact-game-tooltip" : ""}`; element.innerHTML = html(tooltip.dataPoints[0].dataIndex); element.style.display = "block"; element.onclick = event => { event.stopPropagation(); element.style.display = "none"; }; element.onpointerenter = () => clearTimeout(profileTooltipHideTimer); element.onpointerleave = () => { profileTooltipHideTimer = setTimeout(() => { if (!element.matches(":hover")) element.style.display = "none"; }, 180); }; const rect = context.chart.canvas.getBoundingClientRect(), margin = 8; const left = Math.max(margin, Math.min(window.innerWidth - element.offsetWidth - margin, rect.left + tooltip.caretX + margin)); const top = Math.max(margin, Math.min(window.innerHeight - element.offsetHeight - margin, rect.top + tooltip.caretY + margin)); element.style.left = `${left}px`; element.style.top = `${top}px`; }
 function profileWeekLabel(week) { const value = String(week || ""), lower = value.toLowerCase(); return lower === "super bowl" ? "Super Bowl" : lower === "playoffs" ? "Playoffs" : lower.startsWith("round") ? `Round ${value.match(/\d+/)?.[0] || ""}`.trim() : `W${value}`; }
 function profilePeriodOrder(week) { const value = String(week || "").toLowerCase(); if (value === "super bowl") return 1004; const round = Number(value.match(/^round\s*(\d+)/)?.[1]); if (round) return 1000 + round; return Number(value.match(/\d+/)?.[0] || 0); }
 function matchupTooltipHtml(game, result, pickedTeam) { const favoritePoints = favoriteScore(game), underdogPoints = underdogScore(game), picked = String(pickedTeam || "").toUpperCase(), resultClass = result === "win" ? "win" : result === "loss" ? "loss" : "push", favoritePicked = String(game.favorite || "").toUpperCase() === picked, underdogPicked = String(game.underdog || "").toUpperCase() === picked; const value = (text, highlighted = false, className = "") => `<span class="${className} ${highlighted ? resultClass : "neutral"}">${websiteEscapeHtml(text ?? "?")}</span>`; return `<div class="tooltip-matchup">${value(`${teamDisplay(game.favorite, game)} ${favoritePoints}`, favoritePicked, "tooltip-favorite")}${value(game.spread ?? "PK", false, "tooltip-spread")}${value(`${underdogPoints} ${teamDisplay(game.underdog, game)}`, underdogPicked, "tooltip-underdog")}</div>`; }
@@ -3258,7 +3378,7 @@ let weeklyTooltipPinnedTarget = null;
 let weeklyTooltipHideTimer = null;
 const weeklyRankHoverRows = new Map();
 function hideWeeklyGameTooltip() { weeklyTooltipPinnedTarget = null; const element = document.getElementById("weekly-game-tooltip"); if (element) element.style.display = "none"; }
-function positionWeeklyGameTooltip(event) { const element = document.getElementById("weekly-game-tooltip"); if (!element || element.style.display === "none") return; element.style.left = `${Math.min(window.innerWidth - element.offsetWidth - 12, Math.max(12, event.clientX + 12))}px`; element.style.top = `${Math.min(window.innerHeight - element.offsetHeight - 12, Math.max(12, event.clientY + 12))}px`; }
+function positionWeeklyGameTooltip(event) { const element = document.getElementById("weekly-game-tooltip"); if (!element || element.style.display === "none") return; const margin = 8; element.style.left = `${Math.max(margin, Math.min(window.innerWidth - element.offsetWidth - margin, event.clientX + margin))}px`; element.style.top = `${Math.max(margin, Math.min(window.innerHeight - element.offsetHeight - margin, event.clientY + margin))}px`; }
 function showWeeklyGameTooltip(target, event) { let element = document.getElementById("weekly-game-tooltip"); if (!element) { element = document.createElement("div"); element.id = "weekly-game-tooltip"; element.className = "profile-chart-tooltip weekly-game-tooltip"; document.body.appendChild(element); } clearTimeout(weeklyTooltipHideTimer); element.classList.toggle("weekly-rank-tooltip", Boolean(target.dataset.weeklyRankKey)); element.innerHTML = `<button type="button" class="tooltip-close" aria-label="Close week details" title="Close">&times;</button>${target.dataset.weeklyTooltip || weeklyRankTooltip(weeklyRankHoverRows.get(target.dataset.weeklyRankKey))}`; element.style.display = "block"; element.onclick = clickEvent => { clickEvent.stopPropagation(); hideWeeklyGameTooltip(); }; element.onpointerenter = () => clearTimeout(weeklyTooltipHideTimer); element.onpointerleave = () => { weeklyTooltipHideTimer = setTimeout(() => { if (!element.matches(":hover") && !weeklyTooltipPinnedTarget) element.style.display = "none"; }, 180); }; positionWeeklyGameTooltip(event); }
 document.addEventListener("pointerover", event => { const target = event.target.closest?.("[data-weekly-tooltip],[data-weekly-rank-key]"); if (!target || weeklyTooltipPinnedTarget) return; showWeeklyGameTooltip(target, event); });
 document.addEventListener("pointermove", event => { if (!weeklyTooltipPinnedTarget) positionWeeklyGameTooltip(event); });
@@ -3572,6 +3692,29 @@ function renderSelectedNameProfile() {
   const playerId = websitePlayers.find(player => player.name === name)?.playerId;
   renderProfileWeekNames(name, playerId);
 }
+function renderPlayerScoreCharts(name) {
+  const player = websitePlayers.find(item => item.name === name), gameById = new Map(websiteGames.map(game => [game.gameId, game]));
+  if (!player) return;
+  const rows = websitePicks.filter(pick => pick.playerId === player.playerId && (Number(pick.resultWin || 0) || Number(pick.resultLoss || 0) || Number(pick.resultPush || 0))).map(pick => ({ pick, game: gameById.get(pick.gameId) })).filter(row => row.game);
+  const picksByGame = new Map();
+  websitePicks.forEach(pick => { if (!picksByGame.has(pick.gameId)) picksByGame.set(pick.gameId, []); picksByGame.get(pick.gameId).push(pick); });
+  const contrarianWins = rows.filter(row => Number(row.pick.resultWin || 0)).map(row => ({ ...row, against: (picksByGame.get(row.game.gameId) || []).filter(pick => pick.playerId !== player.playerId && String(pick.pick || "").toUpperCase() !== String(row.pick.pick || "").toUpperCase()).length })).sort((left, right) => right.against - left.against || String(right.game.gameDate).localeCompare(String(left.game.gameDate))).slice(0, 10);
+  if (profileBestGamesChart) profileBestGamesChart.destroy();
+  profileBestGamesChart = new Chart(document.getElementById("profile-best-games-chart"), { type: "bar", data: { labels: contrarianWins.map(row => `${row.pick.pick} · ${String(row.game.season).slice(0, 4)} W${row.game.week}`), datasets: [{ label: "Players on other side", data: contrarianWins.map(row => row.against), backgroundColor: "#54d6b2bb", borderColor: "#54d6b2", borderWidth: 1 }] }, options: { indexAxis: "y", responsive: true, maintainAspectRatio: false, scales: { x: { beginAtZero: true, ticks: { color: "#91a0ae", stepSize: 1 }, grid: { color: "#2a3744" } }, y: { ticks: { color: "#91a0ae" }, grid: { display: false } } }, plugins: { legend: { display: false }, tooltip: { callbacks: { afterLabel: context => { const row = contrarianWins[context.dataIndex]; return `${row.game.away} ${row.game.awayScore}-${row.game.homeScore} ${row.game.home}`; } } } } } });
+  const teamSelect = document.getElementById("profile-score-team"), previousTeam = teamSelect.value;
+  const teams = [...new Set(rows.flatMap(row => [String(row.game.away || "").toUpperCase(), String(row.game.home || "").toUpperCase()]).filter(Boolean))].sort();
+  teamSelect.innerHTML = '<option value="all">All teams</option>' + teams.map(team => `<option value="${websiteEscapeHtml(team)}">${websiteEscapeHtml(team)}</option>`).join("");
+  teamSelect.value = teams.includes(previousTeam) ? previousTeam : "all";
+  const threshold = Number(document.getElementById("profile-score-threshold")?.value || 40), selectedTeam = teamSelect.value;
+  document.getElementById("profile-score-threshold-value").textContent = threshold;
+  const filtered = rows.filter(row => Number(row.game.homeScore || 0) + Number(row.game.awayScore || 0) >= threshold && (selectedTeam === "all" || [row.game.home, row.game.away].some(team => String(team || "").toUpperCase() === selectedTeam)));
+  const result = filtered.reduce((total, row) => ({ wins: total.wins + Number(row.pick.resultWin || 0), losses: total.losses + Number(row.pick.resultLoss || 0), pushes: total.pushes + Number(row.pick.resultPush || 0) }), { wins: 0, losses: 0, pushes: 0 });
+  const winPct = result.wins + result.losses ? result.wins / (result.wins + result.losses) * 100 : 0;
+  document.getElementById("profile-score-summary").innerHTML = [["Record", `${result.wins}-${result.losses}${result.pushes ? `-${result.pushes}` : ""}`], ["Win %", filtered.length ? `${winPct.toFixed(1)}%` : "-"] , ["Picks", filtered.length]].map(([label, value]) => `<div class="metric"><span>${label}</span><strong>${value}</strong></div>`).join("");
+  if (profileScoreChart) profileScoreChart.destroy();
+  const buckets = [0, 30, 40, 50, 60, 70, 80].map(minimum => { const selected = rows.filter(row => { const score = Number(row.game.homeScore || 0) + Number(row.game.awayScore || 0); return score >= minimum && score < minimum + 10 && (selectedTeam === "all" || [row.game.home, row.game.away].some(team => String(team || "").toUpperCase() === selectedTeam)); }), wins = selected.reduce((total, row) => total + Number(row.pick.resultWin || 0), 0), losses = selected.reduce((total, row) => total + Number(row.pick.resultLoss || 0), 0); return { minimum, count: selected.length, pct: wins + losses ? wins / (wins + losses) * 100 : null }; });
+  profileScoreChart = new Chart(document.getElementById("profile-score-chart"), { type: "line", data: { labels: buckets.map(bucket => bucket.minimum === 0 ? "0-29" : bucket.minimum === 80 ? "80+" : `${bucket.minimum}-${bucket.minimum + 9}`), datasets: [{ label: "Win %", data: buckets.map(bucket => bucket.pct), counts: buckets.map(bucket => bucket.count), borderColor: "#ffb454", backgroundColor: "#ffb454", pointRadius: 4, spanGaps: true, tension: .2 }] }, options: { responsive: true, maintainAspectRatio: false, scales: { x: { ticks: { color: "#91a0ae" }, grid: { color: "#2a3744" } }, y: { min: 0, max: 100, ticks: { color: "#91a0ae", callback: value => value + "%" }, grid: { color: "#2a3744" } } }, plugins: { legend: { display: false }, tooltip: { callbacks: { afterLabel: context => `${context.dataset.counts[context.dataIndex]} picks` } } } } });
+}
 function renderPlayerPickBehavior(name, playerId) {
   const host = document.getElementById("profile-pick-behavior");
   if (!host) return;
@@ -3594,7 +3737,21 @@ function renderPlayerPickBehavior(name, playerId) {
   const spread = row => Math.abs(Number(row.game.spread || 0));
   const pickedLine = row => isFavorite(row) ? -spread(row) : spread(row);
   const isPlayoff = row => String(row.game.competition || "").toLowerCase() === "playoffs" || /round|super bowl|playoffs/i.test(String(row.game.week || ""));
+  const pickedDivision = row => WEBSITE_TEAM_DIVISIONS[picked(row).toLowerCase()] || "";
+  const venueTimeZone = row => WEBSITE_TEAM_TIME_ZONES[upper(row.game.home).toLowerCase()] || "";
+  const isDivisionGame = row => { const homeDivision = WEBSITE_TEAM_DIVISIONS[upper(row.game.home).toLowerCase()], awayDivision = WEBSITE_TEAM_DIVISIONS[upper(row.game.away).toLowerCase()]; return homeDivision && homeDivision === awayDivision; };
   const segments = [
+    ["venue", "Home teams", isHome],
+    ["venue", "Road teams", row => !isHome(row)],
+    ["side", "Favorites", isFavorite],
+    ["side", "Underdogs", isUnderdog],
+    ["conference", "AFC teams", row => pickedDivision(row).startsWith("AFC")],
+    ["conference", "NFC teams", row => pickedDivision(row).startsWith("NFC")],
+    ...[...new Set(Object.values(WEBSITE_TEAM_DIVISIONS))].map(division => ["division", `${division} teams`, row => pickedDivision(row) === division]),
+    ["venue-zone", "Eastern time venues", row => venueTimeZone(row) === "Eastern"],
+    ["venue-zone", "Central time venues", row => venueTimeZone(row) === "Central"],
+    ["venue-zone", "Mountain / Pacific venues", row => ["Mountain", "Pacific"].includes(venueTimeZone(row))],
+    ["matchup", "Division games", isDivisionGame],
     ["kickoff", "1 PM kickoffs", row => kickoffHour(row.game.gameTime) >= 13 && kickoffHour(row.game.gameTime) < 14],
     ["kickoff", "Late-afternoon kickoffs", row => kickoffHour(row.game.gameTime) >= 16 && kickoffHour(row.game.gameTime) < 19],
     ["kickoff", "Night kickoffs", row => kickoffHour(row.game.gameTime) >= 19],
@@ -3682,7 +3839,14 @@ function renderPlayerPickBehavior(name, playerId) {
   const homeRead = homeRate >= .56 ? ` There is also a home-field lean (${percent(homeRate)}).` : homeRate <= .44 ? ` Road teams show up unusually often (${percent(1 - homeRate)}).` : " Home and road choices are nearly even.";
   const segmentRead = strongest && weakest && strongest !== weakest ? ` The strongest displayed situation is ${strongest.label.toLowerCase()} at ${recordLabel(strongest.result)}; the softest is ${weakest.label.toLowerCase()} at ${recordLabel(weakest.result)}.` : " More varied completed picks are needed before situational splits become reliable.";
   const loyaltyRead = favoriteTeam ? ` ${teamName(favoriteTeam.team)} is the best favorite-team guess: picked in ${percent(favoriteShare)} of available games, with a ${recordLabel(favoriteRecord)} ATS record.` : "";
-  host.innerHTML = `<p>${websiteEscapeHtml(temperament + homeRead + segmentRead + loyaltyRead)}</p>${strengths}<div class="behavior-grid"><section><h4>Situational record</h4>${bestSituationRows || '<p class="analysis-note">Not enough qualified positive situations yet.</p>'}</section><section><h4>Teams picked most</h4>${teamRows}</section><section><h4>Watch-outs</h4>${watchoutRows || '<p class="analysis-note">Not enough qualified watch-outs yet.</p>'}</section><section><h4>Teams picked best</h4>${bestTeamRows || '<p class="analysis-note">Not enough graded team picks yet.</p>'}</section></div><p class="analysis-note">Strength cards appear only for qualified results that stand out positively; ordinary or weak metrics stay hidden. Situational record and Watch-outs each show up to five distinct results, with near-duplicate samples removed and at least ${minimum} graded picks each. Teams picked best uses the same minimum. “Favorite team” is a likelihood based on pick frequency, not a claim about real-life fandom.</p>`;
+  host.innerHTML = `<p>${websiteEscapeHtml(temperament + homeRead + segmentRead + loyaltyRead)}</p>${strengths}<div class="behavior-grid"><section><h4>Situational record</h4>${bestSituationRows || '<p class="analysis-note">Not enough qualified positive situations yet.</p>'}</section><section><h4>Teams picked most</h4>${teamRows}</section><section><h4>Watch-outs</h4>${watchoutRows || '<p class="analysis-note">Not enough qualified watch-outs yet.</p>'}</section><section><h4>Teams picked best</h4>${bestTeamRows || '<p class="analysis-note">Not enough graded team picks yet.</p>'}</section></div><p class="analysis-note">Strength cards appear only for qualified results that stand out positively; ordinary or weak metrics stay hidden. The chart and situational lists use distinct qualified samples with at least ${minimum} graded picks each. Teams picked best uses the same minimum. “Favorite team” is a likelihood based on pick frequency, not a claim about real-life fandom.</p>`;
+  const chartSegments = eligible.filter(segment => ["venue", "side"].includes(segment.group));
+  [...eligible].filter(segment => !["venue", "side"].includes(segment.group)).sort((left, right) => Math.abs(right.rate - overallRate) - Math.abs(left.rate - overallRate) || right.selected.length - left.selected.length).forEach(segment => { if (chartSegments.length < 10 && !chartSegments.some(item => item.group === segment.group)) chartSegments.push(segment); });
+  const chartWrap = document.getElementById("profile-situational-chart-wrap");
+  chartWrap.style.display = chartSegments.length ? "block" : "none";
+  if (profileSituationalChart) profileSituationalChart.destroy();
+  if (chartSegments.length) profileSituationalChart = new Chart(document.getElementById("profile-situational-chart"), { type: "bar", data: { labels: chartSegments.map(segment => segment.label), datasets: [{ label: "ATS win %", data: chartSegments.map(segment => Number((segment.rate * 100).toFixed(1))), backgroundColor: chartSegments.map(segment => segment.rate >= overallRate ? "#54d6b2aa" : "#ff8f7099"), borderColor: chartSegments.map(segment => segment.rate >= overallRate ? "#54d6b2" : "#ff8f70"), borderWidth: 1 }] }, options: { indexAxis: "y", responsive: true, maintainAspectRatio: false, scales: { x: { min: 0, max: 100, ticks: { color: "#91a0ae", callback: value => value + "%" }, grid: { color: "#2a3744" } }, y: { ticks: { color: "#e8eef5" }, grid: { display: false } } }, plugins: { legend: { display: false }, title: { display: true, text: `Most distinctive qualified splits · career ${percent(overallRate)}`, color: "#e8eef5" }, tooltip: { callbacks: { afterLabel: context => { const segment = chartSegments[context.dataIndex], difference = (segment.rate - overallRate) * 100; return [`ATS record: ${recordLabel(segment.result)}`, `${segment.selected.length} picks`, `${difference >= 0 ? "+" : ""}${difference.toFixed(1)} points vs career`]; } } } } } });
+  renderPlayerScoreCharts(name);
 }
 function renderProfile(name) {
   weeklyTooltipPinnedTarget = null;
@@ -3961,7 +4125,7 @@ function initViews() {
   document.getElementById("weekly-rank-player").onchange = renderWeeklyRank;
   document.getElementById("weekly-rank-display").onchange = renderWeeklyRank;
   const requested = location.hash.slice(1);
-  showView(["alltime", "season", "streaks", "weeks", "weekly-rank", "games", "players", "names"].includes(requested) ? requested : "alltime");
+  showView(["enter-picks", "week-one", "picks-confirmation", "alltime", "season", "streaks", "weeks", "weekly-rank", "games", "players", "names", "teams"].includes(requested) ? requested : requestedStartupRoute);
 }
 async function init() {
   manifest = await (await fetch(`${DATA_DIR}/manifest.json`)).json();
@@ -4181,6 +4345,6 @@ applyHistoricalLabels();
 init().then(async () => { applyHistoricalLabels(); populateWeekSeasons(); populateSeasonChoices(); if (location.hash === "#weeks") { await loadDrilldown(); renderWeekRace(); renderWinnerContributions(true); renderPicksGrid(); setTimeout(() => { orientWeekChart(); addGamePushMarkers(); }, 0); } const profileSelect = document.getElementById("profile-player"); if ([...profileSelect.options].some(option => option.value === "Thomas")) { profileSelect.value = "Thomas"; renderProfile("Thomas"); } if (websiteLastWeekData) renderWebsiteWeekRecap(websiteLastWeekData); });
 </script>
 <script src="teams.js?v=20260826-7"></script>
-<script>const initialRoute = location.hash.slice(1); const startupRoute = initialRoute || "enter-picks"; (async () => { const preseasonActive = await selectStagedPreseasonWeek(); if (startupRoute === "enter-picks") { await renderWebsitePicksForm(); resetWebsiteBestBet(); } if (startupRoute === "week-one") await (preseasonActive ? renderSelectedWebsiteWeek() : renderWebsiteWeekOne()); startupRoutePending = false; if (["enter-picks", "week-one", "picks-confirmation"].includes(startupRoute)) showView(startupRoute); })();</script>
+<script>const initialRoute = location.hash.slice(1); const startupRoute = initialRoute || "week-one"; if (!initialRoute) history.replaceState(null, "", "#week-one"); showView(startupRoute); (async () => { let preseasonActive = false, activeWeekKnown = false; try { preseasonActive = await selectStagedPreseasonWeek(); activeWeekKnown = true; } catch (error) { console.warn(error.message); } if (startupRoute === "enter-picks") { await renderWebsitePicksForm(); resetWebsiteBestBet(); } if (startupRoute === "week-one") await (preseasonActive ? renderSelectedWebsiteWeek(true) : renderSelectedWebsiteWeek(activeWeekKnown)); startupRoutePending = false; })();</script>
 </body>
 </html>
