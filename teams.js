@@ -15,10 +15,10 @@ const teamsBarValueLabels = {
         if (!lines.length || bar.base == null) return;
         const horizontal = chart.options.indexAxis === "y";
         const visibleBase = horizontal ? Math.max(chart.chartArea.left, Math.min(chart.chartArea.right, bar.base)) : Math.max(chart.chartArea.top, Math.min(chart.chartArea.bottom, bar.base));
-        const width = Math.max(...lines.map(line => context.measureText(line).width)), length = horizontal ? Math.abs(bar.x - visibleBase) : Math.abs(bar.y - visibleBase), outside = horizontal && length < width + 12;
+        const width = Math.max(...lines.map(line => context.measureText(line).width)), labelHeight = lines.length * 12, length = horizontal ? Math.abs(bar.x - visibleBase) : Math.abs(bar.y - visibleBase), outside = horizontal ? length < width + 12 : length < labelHeight + 10;
         context.fillStyle = outside ? "#e8eef5" : "#0d1117";
         const x = outside ? Math.min(chart.chartArea.right - width / 2, Math.max(chart.chartArea.left + width / 2, bar.x + width / 2 + 6)) : horizontal ? (bar.x + visibleBase) / 2 : bar.x;
-        const centerY = horizontal ? bar.y : (bar.y + visibleBase) / 2;
+        const centerY = horizontal ? bar.y : outside ? Math.max(chart.chartArea.top + labelHeight / 2, visibleBase - labelHeight / 2 - 6) : (bar.y + visibleBase) / 2;
         lines.forEach((line, lineIndex) => context.fillText(line, x, centerY + (lineIndex - (lines.length - 1) / 2) * 12));
       });
       context.restore();
@@ -287,6 +287,32 @@ function renderTeams() {
     data: { labels: opponents.map(row => `${selectedTeam} vs ${row.opponent}`), datasets: [{ label: "ATS cover %", data: opponents.map(row => Number((row.rate * 100).toFixed(1))), barText: opponents.map(row => [`${(row.rate * 100).toFixed(1)}%`, record(row.wins, row.losses, row.pushes)]), backgroundColor: opponents.map(row => row.rate >= .5 ? "#54d6b299" : "#ff8f7099"), borderColor: opponents.map(row => row.rate >= .5 ? "#54d6b2" : "#ff8f70"), borderWidth: 1 }] },
     plugins: [teamsBarValueLabels],
     options: { indexAxis: "y", responsive: true, maintainAspectRatio: false, scales: { x: { beginAtZero: true, max: 100, ticks: { color: "#91a0ae", callback: value => value + "%" }, grid: { color: "#2a3744" } }, y: { ticks: { color: "#e8eef5" }, grid: { color: "#2a3744" } } }, plugins: { legend: { display: false }, tooltip: { callbacks: { afterBody: items => { const row = opponents[items[0].dataIndex], seasons = [...new Set(row.meetings.map(meeting => meeting.season))]; return [`${selectedTeam} ATS: ${record(row.wins, row.losses, row.pushes)} (${pct(row.rate)})`, `${row.meetings.length} archived meetings`, `Seasons: ${seasons[0]}${seasons.length > 1 ? ` to ${seasons.at(-1)}` : ""}`, ...row.meetings.slice(-3).reverse().map(meeting => `${meeting.season} ${String(meeting.week).toLowerCase().includes("round") || String(meeting.week).toLowerCase().includes("bowl") ? meeting.week : `W${meeting.week}`} · ${selectedTeam} ${meeting.win ? "covered" : meeting.loss ? "did not cover" : "pushed"} · spread ${meeting.spread}`)]; } } } } }
+  });
+
+  const venueSplits = [
+    { label: "Neutral site", neutral: true, wins: 0, losses: 0, pushes: 0, games: new Set() },
+    { label: "Traditional venue", neutral: false, wins: 0, losses: 0, pushes: 0, games: new Set() }
+  ];
+  websitePicks.forEach(pick => {
+    const game = buildTeamsAnalytics().gameById.get(pick.gameId);
+    if (!game || (season !== "all" && game.season !== season) || String(pick.pick || "").toUpperCase() !== selectedTeam) return;
+    const split = venueSplits[websiteIsNeutralSite(game) ? 0 : 1];
+    const win = Number(pick.resultWin || 0), loss = Number(pick.resultLoss || 0), push = Number(pick.resultPush || 0);
+    if (!(win || loss || push)) return;
+    split.wins += win; split.losses += loss; split.pushes += push; split.games.add(game.gameId);
+  });
+  venueSplits.forEach(split => { split.rate = teamRate(split.wins, split.losses); });
+  const neutral = venueSplits[0], traditional = venueSplits[1];
+  document.getElementById("teams-neutral-title").textContent = `${selectedTeam}: Neutral-Site Picks`;
+  document.getElementById("teams-neutral-note").textContent = neutral.games.size
+    ? `Pool picks on ${selectedTeam} at NFL-designated neutral sites compared with all other venues. Neutral sample: ${neutral.games.size} games and ${neutral.wins + neutral.losses + neutral.pushes} picks; records use the pool's archived spreads.`
+    : `No archived picks on ${selectedTeam} at an NFL-designated neutral site are available for the selected seasons.`;
+  if (teamsNeutralChart) teamsNeutralChart.destroy();
+  teamsNeutralChart = new Chart(document.getElementById("teams-neutral-chart"), {
+    type: "bar",
+    data: { labels: venueSplits.map(split => split.label), datasets: [{ label: "ATS win % when picked", data: venueSplits.map(split => split.wins + split.losses ? Number((split.rate * 100).toFixed(1)) : null), barText: venueSplits.map(split => split.wins + split.losses + split.pushes ? [`${(split.rate * 100).toFixed(1)}%`, record(split.wins, split.losses, split.pushes)] : "No picks"), backgroundColor: ["#ffb454aa", "#8ca7ffaa"], borderColor: ["#ffb454", "#8ca7ff"], borderWidth: 1 }] },
+    plugins: [teamsBarValueLabels],
+    options: { responsive: true, maintainAspectRatio: false, scales: { x: { ticks: { color: "#e8eef5" }, grid: { color: "#2a3744" } }, y: { beginAtZero: true, max: 100, ticks: { color: "#91a0ae", callback: value => value + "%" }, grid: { color: "#2a3744" } } }, plugins: { legend: { display: false }, tooltip: { callbacks: { afterBody: items => { const split = venueSplits[items[0].dataIndex]; return [`Record: ${record(split.wins, split.losses, split.pushes)}`, `Individual picks: ${split.wins + split.losses + split.pushes}`, `Games represented: ${split.games.size}`, split.neutral && split.games.size < 3 ? "Small game sample; treat this as descriptive." : ""]; } } } } }
   });
 
   const tableRows = [...rows].sort((left, right) => right.picks - left.picks).map(row => ({

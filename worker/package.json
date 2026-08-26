@@ -1,0 +1,25 @@
+{
+  "name": "fbp-api-worker",
+  "version": "0.1.0",
+  "private": true,
+  "type": "module",
+  "scripts": {
+    "benchmark:scoring": "node --experimental-strip-types scripts/benchmark-scoring.mjs",
+    "check": "tsc --noEmit",
+    "test": "node --experimental-strip-types --test test/*.test.ts test/*.test.mjs",
+    "dev": "wrangler dev --local",
+    "deploy": "wrangler deploy",
+    "import:prepare": "node scripts/import-current-week.mjs",
+    "parity": "node scripts/compare-api.mjs",
+    "db:import:local": "wrangler d1 execute fbp --local --file .generated/current-week.sql",
+    "db:import:remote": "wrangler d1 execute fbp --remote --file .generated/current-week.sql",
+    "db:migrate:local": "wrangler d1 migrations apply fbp --local",
+    "db:migrate:remote": "wrangler d1 migrations apply fbp --remote",
+    "notifications:report": "wrangler d1 execute fbp --remote --command \"SELECT player_name AS player, channel, destination, status, picks_ready, first_place, early_window, late_window, before_snf, before_mnf, weekly_result, verified_at, updated_at FROM notification_subscriptions ORDER BY updated_at DESC\""
+  },
+  "devDependencies": {
+    "@cloudflare/workers-types": "5.20260826.1",
+    "typescript": "7.0.2",
+    "wrangler": "4.126.0"
+  }
+}

@@ -8,7 +8,7 @@
 <script src="https://cdn.jsdelivr.net/npm/chart.js@4.4.3/dist/chart.umd.min.js"></script>
 <script src="https://cdn.jsdelivr.net/npm/chartjs-chart-sankey@0.14.0/dist/chartjs-chart-sankey.min.js"></script>
 <script src="https://unpkg.com/tabulator-tables@5.6.0/dist/js/tabulator.min.js"></script>
-<script src="historical-ui.js?v=20260826-8"></script>
+<script src="historical-ui.js?v=20260826-9"></script>
 <style>
   :root { --bg: #0d1117; --panel: #151c24; --panel-2: #1b2530; --border: #2a3744; --text: #e8eef5; --muted: #91a0ae; --accent: #54d6b2; --accent-2: #ffb454; --danger: #ff7180; }
   * { box-sizing: border-box; }
@@ -73,6 +73,8 @@
   .website-team-name { grid-area: name; overflow: hidden; font-weight: bold; text-overflow: ellipsis; white-space: nowrap; }
   .website-team-abbreviation { display: none; grid-area: name; font-weight: bold; }
   .website-team-record { grid-area: record; color: var(--muted); font-size: 11px; }
+  .website-mobile-venue { display: none; grid-area: venue; overflow: hidden; color: var(--muted); font-size: 8px; font-weight: normal; text-overflow: ellipsis; white-space: nowrap; }
+  .website-home-marker { color: var(--muted); font-size: .8em; font-weight: normal; }
   .website-side:hover .website-team-choice { background: var(--panel-2); border-color: var(--border); }
   .website-side:has(input:focus-visible) .website-team-choice { outline: 2px solid var(--accent-2); outline-offset: 2px; }
   .website-side:has(input:checked) .website-team-choice { background: #1e5c3a; border-color: var(--accent); color: #7ee2b8; }
@@ -83,6 +85,24 @@
   .website-spread { display: flex; align-items: center; justify-content: center; color: var(--accent-2); font: bold 13px Arial, sans-serif; text-align: center; width: 48px; min-height: 28px; }
   .website-instructions { margin: 0 0 18px; color: var(--muted); font: 13px/1.55 Arial, sans-serif; }
   .website-entry-context { margin: 0 0 14px; color: var(--accent); font: 12px/1.5 Arial, sans-serif; }
+  .website-notification-row { display: flex; align-items: center; gap: 10px; margin: -5px 0 12px; }
+  .website-notification-row button, .notification-form button, #website-picks-form > button, #website-view-week-one { min-height: 34px; padding: 7px 10px; border: 1px solid var(--border); border-radius: 5px; background: var(--panel-2); color: var(--text); font: 11px Arial, sans-serif; cursor: pointer; }
+  .website-notification-row button:disabled, .notification-form button:disabled, #website-picks-form > button:disabled { opacity: .55; cursor: not-allowed; }
+  .website-notification-row span { color: var(--muted); font: 11px/1.35 Arial, sans-serif; }
+  .notification-settings { margin: 0 0 18px; border-block: 1px solid var(--border); }
+  .notification-settings > summary { padding: 11px 0; color: var(--accent); font: bold 12px Arial, sans-serif; cursor: pointer; }
+  .notification-form { display: grid; gap: 13px; max-width: 720px; padding: 2px 0 16px; }
+  .notification-choice { display: flex; flex-wrap: wrap; gap: 7px; }
+  .notification-choice label { display: flex; align-items: center; gap: 6px; min-height: 34px; padding: 7px 10px; border: 1px solid var(--border); border-radius: 5px; background: var(--panel-2); color: var(--text); font: 12px Arial, sans-serif; text-transform: none; letter-spacing: 0; cursor: pointer; }
+  .notification-choice label:has(input:checked) { border-color: var(--accent); color: #7ee2b8; }
+  .notification-choice label:has(input:disabled) { opacity: .52; cursor: not-allowed; }
+  .notification-contact-grid { display: grid; grid-template-columns: minmax(180px, 1fr) minmax(220px, 1.4fr); gap: 10px; }
+  .notification-events { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 6px 12px; }
+  .notification-events label { display: grid; grid-template-columns: 18px minmax(0, 1fr); align-items: start; gap: 7px; padding: 5px 0; color: var(--text); font: 12px/1.35 Arial, sans-serif; text-transform: none; letter-spacing: 0; }
+  .notification-events small, .notification-note { display: block; color: var(--muted); font: 10px/1.4 Arial, sans-serif; }
+  .notification-form button { justify-self: start; }
+  .notification-status { min-height: 18px; margin: 0; color: var(--muted); font: 11px/1.4 Arial, sans-serif; }
+  @media (max-width: 620px) { .notification-contact-grid, .notification-events { grid-template-columns: 1fr; } }
   .website-test-notice { display: none; margin: 0 0 14px; padding: 10px 12px; border-left: 3px solid var(--accent-2); background: #251f14; color: #ffd28a; font: 12px/1.5 Arial, sans-serif; }
   .website-test-notice.active { display: block; }
   .website-confirmation { max-width: 620px; }
@@ -198,7 +218,7 @@
   .tabulator-row:hover { background: #263b40 !important; }
   #loading { color: var(--muted); font: 13px Arial, sans-serif; }
   @media (max-width: 850px) { .workspace, .profile-grid, .profile-charts, .week-name-columns, .week-name-facts, .behavior-grid, .name-dossier-grid { grid-template-columns: 1fr; } .week-name-summary, .behavior-summary { grid-template-columns: repeat(2, minmax(0, 1fr)); } .week-name-thread { grid-template-columns: 1fr; gap: 5px; } .week-name-fact:nth-child(2) { border-top: 1px solid #2a374466; } .record-grid { grid-template-columns: repeat(2, 1fr); } .intro { display: block; } .intro p { margin-top: 14px; } }
-  @media (max-width: 560px) { main { padding: 18px 10px 44px; } .summary { grid-template-columns: repeat(2, 1fr); } .record-grid { grid-template-columns: 1fr; } .panel-head { align-items: start; flex-direction: column; } .explorer-controls, .path-controls { grid-template-columns: 1fr; } #view-games .explorer-controls, #view-weeks .explorer-controls { max-width: none; } #view-enter-picks .intro { margin-bottom: 12px; } #view-enter-picks .panel { padding: 8px; } #view-enter-picks .website-instructions { margin-bottom: 10px; font-size: 11px; line-height: 1.35; } #website-picks-form .website-identity-controls { grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 6px; } .website-game-group legend { padding-top: 4px; } .website-game-row { padding: 1px 0 2px; } .website-matchup { grid-template-columns: minmax(0, 1fr) 36px minmax(0, 1fr); gap: 1px; } .website-side { min-height: 34px; padding: 2px 0; font-size: 11px; } .website-team-choice { grid-template-columns: 22px minmax(0, 1fr); grid-template-areas: "logo name"; column-gap: 4px; padding: 3px; } .website-side.right .website-team-choice { grid-template-columns: minmax(0, 1fr) 22px; grid-template-areas: "name logo"; } .website-team-logo { width: 22px; height: 22px; } .website-team-name { display: none; } .website-team-abbreviation { display: block; } .website-team-record, .website-context-venue { display: none; } .website-game-context { padding: 0 2px 1px; overflow: hidden; font-size: 8px; line-height: 1.1; text-overflow: ellipsis; white-space: nowrap; } .website-spread { width: 36px; min-height: 24px; font-size: 11px; } }
+  @media (max-width: 560px) { main { padding: 18px 10px 44px; } .summary { grid-template-columns: repeat(2, 1fr); } .record-grid { grid-template-columns: 1fr; } .panel-head { align-items: start; flex-direction: column; } .explorer-controls, .path-controls { grid-template-columns: 1fr; } #view-games .explorer-controls, #view-weeks .explorer-controls { max-width: none; } #view-enter-picks .intro { margin-bottom: 12px; } #view-enter-picks .panel { padding: 8px; } #view-enter-picks .website-instructions { margin-bottom: 10px; font-size: 11px; line-height: 1.35; } #website-picks-form .website-identity-controls { grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 6px; } .website-notification-row { align-items: flex-start; flex-direction: column; gap: 5px; } .website-game-group legend { padding-top: 4px; } .website-game-row { padding: 1px 0 2px; } .website-matchup { grid-template-columns: minmax(0, 1fr) 36px minmax(0, 1fr); gap: 1px; } .website-side { min-height: 34px; padding: 2px 0; font-size: 11px; } .website-team-choice { grid-template-columns: 22px minmax(0, 1fr); grid-template-areas: "logo name" "logo record" "logo venue"; column-gap: 4px; padding: 3px; } .website-side.right .website-team-choice { grid-template-columns: minmax(0, 1fr) 22px; grid-template-areas: "name logo" "record logo" "venue logo"; } .website-team-logo { width: 22px; height: 22px; } .website-team-name { display: none; } .website-team-abbreviation, .website-team-record, .website-mobile-venue { display: block; } .website-team-record { overflow: hidden; font-size: 8px; line-height: 1; text-overflow: ellipsis; white-space: nowrap; } .website-side.right .website-team-record, .website-side.right .website-mobile-venue { text-align: right; } .website-context-venue { display: none; } .website-game-context-neutral .website-context-venue { display: inline; } .website-game-context { padding: 0 2px 1px; overflow: hidden; font-size: 8px; line-height: 1.1; text-overflow: ellipsis; white-space: nowrap; } .website-spread { width: 36px; min-height: 24px; font-size: 11px; } }
   .picks-grid { border-collapse: collapse; font: 11px Arial, sans-serif; }
   .picks-grid th, .picks-grid td { padding: 2px 5px; border: 1px solid var(--border); text-align: center; vertical-align: middle; white-space: nowrap; }
   .weekly-pick-win, .weekly-bb-win { color: var(--accent); font-weight: bold; }
@@ -212,6 +232,17 @@
   .profile-chart-tooltip .loss { color: var(--danger); font-weight: bold; }
   .profile-chart-tooltip .push { color: #f1e48b; font-weight: bold; }
   .profile-chart-tooltip .neutral { color: #b8c4cf; font-weight: normal; }
+  .faq-list { display: grid; gap: 0; max-width: 980px; }
+  .faq-list details { border-top: 1px solid var(--border); }
+  .faq-list details:last-child { border-bottom: 1px solid var(--border); }
+  .faq-list summary { padding: 16px 34px 16px 0; color: var(--text); font: 600 14px/1.4 Arial, sans-serif; cursor: pointer; }
+  .faq-list details[open] summary { color: var(--accent); }
+  .faq-answer { max-width: 820px; padding: 0 0 18px; color: var(--muted); font: 13px/1.6 Arial, sans-serif; }
+  .faq-answer p { margin: 0 0 10px; }
+  .faq-answer p:last-child { margin-bottom: 0; }
+  .faq-answer strong { color: var(--text); }
+  .faq-answer ul { margin: 8px 0 0; padding-left: 20px; }
+  .faq-answer li + li { margin-top: 5px; }
   .weekly-game-tooltip, .profile-chart-tooltip.compact-game-tooltip { width: max-content; min-width: 132px; padding: 6px 7px; text-align: center; }
   .weekly-game-tooltip.weekly-rank-tooltip { max-height: calc(100dvh - 16px); }
   .weekly-game-tooltip .tooltip-close { position: sticky; z-index: 1; top: 0; float: right; width: 24px; height: 24px; margin: -2px -2px 3px 7px; padding: 0; border: 1px solid var(--border); border-radius: 4px; background: #202c38; color: var(--text); font: bold 17px/1 Arial, sans-serif; cursor: pointer; }
@@ -226,6 +257,23 @@
   .distribution-tooltip .tooltip-season-header { margin-top: 6px; padding-top: 6px; color: var(--accent-2); border-top: 1px solid #52606d; font-weight: bold; text-align: left; }
   .distribution-tooltip .tooltip-week-row { display: grid; grid-template-columns: minmax(72px, 1fr) 38px 64px; gap: 12px; border-top: 0; font-family: Consolas, monospace; text-align: right; }
   .distribution-tooltip .tooltip-week-row span:first-child { text-align: left; }
+  .season-long-tooltip { width: min(390px, calc(100vw - 16px)); }
+  .season-long-tooltip .season-tooltip-head { display: grid; grid-template-columns: minmax(72px, 1fr) 34px 66px 48px 34px 54px; gap: 7px; padding: 3px 5px 5px; color: var(--muted); font: 9px Arial, sans-serif; text-align: right; text-transform: uppercase; }
+  .season-long-tooltip .season-tooltip-head span:first-child, .season-long-tooltip .season-tooltip-row span:first-child { text-align: left; }
+  .season-long-tooltip .season-tooltip-row { display: grid; grid-template-columns: minmax(72px, 1fr) 34px 66px 48px 34px 54px; gap: 7px; align-items: center; padding: 5px; border-top: 1px solid #2a374466; font: 10px Consolas, monospace; text-align: right; }
+  .season-long-tooltip .season-tooltip-row.top1 { border-left: 3px solid #d4af37; background: #d4af3714; }
+  .season-long-tooltip .season-tooltip-row.top5 { border-left: 3px solid var(--accent); background: #54d6b20e; }
+  .season-long-tooltip .season-tooltip-row.top10 { border-left: 3px solid #8ca7ff; background: #8ca7ff0e; }
+  .season-long-tooltip .season-tooltip-row.other { border-left: 3px solid #52606d; }
+  .season-long-tooltip .season-tooltip-row .rank { color: var(--accent-2); font-weight: bold; }
+  .season-long-tooltip .season-tooltip-row .money { color: var(--accent); }
+  .season-long-tooltip .season-tooltip-summary { display: flex; flex-wrap: wrap; gap: 7px 14px; padding: 7px 5px; border-top: 1px solid #52606d; color: var(--muted); font: 10px Arial, sans-serif; }
+  .season-long-tooltip .season-tooltip-summary strong { display: inline; margin: 0; color: var(--text); }
+  .season-long-tooltip .tooltip-week-row { padding: 3px 5px; }
+  .season-long-tooltip .tooltip-week-row.top1 { color: #ffe9a8; background: #d4af3714; }
+  .season-long-tooltip .tooltip-week-row.top5 { color: #7ee2b8; }
+  .season-long-tooltip .tooltip-week-row.top10 { color: #a9c6ff; }
+  @media (max-width: 520px) { .season-long-tooltip .season-tooltip-head, .season-long-tooltip .season-tooltip-row { grid-template-columns: minmax(62px, 1fr) 28px 58px 42px 28px 46px; gap: 4px; font-size: 8px; } }
   .profile-chart-tooltip .streak-game-grid { grid-template-columns: repeat(2, minmax(140px, 1fr)); gap: 3px; }
   .profile-chart-tooltip .streak-game-card { padding: 3px 5px; }
   .profile-chart-tooltip .streak-game-period { font-size: 10px; }
@@ -333,14 +381,34 @@
   @media (prefers-reduced-motion: reduce) { .live-racer, .live-racer-bar { transition: none; } }
   @media (max-width: 620px) { .live-racer { grid-template-columns: 20px 58px minmax(56px, 1fr) 40px; gap: 4px; } .live-racer-name, .live-racer-value { font-size: 10px; } .live-race-time { width: 100%; text-align: left; } }
   @media (max-width: 850px) { .week-recap-grid { grid-template-columns: 1fr; } }
+  @media (max-width: 560px) {
+    #view-enter-picks .intro { margin-bottom: 10px; }
+    #view-enter-picks .panel { padding: 7px; }
+    #view-enter-picks .website-instructions { margin-bottom: 8px; font-size: 10px; line-height: 1.3; }
+    #view-enter-picks .website-entry-context { margin-bottom: 9px; font-size: 11px; }
+    #view-enter-picks .website-test-notice { margin-bottom: 9px; padding: 8px 10px; font-size: 10px; line-height: 1.4; }
+    #website-picks-form .website-identity-controls { gap: 5px; }
+    .website-notification-row { gap: 4px; margin-bottom: 8px; }
+    .website-notification-row button { min-height: 30px; padding: 5px 8px; font-size: 10px; }
+    .website-notification-row span { font-size: 9px; }
+    .website-game-group legend { padding-top: 3px; }
+    .website-game-row { padding: 0 0 1px; }
+    .website-matchup { grid-template-columns: minmax(0, 1fr) 34px minmax(0, 1fr); gap: 0; }
+    .website-side { min-height: 32px; padding: 1px 0; }
+    .website-team-choice { grid-template-columns: 21px minmax(0, 1fr); grid-template-areas: "logo name" "logo record"; column-gap: 3px; padding: 2px 3px; }
+    .website-side.right .website-team-choice { grid-template-columns: minmax(0, 1fr) 21px; grid-template-areas: "name logo" "record logo"; }
+    .website-team-logo { width: 21px; height: 21px; }
+    .website-mobile-venue, .website-context-venue { display: none !important; }
+    .website-game-context { padding: 0 1px 1px; font-size: 8px; line-height: 1.05; }
+  }
 </style>
 </head>
 <body>
-<header><nav id="nav"><button data-view="enter-picks">Enter Picks</button><button data-view="week-one">Current Week</button><button data-view="weeks">Weeks</button><button data-view="season">Seasons</button><button data-view="players">Players</button><button data-view="names">Names</button><button data-view="teams">Teams</button><button data-view="alltime">All Time</button><button data-view="streaks">Streaks</button><button data-view="games">Games</button></nav></header>
+<header><nav id="nav"><button data-view="enter-picks">Enter Picks</button><button data-view="week-one">Current Week</button><button data-view="weeks">Weeks</button><button data-view="season">Seasons</button><button data-view="players">Players</button><button data-view="names">Names</button><button data-view="teams">Teams</button><button data-view="alltime">All Time</button><button data-view="streaks">Streaks</button><button data-view="games">Games</button><button data-view="faq">FAQ</button></nav></header>
 <main>
   <section id="view-enter-picks" class="view">
     <section class="intro"><div><h2>Enter Picks</h2></div><p>Week 1 · 2026-2027</p></section>
-    <div class="panel"><p id="website-entry-context" class="website-entry-context">Loading the active slate...</p><p id="website-test-notice" class="website-test-notice">TEST MODE · Entries and scores are isolated from regular-season standings, logs, awards, and archives.</p><div class="website-instructions">Favorites left; underdogs right. HOME teams are in CAPS.<br>Spreads post Tuesday and lock when posted.</div><form id="website-picks-form"><div class="explorer-controls website-identity-controls"><label>Name<input id="website-picks-name" required autocomplete="name"></label><label><span id="website-week-name-label">Week 1 name</span><input id="website-week-name" required></label></div><div id="website-game-picks" class="website-game-list"></div><div class="explorer-controls website-final-controls" style="margin-top:18px"><label>Best Bet<select id="website-best-bet" required></select></label><label>Tiebreaker · Total net passing yards<input id="website-tiebreaker" type="number" inputmode="decimal" min="-100" max="1200" step="any" title="Enter a number from -100 through 1200" required><small style="color:var(--muted);font:11px Arial,sans-serif;text-transform:none;letter-spacing:0">Net passing yards include yards lost to sacks. Guesses may range from -100 to 1200.</small></label></div><button type="submit" style="margin-top:18px">Submit picks</button><p id="website-picks-status" style="color:var(--muted);font:13px Arial,sans-serif" tabindex="-1"></p></form></div>
+    <div class="panel"><p id="website-entry-context" class="website-entry-context">Loading the active slate...</p><div class="website-notification-row"><button id="website-week-notifications" type="button">Notify me when a new week opens</button><span id="website-week-notification-status">Browser alerts work while FBP is open.</span></div><details class="notification-settings"><summary>Email and text alert preferences</summary><form id="notification-preferences-form" class="notification-form"><div><span class="notification-note">Delivery</span><div class="notification-choice"><label><input type="radio" name="notification-channel" value="email" checked> Email</label><label title="Text alerts need an SMS provider before they can be enabled"><input id="notification-sms-channel" type="radio" name="notification-channel" value="sms" disabled> Text · setup required</label></div></div><div><span class="notification-note">Coverage</span><div class="notification-choice"><label><input type="radio" name="notification-scope" value="player" checked> Follow one player</label><label><input type="radio" name="notification-scope" value="pool"> General pool alerts</label></div></div><div class="notification-contact-grid"><label id="notification-player-label">Player<input id="notification-player" list="notification-player-options" autocomplete="off" required><datalist id="notification-player-options"></datalist></label><label>Email<input id="notification-destination" type="email" autocomplete="email" required></label></div><div><span class="notification-note">Send me</span><div class="notification-events"><label><input type="checkbox" name="picksReady" checked><span>Picks are ready<small>A new weekly slate opens.</small></span></label><label><input type="checkbox" name="firstPlace"><span>First-place jump<small>Your player moves into first.</small></span></label><label><input type="checkbox" name="earlyWindow"><span>After early games<small>Personal standing after the 1 PM window.</small></span></label><label><input type="checkbox" name="lateWindow"><span>After late games<small>Personal standing after the late window.</small></span></label><label><input type="checkbox" name="beforeSnf"><span>Before Sunday night<small>Paths and pivotal SNF scenarios.</small></span></label><label><input type="checkbox" name="beforeMnf"><span>Before Monday night<small>Paths and pivotal MNF scenarios.</small></span></label><label><input type="checkbox" name="weeklyResult" checked><span>Weekly result<small>Winner and your final result.</small></span></label></div></div><button id="notification-save" type="submit">Email verification link</button><p id="notification-status" class="notification-status" role="status">Nothing is active until you verify the email. Every message includes a stop link.</p></form></details><p id="website-test-notice" class="website-test-notice">TEST MODE · Entries and scores are isolated from regular-season standings, logs, awards, and archives.</p><div class="website-instructions">Favorites left; underdogs right. HOME teams are in CAPS.<br>Spreads post Tuesday and lock when posted.</div><form id="website-picks-form"><div class="explorer-controls website-identity-controls"><label>Name<input id="website-picks-name" required autocomplete="name"></label><label><span id="website-week-name-label">Week 1 name</span><input id="website-week-name" required></label></div><div id="website-game-picks" class="website-game-list"></div><div class="explorer-controls website-final-controls" style="margin-top:18px"><label>Best Bet<select id="website-best-bet" required></select></label><label>Tiebreaker · Total net passing yards<input id="website-tiebreaker" type="number" inputmode="decimal" min="-100" max="1200" step="any" title="Enter a number from -100 through 1200" required><small style="color:var(--muted);font:11px Arial,sans-serif;text-transform:none;letter-spacing:0">Net passing yards include yards lost to sacks. Guesses may range from -100 to 1200.</small></label></div><button type="submit" style="margin-top:18px">Submit picks</button><p id="website-picks-status" style="color:var(--muted);font:13px Arial,sans-serif" tabindex="-1"></p></form></div>
   </section>
   <section id="view-picks-confirmation" class="view"><section class="intro"><div><h2>Picks submitted</h2></div><p>Week 1 · 2026-2027</p></section><div class="panel website-confirmation"><p id="confirmation-lead" class="confirmation-lead">Your picks were submitted successfully.</p><div class="confirmation-grid"><section id="confirmation-identity" class="confirmation-block"><h3>Your pool history</h3><p>Finding your place in the archive...</p></section><section id="confirmation-week-name" class="confirmation-block"><h3>Your week name</h3><p>Reading the room...</p></section><section id="confirmation-picks" class="confirmation-block"><h3>Live outlook</h3><p>Comparing your card with the field...</p></section><section id="confirmation-history" class="confirmation-block"><h3>This card in your history</h3><p>Loading your historical picks...</p></section></div><button id="website-view-week-one" type="button">View Week 1</button></div></section>
   <section id="view-week-one" class="view active">
@@ -363,6 +431,22 @@
     <section class="intro"><div><div class="eyebrow">Season → week → game</div><h2>Game Browser</h2></div><p>Drill from a season into a specific matchup, then inspect every player's pick, score, spread, and result.</p></section>
     <div class="panel"><div class="explorer-controls"><label>Season<select id="game-season"></select></label><label>Week<select id="game-week"></select></label></div><label style="max-width:420px">Game<select id="game-choice"></select></label><div id="game-detail" class="profile-list" style="margin-top:16px"></div><div id="game-picks-table" style="margin-top:16px"></div></div>
   </section>
+  <section id="view-faq" class="view">
+    <section class="intro"><div><h2>FAQ</h2></div><p>Pool rules, pick entry, live probabilities, and how to get around the archive.</p></section>
+    <div class="panel"><div class="faq-list">
+      <details open><summary>How do I make my picks?</summary><div class="faq-answer"><p>Open <strong>Enter Picks</strong>, choose one team in every matchup, select one Best Bet, enter a week name and tiebreaker, then submit. Favorites are on the left, underdogs are on the right, and the NFL-designated home team is capitalized even at a neutral site.</p><p>Spreads are normally posted Tuesday and are locked once posted. You can replace a submitted card by submitting again with the same player name; the newest card becomes active.</p></div></details>
+      <details><summary>How does the point spread work?</summary><div class="faq-answer"><p>The spread handicaps the favorite. A favorite must win by <strong>more than</strong> the posted spread to cover. The underdog is correct if it wins outright or loses by fewer points than the spread.</p><p>If the favorite wins by exactly the spread, the game is a push. For example, with a 10-point favorite: a 30-14 score covers, 30-20 pushes, and 30-24 makes the underdog the correct pick.</p></div></details>
+      <details><summary>What is the Best Bet?</summary><div class="faq-answer"><p>Your Best Bet is an extra result attached to the team you trust most. A correct Best Bet adds one win and an incorrect Best Bet adds one loss. Under the pool's existing rules, a Best Bet push also counts as one additional loss.</p></div></details>
+      <details><summary>How does the weekly tiebreaker work?</summary><div class="faq-answer"><p>If players finish with the same number of wins, the closest guess to the combined net passing yards in the final game wins. Net passing yards include both teams' passing yards minus yards lost to sacks. Players equally close split the winnings.</p></div></details>
+      <details><summary>When are picks due?</summary><div class="faq-answer"><p>Submit before the first game of the week to be eligible under the normal deadline. The submission time is recorded. A late entry after the Thursday game may still play, but takes a loss for that game under the existing pool rule.</p></div></details>
+      <details><summary>How do I read Current Week?</summary><div class="faq-answer"><p>The main grid shows every active card, live pick results, record, rank, tiebreak position, paths to victory, and estimated win probability. Pending games remain unresolved; live games use the current against-the-spread leader provisionally.</p><p>The race playback shows how positions changed at recorded checkpoints. Scenario views explain which remaining outcomes help each player. Probabilities are estimates, not betting odds, and become exact only when all outcomes and the tiebreak are settled.</p></div></details>
+      <details><summary>How do filters, charts, and hovers work?</summary><div class="faq-answer"><p>Use the selectors above a chart or table to change season, player, team, metric, or lookback. Hover a chart point or bar for the exact sample and record. On a phone, tap to open the same detail and tap the close button, outside the tooltip, or press Escape to dismiss it.</p><p>Pay attention to sample sizes. A strong percentage over a few picks is descriptive, not proof of a lasting tendency. Tables can be sorted by selecting their column headings.</p></div></details>
+      <details><summary>What can I find in each history section?</summary><div class="faq-answer"><ul><li><strong>Weeks:</strong> every card, weekly standings, and pick-by-pick separation.</li><li><strong>Seasons:</strong> standings, weekly form, money, consistency, and the season race.</li><li><strong>Players:</strong> records, streaks, team habits, and situational ATS splits.</li><li><strong>Names:</strong> the complete week-name archive and recurring themes.</li><li><strong>Teams:</strong> pool support, ATS outcomes, opponents, Best Bets, venues, and player affinity.</li><li><strong>Games:</strong> one matchup with every archived pick and result.</li></ul></div></details>
+      <details><summary>How do the playoffs work?</summary><div class="faq-answer"><p>The playoff winner has the most wins across all four rounds. Round 1 has 6 games plus a Best Bet for 7 possible wins; Round 2 has 4 games plus a Best Bet for 5; Round 3 has 2 games plus a Best Bet for 3; and the Super Bowl pick is worth 2 wins. That is 13 games and 17 possible wins.</p><p>The Super Bowl's combined net passing yards break a tie. Starting in Round 2, picks remain hidden until every player who can still win has submitted for that round.</p></div></details>
+      <details><summary>What notifications are available?</summary><div class="faq-answer"><p>The browser alert announces a newly opened regular-season week while FBP is open. Email preferences can cover a new slate, a move into first place, early and late game windows, Sunday and Monday night scenarios, and the final weekly result. An email address is inactive until its verification link is opened, and every message includes a one-click stop link.</p><p>Text alerts require a separate SMS provider and are not available yet. FBP does not save a phone number while text delivery is unavailable.</p></div></details>
+      <details><summary>What visitor information is collected?</summary><div class="faq-answer"><p>When anonymous analytics are enabled, FBP records page views, pick starts, submissions, a random browser/session identifier, referring domain, device class, viewport, language, and time zone. It does not collect IP addresses, precise location, names, picks, or full referring URLs for analytics.</p><p>The analytics are stored privately for site maintenance and are not shown on a public leaderboard or visitor page.</p></div></details>
+    </div></div>
+  </section>
   <section id="view-weeks" class="view"><select id="week-race-players" hidden></select>
     <section class="intro"><div><h2>Weeks</h2></div><p>Every player's picks against the spread, where they finished, and the game-by-game runs that separated the top three.</p></section>
     <div class="panel"><div class="explorer-controls"><label>Season<select id="week-season"></select></label><label>Week<select id="week-choice"></select></label></div><div id="week-summary" class="summary"></div><div class="chart-wrap wide-chart"><canvas id="week-chart"></canvas></div><h3 style="margin:28px 0 8px;color:var(--accent);font:11px Arial,sans-serif;letter-spacing:1px;text-transform:uppercase">Picks</h3><div id="week-picks-grid" style="overflow-x:auto;margin-bottom:4px"></div><h3 style="margin:28px 0 8px;color:var(--accent);font:11px Arial,sans-serif;letter-spacing:1px;text-transform:uppercase">Standings</h3><div id="week-table"></div><hr class="chart-divider"><div class="chart-wrap wide-chart race-chart-wrap" style="margin-top:24px"><canvas id="week-race-chart"></canvas></div><div class="explorer-controls" style="margin-top:28px"><label>Contribution player<select id="contribution-player"></select></label></div><h3 style="margin:24px 0 10px">Pick by pick</h3><div class="chart-wrap wide-chart race-chart-wrap" style="margin-top:12px"><canvas id="winner-contribution-chart"></canvas></div><hr class="chart-divider"><h3 style="margin:28px 0 8px;color:var(--accent);font:11px Arial,sans-serif;letter-spacing:1px;text-transform:uppercase">Weekly Rank</h3><p class="analysis-note">A sheet-style history of weekly finishes across every season, newest weeks first, with player filtering and trend context.</p><div class="explorer-controls" style="grid-template-columns: repeat(2, minmax(180px, 1fr)); max-width: 520px;"><label>Player<select id="weekly-rank-player"><option value="all">All players</option></select></label><label>Display<select id="weekly-rank-display"><option value="all">All finishes</option><option value="wins">Weekly winners</option><option value="top5">Top 5</option><option value="top10">Top 10</option><option value="money">Money winners</option></select></label></div><div id="weekly-rank-summary" class="summary"></div><div class="chart-wrap wide-chart" style="height:420px;margin-top:14px"><canvas id="weekly-rank-chart"></canvas></div><div id="weekly-rank-sheet" style="overflow-x:auto;margin-top:14px"></div></div>
@@ -384,7 +468,7 @@
   </section>
   <section id="view-teams" class="view">
     <section class="intro"><div><div class="eyebrow">League-wide pick behavior</div><h2>Teams</h2></div><p>See which NFL teams the pool picked or picked against, where confidence changed, and whether those choices beat the spread.</p></section>
-    <div class="panel"><div class="explorer-controls"><label>Season<select id="teams-season"><option value="all">All seasons</option></select></label><label>Team<select id="teams-team"></select></label><label>Leaderboard<select id="teams-metric"><option value="volume">Most picked</option><option value="ats">Best record when picked</option><option value="fade">Best record picking against</option><option value="bestbet">Best Bet hit rate</option></select></label></div><div id="teams-summary" class="summary"></div><div class="profile-charts"><div class="panel profile-chart"><div class="panel-head"><h3>Team Leaders</h3></div><div class="chart-wrap"><canvas id="teams-leader-chart"></canvas></div></div><div class="panel profile-chart"><div class="panel-head"><h3 id="teams-trend-title">Pool Pick Share vs ATS Cover Rate</h3></div><p id="teams-trend-note" class="analysis-note"></p><div class="chart-wrap"><canvas id="teams-trend-chart"></canvas></div></div><div class="panel profile-chart"><div class="panel-head"><h3 id="teams-consensus-title">Picking the Team vs Picking Against It</h3></div><p id="teams-consensus-note" class="analysis-note"></p><div class="chart-wrap"><canvas id="teams-consensus-chart"></canvas></div></div></div><h3 style="margin:28px 0 8px;color:var(--accent);font:11px Arial,sans-serif;letter-spacing:1px;text-transform:uppercase">Team leaderboard</h3><div id="teams-leaderboard-table"></div><h3 style="margin:28px 0 8px;color:var(--accent);font:11px Arial,sans-serif;letter-spacing:1px;text-transform:uppercase">Best Bet records</h3><div id="teams-bestbet-table"></div><h3 id="teams-affinity-title" style="margin:28px 0 8px;color:var(--accent);font:11px Arial,sans-serif;letter-spacing:1px;text-transform:uppercase">Player affinity</h3><div id="teams-affinity-table"></div></div>
+    <div class="panel"><div class="explorer-controls"><label>Season<select id="teams-season"><option value="all">All seasons</option></select></label><label>Team<select id="teams-team"></select></label><label>Leaderboard<select id="teams-metric"><option value="volume">Most picked</option><option value="ats">Best record when picked</option><option value="fade">Best record picking against</option><option value="bestbet">Best Bet hit rate</option></select></label></div><div id="teams-summary" class="summary"></div><div class="profile-charts"><div class="panel profile-chart"><div class="panel-head"><h3>Team Leaders</h3></div><div class="chart-wrap"><canvas id="teams-leader-chart"></canvas></div></div><div class="panel profile-chart"><div class="panel-head"><h3 id="teams-trend-title">Pool Pick Share vs ATS Cover Rate</h3></div><p id="teams-trend-note" class="analysis-note"></p><div class="chart-wrap"><canvas id="teams-trend-chart"></canvas></div></div><div class="panel profile-chart"><div class="panel-head"><h3 id="teams-consensus-title">Picking the Team vs Picking Against It</h3></div><p id="teams-consensus-note" class="analysis-note"></p><div class="chart-wrap"><canvas id="teams-consensus-chart"></canvas></div></div><div class="panel profile-chart"><div class="panel-head"><h3 id="teams-neutral-title">Neutral-Site Picks</h3></div><p id="teams-neutral-note" class="analysis-note"></p><div class="chart-wrap"><canvas id="teams-neutral-chart"></canvas></div></div></div><h3 style="margin:28px 0 8px;color:var(--accent);font:11px Arial,sans-serif;letter-spacing:1px;text-transform:uppercase">Team leaderboard</h3><div id="teams-leaderboard-table"></div><h3 style="margin:28px 0 8px;color:var(--accent);font:11px Arial,sans-serif;letter-spacing:1px;text-transform:uppercase">Best Bet records</h3><div id="teams-bestbet-table"></div><h3 id="teams-affinity-title" style="margin:28px 0 8px;color:var(--accent);font:11px Arial,sans-serif;letter-spacing:1px;text-transform:uppercase">Player affinity</h3><div id="teams-affinity-table"></div></div>
   </section>
 </main>
 <script>
@@ -394,6 +478,7 @@ const requestedStartupRoute = location.hash.slice(1) === "weekly-rank" ? "weeks"
 if (location.hash === "#weekly-rank") history.replaceState(null, "", "#weeks");
 let startupRoutePending = true;
 const WEBSITE_SUBMISSIONS_ENDPOINT = "https://script.google.com/macros/s/AKfycbxZUgJm6LstCEomhmrlJYa_nH7tsmxC_4UZwYdroIZbs-PeI6KdPqUZtsF9fZvr_YuNWQ/exec";
+const WEBSITE_NOTIFICATION_ENDPOINT = "https://fbp-api.fbp-api-worker.workers.dev";
 const WEBSITE_ANALYTICS_HOST = location.hostname === "fbp26.github.io";
 let websiteAnalyticsReady = false;
 let websiteLastTrackedView = "";
@@ -451,14 +536,16 @@ function websiteTeamName(abbreviation) { const name = WEBSITE_TEAM_NAMES[abbrevi
 function websiteFormTeamName(abbreviation) { const name = WEBSITE_FORM_TEAM_NAMES[abbreviation.toLowerCase()] || abbreviation; return abbreviation === abbreviation.toUpperCase() ? name.toUpperCase() : name; }
 function websiteNaturalTeamName(abbreviation) { return websiteFormTeamName(String(abbreviation || "").toLowerCase()).replace(/\b[a-z]/g, letter => letter.toUpperCase()); }
 function websiteEscapeHtml(value) { return String(value).replace(/[&<>"']/g, character => ({ "&": "&amp;", "<": "&lt;", ">": "&gt;", '"': "&quot;", "'": "&#39;" })[character]); }
+function websiteIsNeutralSite(game) { return [game.neutralSite, game.neutral, game.isNeutral].some(value => value === true || String(value).toLowerCase() === "true"); }
 function websiteTeamChoice(game, abbreviation) {
   const isAway = game.away ? String(game.away).toUpperCase() === String(abbreviation).toUpperCase() : abbreviation !== abbreviation.toUpperCase();
+  const isHome = !isAway;
   const metadata = isAway ? game.awayTeam : game.homeTeam;
   const name = metadata?.name || websiteFormTeamName(abbreviation);
   const displayName = abbreviation === abbreviation.toUpperCase() ? String(name).toUpperCase() : String(name).toLowerCase();
   const logoCode = WEBSITE_TEAM_LOGO_CODES[String(abbreviation).toLowerCase()] || String(abbreviation).toLowerCase();
   const logo = metadata?.logo || `https://a.espncdn.com/i/teamlogos/nfl/500/scoreboard/${logoCode}.png`;
-  return `<span class="website-team-choice"><img class="website-team-logo" src="${websiteEscapeHtml(logo)}" alt="" loading="lazy"><span class="website-team-name">${websiteEscapeHtml(displayName)}</span><span class="website-team-abbreviation">${websiteEscapeHtml(abbreviation)}</span><span class="website-team-record">${websiteEscapeHtml(metadata?.record || "0-0")}</span></span>`;
+  return `<span class="website-team-choice"><img class="website-team-logo" src="${websiteEscapeHtml(logo)}" alt="" loading="lazy"><span class="website-team-name">${websiteEscapeHtml(displayName)}</span><span class="website-team-abbreviation">${isHome ? '<span class="website-home-marker">at </span>' : ""}${websiteEscapeHtml(abbreviation)}</span><span class="website-team-record">${websiteEscapeHtml(metadata?.record || "0-0")}</span></span>`;
 }
 const WEBSITE_WEEK_ONE_GAMES = [["wed 8:20","SEA","3.5","ne"],["thur 8:35","LAR","3.5","sf"],["sun 1:00","HOU","1.5","buf"],["sun 1:00","PIT","3","atl"],["sun 1:00","JAX","7.5","cle"],["sun 1:00","TEN","2.5","nyj"],["sun 1:00","DET","6.5","no"],["sun 1:00","bal","3.5","IND"],["sun 1:00","chi","2.5","CAR"],["sun 1:00","CIN","3.5","tb"],["sun 4:25","MIN","1.5","gb"],["sun 4:25","PHI","5.5","was"],["sun 4:25","LAC","10.5","ari"],["sun 4:25","LV","3.5","mia"],["sun 8:20","dal","2.5","NYG"],["mon 8:15","KC","2.5","den"]].map(([time,favorite,spread,underdog],index)=>({id:`game-${index+1}`,time,favorite,spread,underdog}));
 function renderWebsitePicksForm() { const host = document.getElementById("website-game-picks"); if (!host || host.dataset.ready) return; host.dataset.ready = "true"; const choices = WEBSITE_WEEK_ONE_GAMES.flatMap(game => [game.favorite, game.underdog]).sort((a, b) => websiteTeamName(a).localeCompare(websiteTeamName(b), undefined, { sensitivity: "base" })); const groups = []; WEBSITE_WEEK_ONE_GAMES.forEach((game, index) => { const previous = WEBSITE_WEEK_ONE_GAMES[index - 1]; if (!previous || previous.time !== game.time) groups.push({ time: game.time, games: [] }); groups[groups.length - 1].games.push({ game, index }); }); host.innerHTML = groups.map(group => `<fieldset class="website-game-group"><legend>${group.time}</legend>${group.games.map(({ game, index }) => `<div class="website-game-row"><label class="website-side"><input type="radio" name="game-${index + 1}" value="${game.favorite}" required><span>${websiteTeamName(game.favorite)}</span></label><span class="website-spread">${game.spread}</span><label class="website-side right"><span>${websiteTeamName(game.underdog)}</span><input type="radio" name="game-${index + 1}" value="${game.underdog}" required></label></div>`).join("")}</fieldset>`).join(""); const bestBet = document.getElementById("website-best-bet"); choices.forEach(team => bestBet.add(new Option(websiteTeamName(team), team))); document.getElementById("website-picks-form").onsubmit = async event => { event.preventDefault(); const form = event.currentTarget; const submission = { submittedAt: new Date().toISOString(), name: document.getElementById("website-picks-name").value.trim(), weekName: document.getElementById("website-week-name").value.trim(), picks: WEBSITE_WEEK_ONE_GAMES.map((game, index) => form.elements[`game-${index + 1}`].value), bestBet: bestBet.value, tiebreaker: document.getElementById("website-tiebreaker").value }; const stored = JSON.parse(localStorage.getItem("fbpWebsiteSubmissions") || "[]"); stored.push(submission); localStorage.setItem("fbpWebsiteSubmissions", JSON.stringify(stored)); if (WEBSITE_SUBMISSIONS_ENDPOINT) await fetch(WEBSITE_SUBMISSIONS_ENDPOINT, { method: "POST", mode: "no-cors", headers: { "Content-Type": "text/plain" }, body: JSON.stringify(submission) }); document.getElementById("website-picks-status").textContent = WEBSITE_SUBMISSIONS_ENDPOINT ? "Submitted to the test workbook." : "Saved in this browser test. Add the Apps Script URL to submit to Sheets."; renderWebsiteWeekOne(); }; }
@@ -1091,7 +1178,71 @@ let websiteRegularSelection = { season: 2026, week: 1, phase: "REGULAR_SEASON", 
 let websiteEntrySelection = { testMode: false, ...websiteRegularSelection };
 let websiteLastWeekData = null;
 let websiteDiscoveredPreseasonData = null;
+const WEBSITE_WEEK_NOTIFICATION_ENABLED = "fbpWeekNotificationEnabled";
+const WEBSITE_WEEK_NOTIFICATION_SEEN = "fbpWeekNotificationSeen";
+function updateNotificationScope() {
+  const playerScope = document.querySelector('input[name="notification-scope"]:checked')?.value === "player";
+  const player = document.getElementById("notification-player"), label = document.getElementById("notification-player-label");
+  player.required = playerScope;
+  player.disabled = !playerScope;
+  label.style.display = playerScope ? "grid" : "none";
+}
+async function initializeNotificationPreferences() {
+  const sms = document.getElementById("notification-sms-channel"), save = document.getElementById("notification-save"), status = document.getElementById("notification-status");
+  try {
+    const response = await fetch(`${WEBSITE_NOTIFICATION_ENDPOINT}/?action=notification-status`, { signal: AbortSignal.timeout(10000) });
+    const data = await response.json();
+    sms.disabled = !data?.channels?.sms;
+    save.disabled = !data?.channels?.email;
+    if (!data?.channels?.email) status.textContent = "Email sender setup is in progress. Preferences cannot be activated yet.";
+  } catch (error) { save.disabled = true; status.textContent = "Alert preferences are temporarily unavailable."; }
+}
+async function saveNotificationPreferences(event) {
+  event.preventDefault();
+  const form = event.currentTarget, button = document.getElementById("notification-save"), status = document.getElementById("notification-status");
+  const scope = form.elements["notification-scope"].value, channel = form.elements["notification-channel"].value;
+  const payload = { action: "subscribe-notifications", scope, channel, playerName: scope === "player" ? document.getElementById("notification-player").value : "FBP pool", destination: document.getElementById("notification-destination").value, preferences: Object.fromEntries(["picksReady", "firstPlace", "earlyWindow", "lateWindow", "beforeSnf", "beforeMnf", "weeklyResult"].map(name => [name, form.elements[name].checked])) };
+  button.disabled = true;
+  status.textContent = "Sending verification email...";
+  try {
+    const response = await fetch(WEBSITE_NOTIFICATION_ENDPOINT, { method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify(payload) });
+    const data = await response.json();
+    if (!response.ok || !data.ok) throw new Error(data.error || "Alert preferences could not be saved.");
+    status.textContent = `Verification sent to ${data.maskedDestination}. Open it to activate alerts.`;
+  } catch (error) { status.textContent = error.message; }
+  finally { button.disabled = false; }
+}
 function websitePickSelection() { return websiteEntrySelection; }
+function websiteWeekKey(selection) { return selection?.staged ? `${selection.season}|${selection.week}` : ""; }
+function updateWebsiteNotificationControl() {
+  const button = document.getElementById("website-week-notifications"), status = document.getElementById("website-week-notification-status");
+  if (!button || !status) return;
+  if (!("Notification" in globalThis)) { button.disabled = true; button.textContent = "Browser alerts unavailable"; status.textContent = "This browser does not support notifications."; return; }
+  const enabled = localStorage.getItem(WEBSITE_WEEK_NOTIFICATION_ENABLED) === "true" && Notification.permission === "granted";
+  button.disabled = Notification.permission === "denied";
+  button.textContent = enabled ? "Turn off week alerts" : Notification.permission === "denied" ? "Notifications blocked" : "Notify me when a new week opens";
+  status.textContent = enabled ? "On for this browser while FBP is open." : Notification.permission === "denied" ? "Allow notifications in browser settings to enable alerts." : "Browser alerts work while FBP is open.";
+}
+function processWebsiteWeekNotification(selection) {
+  const key = websiteWeekKey(selection);
+  if (!key || localStorage.getItem(WEBSITE_WEEK_NOTIFICATION_ENABLED) !== "true" || !("Notification" in globalThis) || Notification.permission !== "granted") return;
+  const seen = localStorage.getItem(WEBSITE_WEEK_NOTIFICATION_SEEN);
+  if (seen && seen !== key) new Notification(`FBP Week ${selection.week} is open`, { body: "The new slate is ready for your picks.", tag: `fbp-week-${key}` });
+  localStorage.setItem(WEBSITE_WEEK_NOTIFICATION_SEEN, key);
+}
+async function toggleWebsiteWeekNotifications() {
+  if (!("Notification" in globalThis)) return;
+  const enabled = localStorage.getItem(WEBSITE_WEEK_NOTIFICATION_ENABLED) === "true" && Notification.permission === "granted";
+  if (enabled) localStorage.setItem(WEBSITE_WEEK_NOTIFICATION_ENABLED, "false");
+  else {
+    const permission = Notification.permission === "granted" ? "granted" : await Notification.requestPermission();
+    if (permission === "granted") {
+      localStorage.setItem(WEBSITE_WEEK_NOTIFICATION_ENABLED, "true");
+      localStorage.setItem(WEBSITE_WEEK_NOTIFICATION_SEEN, websiteWeekKey(websiteRegularSelection) || "none");
+    }
+  }
+  updateWebsiteNotificationControl();
+}
 function updateWebsiteWeekLabels(selection) {
   const seasonLabel = `${selection.season}-${selection.season + 1}`;
   const weekLabel = `${selection.testMode ? "Preseason Week" : "Week"} ${selection.week}`;
@@ -1109,6 +1260,7 @@ async function loadActiveRegularWeek() {
   const data = await response.json();
   if (!response.ok || !data.ok) throw new Error(data.error || "Could not load the active regular-season week.");
   websiteRegularSelection = { season: Number(data.season) || 2026, week: Number(data.week) || 1, phase: "REGULAR_SEASON", staged: Boolean(data.staged) };
+  processWebsiteWeekNotification(websiteRegularSelection);
   if (websiteRegularSelection.staged) websiteEntrySelection = { testMode: false, ...websiteRegularSelection };
   updateWebsiteWeekLabels(websiteEntrySelection);
   return websiteRegularSelection;
@@ -1117,10 +1269,12 @@ async function selectStagedPreseasonWeek() { if (!WEBSITE_SUBMISSIONS_ENDPOINT) 
 async function loadWebsiteStagedGames(selection) { if (!WEBSITE_SUBMISSIONS_ENDPOINT) return selection.testMode ? [] : WEBSITE_WEEK_ONE_GAMES; const separator = WEBSITE_SUBMISSIONS_ENDPOINT.includes("?") ? "&" : "?"; const url = `${WEBSITE_SUBMISSIONS_ENDPOINT}${separator}action=week-config&season=${selection.season}&week=${selection.week}&phase=${selection.phase}`; const response = await fetch(url); const data = await response.json(); if (!response.ok || !data.ok) throw new Error(data.error || "Could not load the staged games."); return (data.games || []).map((game, index) => ({ ...game, id: game.gameId || `game-${index + 1}`, time: game.kickoffGroup || game.kickoff || `Game ${index + 1}` })); }
 function websiteGameContext(game) {
   const location = [game.venueCity, game.venueState].filter(Boolean).join(", ");
-  const weather = [game.temperature !== "" && game.temperature != null ? `${game.temperature}°F` : "", game.weather].filter(Boolean).join(" ");
+  const condition = String(game.weather || ""), normalizedCondition = condition.toLowerCase();
+  const weatherIcon = /thunder|storm/.test(normalizedCondition) ? "⛈️" : /snow|flurr/.test(normalizedCondition) ? "❄️" : /rain|shower/.test(normalizedCondition) ? "🌧️" : /cloud|overcast/.test(normalizedCondition) ? "☁️" : /fog|mist/.test(normalizedCondition) ? "🌫️" : /wind/.test(normalizedCondition) ? "💨" : /sun|clear/.test(normalizedCondition) ? "☀️" : "";
+  const weather = [weatherIcon, game.temperature !== "" && game.temperature != null ? `${game.temperature}°` : "", condition].filter(Boolean).join(" ");
   const weatherDetail = game.indoor ? "Indoor" : weather || "Weather unavailable";
   const details = [["venue", game.venueName || game.venue], ["location", location], ["weather", weatherDetail], ["broadcast", game.broadcast || game.tv]].filter(([, value]) => value);
-  return details.length ? `<div class="website-game-context">${details.map(([type, value], index) => `<span class="website-context-${type}">${websiteEscapeHtml(value)}${index < details.length - 1 ? " · " : ""}</span>`).join("")}</div>` : "";
+  return details.length ? `<div class="website-game-context${websiteIsNeutralSite(game) ? " website-game-context-neutral" : ""}">${details.map(([type, value], index) => `<span class="website-context-${type}">${websiteEscapeHtml(value)}${index < details.length - 1 ? " · " : ""}</span>`).join("")}</div>` : "";
 }
 function scheduleWebsitePicksWeatherRefresh() {
   clearTimeout(websitePicksWeatherRefreshTimer);
@@ -1860,7 +2014,7 @@ document.addEventListener("click",event=>{const button=event.target.closest("#na
 document.getElementById("website-view-week-one")?.addEventListener("click",()=>{showView("week-one");renderSelectedWebsiteWeek();});
 let profileChart = null, profileMoneyChart = null, profilePlusMinusChart = null, profilePlacementChart = null, profileBestWeeksChart = null, profileRecentChart = null, profileBestBetChart = null, profileTeamChart = null, profileClubChart = null, profileBestGamesChart = null, profileScoreChart = null, profileSituationalChart = null, gamePicksTable = null, weekChart = null, weekTable = null, weekRaceChart = null, winnerContributionChart = null, weeklyRankChart = null, streakChart = null, streakTable = null, seasonTopChart = null, seasonTable = null, seasonRaceChart = null, seasonPlayerChart = null, seasonMoneyChart = null, seasonConsistencyChart = null, seasonBbChart = null, seasonTeamsChart = null, seasonContrarianChart = null, seasonTbChart = null, allTimeTopChart = null, allTimePlusMinusChart = null, allTimePlusMinusTrendChart = null, allTimeGamesChart = null, allTimeArcsChart = null, allTimeMoneyChart = null, allTimeTurnoutChart = null, allTimeStreakChart = null, allTimeTeamPicksChart = null, allTimeContrarianChart = null, allTimeSeasonWeeksChart = null, manifest = [], dashboard = [], tableData = {}, websiteWeeks = [], websiteAwards = [], websiteSeasons = [], websitePlayers = [], websiteRecords = [], websiteStreaks = [], websiteGames = [], websitePicks = [];
 let allTimeAttendanceChart = null, allTimeRaceChart = null, allTimeRaceFrames = [], allTimeRaceFrame = 0, allTimeRaceTimer = null;
-let teamsLeaderChart = null, teamsTrendChart = null, teamsConsensusChart = null, teamsLeaderboardTable = null, teamsBestBetTable = null, teamsAffinityTable = null;
+let teamsLeaderChart = null, teamsTrendChart = null, teamsConsensusChart = null, teamsNeutralChart = null, teamsLeaderboardTable = null, teamsBestBetTable = null, teamsAffinityTable = null;
 let allTimePlusMinusExtraPlayers = [];
 const colors = ["#54d6b2", "#ffb454", "#8ca7ff", "#ff7180", "#d79bff", "#f1e48b", "#65c7e8"];
 const weekBarLabels = { id: "weekBarLabels", afterDatasetsDraw(chart) { if (!["week-chart", "season-top-chart", "season-bb-chart", "season-money-chart", "season-tb-chart", "alltime-top-chart", "alltime-plus-minus-chart", "alltime-weekly-wins-chart", "alltime-games-chart", "alltime-money-chart", "streak-chart"].includes(chart.canvas.id)) return; const context = chart.ctx; const meta = chart.getDatasetMeta(0); context.save(); context.font = "15px Arial"; context.textBaseline = "middle"; context.fillStyle = "#0d1117"; context.textAlign = "left"; meta.data.forEach((bar, index) => { context.fillText(chart.data.datasets[0].barText?.[index] ?? chart.data.labels[index], Math.max(chart.chartArea.left + 8, bar.x - bar.width + 8), bar.y); }); context.restore(); } };
@@ -3324,7 +3478,7 @@ function buildPickSummary(playerId, game, pick) {
   return lines;
 }
 function populateGameChoices(latestGame = null) { const season = document.getElementById("game-season").value, week = document.getElementById("game-week").value; const select = document.getElementById("game-choice"); select.innerHTML = ""; websiteGames.filter(game => game.season === season && game.week === week).forEach(game => select.add(new Option(`${game.gameNum}: ${matchupLabel(game)}`, game.gameId))); select.value = latestGame?.gameId || select.options[0]?.value || ""; renderGame(); }
-function renderGame() { const game = websiteGames.find(item => item.gameId === document.getElementById("game-choice").value); if (!game) return; document.getElementById("game-detail").innerHTML = [["Date", game.gameDate], ["Game time", game.gameTime], ["Matchup", matchupLabel(game)], ["Score", `${teamDisplay(game.favorite, game)} ${favoriteScore(game) ?? "?"} · ${teamDisplay(game.underdog, game)} ${underdogScore(game) ?? "?"}`], ["Result", game.atsResult]].map(([label, value]) => `<div><span>${label}</span><strong>${value ?? ""}</strong></div>`).join(""); const matchupTeams = [game.favorite, game.underdog].map(team => String(team || "").trim().toUpperCase()); const rows = websitePicks.filter(pick => pick.gameId === game.gameId).map(pick => ({ ...pick, bestBet: matchupTeams.includes(String(pick.bestBet || "").trim().toUpperCase()) ? pick.bestBet : "" })); if (gamePicksTable) gamePicksTable.destroy(); const columns = [{ title: "Player", field: "name", sorter: "string" }, { title: "Result", field: "result" }, { title: "Pick", field: "pick" }, { title: "Best Bet", field: "bestBet" }]; const showTiebreak = game.week === "super bowl" || (game.isFinalGame && !String(game.week).startsWith("round") && game.week !== "playoffs"); if (showTiebreak) columns.push({ title: "Tiebreak Diff", field: "tiebreakerDiff", sorter: "number" }, { title: "Tiebreaker", field: "tiebreaker", sorter: "number" }, { title: "Actual Tiebreaker", field: "actualTiebreak", sorter: "number" }); gamePicksTable = new Tabulator("#game-picks-table", { data: rows, layout: "fitDataStretch", pagination: true, paginationSize: 50, columns, placeholder: "No picks" }); }
+function renderGame() { const game = websiteGames.find(item => item.gameId === document.getElementById("game-choice").value); if (!game) return; const details = [["Date", game.officialGameDate || game.gameDate], ["Game time", game.officialGameTime || game.gameTime], ["Matchup", matchupLabel(game)], ["Score", game.gameStatus === "canceled" ? "Canceled" : `${teamDisplay(game.favorite, game)} ${favoriteScore(game) ?? "?"} · ${teamDisplay(game.underdog, game)} ${underdogScore(game) ?? "?"}`], ["Result", game.gameStatus === "canceled" ? "No contest" : game.atsResult]]; const venueLocation = [game.city, game.state].filter(Boolean).join(", "); if (game.stadium) details.push([game.neutralSite ? "Neutral site" : "Stadium", [game.stadium, venueLocation].filter(Boolean).join(" · ")]); const conditions = [game.roof, game.surface, game.temperatureF != null ? `${game.temperatureF}°F` : "", game.windMph != null ? `${game.windMph} mph wind` : ""].filter(Boolean).join(" · "); if (conditions) details.push(["Conditions", conditions]); if (game.homeCoach || game.awayCoach) details.push(["Coaches", `${game.awayCoach || "Away"} / ${game.homeCoach || "Home"}`]); if (game.referee) details.push(["Referee", game.referee]); if (game.attendance) details.push(["Attendance", Number(game.attendance).toLocaleString()]); if (game.payoutNote) details.push(["Payout exception", game.payoutNote]); document.getElementById("game-detail").innerHTML = details.map(([label, value]) => `<div><span>${label}</span><strong>${websiteEscapeHtml(value ?? "")}</strong></div>`).join(""); const matchupTeams = [game.favorite, game.underdog].map(team => String(team || "").trim().toUpperCase()); const rows = websitePicks.filter(pick => pick.gameId === game.gameId).map(pick => ({ ...pick, bestBet: matchupTeams.includes(String(pick.bestBet || "").trim().toUpperCase()) ? pick.bestBet : "" })); if (gamePicksTable) gamePicksTable.destroy(); const columns = [{ title: "Player", field: "name", sorter: "string" }, { title: "Result", field: "result" }, { title: "Pick", field: "pick" }, { title: "Best Bet", field: "bestBet" }]; const showTiebreak = game.week === "super bowl" || (game.isFinalGame && !String(game.week).startsWith("round") && game.week !== "playoffs"); if (showTiebreak) columns.push({ title: "Tiebreak Diff", field: "tiebreakerDiff", sorter: "number" }, { title: "Tiebreaker", field: "tiebreaker", sorter: "number" }, { title: "Actual Tiebreaker", field: "actualTiebreak", sorter: "number" }); gamePicksTable = new Tabulator("#game-picks-table", { data: rows, layout: "fitDataStretch", pagination: true, paginationSize: 50, columns, placeholder: "No picks" }); }
 let profileTooltipHideTimer = null;
 function profileChartTooltip(context, html, compact = false) { let element = document.getElementById("profile-chart-tooltip"); if (!element) { element = document.createElement("div"); element.id = "profile-chart-tooltip"; document.body.appendChild(element); } const tooltip = context.tooltip; if (!tooltip || tooltip.opacity === 0 || !tooltip.dataPoints?.length) { clearTimeout(profileTooltipHideTimer); profileTooltipHideTimer = setTimeout(() => { if (!element.matches(":hover")) element.style.display = "none"; }, 180); return; } clearTimeout(profileTooltipHideTimer); element.className = `profile-chart-tooltip${compact ? " compact-game-tooltip" : ""}`; element.innerHTML = html(tooltip.dataPoints[0].dataIndex); element.style.display = "block"; element.onclick = event => { event.stopPropagation(); element.style.display = "none"; }; element.onpointerenter = () => clearTimeout(profileTooltipHideTimer); element.onpointerleave = () => { profileTooltipHideTimer = setTimeout(() => { if (!element.matches(":hover")) element.style.display = "none"; }, 180); }; const rect = context.chart.canvas.getBoundingClientRect(), margin = 8; const left = Math.max(margin, Math.min(window.innerWidth - element.offsetWidth - margin, rect.left + tooltip.caretX + margin)); const top = Math.max(margin, Math.min(window.innerHeight - element.offsetHeight - margin, rect.top + tooltip.caretY + margin)); element.style.left = `${left}px`; element.style.top = `${top}px`; }
 function profileWeekLabel(week) { const value = String(week || ""), lower = value.toLowerCase(); return lower === "super bowl" ? "Super Bowl" : lower === "playoffs" ? "Playoffs" : lower.startsWith("round") ? `Round ${value.match(/\d+/)?.[0] || ""}`.trim() : `W${value}`; }
@@ -3766,6 +3920,13 @@ function renderPlayerPickBehavior(name, playerId) {
     ["phase", "Opening month, Weeks 1-4", row => !isPlayoff(row) && Number(row.game.weekOrder || row.game.week || 0) <= 4],
     ["phase", "Midseason, Weeks 5-9", row => { const week = Number(row.game.weekOrder || row.game.week || 0); return !isPlayoff(row) && week >= 5 && week <= 9; }],
     ["phase", "Playoff picks", isPlayoff],
+    ["roof", "Indoor games", row => ["dome", "closed"].includes(String(row.game.roof || "").toLowerCase())],
+    ["roof", "Outdoor games", row => ["outdoors", "open"].includes(String(row.game.roof || "").toLowerCase())],
+    ["surface", "Natural grass", row => /grass/i.test(String(row.game.surface || ""))],
+    ["surface", "Artificial turf", row => /turf|astro/i.test(String(row.game.surface || ""))],
+    ["temperature", "Cold games, 40°F or below", row => row.game.temperatureF !== "" && row.game.temperatureF != null && Number(row.game.temperatureF) <= 40],
+    ["temperature", "Hot games, 80°F or above", row => row.game.temperatureF !== "" && row.game.temperatureF != null && Number(row.game.temperatureF) >= 80],
+    ["wind", "Windy games, 15+ mph", row => row.game.windMph !== "" && row.game.windMph != null && Number(row.game.windMph) >= 15],
     ["spread", "Tight spreads, 2 points or less", row => spread(row) <= 2],
     ["spread", "Field-goal spreads, 2.5-3.5", row => spread(row) >= 2.5 && spread(row) <= 3.5],
     ["spread", "Big spreads, 7 points or more", row => spread(row) >= 7],
@@ -4127,7 +4288,7 @@ function initViews() {
   document.getElementById("weekly-rank-player").onchange = renderWeeklyRank;
   document.getElementById("weekly-rank-display").onchange = renderWeeklyRank;
   const requested = location.hash.slice(1);
-  showView(["enter-picks", "week-one", "picks-confirmation", "alltime", "season", "streaks", "weeks", "weekly-rank", "games", "players", "names", "teams"].includes(requested) ? requested : requestedStartupRoute);
+  showView(["enter-picks", "week-one", "picks-confirmation", "alltime", "season", "streaks", "weeks", "weekly-rank", "games", "players", "names", "teams", "faq"].includes(requested) ? requested : requestedStartupRoute);
 }
 async function init() {
   manifest = await (await fetch(`${DATA_DIR}/manifest.json`)).json();
@@ -4135,7 +4296,8 @@ async function init() {
   [websitePlayers, websiteSeasons, websiteWeeks, websiteAwards, websiteRecords, websiteStreaks] = await Promise.all(["players.json", "seasons.json", "player_weeks.json", "awards.json", "records.json", "streaks.json"].map(async file => await (await fetch(`${DATA_DIR}/${file}${file === "player_weeks.json" ? `?v=${WEBSITE_WEEK_HISTORY_VERSION}` : ""}`)).json()));
   dashboard = await (await fetch(`${DATA_DIR}/dashboard.json`)).json();
   const players = [...new Set(dashboard.map(row => row.Name))].sort(), profileSelect = document.getElementById("profile-player"), namesSelect = document.getElementById("names-player");
-  players.forEach(name => { profileSelect.add(new Option(name, name)); namesSelect.add(new Option(name, name)); });
+  const notificationPlayers = document.getElementById("notification-player-options");
+  players.forEach(name => { profileSelect.add(new Option(name, name)); namesSelect.add(new Option(name, name)); notificationPlayers.append(new Option(name)); });
   const defaultPlayer = players.includes("RJ") ? "RJ" : players[0] || "";
   profileSelect.value = defaultPlayer;
   namesSelect.value = defaultPlayer;
@@ -4344,9 +4506,18 @@ function applyHistoricalLabels() {
   if (recentView) recentView.value = "correct";
 }
 applyHistoricalLabels();
+document.getElementById("website-week-notifications")?.addEventListener("click", toggleWebsiteWeekNotifications);
+document.querySelectorAll('input[name="notification-scope"]').forEach(input => input.addEventListener("change", updateNotificationScope));
+document.getElementById("notification-preferences-form")?.addEventListener("submit", saveNotificationPreferences);
+updateNotificationScope();
+initializeNotificationPreferences();
+updateWebsiteNotificationControl();
+setInterval(() => {
+  if (localStorage.getItem(WEBSITE_WEEK_NOTIFICATION_ENABLED) === "true") loadActiveRegularWeek().catch(error => console.warn(`Week notification check failed: ${error.message}`));
+}, 5 * 60 * 1000);
 init().then(async () => { applyHistoricalLabels(); populateWeekSeasons(); populateSeasonChoices(); if (location.hash === "#weeks") { await loadDrilldown(); renderWeekRace(); renderWinnerContributions(true); renderPicksGrid(); setTimeout(() => { orientWeekChart(); addGamePushMarkers(); }, 0); } const profileSelect = document.getElementById("profile-player"); if ([...profileSelect.options].some(option => option.value === "Thomas")) { profileSelect.value = "Thomas"; renderProfile("Thomas"); } if (websiteLastWeekData) renderWebsiteWeekRecap(websiteLastWeekData); });
 </script>
-<script src="teams.js?v=20260826-7"></script>
+<script src="teams.js?v=20260826-9"></script>
 <script>const initialRoute = location.hash.slice(1); const startupRoute = initialRoute || "week-one"; if (!initialRoute) history.replaceState(null, "", "#week-one"); showView(startupRoute); (async () => { let preseasonActive = false, activeWeekKnown = false; try { preseasonActive = await selectStagedPreseasonWeek(); activeWeekKnown = true; } catch (error) { console.warn(error.message); } if (startupRoute === "enter-picks") { await renderWebsitePicksForm(); resetWebsiteBestBet(); } if (startupRoute === "week-one") await (preseasonActive ? renderSelectedWebsiteWeek(true) : renderSelectedWebsiteWeek(activeWeekKnown)); startupRoutePending = false; })();</script>
 </body>
 </html>

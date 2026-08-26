@@ -1,0 +1,17 @@
+name = "fbp-api"
+main = "src/index.ts"
+compatibility_date = "2026-08-26"
+
+[triggers]
+crons = ["*/5 * * * *"]
+
+[vars]
+CORS_ORIGIN = "https://fbp26.github.io"
+PUBLIC_API_URL = "https://fbp-api.fbp-api-worker.workers.dev"
+PUBLIC_SITE_URL = "https://fbp26.github.io/fbp-stats/"
+
+[[d1_databases]]
+binding = "DB"
+database_name = "fbp"
+database_id = "30774d69-00cb-48de-af6b-d847202859d7"
+migrations_dir = "migrations"
