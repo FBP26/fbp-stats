@@ -471,6 +471,7 @@ let websitePicksWeatherRefreshTimer = null;
 const WEBSITE_PICKS_WEATHER_REFRESH_MS = 5 * 60 * 1000;
 const WEBSITE_PATH_DISPLAY_LIMIT = 50;
 const WEBSITE_SIMULATION_LIMIT = 4096;
+const WEBSITE_EXACT_CALCULATION_LIMIT = 250000;
 const WEBSITE_TIEBREAK_MIN = -100;
 const WEBSITE_TIEBREAK_MAX = 1200;
 const WEBSITE_TIEBREAK_MEAN = 453;
@@ -642,7 +643,7 @@ function websiteTiebreakDistribution(data) {
   }
   return { mean: WEBSITE_TIEBREAK_MEAN, deviation: WEBSITE_TIEBREAK_DEVIATION };
 }
-function websiteScenarioShares(data, winners) {
+function websiteScenarioShares(data, winners, shareCache = null) {
   const scores = data.players.map(player => winners.reduce((score, winner, index) => {
     if (!winner || winner === "PUSH") return score;
     const won = player.picks[index] === winner;
@@ -650,9 +651,14 @@ function websiteScenarioShares(data, winners) {
   }, 0));
   const best = Math.max(...scores);
   const winningIndexes = scores.map((score, index) => score === best ? index : -1).filter(index => index >= 0);
+  const cacheKey = winningIndexes.join(",");
+  const cached = shareCache?.get(cacheKey);
+  if (cached) return { scores, ...cached };
   if (winningIndexes.length === 1) {
     const shares = data.players.map((player, index) => index === winningIndexes[0] ? 1 : 0);
-    return { scores, shares, winners: [{ name: data.players[winningIndexes[0]].name, share: 1, range: "No tiebreak needed", low: null, high: null }] };
+    const result = { shares, winners: [{ name: data.players[winningIndexes[0]].name, share: 1, range: "No tiebreak needed", low: null, high: null }] };
+    shareCache?.set(cacheKey, result);
+    return { scores, ...result };
   }
   const yardShares = new Array(data.players.length).fill(0);
   const yardHits = winningIndexes.map(() => []);
@@ -678,48 +684,59 @@ function websiteScenarioShares(data, winners) {
     if (high === WEBSITE_TIEBREAK_MAX) return `${low}+`;
     return low === high ? `${low}` : `${low}–${high}`;
   });
-  return { scores, shares, winners: winningIndexes.map((index, position) => ({
+  const result = { shares, winners: winningIndexes.map((index, position) => ({
     name: data.players[index].name,
     share: shares[index],
     range: ranges[position],
     low: yardHits[position].length ? Math.min(...yardHits[position]) : null,
     high: yardHits[position].length ? Math.max(...yardHits[position]) : null
   })) };
+  shareCache?.set(cacheKey, result);
+  return { scores, ...result };
 }
 function websiteSampleScenarioIndexes(total, limit) {
   const count = Math.min(total, limit);
-  return Array.from({ length: count }, (value, index) => Math.min(total - 1, Math.floor(index * total / count)));
+  if (count === total) return Array.from({ length: total }, (value, index) => index);
+  const greatestCommonDivisor = (left, right) => right ? greatestCommonDivisor(right, left % right) : left;
+  let step = Math.max(1, Math.floor(total * .618033988749895));
+  while (greatestCommonDivisor(step, total) !== 1) step += 1;
+  const offset = Math.floor(total * .381966011250105);
+  return Array.from({ length: count }, (value, index) => (offset + index * step) % total);
+}
+function websiteCalculationScenarioIndexes(total) {
+  return total <= WEBSITE_EXACT_CALCULATION_LIMIT
+    ? Array.from({ length: total }, (value, index) => index)
+    : websiteSampleScenarioIndexes(total, WEBSITE_SIMULATION_LIMIT);
 }
 function websiteConditionalProbabilities(data, forced = {}) {
   const scenarios = websiteScenarioOutcomes(data, forced);
-  const indexes = websiteSampleScenarioIndexes(scenarios.total, WEBSITE_SIMULATION_LIMIT);
+  const indexes = websiteCalculationScenarioIndexes(scenarios.total);
   const totals = new Array(data.players.length).fill(0);
+  const pathCounts = new Array(data.players.length).fill(0);
+  const shareCache = new Map();
   let totalWeight = 0;
   indexes.forEach(index => {
     const outcomes = scenarios.outcomeAt(index);
     const weight = scenarios.weightOf(outcomes);
     totalWeight += weight;
-    websiteScenarioShares(data, outcomes).shares.forEach((share, playerIndex) => { totals[playerIndex] += share * weight; });
+    websiteScenarioShares(data, outcomes, shareCache).shares.forEach((share, playerIndex) => {
+      totals[playerIndex] += share * weight;
+      if (share > 0) pathCounts[playerIndex] += 1;
+    });
   });
-  return totals.map(total => totalWeight ? total * 100 / totalWeight : 0);
+  const probabilities = totals.map(total => totalWeight ? total * 100 / totalWeight : 0);
+  probabilities.pathCounts = pathCounts;
+  probabilities.scenariosEvaluated = indexes.length;
+  probabilities.scenariosTotal = scenarios.total;
+  return probabilities;
 }
 function websitePreparePlayers(data) {
   if (data.testMode) data.players.forEach(player => { player.name = String(player.name).replace(/\s+Test$/i, ""); });
   const analysisData = websiteAnalysisData(data);
   const probabilities = websiteConditionalProbabilities(analysisData);
-  const scenarios = websiteScenarioOutcomes(analysisData);
-  const indexes = websiteSampleScenarioIndexes(scenarios.total, WEBSITE_SIMULATION_LIMIT);
-  const pathCounts = new Array(data.players.length).fill(0);
-  indexes.forEach(pathIndex => {
-    const result = websiteScenarioShares(analysisData, scenarios.outcomeAt(pathIndex));
-    result.winners.forEach(winner => {
-      const playerIndex = analysisData.players.findIndex(player => player.name === winner.name);
-      if (playerIndex >= 0 && winner.share > 0) pathCounts[playerIndex] += 1;
-    });
-  });
   data.players.forEach((player, index) => {
     player.winProbability = websiteProbabilityText(probabilities[index]);
-    player.pathsToVictory = pathCounts[index];
+    player.pathsToVictory = probabilities.pathCounts[index];
     const actualTiebreaker = Number(data.actualTiebreaker);
     const playerTiebreaker = Number(player.tiebreaker);
     player.tiebreakDifference = data.actualTiebreaker !== "" && data.actualTiebreaker != null && Number.isFinite(actualTiebreaker) && Number.isFinite(playerTiebreaker) ? Math.abs(playerTiebreaker - actualTiebreaker) : "";
