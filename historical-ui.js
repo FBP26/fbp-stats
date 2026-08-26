@@ -215,11 +215,7 @@ function setupAttendanceFilter() {
 const paginatedTableSizes = {
   "season-table": 25,
   "week-table": 50,
-  "streak-table": 25,
-  "game-picks-table": 50,
-  "teams-leaderboard-table": 32,
-  "teams-bestbet-table": 16,
-  "teams-affinity-table": 20
+  "game-picks-table": 50
 };
 
 function setupTableShowAllControls() {
