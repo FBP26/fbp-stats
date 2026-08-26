@@ -399,7 +399,8 @@ const requestedStartupRoute = location.hash.slice(1) === "weekly-rank" ? "weeks"
 if (location.hash === "#weekly-rank") history.replaceState(null, "", "#weeks");
 let startupRoutePending = true;
 const WEBSITE_SUBMISSIONS_ENDPOINT = "https://script.google.com/macros/s/AKfycbxZUgJm6LstCEomhmrlJYa_nH7tsmxC_4UZwYdroIZbs-PeI6KdPqUZtsF9fZvr_YuNWQ/exec";
-const WEBSITE_ANALYTICS_ENABLED = location.hostname === "fbp26.github.io";
+const WEBSITE_ANALYTICS_HOST = location.hostname === "fbp26.github.io";
+let websiteAnalyticsReady = false;
 let websiteLastTrackedView = "";
 function websiteAnonymousId(storage, key) {
   try {
@@ -411,7 +412,7 @@ function websiteAnonymousId(storage, key) {
   }
 }
 function websiteTrackEvent(event, view = location.hash.slice(1) || "enter-picks") {
-  if (!WEBSITE_ANALYTICS_ENABLED || !WEBSITE_SUBMISSIONS_ENDPOINT) return;
+  if (!websiteAnalyticsReady || !WEBSITE_SUBMISSIONS_ENDPOINT) return;
   if (event === "page_view" && websiteLastTrackedView === view) return;
   if (event === "page_view") websiteLastTrackedView = view;
   if (event === "picks_started") {
@@ -431,6 +432,19 @@ function websiteTrackEvent(event, view = location.hash.slice(1) || "enter-picks"
   };
   fetch(WEBSITE_SUBMISSIONS_ENDPOINT, { method: "POST", mode: "no-cors", keepalive: true, headers: { "Content-Type": "text/plain;charset=utf-8" }, body: JSON.stringify(payload) }).catch(() => {});
 }
+async function initializeWebsiteAnalytics() {
+  if (!WEBSITE_ANALYTICS_HOST || !WEBSITE_SUBMISSIONS_ENDPOINT) return;
+  try {
+    const separator = WEBSITE_SUBMISSIONS_ENDPOINT.includes("?") ? "&" : "?";
+    const response = await fetch(`${WEBSITE_SUBMISSIONS_ENDPOINT}${separator}action=analytics-status`, { signal: AbortSignal.timeout(10000) });
+    const data = await response.json();
+    websiteAnalyticsReady = Boolean(response.ok && data.ok && data.analytics);
+    if (websiteAnalyticsReady) websiteTrackEvent("page_view");
+  } catch (error) {
+    websiteAnalyticsReady = false;
+  }
+}
+initializeWebsiteAnalytics();
 function showWebsiteConfirmation() { showView("picks-confirmation"); }
 function resetWebsiteBestBet() { const bestBet = document.getElementById("website-best-bet"); if (!bestBet) return; if (!bestBet.options.length || bestBet.options[0].value !== "") bestBet.insertBefore(new Option("Choose a best bet", ""), bestBet.options[0] || null); bestBet.value = ""; }
 const WEBSITE_TEAM_NAMES = { ari:"arizona",atl:"atlanta",bal:"baltimore",buf:"buffalo",car:"carolina",chi:"chicago",cin:"cincinnati",cle:"cleveland",dal:"dallas",den:"denver",det:"detroit",gb:"green bay",hou:"houston",ind:"indianapolis",jax:"jacksonville",kc:"kansas city",lar:"la rams",lac:"la chargers",lv:"las vegas",mia:"miami",min:"minnesota",ne:"new england",no:"new orleans",nyg:"ny giants",nyj:"ny jets",phi:"philadelphia",pit:"pittsburgh",sea:"seattle",sf:"san francisco",tb:"tampa bay",ten:"tennessee",was:"washington" };
