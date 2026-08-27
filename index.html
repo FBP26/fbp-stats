@@ -1954,11 +1954,8 @@ function decorateWebsiteWeekOneHeadersLive(data) {
   headers.forEach((header, index) => {
     const favorite = data.favorites[index], underdog = data.underdogs[index];
     const game = (data.games || []).find(item => item.favorite?.toLowerCase() === favorite.toLowerCase() && item.underdog?.toLowerCase() === underdog.toLowerCase());
-    const favoriteIsHome = game?.favorite === game?.home;
-    const espnFavoriteScore = favoriteIsHome ? game?.espnHomeScore : game?.espnAwayScore;
-    const espnUnderdogScore = favoriteIsHome ? game?.espnAwayScore : game?.espnHomeScore;
-    const favoriteScore = espnFavoriteScore !== "" && espnFavoriteScore != null ? espnFavoriteScore : data.favoriteScores[index];
-    const underdogScore = espnUnderdogScore !== "" && espnUnderdogScore != null ? espnUnderdogScore : data.underdogScores[index];
+    const favoriteScore = data.favoriteScores[index];
+    const underdogScore = data.underdogScores[index];
     const gameStatus = String(game?.espnStatus || game?.status || "").toUpperCase();
     const started = ["IN", "POST", "IN_PROGRESS", "FINAL", "COMPLETED"].includes(gameStatus);
     const spread = `<small class="pg-header-spread">${data.spreads[index]}</small>`;
