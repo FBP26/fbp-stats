@@ -85,10 +85,8 @@
   .website-spread { display: flex; align-items: center; justify-content: center; color: var(--accent-2); font: bold 13px Arial, sans-serif; text-align: center; width: 48px; min-height: 28px; }
   .website-instructions { margin: 0 0 18px; color: var(--muted); font: 13px/1.55 Arial, sans-serif; }
   .website-entry-context { margin: 0 0 14px; color: var(--accent); font: 12px/1.5 Arial, sans-serif; }
-  .website-notification-row { display: flex; align-items: center; gap: 10px; margin: -5px 0 12px; }
-  .website-notification-row button, .notification-form button, #website-picks-form > button, #website-view-week-one { min-height: 34px; padding: 7px 10px; border: 1px solid var(--border); border-radius: 5px; background: var(--panel-2); color: var(--text); font: 11px Arial, sans-serif; cursor: pointer; }
-  .website-notification-row button:disabled, .notification-form button:disabled, #website-picks-form > button:disabled { opacity: .55; cursor: not-allowed; }
-  .website-notification-row span { color: var(--muted); font: 11px/1.35 Arial, sans-serif; }
+  .notification-form button, #website-picks-form > button, #website-view-week-one { min-height: 34px; padding: 7px 10px; border: 1px solid var(--border); border-radius: 5px; background: var(--panel-2); color: var(--text); font: 11px Arial, sans-serif; cursor: pointer; }
+  .notification-form button:disabled, #website-picks-form > button:disabled { opacity: .55; cursor: not-allowed; }
   .notification-settings { margin: 0 0 18px; border-block: 1px solid var(--border); }
   .notification-settings > summary { padding: 11px 0; color: var(--accent); font: bold 12px Arial, sans-serif; cursor: pointer; }
   .notification-form { display: grid; gap: 13px; max-width: 720px; padding: 2px 0 16px; }
@@ -431,9 +429,6 @@
     #view-enter-picks .website-entry-context { margin-bottom: 9px; font-size: 11px; }
     #view-enter-picks .website-test-notice { margin-bottom: 9px; padding: 8px 10px; font-size: 10px; line-height: 1.4; }
     #website-picks-form .website-identity-controls { gap: 5px; }
-    .website-notification-row { gap: 4px; margin-bottom: 8px; }
-    .website-notification-row button { min-height: 30px; padding: 5px 8px; font-size: 10px; }
-    .website-notification-row span { font-size: 9px; }
     .website-game-group legend { padding-top: 3px; }
     .website-game-row { padding: 0 0 1px; }
     .website-matchup { grid-template-columns: minmax(0, 1fr) 34px minmax(0, 1fr); gap: 0; }
@@ -1565,8 +1560,6 @@ let websiteRegularSelection = { season: 2026, week: 1, phase: "REGULAR_SEASON", 
 let websiteEntrySelection = { testMode: false, ...websiteRegularSelection };
 let websiteLastWeekData = null;
 let websiteDiscoveredPreseasonData = null;
-const WEBSITE_WEEK_NOTIFICATION_ENABLED = "fbpWeekNotificationEnabled";
-const WEBSITE_WEEK_NOTIFICATION_SEEN = "fbpWeekNotificationSeen";
 function notificationPlayerValidation(value) {
   const names = [...document.getElementById("notification-player-options").options].map(option => option.value).filter(Boolean);
   if (names.includes(value)) return { name: value, message: "" };
@@ -1583,6 +1576,7 @@ async function initializeNotificationPreferences() {
   const sms = document.getElementById("notification-sms-channel"), save = document.getElementById("notification-save"), status = document.getElementById("notification-status");
   const form = document.getElementById("notification-preferences-form");
   const playerInput = document.getElementById("notification-player"), playerLabel = document.getElementById("notification-player-label");
+  document.querySelector(".website-notification-row")?.remove();
   playerInput.required = false;
   playerInput.addEventListener("input", event => event.currentTarget.setCustomValidity(""));
   playerLabel.childNodes[0].textContent = "Player name (recommended)";
@@ -1625,36 +1619,6 @@ async function saveNotificationPreferences(event) {
   finally { button.disabled = false; }
 }
 function websitePickSelection() { return websiteEntrySelection; }
-function websiteWeekKey(selection) { return selection?.staged ? `${selection.season}|${selection.week}` : ""; }
-function updateWebsiteNotificationControl() {
-  const button = document.getElementById("website-week-notifications"), status = document.getElementById("website-week-notification-status");
-  if (!button || !status) return;
-  if (!("Notification" in globalThis)) { button.disabled = true; button.textContent = "Browser alerts unavailable"; status.textContent = "This browser does not support notifications."; return; }
-  const enabled = localStorage.getItem(WEBSITE_WEEK_NOTIFICATION_ENABLED) === "true" && Notification.permission === "granted";
-  button.disabled = Notification.permission === "denied";
-  button.textContent = enabled ? "Turn off week alerts" : Notification.permission === "denied" ? "Notifications blocked" : "Notify me when a new week opens";
-  status.textContent = enabled ? "On for this browser while FBP is open." : Notification.permission === "denied" ? "Allow notifications in browser settings to enable alerts." : "Browser alerts work while FBP is open.";
-}
-function processWebsiteWeekNotification(selection) {
-  const key = websiteWeekKey(selection);
-  if (!key || localStorage.getItem(WEBSITE_WEEK_NOTIFICATION_ENABLED) !== "true" || !("Notification" in globalThis) || Notification.permission !== "granted") return;
-  const seen = localStorage.getItem(WEBSITE_WEEK_NOTIFICATION_SEEN);
-  if (seen && seen !== key) new Notification(`FBP Week ${selection.week} is open`, { body: "The new slate is ready for your picks.", tag: `fbp-week-${key}` });
-  localStorage.setItem(WEBSITE_WEEK_NOTIFICATION_SEEN, key);
-}
-async function toggleWebsiteWeekNotifications() {
-  if (!("Notification" in globalThis)) return;
-  const enabled = localStorage.getItem(WEBSITE_WEEK_NOTIFICATION_ENABLED) === "true" && Notification.permission === "granted";
-  if (enabled) localStorage.setItem(WEBSITE_WEEK_NOTIFICATION_ENABLED, "false");
-  else {
-    const permission = Notification.permission === "granted" ? "granted" : await Notification.requestPermission();
-    if (permission === "granted") {
-      localStorage.setItem(WEBSITE_WEEK_NOTIFICATION_ENABLED, "true");
-      localStorage.setItem(WEBSITE_WEEK_NOTIFICATION_SEEN, websiteWeekKey(websiteRegularSelection) || "none");
-    }
-  }
-  updateWebsiteNotificationControl();
-}
 function updateWebsiteWeekLabels(selection) {
   const seasonLabel = `${selection.season}-${selection.season + 1}`;
   const weekLabel = `${selection.testMode ? "Preseason Week" : "Week"} ${selection.week}`;
@@ -1672,7 +1636,6 @@ async function loadActiveRegularWeek() {
   const data = await response.json();
   if (!response.ok || !data.ok) throw new Error(data.error || "Could not load the active regular-season week.");
   websiteRegularSelection = { season: Number(data.season) || 2026, week: Number(data.week) || 1, phase: "REGULAR_SEASON", staged: Boolean(data.staged) };
-  processWebsiteWeekNotification(websiteRegularSelection);
   if (websiteRegularSelection.staged) websiteEntrySelection = { testMode: false, ...websiteRegularSelection };
   updateWebsiteWeekLabels(websiteEntrySelection);
   return websiteRegularSelection;
@@ -4892,13 +4855,8 @@ function applyHistoricalLabels() {
   if (recentView) recentView.value = "correct";
 }
 applyHistoricalLabels();
-document.getElementById("website-week-notifications")?.addEventListener("click", toggleWebsiteWeekNotifications);
 document.getElementById("notification-preferences-form")?.addEventListener("submit", saveNotificationPreferences);
 initializeNotificationPreferences();
-updateWebsiteNotificationControl();
-setInterval(() => {
-  if (localStorage.getItem(WEBSITE_WEEK_NOTIFICATION_ENABLED) === "true") loadActiveRegularWeek().catch(error => console.warn(`Week notification check failed: ${error.message}`));
-}, 5 * 60 * 1000);
 init().then(async () => { applyHistoricalLabels(); populateWeekSeasons(); populateSeasonChoices(); if (location.hash === "#weeks") { await loadDrilldown(); renderWeekRace(); renderWinnerContributions(true); renderPicksGrid(); setTimeout(() => { orientWeekChart(); addGamePushMarkers(); }, 0); } const profileSelect = document.getElementById("profile-player"); if ([...profileSelect.options].some(option => option.value === "Thomas")) { profileSelect.value = "Thomas"; renderProfile("Thomas"); } if (websiteLastWeekData) renderWebsiteWeekRecap(websiteLastWeekData); });
 </script>
 <script src="teams.js?v=20260826-9"></script>
