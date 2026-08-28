@@ -826,6 +826,28 @@ function websiteRaceCheckpointChanges(snapshotIndex) {
   const events = websiteRaceCheckpointEvents(snapshotIndex);
   return events.length ? [...new Set(events.flatMap(event => event.lines))] : [];
 }
+function websiteRaceImportantCheckpointIndexes(frameCount, metric, limit = 8) {
+  const checkpoints = [];
+  for (let index = 1; index < frameCount; index += 1) {
+    const events = websiteRaceCheckpointEvents(index);
+    if (!events.length) continue;
+    const currentPlayers = websiteRaceSnapshots[index]?.players || [], previousPlayers = websiteRaceSnapshots[index - 1]?.players || [];
+    const currentRanks = new Map([...currentPlayers].sort((left, right) => Number(right[metric] || 0) - Number(left[metric] || 0) || left.name.localeCompare(right.name)).map((player, rank) => [player.name, rank]));
+    const previousRanks = new Map([...previousPlayers].sort((left, right) => Number(right[metric] || 0) - Number(left[metric] || 0) || left.name.localeCompare(right.name)).map((player, rank) => [player.name, rank]));
+    const currentValues = new Map(currentPlayers.map(player => [player.name, Number(player[metric] || 0)])), previousValues = new Map(previousPlayers.map(player => [player.name, Number(player[metric] || 0)]));
+    const names = [...new Set([...currentValues.keys(), ...previousValues.keys()])];
+    const currentTotal = [...currentValues.values()].reduce((sum, value) => sum + Math.abs(value), 0) || 1;
+    const previousTotal = [...previousValues.values()].reduce((sum, value) => sum + Math.abs(value), 0) || 1;
+    const rankMovement = names.reduce((sum, name) => currentRanks.has(name) && previousRanks.has(name) ? sum + Math.abs(currentRanks.get(name) - previousRanks.get(name)) : sum, 0) / 2;
+    const distributionMovement = names.reduce((sum, name) => sum + Math.abs((currentValues.get(name) || 0) / currentTotal - (previousValues.get(name) || 0) / previousTotal), 0) * 50;
+    const changedPlayers = names.filter(name => currentValues.get(name) !== previousValues.get(name)).length;
+    const scoringPoints = events.reduce((sum, event) => sum + Number(event.points || 0), 0);
+    const statusChanges = events.filter(event => event.type === "status").length;
+    // Favor race-order churn and field-share movement while combining simultaneous game events at one timestamp.
+    checkpoints.push({ index, impact: rankMovement * 10 + distributionMovement + changedPlayers * .5 + scoringPoints + statusChanges * 2, eventCount: events.length });
+  }
+  return new Set(checkpoints.sort((left, right) => right.impact - left.impact || right.eventCount - left.eventCount || right.index - left.index).slice(0, limit).map(checkpoint => checkpoint.index));
+}
 function websiteRaceCheckpointHeadline(snapshotIndex) {
   const events = websiteRaceCheckpointEvents(snapshotIndex);
   const score = events.filter(event => event.type === "score").sort((left, right) => right.points - left.points)[0];
@@ -879,13 +901,14 @@ function renderWebsiteRaceLineChart(animate = true) {
     }).filter(Boolean);
     return { label: name, data, borderColor: displayColor, backgroundColor: displayColor, borderWidth: websiteRaceSelectedPlayer === name ? 4 : selected ? 2 : 1, tension: .24, spanGaps: true, pointRadius: context => context.dataIndex === data.length - 1 ? 5 : context.dataIndex === 0 ? 4 : selected ? 1.5 : 0, pointStyle: "circle", pointHoverRadius: 8, pointBackgroundColor: context => context.dataIndex === 0 && data.length > 1 ? "#0f171e" : displayColor, pointBorderColor: displayColor, pointBorderWidth: 2 };
   });
+  const importantCheckpoints = websiteRaceImportantCheckpointIndexes(websiteRaceSnapshots.length, metric);
   const checkpointEvents = {
     id: "websiteRaceCheckpointEvents",
     beforeDatasetsDraw(chart) {
       const { ctx, chartArea, scales } = chart;
       shownSnapshots.forEach((snapshot, index) => {
+        if (!importantCheckpoints.has(index)) return;
         const events = websiteRaceCheckpointEvents(index);
-        if (!events.length) return;
         const x = scales.x.getPixelForValue(index), scoreEvent = events.find(event => event.type === "score");
         ctx.save();
         ctx.strokeStyle = scoreEvent ? "#f5b942" : "#7fc8a9";
