@@ -1587,6 +1587,7 @@ async function initializeNotificationPreferences() {
   playerInput.addEventListener("input", event => event.currentTarget.setCustomValidity(""));
   playerLabel.childNodes[0].textContent = "Player name (recommended)";
   playerInput.insertAdjacentHTML("afterend", "<small>For personal standings and a missing-picks reminder.</small>");
+  form.elements.picksReady.closest("label").querySelector("small").textContent = "A new week is ready for picks.";
   const summary = document.querySelector(".notification-settings > summary");
   if (summary) summary.textContent = "Email alert preferences";
   sms?.closest(".notification-choice")?.parentElement?.remove();
