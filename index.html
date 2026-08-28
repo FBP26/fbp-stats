@@ -834,7 +834,7 @@ function websitePreparePlayers(data) {
   });
   websiteSortPlayers(data.players);
 }
-function websiteSortPlayers(players) { return players.sort((left, right) => parseFloat(right.winPercent || 0) - parseFloat(left.winPercent || 0) || Number(right.wins || 0) - Number(left.wins || 0) || Number(left.losses || 0) - Number(right.losses || 0) || parseFloat(right.winProbability || 0) - parseFloat(left.winProbability || 0) || left.name.localeCompare(right.name)); }
+function websiteSortPlayers(players) { const tiebreakDifference = player => Number.isFinite(Number(player.tiebreakDifference)) && player.tiebreakDifference !== "" && player.tiebreakDifference != null ? Math.abs(Number(player.tiebreakDifference)) : 0; return players.sort((left, right) => parseFloat(right.winPercent || 0) - parseFloat(left.winPercent || 0) || Number(right.wins || 0) - Number(left.wins || 0) || Number(left.losses || 0) - Number(right.losses || 0) || parseFloat(right.winProbability || 0) - parseFloat(left.winProbability || 0) || tiebreakDifference(left) - tiebreakDifference(right) || left.name.localeCompare(right.name)); }
 function renderWebsitePlayerLedgers(data) {
   const host = document.getElementById("week-one-ledger");
   if (!host || !(data.players || []).length) return;
