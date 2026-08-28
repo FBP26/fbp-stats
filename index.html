@@ -326,7 +326,11 @@
   .pg-cover-trigger:focus-visible, .pg-cover-trigger.selected { outline: 2px solid var(--accent-2); outline-offset: -2px; }
   .pg-cover-probability { display: block; margin-top: 3px; color: #f5b942 !important; font: bold 9px/1.25 Arial, sans-serif; white-space: nowrap; }
   .game-cover-popover { position: fixed; z-index: 1200; width: min(360px, calc(100vw - 20px)); padding: 12px; border: 1px solid #4a6070; border-radius: 6px; background: #111b24; box-shadow: 0 16px 45px #000b; color: var(--text); }
-  .game-cover-popover h4 { margin: 0; font: bold 13px Arial, sans-serif; }
+  .game-cover-popover h4 { display: grid; gap: 2px; margin: 0 38px 2px 0; font: bold 13px Arial, sans-serif; }
+  .game-cover-favorite { color: #54d6b2; }
+  .game-cover-underdog { color: #f5b942; }
+  .game-cover-close { position: absolute; top: 5px; right: 5px; width: 36px; height: 36px; padding: 0; border: 0; background: transparent; color: var(--muted); font: 22px/1 Arial, sans-serif; }
+  .game-cover-close:hover, .game-cover-close:focus-visible { color: var(--text); background: #243442; }
   .game-cover-popover p { margin: 4px 0 8px; color: var(--muted); font: 10px/1.35 Arial, sans-serif; }
   .game-cover-chart-wrap { position: relative; height: 190px; }
   .pg-round { background: #192a36; color: var(--accent); font-size: 10px; letter-spacing: .5px; text-transform: uppercase; }
@@ -669,7 +673,7 @@ function websiteRaceDuration(milliseconds) {
   return `${hours}h ${String(remainingMinutes).padStart(2, "0")}m`;
 }
 function websiteRaceHasLiveGame(snapshot) {
-  return (snapshot?.gameState || []).some(game => ["IN_PROGRESS", "LIVE"].includes(String(game.status || game.espnStatus || "").toUpperCase()));
+  return (snapshot?.gameState || []).some(game => ["IN", "IN_PROGRESS", "LIVE"].includes(websiteGameStatus(game)));
 }
 function renderWebsiteRaceLeadership() {
   const host = document.getElementById("website-race-leadership");
@@ -679,7 +683,7 @@ function renderWebsiteRaceLeadership() {
   const intervals = websiteRaceSnapshots.map((snapshot, index) => {
     if (!websiteRaceHasLiveGame(snapshot)) return null;
     const leader = [...snapshot.players].sort((left, right) => Number(right[metric] || 0) - Number(left[metric] || 0) || left.name.localeCompare(right.name))[0];
-    const nextTimestamp = timestamps[index + 1] || Date.now(), duration = nextTimestamp - timestamps[index];
+    const nextTimestamp = timestamps[index + 1], duration = nextTimestamp - timestamps[index];
     return leader && Number.isFinite(duration) && duration > 0 ? { name: leader.name, duration, index } : null;
   }).filter(Boolean);
   if (!intervals.length) { host.innerHTML = '<div class="live-race-leadership-head"><h4>Time on top</h4><p>Timing begins with the next live-game snapshot.</p></div>'; return; }
@@ -1003,14 +1007,19 @@ function showWebsiteCoverTrend(data, index, header) {
   popover.className = "game-cover-popover";
   popover.setAttribute("role", "dialog");
   popover.setAttribute("aria-label", `${favorite} and ${underdog} estimated cover probability`);
-  popover.innerHTML = `<h4>${websiteEscapeHtml(favorite)} ${websiteProbabilityText(latest.favorite)} · ${websiteEscapeHtml(underdog)} ${websiteProbabilityText(latest.underdog)}</h4><p>Estimated chance to cover the locked ${websiteEscapeHtml(String(data.spreads[index]))} spread at each saved checkpoint${latest.push ? ` · Push ${websiteProbabilityText(latest.push)}` : ""}.</p><div class="game-cover-chart-wrap"><canvas></canvas></div>`;
+  popover.innerHTML = `<button type="button" class="game-cover-close" aria-label="Close cover probability" title="Close">&times;</button><h4><span class="game-cover-favorite">${websiteEscapeHtml(favorite)} ${websiteProbabilityText(latest.favorite)}</span><span class="game-cover-underdog">${websiteEscapeHtml(underdog)} ${websiteProbabilityText(latest.underdog)}</span></h4><p>Estimated cover edge at each saved checkpoint${latest.push ? ` · Push ${websiteProbabilityText(latest.push)}` : ""}.</p><div class="game-cover-chart-wrap"><canvas></canvas></div>`;
   document.body.appendChild(popover);
+  popover.querySelector(".game-cover-close").onclick = closeWebsiteCoverTrend;
   const rect = header.getBoundingClientRect(), width = Math.min(360, innerWidth - 20);
   popover.style.left = `${Math.max(10, Math.min(innerWidth - width - 10, rect.left + rect.width / 2 - width / 2))}px`;
   popover.style.top = `${Math.max(10, Math.min(innerHeight - popover.offsetHeight - 10, rect.bottom + 8))}px`;
   const points = series.map((point, pointIndex) => ({ x: pointIndex, ...point }));
-  websiteCoverTrendChart = new Chart(popover.querySelector("canvas"), { type: "line", data: { datasets: [{ label: favorite, data: points.map(point => ({ x: point.x, y: point.favorite, point })), borderColor: "#54d6b2", backgroundColor: "#54d6b2", tension: .25, borderWidth: 3, pointRadius: 3 }, { label: underdog, data: points.map(point => ({ x: point.x, y: point.underdog, point })), borderColor: "#f5b942", backgroundColor: "#f5b942", tension: .25, borderWidth: 3, pointRadius: 3 }] }, options: { responsive: true, maintainAspectRatio: false, events: ["click"], interaction: { mode: "index", intersect: false }, scales: { x: { type: "linear", min: 0, max: Math.max(1, points.length - 1), grid: { color: "#2a374466" }, ticks: { color: "#91a0ae", maxTicksLimit: 5, callback: value => { const point = points[Math.round(Number(value))]; return point ? new Date(point.timestamp).toLocaleTimeString([], { hour: "numeric", minute: "2-digit" }) : ""; } }, title: { display: true, text: "Saved checkpoints", color: "#91a0ae" } }, y: { min: 0, max: 100, ticks: { color: "#91a0ae", callback: value => `${value}%` }, grid: { color: "#2a3744" } } }, plugins: { legend: { labels: { color: "#e8eef5", boxWidth: 10 } }, tooltip: { displayColors: true, callbacks: { title: items => new Date(items[0].raw.point.timestamp).toLocaleString([], { weekday: "short", hour: "numeric", minute: "2-digit" }), label: context => `${context.dataset.label}: ${websiteProbabilityText(context.parsed.y)} to cover`, afterBody: items => { const point = items[0].raw.point; return [[point.period ? `Q${point.period}` : "", point.clock].filter(Boolean).join(" "), `Score: ${game.away || "Away"} ${point.awayScore ?? "-"}, ${game.home || "Home"} ${point.homeScore ?? "-"}`, point.push ? `Push: ${websiteProbabilityText(point.push)}` : ""].filter(Boolean); } } } } } });
+  const sideBackground = { id: "websiteCoverSides", beforeDatasetsDraw(chart) { const { ctx, chartArea, scales } = chart, middle = scales.y.getPixelForValue(0); ctx.save(); ctx.fillStyle = "#54d6b212"; ctx.fillRect(chartArea.left, chartArea.top, chartArea.right - chartArea.left, middle - chartArea.top); ctx.fillStyle = "#f5b94212"; ctx.fillRect(chartArea.left, middle, chartArea.right - chartArea.left, chartArea.bottom - middle); ctx.restore(); } };
+  const timeLabel = value => { const point = points[Math.round(Number(value))]; return point ? new Date(point.timestamp).toLocaleTimeString([], { hour: "numeric", minute: "2-digit" }) : ""; };
+  websiteCoverTrendChart = new Chart(popover.querySelector("canvas"), { type: "line", plugins: [sideBackground], data: { datasets: [{ label: "Cover edge", data: points.map(point => ({ x: point.x, y: point.favorite - point.underdog, point })), borderColor: "#e8eef5", backgroundColor: "#e8eef5", tension: .25, borderWidth: 3, pointRadius: 3 }] }, options: { responsive: true, maintainAspectRatio: false, events: websiteUsesIntentionalTooltips() ? ["click"] : ["mousemove", "mouseout", "click"], interaction: { mode: "nearest", intersect: false }, scales: { x: { type: "linear", min: 0, max: Math.max(1, points.length - 1), grid: { color: "#2a374466" }, ticks: { color: "#91a0ae", maxTicksLimit: innerWidth < 480 ? 4 : 5, callback: (value, index, ticks) => { const label = timeLabel(value); return label && !ticks.slice(0, index).some(tick => timeLabel(tick.value) === label) ? label : ""; } }, title: { display: true, text: "Time", color: "#91a0ae" } }, y: { min: -100, max: 100, ticks: { color: context => Number(context.tick.value) > 0 ? "#54d6b2" : Number(context.tick.value) < 0 ? "#f5b942" : "#91a0ae", callback: value => Number(value) > 0 ? `${favorite} +${value}` : Number(value) < 0 ? `${underdog} +${Math.abs(Number(value))}` : "Even" }, grid: { color: context => Number(context.tick.value) === 0 ? "#91a0ae" : "#2a3744" } } }, plugins: { legend: { display: false }, tooltip: { displayColors: false, callbacks: { title: items => new Date(items[0].raw.point.timestamp).toLocaleString([], { weekday: "short", hour: "numeric", minute: "2-digit" }), label: context => { const point = context.raw.point; return [`${favorite}: ${websiteProbabilityText(point.favorite)} to cover`, `${underdog}: ${websiteProbabilityText(point.underdog)} to cover`]; }, afterBody: items => { const point = items[0].raw.point; return [[point.period ? `Q${point.period}` : "", point.clock].filter(Boolean).join(" "), `Score: ${game.away || "Away"} ${point.awayScore ?? "-"}, ${game.home || "Home"} ${point.homeScore ?? "-"}`, point.push ? `Push: ${websiteProbabilityText(point.push)}` : ""].filter(Boolean); } } } } } });
 }
+document.addEventListener("click", event => { const popover = document.getElementById("game-cover-popover"); if (popover && !popover.contains(event.target) && !event.target.closest?.(".pg-cover-trigger")) closeWebsiteCoverTrend(); });
+document.addEventListener("keydown", event => { if (event.key === "Escape") closeWebsiteCoverTrend(); });
 function websiteAnalysisData(data) {
   const previewCount = websiteScenarioMode === "preview-four" ? 4 : websiteScenarioMode === "preview-three" ? 3 : 0;
   if (!previewCount) return data;
