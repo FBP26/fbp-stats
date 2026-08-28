@@ -1574,9 +1574,22 @@ function updateNotificationScope() {
   player.disabled = !playerScope;
   label.style.display = playerScope ? "grid" : "none";
 }
+function notificationPlayerValidation(value) {
+  const names = [...document.getElementById("notification-player-options").options].map(option => option.value).filter(Boolean);
+  if (names.includes(value)) return { name: value, message: "" };
+  const trimmed = value.trim(), exactTrimmed = names.find(name => name === trimmed);
+  if (exactTrimmed && value !== trimmed) {
+    const location = value.endsWith(" ") ? "trailing" : "leading";
+    return { name: "", message: `Remove the ${location} space from the player name. Use "${exactTrimmed}".` };
+  }
+  const capitalizationMatch = names.find(name => name.toLowerCase() === trimmed.toLowerCase());
+  if (capitalizationMatch) return { name: "", message: `Player names must match exactly. Use "${capitalizationMatch}".` };
+  return { name: "", message: `Choose an existing player from the list. "${trimmed || value}" is not a current player.` };
+}
 async function initializeNotificationPreferences() {
   const sms = document.getElementById("notification-sms-channel"), save = document.getElementById("notification-save"), status = document.getElementById("notification-status");
   const form = document.getElementById("notification-preferences-form");
+  document.getElementById("notification-player")?.addEventListener("input", event => event.currentTarget.setCustomValidity(""));
   const summary = document.querySelector(".notification-settings > summary");
   if (summary) summary.textContent = "Email alert preferences";
   sms?.closest("label")?.remove();
@@ -1597,7 +1610,10 @@ async function saveNotificationPreferences(event) {
   event.preventDefault();
   const form = event.currentTarget, button = document.getElementById("notification-save"), status = document.getElementById("notification-status");
   const scope = form.elements["notification-scope"].value, channel = "email";
-  const payload = { action: "subscribe-notifications", scope, channel, playerName: scope === "player" ? document.getElementById("notification-player").value : "FBP pool", destination: document.getElementById("notification-destination").value, picksDueMinutes: Number(form.elements.picksDueMinutes.value) || 120, preferences: Object.fromEntries(["picksReady", "picksDue", "firstPlace", "earlyWindow", "lateWindow", "beforeSnf", "beforeMnf", "weeklyResult"].map(name => [name, form.elements[name].checked])) };
+  const playerInput = document.getElementById("notification-player"), player = notificationPlayerValidation(playerInput.value);
+  playerInput.setCustomValidity(scope === "player" ? player.message : "");
+  if (scope === "player" && player.message) { status.textContent = player.message; playerInput.reportValidity(); playerInput.focus(); return; }
+  const payload = { action: "subscribe-notifications", scope, channel, playerName: scope === "player" ? player.name : "FBP pool", destination: document.getElementById("notification-destination").value, picksDueMinutes: Number(form.elements.picksDueMinutes.value) || 120, preferences: Object.fromEntries(["picksReady", "picksDue", "firstPlace", "earlyWindow", "lateWindow", "beforeSnf", "beforeMnf", "weeklyResult"].map(name => [name, form.elements[name].checked])) };
   button.disabled = true;
   status.textContent = "Sending verification email...";
   try {
@@ -2329,8 +2345,7 @@ function decorateWebsiteWeekOneHeadersLive(data) {
     if (!started && game) { const kickoff = game.kickoffGroup || game.kickoff || game.statusText || ""; header.innerHTML = `${favorite}${spread}${underdog}${kickoff ? `<small class="pg-header-kickoff">${kickoff}</small>` : ""}`; return; }
     const score = value => `<span class="pg-header-score">${value === "" ? "-" : value}</span>`;
     const liveState = game?.espnStatusText || game?.statusText || (["POST", "FINAL", "COMPLETED"].includes(gameStatus) ? "Final" : [game?.period ? `Q${game.period}` : "", game?.clock, game?.possession ? `${game.possession} ball` : ""].filter(Boolean).join(" · "));
-    const probabilities = websiteGameCoverProbability(data, index);
-    header.innerHTML = `${favorite}${score(favoriteScore)}${spread}${score(underdogScore)}${underdog}${liveState ? `<small class="pg-header-kickoff">${liveState}</small>` : ""}<small class="pg-cover-probability">${favorite} ${websiteProbabilityText(probabilities.favorite * 100)}<br>${underdog} ${websiteProbabilityText(probabilities.underdog * 100)}</small>`;
+    header.innerHTML = `${favorite}${score(favoriteScore)}${spread}${score(underdogScore)}${underdog}${liveState ? `<small class="pg-header-kickoff">${liveState}</small>` : ""}`;
     header.classList.add("pg-cover-trigger");
     header.tabIndex = 0;
     header.setAttribute("role", "button");
