@@ -652,6 +652,14 @@ function websiteStoredRaceSnapshots(context) {
   try { return JSON.parse(localStorage.getItem(`fbpRaceSnapshots-${context}`) || "[]"); }
   catch (error) { return []; }
 }
+function websiteReconcileRaceSnapshots(snapshots, currentPlayers) {
+  const canonicalNames = new Map(currentPlayers.map(player => [String(player.name || "").trim().toLowerCase(), player.name]));
+  if (!canonicalNames.size) return snapshots;
+  return snapshots.filter(snapshot => snapshot.players.some(player => canonicalNames.has(String(player.name || "").trim().toLowerCase()))).map(snapshot => ({
+    ...snapshot,
+    players: snapshot.players.map(player => ({ ...player, name: canonicalNames.get(String(player.name || "").trim().toLowerCase()) || player.name }))
+  }));
+}
 function websiteRaceSnapshotSignature(snapshot) {
   const players = (snapshot?.players || []).map(player => [player.name, Number(player.winProbability || 0), Number(player.pathsToVictory || 0), Number(player.winPercent || 0)]).sort((left, right) => String(left[0]).localeCompare(String(right[0])));
   const games = (snapshot?.gameState || []).map(game => [game.gameId || "", game.status || game.espnStatus || "", Number(game.awayScore ?? game.favoriteScore ?? 0), Number(game.homeScore ?? game.underdogScore ?? 0), game.period || "", game.clock || "", game.possession || ""]);
@@ -802,7 +810,7 @@ function renderWebsiteRaceLineChart(animate = true) {
   const compactLandscape = matchMedia("(orientation: landscape) and (max-height: 600px)").matches;
   document.querySelector(".live-race-line-wrap").style.height = compactLandscape ? "300px" : `${Math.max(430, Math.min(650, names.length * 19 + 70))}px`;
   const datasets = names.map(name => {
-    const selected = !websiteRaceSelectedPlayer || websiteRaceSelectedPlayer === name, color = websiteRaceColor(name), displayColor = selected ? color : websiteRaceColor(name, .12);
+    const selected = !websiteRaceSelectedPlayer || websiteRaceSelectedPlayer === name, color = websiteRaceColor(name), displayColor = selected ? color : websiteRaceColor(name, .06);
     const data = shownSnapshots.map((snapshot, index) => {
       const ranked = [...snapshot.players].sort((left, right) => Number(right[metric] || 0) - Number(left[metric] || 0) || left.name.localeCompare(right.name));
       const rank = ranked.findIndex(player => player.name === name), player = ranked[rank];
@@ -908,7 +916,8 @@ function renderWebsiteRace(data) {
   if (websiteRaceLineChart) websiteRaceLineChart.destroy();
   websiteRaceLineChart = null;
   const context = `${data.testMode ? "preseason" : "regular"}-${data.season}-${data.week}`;
-  const snapshots = Array.isArray(data.raceSnapshots) && data.raceSnapshots.length ? [...data.raceSnapshots] : context === websiteRaceContext ? [...websiteRaceSnapshots] : data.testMode ? websiteStoredRaceSnapshots(context) : [];
+  let snapshots = Array.isArray(data.raceSnapshots) && data.raceSnapshots.length ? [...data.raceSnapshots] : context === websiteRaceContext ? [...websiteRaceSnapshots] : data.testMode ? websiteStoredRaceSnapshots(context) : [];
+  snapshots = websiteReconcileRaceSnapshots(snapshots, data.players || []);
   const current = { timestamp: data.updatedAt || new Date().toISOString(), gameState: (data.games || []).map(game => ({ gameId: game.gameId || "", away: game.away || "", home: game.home || "", status: websiteGameStatus(game), period: game.period || "", clock: game.clock || "", possession: game.possession || "", awayScore: game.awayScore ?? game.favoriteScore ?? "", homeScore: game.homeScore ?? game.underdogScore ?? "" })), players: (data.players || []).map(player => ({ name: player.name, winProbability: parseFloat(player.winProbability || 0) || 0, pathsToVictory: Number(player.pathsToVictory || 0), winPercent: parseFloat(player.winPercent || 0) || 0 })) };
   const latestStored = snapshots[snapshots.length - 1];
   const currentSignature = websiteRaceSnapshotSignature(current);
@@ -1577,10 +1586,10 @@ async function initializeNotificationPreferences() {
   const form = document.getElementById("notification-preferences-form");
   const playerInput = document.getElementById("notification-player"), playerLabel = document.getElementById("notification-player-label");
   document.querySelector(".website-notification-row")?.remove();
-  playerInput.required = false;
+  playerInput.required = true;
   playerInput.addEventListener("input", event => event.currentTarget.setCustomValidity(""));
-  playerLabel.childNodes[0].textContent = "Player name (recommended)";
-  playerInput.insertAdjacentHTML("afterend", "<small>For personal standings and a missing-picks reminder.</small>");
+  playerLabel.childNodes[0].textContent = "Player name";
+  playerInput.insertAdjacentHTML("afterend", "<small>Must match an existing player. Used for personal standings and a missing-picks reminder.</small>");
   form.elements.picksReady.closest("label").querySelector("small").textContent = "A new week is ready for picks.";
   const summary = document.querySelector(".notification-settings > summary");
   if (summary) summary.textContent = "Email alert preferences";
