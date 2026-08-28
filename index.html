@@ -94,8 +94,8 @@
   .notification-choice label { display: flex; align-items: center; gap: 6px; min-height: 34px; padding: 7px 10px; border: 1px solid var(--border); border-radius: 5px; background: var(--panel-2); color: var(--text); font: 12px Arial, sans-serif; text-transform: none; letter-spacing: 0; cursor: pointer; }
   .notification-choice label:has(input:checked) { border-color: var(--accent); color: #7ee2b8; }
   .notification-choice label:has(input:disabled) { opacity: .52; cursor: not-allowed; }
-  .notification-contact-grid { display: grid; grid-template-columns: minmax(180px, 1fr) minmax(220px, 1.4fr); gap: 10px; }
-  .notification-contact-grid small { display: block; margin-top: 4px; color: var(--muted); font: 10px/1.4 Arial, sans-serif; text-transform: none; letter-spacing: 0; }
+  .notification-contact-grid { display: grid; grid-template-columns: minmax(0, 440px); gap: 10px; }
+  .notification-contact-note { display: block; max-width: 440px; margin-top: -7px; color: var(--muted); font: 10px/1.4 Arial, sans-serif; text-transform: none; letter-spacing: 0; }
   .notification-events { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 6px 12px; }
   .notification-events label { display: grid; grid-template-columns: 18px minmax(0, 1fr); align-items: start; gap: 7px; padding: 5px 0; color: var(--text); font: 12px/1.35 Arial, sans-serif; text-transform: none; letter-spacing: 0; }
   .notification-reminder-time input[type="number"] { width: 72px; margin: 4px 3px 0 0; }
@@ -1672,15 +1672,25 @@ async function initializeNotificationPreferences() {
   playerInput.required = true;
   playerInput.addEventListener("input", event => event.currentTarget.setCustomValidity(""));
   playerLabel.childNodes[0].textContent = "Player name";
-  playerInput.insertAdjacentHTML("afterend", "<small>Must match an existing player. Used for personal standings and a missing-picks reminder.</small>");
+  playerInput.setAttribute("aria-describedby", "notification-contact-note");
+  playerLabel.closest(".notification-contact-grid").insertAdjacentHTML("afterend", '<small id="notification-contact-note" class="notification-contact-note">Choose an existing player so emails can include your Current Week position and highlights and remind you before picks are due.</small>');
   form.elements.picksReady.closest("label").querySelector("small").textContent = "A new week is ready for picks.";
+  const eventCopy = {
+    firstPlace: "Current Week update when your player moves into first.",
+    earlyWindow: "Current Week position and highlights after the 1 PM games.",
+    lateWindow: "Current Week position and highlights after the late games.",
+    beforeSnf: "Current Week position, highlights, paths, and pivotal SNF scenarios.",
+    beforeMnf: "Current Week position, highlights, paths, and pivotal MNF scenarios.",
+    weeklyResult: "Weekly winner, your finish, and highlights."
+  };
+  Object.entries(eventCopy).forEach(([name, copy]) => form.elements[name]?.closest("label")?.querySelector("small")?.replaceChildren(copy));
   const summary = document.querySelector(".notification-settings > summary");
   if (summary) summary.textContent = "Email alert preferences";
   status.textContent = "We'll email you a verification link to confirm the address. Alerts start only after you open it, and every email includes a stop link.";
   sms?.closest(".notification-choice")?.parentElement?.remove();
   form.querySelector('input[name="notification-scope"]')?.closest(".notification-choice")?.parentElement?.remove();
   if (form && !form.elements.picksDue) {
-    form.elements.firstPlace.closest("label").insertAdjacentHTML("beforebegin", '<label class="notification-reminder-time"><input type="checkbox" name="picksDue" checked><span>Picks due reminder<small>Email me <input type="number" name="picksDueMinutes" min="5" max="300" step="5" value="60" aria-label="Minutes before first kickoff"> minutes before first kickoff, only if my picks are still missing.</small></span></label>');
+    form.elements.firstPlace.closest("label").insertAdjacentHTML("beforebegin", '<label class="notification-reminder-time"><input type="checkbox" name="picksDue" checked><span>Picks due reminder<small>Email me <input type="number" name="picksDueMinutes" min="5" max="300" step="5" value="60" aria-label="Minutes before first kickoff"> minutes before first kickoff, unless I have already submitted my picks.</small></span></label>');
     const toggleReminderTime = () => { form.elements.picksDueMinutes.disabled = !form.elements.picksDue.checked; };
     form.elements.picksDue.addEventListener("change", toggleReminderTime);
     toggleReminderTime();
