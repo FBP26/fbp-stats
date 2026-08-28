@@ -373,22 +373,20 @@
   .live-race-controls .live-race-step { width: 36px; padding: 7px; font-size: 18px; line-height: 1; }
   .live-race-controls button:disabled { cursor: default; opacity: .55; }
   .live-race-time { min-width: 170px; padding: 9px 10px; color: var(--accent-2); font: 12px Consolas, monospace; text-align: right; }
-  .live-race-track { position: relative; height: 500px; overflow: hidden; border-block: 1px solid var(--border); background: repeating-linear-gradient(to right, transparent 0, transparent calc(25% - 1px), #52606d33 25%); }
-  .live-race-leader { position: absolute; inset: 50% 2% auto; overflow: hidden; color: #ffffff0b; font: bold clamp(68px, 16vw, 190px)/.8 Georgia, serif; letter-spacing: 0; text-align: center; text-overflow: ellipsis; white-space: nowrap; transform: translateY(-50%); transition: opacity 350ms ease; pointer-events: none; }
-  .live-racer { position: absolute; inset: 0 10px auto 10px; display: grid; grid-template-columns: 34px minmax(82px, 150px) minmax(120px, 1fr) 76px; align-items: center; gap: 10px; height: 50px; border-bottom: 1px solid #202c3866; transition: transform 700ms cubic-bezier(.2,.75,.25,1), opacity 260ms ease; }
+  .live-race-track { position: relative; height: 380px; overflow: hidden; border-block: 1px solid var(--border); background: linear-gradient(90deg, #0f171e 0 54px, transparent 54px); }
+  .live-race-leader { position: absolute; inset: 50% 2% auto; overflow: hidden; color: #ffffff08; font: bold clamp(58px, 13vw, 150px)/.8 Georgia, serif; letter-spacing: 0; text-align: center; text-overflow: ellipsis; white-space: nowrap; transform: translateY(-50%); transition: opacity 350ms ease; pointer-events: none; }
+  .live-racer { position: absolute; inset: 0 8px auto; display: grid; grid-template-columns: 38px 62px minmax(90px, 1fr) 82px; align-items: center; gap: 8px; height: 38px; border-bottom: 1px solid #202c3866; border-left: 3px solid var(--runner-color); padding: 0 8px; transition: transform 650ms cubic-bezier(.2,.75,.25,1), opacity 220ms ease, background 220ms ease; }
+  .live-racer:nth-child(odd) { background: #ffffff05; }
   .live-racer-rank { color: var(--accent-2); font: bold 13px Consolas, monospace; text-align: right; }
+  .live-racer-movement { font: bold 11px Consolas, monospace; }
+  .live-racer-movement.up { color: #69d49c; }
+  .live-racer-movement.down { color: #ef8b83; }
+  .live-racer-movement.same { color: var(--muted); }
   .live-racer-name { overflow: hidden; color: var(--text); font: bold 12px Arial, sans-serif; text-overflow: ellipsis; white-space: nowrap; }
-  .live-racer-lane { position: relative; height: 24px; border-left: 1px solid #52606d; }
-  .live-racer-bar { position: absolute; inset: 4px auto 4px 0; max-width: calc(100% - 9px); min-width: 3px; border-radius: 2px; background: color-mix(in srgb, var(--runner-color) 78%, #111820); box-shadow: inset 0 0 0 1px color-mix(in srgb, var(--runner-color) 65%, white); transition: width 700ms cubic-bezier(.2,.75,.25,1); }
-  .live-racer-marker { position: absolute; top: 50%; right: -8px; width: 14px; height: 14px; border: 3px solid #10171e; border-radius: 50%; background: var(--runner-color); box-shadow: 0 0 0 1px color-mix(in srgb, var(--runner-color) 70%, white); transform: translateY(-50%); }
   .live-racer-value { color: var(--text); font: bold 11px Consolas, monospace; text-align: right; }
-  @keyframes pixelRunnerBob { 50% { transform: translateY(1px); } }
-  @keyframes pixelRunnerArm { 50% { transform: rotate(28deg); } }
-  @keyframes pixelRunnerLegA { 50% { transform: rotate(34deg); } }
-  @keyframes pixelRunnerLegB { 50% { transform: rotate(-34deg); } }
   .live-race-empty { display: grid; min-height: 220px; place-items: center; padding: 24px; color: var(--muted); font: 13px/1.55 Arial, sans-serif; text-align: center; }
-  @media (prefers-reduced-motion: reduce) { .live-racer, .live-racer-bar { transition: none; } }
-  @media (max-width: 620px) { .live-racer { grid-template-columns: 20px 58px minmax(56px, 1fr) 40px; gap: 4px; } .live-racer-name, .live-racer-value { font-size: 10px; } .live-race-time { width: 100%; text-align: left; } }
+  @media (prefers-reduced-motion: reduce) { .live-racer { transition: none; } }
+  @media (max-width: 620px) { .live-racer { grid-template-columns: 28px 48px minmax(58px, 1fr) 52px; gap: 4px; padding-inline: 4px; } .live-racer-name, .live-racer-value, .live-racer-movement { font-size: 10px; } .live-race-time { width: 100%; text-align: left; } }
   @media (max-width: 850px) { .week-recap-grid { grid-template-columns: 1fr; } }
   @media (max-width: 560px) {
     #view-enter-picks .intro { margin-bottom: 10px; }
@@ -573,7 +571,7 @@ const WEBSITE_EXACT_SCENARIO_GAME_LIMIT = 6;
 let websiteScenarioMode = "current";
 let websiteContenderDetailMode = "simple";
 let websiteSankeyChart = null, websiteConfirmationSplitChart = null;
-let websiteRaceSnapshots = [], websiteRaceContext = "", websiteRaceFrame = 0, websiteRaceTimer = null, websiteRaceRows = new Map(), websiteRacePlaybackRequested = true;
+let websiteRaceSnapshots = [], websiteRaceContext = "", websiteRaceAutoplayContext = "", websiteRaceFrame = 0, websiteRaceTimer = null, websiteRaceRows = new Map(), websiteRacePlaybackRequested = false;
 function websiteProbabilityText(percent) {
   const value = Number(percent);
   if (!Number.isFinite(value)) return "";
@@ -609,19 +607,22 @@ function showWebsiteRaceFrame(frame, animate = true) {
   websiteRaceFrame = Math.max(0, Math.min(frame, websiteRaceSnapshots.length - 1));
   const snapshot = websiteRaceSnapshots[websiteRaceFrame], metric = websiteRaceMetric();
   const ranked = [...snapshot.players].sort((left, right) => Number(right[metric] || 0) - Number(left[metric] || 0) || left.name.localeCompare(right.name)).slice(0, 10);
-  const maximum = Math.max(1, ...ranked.map(player => Number(player[metric] || 0)));
+  const previousRanked = websiteRaceFrame ? [...websiteRaceSnapshots[websiteRaceFrame - 1].players].sort((left, right) => Number(right[metric] || 0) - Number(left[metric] || 0) || left.name.localeCompare(right.name)) : [];
+  const previousRanks = new Map(previousRanked.map((player, index) => [player.name, index]));
   const leader = document.getElementById("website-race-leader");
   if (leader) leader.textContent = ranked[0]?.name || "";
   websiteRaceRows.forEach(row => { row.style.opacity = "0"; });
   ranked.forEach((player, index) => {
     const row = websiteRaceRows.get(player.name);
     if (!row) return;
-    const value = Number(player[metric] || 0), width = Math.max(value > 0 ? 2 : 0, value / maximum * 92);
+    const value = Number(player[metric] || 0), previousRank = previousRanks.get(player.name), movement = previousRank === undefined ? 0 : previousRank - index;
     if (!animate) row.style.transition = "none";
     row.style.opacity = "1";
-    row.style.transform = `translateY(${index * 50}px)`;
+    row.style.transform = `translateY(${index * 38}px)`;
     row.querySelector(".live-racer-rank").textContent = `#${index + 1}`;
-    row.querySelector(".live-racer-bar").style.width = `${width}%`;
+    const movementElement = row.querySelector(".live-racer-movement");
+    movementElement.className = `live-racer-movement ${movement > 0 ? "up" : movement < 0 ? "down" : "same"}`;
+    movementElement.textContent = websiteRaceFrame === 0 ? "—" : movement > 0 ? `↑ +${movement}` : movement < 0 ? `↓ ${movement}` : "— 0";
     row.querySelector(".live-racer-value").textContent = metric === "winProbability" || metric === "winPercent" ? websiteProbabilityText(value) : value.toLocaleString(undefined, { maximumFractionDigits: 3 });
     if (!animate) requestAnimationFrame(() => { row.style.transition = ""; });
   });
@@ -630,12 +631,15 @@ function showWebsiteRaceFrame(frame, animate = true) {
 }
 function advanceWebsiteRace() {
   if (!websiteRaceTimer || websiteRaceSnapshots.length < 2) return;
-  showWebsiteRaceFrame(websiteRaceFrame >= websiteRaceSnapshots.length - 1 ? 0 : websiteRaceFrame + 1);
+  if (websiteRaceFrame >= websiteRaceSnapshots.length - 1) { stopWebsiteRace(); return; }
+  showWebsiteRaceFrame(websiteRaceFrame + 1);
+  if (websiteRaceFrame >= websiteRaceSnapshots.length - 1) { stopWebsiteRace(); return; }
   websiteRaceTimer = setTimeout(advanceWebsiteRace, Number(document.getElementById("website-race-speed")?.value || 900));
 }
 function renderWebsiteRace(data) {
   const host = document.getElementById("week-one-live-race");
   if (!host) return;
+  const wasPlaying = Boolean(websiteRaceTimer);
   stopWebsiteRace(true);
   const context = `${data.testMode ? "preseason" : "regular"}-${data.season}-${data.week}`;
   const snapshots = Array.isArray(data.raceSnapshots) && data.raceSnapshots.length ? [...data.raceSnapshots] : context === websiteRaceContext ? [...websiteRaceSnapshots] : data.testMode ? websiteStoredRaceSnapshots(context) : [];
@@ -653,24 +657,27 @@ function renderWebsiteRace(data) {
   if (!websiteRaceSnapshots.length) { host.innerHTML = '<div class="live-race-head"><div><h3>Live Weekly Race</h3><p>Win probability and paths will build here every five minutes once the live refresh starts.</p></div></div><div class="live-race-empty">No race snapshots yet. The first production refresh will create the opening frame.</div>'; return; }
   const names = [...new Set(websiteRaceSnapshots.flatMap(snapshot => snapshot.players.map(player => player.name)))];
   const waitingForUpdate = websiteRaceSnapshots.length < 2;
-  host.innerHTML = `<div class="live-race-head"><div><h3>Live Weekly Race</h3><p>${waitingForUpdate ? "The opening frame is saved. Playback unlocks after the next changed live update." : "The top 10 reorder as results change. Bars are scaled to the leader; labels show actual values."}</p></div><div class="live-race-controls"><label>Race by<select id="website-race-metric"><option value="winProbability">Win probability</option><option value="winPercent">Win %</option><option value="pathsToVictory">Paths to victory</option></select></label><button id="website-race-previous" class="live-race-step" type="button" title="Previous frame" aria-label="Previous frame"${waitingForUpdate ? " disabled" : ""}>‹</button><button id="website-race-play" type="button"${waitingForUpdate ? " disabled" : ""}>${waitingForUpdate ? "Waiting for next update" : "Play race"}</button><button id="website-race-next" class="live-race-step" type="button" title="Next frame" aria-label="Next frame"${waitingForUpdate ? " disabled" : ""}>›</button><button id="website-race-restart" type="button">Restart</button><label>Speed<select id="website-race-speed"><option value="1400">0.75x</option><option value="900" selected>1x</option><option value="500">2x</option></select></label><output id="website-race-time" class="live-race-time" aria-live="polite"></output></div></div><div id="website-race-track" class="live-race-track"><div id="website-race-leader" class="live-race-leader" aria-hidden="true"></div></div>`;
+  host.innerHTML = `<div class="live-race-head"><div><h3>Live Weekly Race</h3><p>${waitingForUpdate ? "The opening frame is saved. Playback unlocks after the next changed live update." : "The top 10 move through each saved checkpoint. Arrows show the change from the prior frame."}</p></div><div class="live-race-controls"><label>Race by<select id="website-race-metric"><option value="winProbability">Win probability</option><option value="winPercent">Win %</option><option value="pathsToVictory">Paths to victory</option></select></label><button id="website-race-previous" class="live-race-step" type="button" title="Previous frame" aria-label="Previous frame"${waitingForUpdate ? " disabled" : ""}>‹</button><button id="website-race-play" type="button"${waitingForUpdate ? " disabled" : ""}>${waitingForUpdate ? "Waiting for next update" : "Play race"}</button><button id="website-race-next" class="live-race-step" type="button" title="Next frame" aria-label="Next frame"${waitingForUpdate ? " disabled" : ""}>›</button><button id="website-race-restart" type="button">Restart</button><label>Speed<select id="website-race-speed"><option value="1400">0.75x</option><option value="900" selected>1x</option><option value="500">2x</option></select></label><output id="website-race-time" class="live-race-time" aria-live="polite"></output></div></div><div id="website-race-track" class="live-race-track"><div id="website-race-leader" class="live-race-leader" aria-hidden="true"></div></div>`;
   const track = document.getElementById("website-race-track");
   websiteRaceRows = new Map();
   names.forEach(name => {
     const row = document.createElement("div");
     row.className = "live-racer";
     row.style.setProperty("--runner-color", websiteRaceColor(name));
-    row.innerHTML = `<span class="live-racer-rank"></span><span class="live-racer-name">${websiteEscapeHtml(name)}</span><span class="live-racer-lane"><span class="live-racer-bar"><span class="live-racer-marker" aria-hidden="true"></span></span></span><span class="live-racer-value"></span>`;
+    row.innerHTML = `<span class="live-racer-rank"></span><span class="live-racer-movement"></span><span class="live-racer-name">${websiteEscapeHtml(name)}</span><span class="live-racer-value"></span>`;
     track.appendChild(row);
     websiteRaceRows.set(name, row);
   });
   document.getElementById("website-race-metric").onchange = () => showWebsiteRaceFrame(websiteRaceFrame, false);
   document.getElementById("website-race-previous").onclick = () => { stopWebsiteRace(); showWebsiteRaceFrame(websiteRaceFrame - 1); };
-  document.getElementById("website-race-play").onclick = () => { if (websiteRaceTimer) { stopWebsiteRace(); return; } websiteRacePlaybackRequested = true; startWebsiteRace(); };
+  document.getElementById("website-race-play").onclick = () => { if (websiteRaceTimer) { stopWebsiteRace(); return; } if (websiteRaceFrame >= websiteRaceSnapshots.length - 1) showWebsiteRaceFrame(0, false); websiteRacePlaybackRequested = true; startWebsiteRace(); };
   document.getElementById("website-race-next").onclick = () => { stopWebsiteRace(); showWebsiteRaceFrame(websiteRaceFrame + 1); };
   document.getElementById("website-race-restart").onclick = () => { stopWebsiteRace(); showWebsiteRaceFrame(0, false); };
-  showWebsiteRaceFrame(websiteRaceSnapshots.length - 1, false);
-  startWebsiteRace();
+  const shouldAutoplay = websiteRaceSnapshots.length > 1 && websiteRaceAutoplayContext !== context;
+  if (shouldAutoplay) websiteRaceAutoplayContext = context;
+  websiteRacePlaybackRequested = shouldAutoplay || (wasPlaying && websiteRacePlaybackRequested);
+  showWebsiteRaceFrame(shouldAutoplay ? 0 : wasPlaying ? Math.min(websiteRaceFrame, websiteRaceSnapshots.length - 1) : websiteRaceSnapshots.length - 1, false);
+  if (websiteRacePlaybackRequested) startWebsiteRace();
 }
 document.addEventListener("visibilitychange", () => {
   if (document.hidden) {
@@ -1230,10 +1237,12 @@ function updateNotificationScope() {
 }
 async function initializeNotificationPreferences() {
   const sms = document.getElementById("notification-sms-channel"), save = document.getElementById("notification-save"), status = document.getElementById("notification-status");
+  const summary = document.querySelector(".notification-settings > summary");
+  if (summary) summary.textContent = "Email alert preferences";
+  sms?.closest("label")?.remove();
   try {
     const response = await fetch(`${WEBSITE_NOTIFICATION_ENDPOINT}/?action=notification-status`, { signal: AbortSignal.timeout(10000) });
     const data = await response.json();
-    sms.disabled = !data?.channels?.sms;
     save.disabled = !data?.channels?.email;
     if (!data?.channels?.email) status.textContent = "Email sender setup is in progress. Preferences cannot be activated yet.";
   } catch (error) { save.disabled = true; status.textContent = "Alert preferences are temporarily unavailable."; }
@@ -1241,7 +1250,7 @@ async function initializeNotificationPreferences() {
 async function saveNotificationPreferences(event) {
   event.preventDefault();
   const form = event.currentTarget, button = document.getElementById("notification-save"), status = document.getElementById("notification-status");
-  const scope = form.elements["notification-scope"].value, channel = form.elements["notification-channel"].value;
+  const scope = form.elements["notification-scope"].value, channel = "email";
   const payload = { action: "subscribe-notifications", scope, channel, playerName: scope === "player" ? document.getElementById("notification-player").value : "FBP pool", destination: document.getElementById("notification-destination").value, preferences: Object.fromEntries(["picksReady", "firstPlace", "earlyWindow", "lateWindow", "beforeSnf", "beforeMnf", "weeklyResult"].map(name => [name, form.elements[name].checked])) };
   button.disabled = true;
   status.textContent = "Sending verification email...";

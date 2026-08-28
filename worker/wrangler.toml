@@ -9,6 +9,7 @@ crons = ["*/5 * * * *"]
 CORS_ORIGIN = "https://fbp26.github.io"
 PUBLIC_API_URL = "https://fbp-api.fbp-api-worker.workers.dev"
 PUBLIC_SITE_URL = "https://fbp26.github.io/fbp-stats/"
+EMAIL_RELAY_URL = "https://script.google.com/macros/s/AKfycbxZUgJm6LstCEomhmrlJYa_nH7tsmxC_4UZwYdroIZbs-PeI6KdPqUZtsF9fZvr_YuNWQ/exec"
 
 [[d1_databases]]
 binding = "DB"
