@@ -221,6 +221,13 @@
   @media (max-width: 560px) { main { padding: 18px 10px 44px; } .summary { grid-template-columns: repeat(2, 1fr); } .record-grid { grid-template-columns: 1fr; } .panel-head { align-items: start; flex-direction: column; } .explorer-controls, .path-controls { grid-template-columns: 1fr; } #view-games .explorer-controls, #view-weeks .explorer-controls { max-width: none; } #view-enter-picks .intro { margin-bottom: 12px; } #view-enter-picks .panel { padding: 8px; } #view-enter-picks .website-instructions { margin-bottom: 10px; font-size: 11px; line-height: 1.35; } #website-picks-form .website-identity-controls { grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 6px; } .website-notification-row { align-items: flex-start; flex-direction: column; gap: 5px; } .website-game-group legend { padding-top: 4px; } .website-game-row { padding: 1px 0 2px; } .website-matchup { grid-template-columns: minmax(0, 1fr) 36px minmax(0, 1fr); gap: 1px; } .website-side { min-height: 34px; padding: 2px 0; font-size: 11px; } .website-team-choice { grid-template-columns: 22px minmax(0, 1fr); grid-template-areas: "logo name" "logo record" "logo venue"; column-gap: 4px; padding: 3px; } .website-side.right .website-team-choice { grid-template-columns: minmax(0, 1fr) 22px; grid-template-areas: "name logo" "record logo" "venue logo"; } .website-team-logo { width: 22px; height: 22px; } .website-team-name { display: none; } .website-team-abbreviation, .website-team-record, .website-mobile-venue { display: block; } .website-team-record { overflow: hidden; font-size: 8px; line-height: 1; text-overflow: ellipsis; white-space: nowrap; } .website-side.right .website-team-record, .website-side.right .website-mobile-venue { text-align: right; } .website-context-venue { display: none; } .website-game-context-neutral .website-context-venue { display: inline; } .website-game-context { padding: 0 2px 1px; overflow: hidden; font-size: 8px; line-height: 1.1; text-overflow: ellipsis; white-space: nowrap; } .website-spread { width: 36px; min-height: 24px; font-size: 11px; } }
   .picks-grid { border-collapse: collapse; font: 11px Arial, sans-serif; }
   .picks-grid th, .picks-grid td { padding: 2px 5px; border: 1px solid var(--border); text-align: center; vertical-align: middle; white-space: nowrap; }
+  #week-one-table .picks-grid tbody tr { cursor: pointer; }
+  #week-one-table .picks-grid tbody tr:nth-child(even) td { background-image: linear-gradient(#ffffff05, #ffffff05); }
+  #week-one-table .picks-grid tbody tr:hover td { background-image: linear-gradient(#54d6b212, #54d6b212); }
+  #week-one-table .picks-grid tbody tr.website-row-selected td { background-image: linear-gradient(#54d6b22b, #54d6b22b); box-shadow: inset 0 2px #54d6b2, inset 0 -2px #54d6b2; }
+  #week-one-table .picks-grid .pg-player { position: sticky; left: 0; z-index: 2; }
+  #week-one-table .picks-grid thead .pg-player { z-index: 3; }
+  #week-one-table .picks-grid tbody tr:focus-visible { outline: 2px solid var(--accent); outline-offset: -2px; }
   .weekly-pick-win, .weekly-bb-win { color: var(--accent); font-weight: bold; }
   .weekly-pick-loss, .weekly-bb-loss { color: var(--danger); font-weight: bold; }
   .weekly-pick-push, .weekly-bb-push { color: #f1e48b; font-weight: bold; }
@@ -552,7 +559,7 @@ function websiteTeamChoice(game, abbreviation) {
 const WEBSITE_WEEK_ONE_GAMES = [["wed 8:20","SEA","3.5","ne"],["thur 8:35","LAR","3.5","sf"],["sun 1:00","HOU","1.5","buf"],["sun 1:00","PIT","3","atl"],["sun 1:00","JAX","7.5","cle"],["sun 1:00","TEN","2.5","nyj"],["sun 1:00","DET","6.5","no"],["sun 1:00","bal","3.5","IND"],["sun 1:00","chi","2.5","CAR"],["sun 1:00","CIN","3.5","tb"],["sun 4:25","MIN","1.5","gb"],["sun 4:25","PHI","5.5","was"],["sun 4:25","LAC","10.5","ari"],["sun 4:25","LV","3.5","mia"],["sun 8:20","dal","2.5","NYG"],["mon 8:15","KC","2.5","den"]].map(([time,favorite,spread,underdog],index)=>({id:`game-${index+1}`,time,favorite,spread,underdog}));
 function renderWebsitePicksForm() { const host = document.getElementById("website-game-picks"); if (!host || host.dataset.ready) return; host.dataset.ready = "true"; const choices = WEBSITE_WEEK_ONE_GAMES.flatMap(game => [game.favorite, game.underdog]).sort((a, b) => websiteTeamName(a).localeCompare(websiteTeamName(b), undefined, { sensitivity: "base" })); const groups = []; WEBSITE_WEEK_ONE_GAMES.forEach((game, index) => { const previous = WEBSITE_WEEK_ONE_GAMES[index - 1]; if (!previous || previous.time !== game.time) groups.push({ time: game.time, games: [] }); groups[groups.length - 1].games.push({ game, index }); }); host.innerHTML = groups.map(group => `<fieldset class="website-game-group"><legend>${group.time}</legend>${group.games.map(({ game, index }) => `<div class="website-game-row"><label class="website-side"><input type="radio" name="game-${index + 1}" value="${game.favorite}" required><span>${websiteTeamName(game.favorite)}</span></label><span class="website-spread">${game.spread}</span><label class="website-side right"><span>${websiteTeamName(game.underdog)}</span><input type="radio" name="game-${index + 1}" value="${game.underdog}" required></label></div>`).join("")}</fieldset>`).join(""); const bestBet = document.getElementById("website-best-bet"); choices.forEach(team => bestBet.add(new Option(websiteTeamName(team), team))); document.getElementById("website-picks-form").onsubmit = async event => { event.preventDefault(); const form = event.currentTarget; const submission = { submittedAt: new Date().toISOString(), name: document.getElementById("website-picks-name").value.trim(), weekName: document.getElementById("website-week-name").value.trim(), picks: WEBSITE_WEEK_ONE_GAMES.map((game, index) => form.elements[`game-${index + 1}`].value), bestBet: bestBet.value, tiebreaker: document.getElementById("website-tiebreaker").value }; const stored = JSON.parse(localStorage.getItem("fbpWebsiteSubmissions") || "[]"); stored.push(submission); localStorage.setItem("fbpWebsiteSubmissions", JSON.stringify(stored)); if (WEBSITE_SUBMISSIONS_ENDPOINT) await fetch(WEBSITE_SUBMISSIONS_ENDPOINT, { method: "POST", mode: "no-cors", headers: { "Content-Type": "text/plain" }, body: JSON.stringify(submission) }); document.getElementById("website-picks-status").textContent = WEBSITE_SUBMISSIONS_ENDPOINT ? "Submitted to the test workbook." : "Saved in this browser test. Add the Apps Script URL to submit to Sheets."; renderWebsiteWeekOne(); }; }
 let websiteActiveGames = WEBSITE_WEEK_ONE_GAMES;
-let websiteLiveRefreshTimer = null;
+let websiteLiveRefreshTimer = null, websiteSelectedWeekPlayer = "";
 let websitePicksWeatherRefreshTimer = null;
 const WEBSITE_PICKS_WEATHER_REFRESH_MS = 5 * 60 * 1000;
 const WEBSITE_PATH_DISPLAY_LIMIT = 50;
@@ -1950,13 +1957,26 @@ function renderWebsiteWeekOneGridClean(data) {
   data.favorites.forEach((favorite, index) => { html += `<th class="pg-game">${favorite}<br><small>${data.spreads[index]}</small><br>${data.underdogs[index]}</th>`; });
   html += `<th class="pg-bb-hdr">BB</th><th class="pg-sum-hdr">TB${tiebreakDetail}</th></tr></thead><tbody>`;
   rows.forEach(row => {
-    html += `<tr><td class="pg-player">${row.name}</td><td class="pg-sum-cell pg-week-name">${row.weekName || ""}</td><td class="pg-sum-cell pg-w">${row.wins ?? ""}</td><td class="pg-sum-cell pg-l">${row.losses ?? ""}</td><td class="pg-sum-cell">${row.winPercent || ""}</td><td class="pg-sum-cell">${row.winProbability || ""}</td><td class="pg-sum-cell">${row.pathsToVictory ?? ""}</td>`;
+    const selected = row.name === websiteSelectedWeekPlayer;
+    html += `<tr tabindex="0" aria-selected="${selected}" data-week-player="${websiteEscapeHtml(row.name)}"${selected ? ' class="website-row-selected"' : ""}><td class="pg-player">${row.name}</td><td class="pg-sum-cell pg-week-name">${row.weekName || ""}</td><td class="pg-sum-cell pg-w">${row.wins ?? ""}</td><td class="pg-sum-cell pg-l">${row.losses ?? ""}</td><td class="pg-sum-cell">${row.winPercent || ""}</td><td class="pg-sum-cell">${row.winProbability || ""}</td><td class="pg-sum-cell">${row.pathsToVictory ?? ""}</td>`;
     row.picks.forEach((pick, index) => { html += `<td class="${websiteWeekOnePickClass(data, index, pick)}">${pick}</td>`; });
     const bestBetIndex = row.picks.findIndex(pick => pick === row.bestBet);
     const bestBetClass = bestBetIndex < 0 ? "pg-bb-none" : websiteWeekOnePickClass(data, bestBetIndex, row.bestBet).replace("pg-pick", "pg-bb");
     html += `<td class="${bestBetClass}">${row.bestBet || ""}</td><td class="pg-sum-cell">${row.tiebreaker || ""}</td></tr>`;
   });
   table.innerHTML = `${html}</tbody></table>`;
+  const selectRow = row => {
+    websiteSelectedWeekPlayer = row.dataset.weekPlayer === websiteSelectedWeekPlayer ? "" : row.dataset.weekPlayer;
+    table.querySelectorAll("tbody tr").forEach(candidate => {
+      const selected = candidate.dataset.weekPlayer === websiteSelectedWeekPlayer;
+      candidate.classList.toggle("website-row-selected", selected);
+      candidate.setAttribute("aria-selected", String(selected));
+    });
+  };
+  table.querySelectorAll("tbody tr").forEach(row => {
+    row.onclick = () => selectRow(row);
+    row.onkeydown = event => { if (event.key === "Enter" || event.key === " ") { event.preventDefault(); selectRow(row); } };
+  });
 }
 function decorateWebsiteWeekOneHeadersLive(data) {
   const headers = [...document.querySelectorAll("#week-one-table th.pg-game")].slice(1, 17);
