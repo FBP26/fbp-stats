@@ -363,6 +363,8 @@
   .live-race-controls label { width: 138px; }
   .live-race-controls button { min-height: 36px; border: 1px solid var(--border); border-radius: 5px; background: var(--panel-2); color: var(--text); padding: 7px 11px; font: 12px Arial, sans-serif; cursor: pointer; }
   .live-race-controls button:hover { border-color: var(--accent); color: var(--accent); }
+  .live-race-controls .live-race-step { width: 36px; padding: 7px; font-size: 18px; line-height: 1; }
+  .live-race-controls button:disabled { cursor: default; opacity: .55; }
   .live-race-time { min-width: 170px; padding: 9px 10px; color: var(--accent-2); font: 12px Consolas, monospace; text-align: right; }
   .live-race-track { position: relative; height: 500px; overflow: hidden; border-block: 1px solid var(--border); background: repeating-linear-gradient(to right, transparent 0, transparent calc(25% - 1px), #52606d33 25%); }
   .live-race-leader { position: absolute; inset: 50% 2% auto; overflow: hidden; color: #ffffff0b; font: bold clamp(68px, 16vw, 190px)/.8 Georgia, serif; letter-spacing: 0; text-align: center; text-overflow: ellipsis; white-space: nowrap; transform: translateY(-50%); transition: opacity 350ms ease; pointer-events: none; }
@@ -628,7 +630,7 @@ function renderWebsiteRace(data) {
   if (!websiteRaceSnapshots.length) { host.innerHTML = '<div class="live-race-head"><div><h3>Live Weekly Race</h3><p>Win probability and paths will build here every five minutes once the live refresh starts.</p></div></div><div class="live-race-empty">No race snapshots yet. The first production refresh will create the opening frame.</div>'; return; }
   const names = [...new Set(websiteRaceSnapshots.flatMap(snapshot => snapshot.players.map(player => player.name)))];
   const waitingForUpdate = websiteRaceSnapshots.length < 2;
-  host.innerHTML = `<div class="live-race-head"><div><h3>Live Weekly Race</h3><p>${waitingForUpdate ? "The opening frame is saved. Playback unlocks after the next changed live update." : "The top 10 reorder as results change. Bars are scaled to the leader; labels show actual values."}</p></div><div class="live-race-controls"><label>Race by<select id="website-race-metric"><option value="winProbability">Win probability</option><option value="winPercent">Win %</option><option value="pathsToVictory">Paths to victory</option></select></label><button id="website-race-play" type="button"${waitingForUpdate ? " disabled" : ""}>${waitingForUpdate ? "Waiting for next update" : "Play race"}</button><button id="website-race-restart" type="button">Restart</button><label>Speed<select id="website-race-speed"><option value="1400">0.75x</option><option value="900" selected>1x</option><option value="500">2x</option></select></label><output id="website-race-time" class="live-race-time" aria-live="polite"></output></div></div><div id="website-race-track" class="live-race-track"><div id="website-race-leader" class="live-race-leader" aria-hidden="true"></div></div>`;
+  host.innerHTML = `<div class="live-race-head"><div><h3>Live Weekly Race</h3><p>${waitingForUpdate ? "The opening frame is saved. Playback unlocks after the next changed live update." : "The top 10 reorder as results change. Bars are scaled to the leader; labels show actual values."}</p></div><div class="live-race-controls"><label>Race by<select id="website-race-metric"><option value="winProbability">Win probability</option><option value="winPercent">Win %</option><option value="pathsToVictory">Paths to victory</option></select></label><button id="website-race-previous" class="live-race-step" type="button" title="Previous frame" aria-label="Previous frame"${waitingForUpdate ? " disabled" : ""}>‹</button><button id="website-race-play" type="button"${waitingForUpdate ? " disabled" : ""}>${waitingForUpdate ? "Waiting for next update" : "Play race"}</button><button id="website-race-next" class="live-race-step" type="button" title="Next frame" aria-label="Next frame"${waitingForUpdate ? " disabled" : ""}>›</button><button id="website-race-restart" type="button">Restart</button><label>Speed<select id="website-race-speed"><option value="1400">0.75x</option><option value="900" selected>1x</option><option value="500">2x</option></select></label><output id="website-race-time" class="live-race-time" aria-live="polite"></output></div></div><div id="website-race-track" class="live-race-track"><div id="website-race-leader" class="live-race-leader" aria-hidden="true"></div></div>`;
   const track = document.getElementById("website-race-track");
   websiteRaceRows = new Map();
   names.forEach(name => {
@@ -640,7 +642,9 @@ function renderWebsiteRace(data) {
     websiteRaceRows.set(name, row);
   });
   document.getElementById("website-race-metric").onchange = () => showWebsiteRaceFrame(websiteRaceFrame, false);
+  document.getElementById("website-race-previous").onclick = () => { stopWebsiteRace(); showWebsiteRaceFrame(websiteRaceFrame - 1); };
   document.getElementById("website-race-play").onclick = event => { if (websiteRaceTimer) { stopWebsiteRace(); return; } event.currentTarget.textContent = "Pause"; websiteRaceTimer = setTimeout(advanceWebsiteRace, 0); };
+  document.getElementById("website-race-next").onclick = () => { stopWebsiteRace(); showWebsiteRaceFrame(websiteRaceFrame + 1); };
   document.getElementById("website-race-restart").onclick = () => { stopWebsiteRace(); showWebsiteRaceFrame(0, false); };
   showWebsiteRaceFrame(websiteRaceSnapshots.length - 1, false);
 }
