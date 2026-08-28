@@ -373,9 +373,9 @@
   .live-race-controls .live-race-step { width: 36px; padding: 7px; font-size: 18px; line-height: 1; }
   .live-race-controls button:disabled { cursor: default; opacity: .55; }
   .live-race-time { min-width: 170px; padding: 9px 10px; color: var(--accent-2); font: 12px Consolas, monospace; text-align: right; }
-  .live-race-track { position: relative; height: 380px; overflow: hidden; border-block: 1px solid var(--border); background: linear-gradient(90deg, #0f171e 0 54px, transparent 54px); }
+  .live-race-track { position: relative; height: 340px; overflow: hidden; border-block: 1px solid var(--border); background: linear-gradient(90deg, #0f171e 0 54px, transparent 54px); }
   .live-race-leader { position: absolute; inset: 50% 2% auto; overflow: hidden; color: #ffffff08; font: bold clamp(58px, 13vw, 150px)/.8 Georgia, serif; letter-spacing: 0; text-align: center; text-overflow: ellipsis; white-space: nowrap; transform: translateY(-50%); transition: opacity 350ms ease; pointer-events: none; }
-  .live-racer { position: absolute; inset: 0 8px auto; display: grid; grid-template-columns: 38px 62px minmax(90px, 1fr) 82px; align-items: center; gap: 8px; height: 38px; border-bottom: 1px solid #202c3866; border-left: 3px solid var(--runner-color); padding: 0 8px; transition: transform 650ms cubic-bezier(.2,.75,.25,1), opacity 220ms ease, background 220ms ease; }
+  .live-racer { position: absolute; inset: 0 8px auto; display: grid; grid-template-columns: 38px 62px minmax(90px, 1fr) 82px; align-items: center; gap: 8px; height: 34px; border-bottom: 1px solid #202c3866; border-left: 3px solid var(--runner-color); padding: 0 8px; transition: transform 650ms cubic-bezier(.2,.75,.25,1), opacity 220ms ease, background 220ms ease; }
   .live-racer:nth-child(odd) { background: #ffffff05; }
   .live-racer-rank { color: var(--accent-2); font: bold 13px Consolas, monospace; text-align: right; }
   .live-racer-movement { font: bold 11px Consolas, monospace; }
@@ -384,9 +384,19 @@
   .live-racer-movement.same { color: var(--muted); }
   .live-racer-name { overflow: hidden; color: var(--text); font: bold 12px Arial, sans-serif; text-overflow: ellipsis; white-space: nowrap; }
   .live-racer-value { color: var(--text); font: bold 11px Consolas, monospace; text-align: right; }
+  .live-race-leadership { padding: 16px 8px 4px; border-bottom: 1px solid var(--border); }
+  .live-race-leadership-head { display: flex; align-items: baseline; justify-content: space-between; gap: 12px; margin-bottom: 10px; }
+  .live-race-leadership h4 { margin: 0; color: var(--accent); font: 11px Arial, sans-serif; letter-spacing: 1px; text-transform: uppercase; }
+  .live-race-leadership-head p { margin: 0; color: var(--muted); font: 11px/1.4 Arial, sans-serif; text-align: right; }
+  .live-leader-trail { display: flex; width: 100%; height: 24px; overflow: hidden; border: 1px solid #52606d; border-radius: 4px; background: #0f171e; }
+  .live-leader-segment { display: grid; min-width: 3px; place-items: center; overflow: hidden; border-right: 1px solid #10171e; background: color-mix(in srgb, var(--runner-color) 72%, #18232d); color: #fff; font: bold 9px Arial, sans-serif; text-shadow: 0 1px 2px #000; white-space: nowrap; }
+  .live-leader-stats { display: grid; grid-template-columns: repeat(auto-fit, minmax(145px, 1fr)); gap: 0; margin-top: 11px; }
+  .live-leader-stat { min-width: 0; padding: 4px 10px 6px; border-left: 3px solid var(--runner-color); }
+  .live-leader-stat strong { display: block; overflow: hidden; color: var(--text); font: bold 11px Arial, sans-serif; text-overflow: ellipsis; white-space: nowrap; }
+  .live-leader-stat span { display: block; margin-top: 3px; color: var(--muted); font: 10px/1.35 Arial, sans-serif; }
   .live-race-empty { display: grid; min-height: 220px; place-items: center; padding: 24px; color: var(--muted); font: 13px/1.55 Arial, sans-serif; text-align: center; }
   @media (prefers-reduced-motion: reduce) { .live-racer { transition: none; } }
-  @media (max-width: 620px) { .live-racer { grid-template-columns: 28px 48px minmax(58px, 1fr) 52px; gap: 4px; padding-inline: 4px; } .live-racer-name, .live-racer-value, .live-racer-movement { font-size: 10px; } .live-race-time { width: 100%; text-align: left; } }
+  @media (max-width: 620px) { .live-race-head { gap: 8px; margin-bottom: 8px; } .live-race-controls { display: grid; grid-template-columns: minmax(105px, 1fr) 32px 70px 32px; gap: 4px; width: 100%; } .live-race-controls label { width: auto; } .live-race-controls button { min-height: 32px; padding: 5px; } #website-race-restart { display: none; } .live-race-controls label:has(#website-race-speed) { grid-column: 1; } .live-race-time { grid-column: 2 / -1; min-width: 0; width: auto; padding: 7px 2px; text-align: right; } .live-racer { grid-template-columns: 28px 48px minmax(58px, 1fr) 52px; gap: 4px; padding-inline: 4px; } .live-racer-name, .live-racer-value, .live-racer-movement { font-size: 10px; } .live-race-leadership-head { align-items: start; flex-direction: column; gap: 3px; } .live-race-leadership-head p { text-align: left; } .live-leader-stats { grid-template-columns: repeat(2, minmax(0, 1fr)); } }
   @media (max-width: 850px) { .week-recap-grid { grid-template-columns: 1fr; } }
   @media (max-width: 560px) {
     #view-enter-picks .intro { margin-bottom: 10px; }
@@ -588,6 +598,9 @@ function websiteStoredRaceSnapshots(context) {
   try { return JSON.parse(localStorage.getItem(`fbpRaceSnapshots-${context}`) || "[]"); }
   catch (error) { return []; }
 }
+function websiteRaceSnapshotSignature(players) {
+  return JSON.stringify((players || []).map(player => [player.name, Number(player.winProbability || 0), Number(player.pathsToVictory || 0), Number(player.winPercent || 0)]).sort((left, right) => String(left[0]).localeCompare(String(right[0]))));
+}
 function stopWebsiteRace(preservePlaybackRequest = false) {
   if (websiteRaceTimer) clearTimeout(websiteRaceTimer);
   websiteRaceTimer = null;
@@ -601,6 +614,40 @@ function startWebsiteRace() {
   const button = document.getElementById("website-race-play");
   if (button) button.textContent = "Pause";
   websiteRaceTimer = setTimeout(advanceWebsiteRace, Number(document.getElementById("website-race-speed")?.value || 900));
+}
+function websiteRaceDuration(milliseconds) {
+  const minutes = Math.max(1, Math.round(milliseconds / 60000));
+  if (minutes < 60) return `${minutes}m`;
+  const hours = Math.floor(minutes / 60), remainder = minutes % 60;
+  return `${hours}h${remainder ? ` ${remainder}m` : ""}`;
+}
+function renderWebsiteRaceLeadership() {
+  const host = document.getElementById("website-race-leadership");
+  if (!host || !websiteRaceSnapshots.length) return;
+  const metric = websiteRaceMetric();
+  const timestamps = websiteRaceSnapshots.map(snapshot => new Date(snapshot.timestamp).getTime());
+  const gaps = timestamps.slice(1).map((timestamp, index) => timestamp - timestamps[index]).filter(gap => Number.isFinite(gap) && gap > 0).sort((left, right) => left - right);
+  const cadence = gaps.length ? gaps[Math.floor(gaps.length / 2)] : 300000;
+  const checkpoints = websiteRaceSnapshots.map((snapshot, index) => {
+    const leader = [...snapshot.players].sort((left, right) => Number(right[metric] || 0) - Number(left[metric] || 0) || left.name.localeCompare(right.name))[0];
+    const nextTimestamp = timestamps[index + 1];
+    return leader ? { name: leader.name, duration: nextTimestamp > timestamps[index] ? nextTimestamp - timestamps[index] : cadence } : null;
+  }).filter(Boolean);
+  if (!checkpoints.length) { host.innerHTML = ""; return; }
+  const totals = new Map(), reigns = [];
+  checkpoints.forEach(checkpoint => {
+    const total = totals.get(checkpoint.name) || { name: checkpoint.name, count: 0, duration: 0 };
+    total.count += 1;
+    total.duration += checkpoint.duration;
+    totals.set(checkpoint.name, total);
+    const latest = reigns[reigns.length - 1];
+    if (latest?.name === checkpoint.name) { latest.count += 1; latest.duration += checkpoint.duration; }
+    else reigns.push({ ...checkpoint, count: 1 });
+  });
+  const totalDuration = reigns.reduce((sum, reign) => sum + reign.duration, 0) || reigns.length;
+  const longest = [...reigns].sort((left, right) => right.duration - left.duration)[0];
+  const leaders = [...totals.values()].sort((left, right) => right.count - left.count || right.duration - left.duration || left.name.localeCompare(right.name));
+  host.innerHTML = `<div class="live-race-leadership-head"><h4>Time on top</h4><p>${Math.max(0, reigns.length - 1)} lead change${reigns.length === 2 ? "" : "s"} · ${leaders.length} leader${leaders.length === 1 ? "" : "s"} · Longest reign: ${websiteEscapeHtml(longest.name)} ~${websiteRaceDuration(longest.duration)}</p></div><div class="live-leader-trail" aria-label="Estimated time on top by race leader">${reigns.map(reign => `<span class="live-leader-segment" style="--runner-color:${websiteRaceColor(reign.name)};flex:${reign.duration / totalDuration}" title="${websiteEscapeHtml(reign.name)} · ${reign.count} update${reign.count === 1 ? "" : "s"} · about ${websiteRaceDuration(reign.duration)}">${reign.duration / totalDuration >= .09 ? websiteEscapeHtml(reign.name) : ""}</span>`).join("")}</div><div class="live-leader-stats">${leaders.map(leader => `<div class="live-leader-stat" style="--runner-color:${websiteRaceColor(leader.name)}"><strong>${websiteEscapeHtml(leader.name)}</strong><span>${leader.count} update${leader.count === 1 ? "" : "s"} led · ~${websiteRaceDuration(leader.duration)} on top</span></div>`).join("")}</div>`;
 }
 function showWebsiteRaceFrame(frame, animate = true) {
   if (!websiteRaceSnapshots.length) return;
@@ -618,7 +665,7 @@ function showWebsiteRaceFrame(frame, animate = true) {
     const value = Number(player[metric] || 0), previousRank = previousRanks.get(player.name), movement = previousRank === undefined ? 0 : previousRank - index;
     if (!animate) row.style.transition = "none";
     row.style.opacity = "1";
-    row.style.transform = `translateY(${index * 38}px)`;
+    row.style.transform = `translateY(${index * 34}px)`;
     row.querySelector(".live-racer-rank").textContent = `#${index + 1}`;
     const movementElement = row.querySelector(".live-racer-movement");
     movementElement.className = `live-racer-movement ${movement > 0 ? "up" : movement < 0 ? "down" : "same"}`;
@@ -645,8 +692,8 @@ function renderWebsiteRace(data) {
   const snapshots = Array.isArray(data.raceSnapshots) && data.raceSnapshots.length ? [...data.raceSnapshots] : context === websiteRaceContext ? [...websiteRaceSnapshots] : data.testMode ? websiteStoredRaceSnapshots(context) : [];
   const current = { timestamp: data.updatedAt || new Date().toISOString(), players: (data.players || []).map(player => ({ name: player.name, winProbability: parseFloat(player.winProbability || 0) || 0, pathsToVictory: Number(player.pathsToVictory || 0), winPercent: parseFloat(player.winPercent || 0) || 0 })) };
   const latestStored = snapshots[snapshots.length - 1];
-  const currentSignature = JSON.stringify(current.players);
-  const latestSignature = JSON.stringify(latestStored?.players || []);
+  const currentSignature = websiteRaceSnapshotSignature(current.players);
+  const latestSignature = websiteRaceSnapshotSignature(latestStored?.players);
   if (current.players.length && currentSignature !== latestSignature) snapshots.push(current);
   websiteRaceContext = context;
   websiteRaceSnapshots = snapshots.filter(snapshot => snapshot?.timestamp && Array.isArray(snapshot.players) && snapshot.players.length).slice(-360);
@@ -657,7 +704,7 @@ function renderWebsiteRace(data) {
   if (!websiteRaceSnapshots.length) { host.innerHTML = '<div class="live-race-head"><div><h3>Live Weekly Race</h3><p>Win probability and paths will build here every five minutes once the live refresh starts.</p></div></div><div class="live-race-empty">No race snapshots yet. The first production refresh will create the opening frame.</div>'; return; }
   const names = [...new Set(websiteRaceSnapshots.flatMap(snapshot => snapshot.players.map(player => player.name)))];
   const waitingForUpdate = websiteRaceSnapshots.length < 2;
-  host.innerHTML = `<div class="live-race-head"><div><h3>Live Weekly Race</h3><p>${waitingForUpdate ? "The opening frame is saved. Playback unlocks after the next changed live update." : "The top 10 move through each saved checkpoint. Arrows show the change from the prior frame."}</p></div><div class="live-race-controls"><label>Race by<select id="website-race-metric"><option value="winProbability">Win probability</option><option value="winPercent">Win %</option><option value="pathsToVictory">Paths to victory</option></select></label><button id="website-race-previous" class="live-race-step" type="button" title="Previous frame" aria-label="Previous frame"${waitingForUpdate ? " disabled" : ""}>‹</button><button id="website-race-play" type="button"${waitingForUpdate ? " disabled" : ""}>${waitingForUpdate ? "Waiting for next update" : "Play race"}</button><button id="website-race-next" class="live-race-step" type="button" title="Next frame" aria-label="Next frame"${waitingForUpdate ? " disabled" : ""}>›</button><button id="website-race-restart" type="button">Restart</button><label>Speed<select id="website-race-speed"><option value="1400">0.75x</option><option value="900" selected>1x</option><option value="500">2x</option></select></label><output id="website-race-time" class="live-race-time" aria-live="polite"></output></div></div><div id="website-race-track" class="live-race-track"><div id="website-race-leader" class="live-race-leader" aria-hidden="true"></div></div>`;
+  host.innerHTML = `<div class="live-race-head"><div><h3>Live Weekly Race</h3><p>${waitingForUpdate ? "The opening frame is saved. Playback unlocks after the next changed live update." : "The top 10 move through each saved checkpoint. Arrows show the change from the prior frame."}</p></div><div class="live-race-controls"><label>Race by<select id="website-race-metric"><option value="winProbability">Win probability</option><option value="winPercent">Win %</option><option value="pathsToVictory">Paths to victory</option></select></label><button id="website-race-previous" class="live-race-step" type="button" title="Previous frame" aria-label="Previous frame"${waitingForUpdate ? " disabled" : ""}>‹</button><button id="website-race-play" type="button"${waitingForUpdate ? " disabled" : ""}>${waitingForUpdate ? "Waiting for next update" : "Play race"}</button><button id="website-race-next" class="live-race-step" type="button" title="Next frame" aria-label="Next frame"${waitingForUpdate ? " disabled" : ""}>›</button><button id="website-race-restart" type="button">Restart</button><label>Speed<select id="website-race-speed"><option value="1400">0.75x</option><option value="900" selected>1x</option><option value="500">2x</option></select></label><output id="website-race-time" class="live-race-time" aria-live="polite"></output></div></div><div id="website-race-track" class="live-race-track"><div id="website-race-leader" class="live-race-leader" aria-hidden="true"></div></div><section id="website-race-leadership" class="live-race-leadership"></section>`;
   const track = document.getElementById("website-race-track");
   websiteRaceRows = new Map();
   names.forEach(name => {
@@ -668,7 +715,7 @@ function renderWebsiteRace(data) {
     track.appendChild(row);
     websiteRaceRows.set(name, row);
   });
-  document.getElementById("website-race-metric").onchange = () => showWebsiteRaceFrame(websiteRaceFrame, false);
+  document.getElementById("website-race-metric").onchange = () => { showWebsiteRaceFrame(websiteRaceFrame, false); renderWebsiteRaceLeadership(); };
   document.getElementById("website-race-previous").onclick = () => { stopWebsiteRace(); showWebsiteRaceFrame(websiteRaceFrame - 1); };
   document.getElementById("website-race-play").onclick = () => { if (websiteRaceTimer) { stopWebsiteRace(); return; } if (websiteRaceFrame >= websiteRaceSnapshots.length - 1) showWebsiteRaceFrame(0, false); websiteRacePlaybackRequested = true; startWebsiteRace(); };
   document.getElementById("website-race-next").onclick = () => { stopWebsiteRace(); showWebsiteRaceFrame(websiteRaceFrame + 1); };
@@ -677,6 +724,7 @@ function renderWebsiteRace(data) {
   if (shouldAutoplay) websiteRaceAutoplayContext = context;
   websiteRacePlaybackRequested = shouldAutoplay || (wasPlaying && websiteRacePlaybackRequested);
   showWebsiteRaceFrame(shouldAutoplay ? 0 : wasPlaying ? Math.min(websiteRaceFrame, websiteRaceSnapshots.length - 1) : websiteRaceSnapshots.length - 1, false);
+  renderWebsiteRaceLeadership();
   if (websiteRacePlaybackRequested) startWebsiteRace();
 }
 document.addEventListener("visibilitychange", () => {
