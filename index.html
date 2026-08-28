@@ -670,29 +670,41 @@ function websiteRaceGameMoment(game) {
   const status = String(game?.status || game?.espnStatus || "").toUpperCase();
   return status === "FINAL" || status === "COMPLETED" ? "Final" : status === "IN_PROGRESS" || status === "LIVE" ? "Live" : "";
 }
-function websiteRaceCheckpointChanges(snapshotIndex) {
-  if (!snapshotIndex) return ["Opening checkpoint"];
+function websiteRaceCheckpointEvents(snapshotIndex) {
+  if (!snapshotIndex) return [];
   const current = websiteRaceSnapshots[snapshotIndex], previous = websiteRaceSnapshots[snapshotIndex - 1];
   const priorGames = new Map((previous?.gameState || []).map(game => [websiteRaceGameKey(game), game]));
-  const changes = [];
+  const events = [];
   (current?.gameState || []).forEach(game => {
     const prior = priorGames.get(websiteRaceGameKey(game));
     const away = game.away || "Away", home = game.home || "Home";
     const awayScore = Number(game.awayScore), homeScore = Number(game.homeScore);
     const priorAway = Number(prior?.awayScore), priorHome = Number(prior?.homeScore);
     const moment = websiteRaceGameMoment(game);
-    if (prior && Number.isFinite(awayScore) && Number.isFinite(priorAway) && awayScore > priorAway) changes.push(`${away} scored ${awayScore - priorAway} · ${away} ${awayScore}, ${home} ${homeScore}${moment ? ` · ${moment}` : ""}`);
-    if (prior && Number.isFinite(homeScore) && Number.isFinite(priorHome) && homeScore > priorHome) changes.push(`${home} scored ${homeScore - priorHome} · ${away} ${awayScore}, ${home} ${homeScore}${moment ? ` · ${moment}` : ""}`);
+    if (prior && Number.isFinite(awayScore) && Number.isFinite(priorAway) && awayScore > priorAway) events.push({ type: "score", short: `${away} +${awayScore - priorAway}`, lines: [`${away} scored ${awayScore - priorAway}`, `Score: ${away} ${awayScore}, ${home} ${homeScore}`, moment].filter(Boolean) });
+    if (prior && Number.isFinite(homeScore) && Number.isFinite(priorHome) && homeScore > priorHome) events.push({ type: "score", short: `${home} +${homeScore - priorHome}`, lines: [`${home} scored ${homeScore - priorHome}`, `Score: ${away} ${awayScore}, ${home} ${homeScore}`, moment].filter(Boolean) });
     const status = String(game.status || game.espnStatus || "").toUpperCase(), priorStatus = String(prior?.status || prior?.espnStatus || "").toUpperCase();
     if (prior && status !== priorStatus) {
-      if (["IN_PROGRESS", "LIVE"].includes(status)) changes.push(`${away}–${home} kicked off`);
-      if (["FINAL", "COMPLETED"].includes(status)) changes.push(`${away}–${home} final · ${awayScore}-${homeScore}`);
+      if (["IN_PROGRESS", "LIVE"].includes(status)) events.push({ type: "status", short: `${away}–${home} kickoff`, lines: [`${away}–${home} kicked off`] });
+      if (["FINAL", "COMPLETED"].includes(status)) events.push({ type: "status", short: `${away}–${home} final`, lines: [`${away}–${home} final`, `Score: ${away} ${awayScore}, ${home} ${homeScore}`] });
     }
-    if (prior && !changes.length && (game.period !== prior.period || game.clock !== prior.clock)) changes.push(`${away}–${home} · ${websiteRaceGameMoment(game)}`);
   });
-  if (changes.length) return changes.slice(0, 4);
-  const liveGame = (current?.gameState || []).find(game => ["IN_PROGRESS", "LIVE"].includes(String(game.status || game.espnStatus || "").toUpperCase()));
-  return [liveGame ? `${liveGame.away || "Away"}–${liveGame.home || "Home"} · ${websiteRaceGameMoment(liveGame)} · no score change` : "No score or game-status change"];
+  return events.slice(0, 4);
+}
+function websiteRaceCheckpointChanges(snapshotIndex) {
+  if (!snapshotIndex) return ["Opening checkpoint"];
+  const events = websiteRaceCheckpointEvents(snapshotIndex);
+  return events.length ? events.flatMap(event => event.lines) : ["No scoring or game-status change"];
+}
+function websiteRaceMajorPlayerChange(snapshotIndex, name, metric, rank, value) {
+  if (!snapshotIndex) return false;
+  const previous = websiteRaceSnapshots[snapshotIndex - 1];
+  const ranked = [...(previous?.players || [])].sort((left, right) => Number(right[metric] || 0) - Number(left[metric] || 0) || left.name.localeCompare(right.name));
+  const previousRank = ranked.findIndex(player => player.name === name), previousPlayer = ranked[previousRank];
+  if (!previousPlayer) return false;
+  const valueChange = Math.abs(value - Number(previousPlayer[metric] || 0));
+  const threshold = metric === "pathsToVictory" ? Math.max(10, Number(previousPlayer[metric] || 0) * .25) : 10;
+  return Math.abs(rank - (previousRank + 1)) >= 3 || valueChange >= threshold;
 }
 function renderWebsiteRaceLineChart(animate = true) {
   const canvas = document.getElementById("website-race-line-chart");
@@ -711,10 +723,35 @@ function renderWebsiteRaceLineChart(animate = true) {
     const data = shownSnapshots.map((snapshot, index) => {
       const ranked = [...snapshot.players].sort((left, right) => Number(right[metric] || 0) - Number(left[metric] || 0) || left.name.localeCompare(right.name));
       const rank = ranked.findIndex(player => player.name === name), player = ranked[rank];
-      return rank < 0 ? null : { x: index, y: rank + 1, snapshotIndex: index, metricValue: Number(player[metric] || 0) };
+      const value = Number(player?.[metric] || 0);
+      return rank < 0 ? null : { x: index, y: rank + 1, snapshotIndex: index, metricValue: value, majorChange: websiteRaceMajorPlayerChange(index, name, metric, rank + 1, value) };
     }).filter(Boolean);
-    return { label: name, data, borderColor: displayColor, backgroundColor: displayColor, borderWidth: websiteRaceSelectedPlayer === name ? 4 : selected ? 2 : 1, tension: .24, spanGaps: true, pointRadius: context => context.dataIndex === data.length - 1 ? 5 : context.dataIndex === 0 ? 4 : selected ? 1.5 : 0, pointHoverRadius: 7, pointBackgroundColor: context => context.dataIndex === 0 && data.length > 1 ? "#0f171e" : displayColor, pointBorderColor: displayColor, pointBorderWidth: 2 };
+    return { label: name, data, borderColor: displayColor, backgroundColor: displayColor, borderWidth: websiteRaceSelectedPlayer === name ? 4 : selected ? 2 : 1, tension: .24, spanGaps: true, pointRadius: context => context.raw?.majorChange ? 6 : context.dataIndex === data.length - 1 ? 5 : context.dataIndex === 0 ? 4 : selected ? 1.5 : 0, pointStyle: context => context.raw?.majorChange ? "triangle" : "circle", pointHoverRadius: 8, pointBackgroundColor: context => context.raw?.majorChange ? "#f5b942" : context.dataIndex === 0 && data.length > 1 ? "#0f171e" : displayColor, pointBorderColor: context => context.raw?.majorChange ? "#fff4d6" : displayColor, pointBorderWidth: context => context.raw?.majorChange ? 2.5 : 2 };
   });
+  const checkpointEvents = {
+    id: "websiteRaceCheckpointEvents",
+    beforeDatasetsDraw(chart) {
+      const { ctx, chartArea, scales } = chart;
+      shownSnapshots.forEach((snapshot, index) => {
+        const events = websiteRaceCheckpointEvents(index);
+        if (!events.length) return;
+        const x = scales.x.getPixelForValue(index), scoreEvent = events.find(event => event.type === "score");
+        ctx.save();
+        ctx.strokeStyle = scoreEvent ? "#f5b942" : "#7fc8a9";
+        ctx.lineWidth = scoreEvent ? 2 : 1;
+        ctx.setLineDash(scoreEvent ? [] : [4, 4]);
+        ctx.beginPath();
+        ctx.moveTo(x, chartArea.top);
+        ctx.lineTo(x, chartArea.bottom);
+        ctx.stroke();
+        ctx.fillStyle = ctx.strokeStyle;
+        ctx.beginPath();
+        ctx.arc(x, chartArea.top + 5, scoreEvent ? 5 : 3, 0, Math.PI * 2);
+        ctx.fill();
+        ctx.restore();
+      });
+    }
+  };
   const endpointLabels = {
     id: "websiteRaceEndpointLabels",
     afterDatasetsDraw(chart) {
@@ -740,9 +777,9 @@ function renderWebsiteRaceLineChart(animate = true) {
     }
   };
   const data = { datasets };
-  const options = { responsive: true, maintainAspectRatio: false, animation: animate ? { duration: 520 } : false, layout: { padding: { top: 16, right: compactLandscape ? 80 : 118 } }, interaction: { mode: "nearest", intersect: false }, onClick: (event, elements) => { const name = elements[0] ? websiteRaceLineChart.data.datasets[elements[0].datasetIndex].label : ""; websiteRaceSelectedPlayer = websiteRaceSelectedPlayer === name ? "" : name; renderWebsiteRaceLineChart(false); }, scales: { x: { type: "linear", min: 0, max: Math.max(1, websiteRaceFrame), grid: { color: "#2a374466" }, ticks: { color: "#91a0ae", maxTicksLimit: 7, callback: value => { const snapshot = websiteRaceSnapshots[Math.round(Number(value))]; return snapshot ? new Date(snapshot.timestamp).toLocaleTimeString([], { hour: "numeric", minute: "2-digit" }) : ""; } }, title: { display: true, text: "Race checkpoints", color: "#91a0ae" } }, y: { min: 1, max: Math.max(2, names.length), reverse: true, grid: { color: "#2a3744" }, ticks: { color: "#91a0ae", stepSize: 1, callback: value => `#${value}` }, title: { display: true, text: "Rank", color: "#91a0ae" } } }, plugins: { legend: { display: false }, tooltip: { callbacks: { title: items => { const snapshot = websiteRaceSnapshots[items[0]?.raw?.snapshotIndex]; return snapshot ? new Date(snapshot.timestamp).toLocaleString([], { weekday: "short", hour: "numeric", minute: "2-digit", second: "2-digit" }) : ""; }, label: context => { const value = context.raw.metricValue, formatted = metric === "winProbability" || metric === "winPercent" ? websiteProbabilityText(value) : value.toLocaleString(); return `${context.dataset.label} · Rank #${context.parsed.y} · ${websiteRaceMetricLabel(metric)} ${formatted}`; }, afterLabel: context => websiteRaceCheckpointChanges(context.raw.snapshotIndex) } } } };
+  const options = { responsive: true, maintainAspectRatio: false, animation: animate ? { duration: 520 } : false, layout: { padding: { top: 16, right: compactLandscape ? 80 : 118 } }, interaction: { mode: "nearest", intersect: false }, onClick: (event, elements) => { const name = elements[0] ? websiteRaceLineChart.data.datasets[elements[0].datasetIndex].label : ""; websiteRaceSelectedPlayer = websiteRaceSelectedPlayer === name ? "" : name; renderWebsiteRaceLineChart(false); }, scales: { x: { type: "linear", min: 0, max: Math.max(1, websiteRaceFrame), grid: { color: "#2a374466" }, ticks: { color: "#91a0ae", maxTicksLimit: 7, callback: value => { const snapshot = websiteRaceSnapshots[Math.round(Number(value))]; return snapshot ? new Date(snapshot.timestamp).toLocaleTimeString([], { hour: "numeric", minute: "2-digit" }) : ""; } }, title: { display: true, text: "Race checkpoints", color: "#91a0ae" } }, y: { min: 1, max: Math.max(2, names.length), reverse: true, grid: { color: "#2a3744" }, ticks: { color: "#91a0ae", stepSize: 1, callback: value => `#${value}` }, title: { display: true, text: "Rank", color: "#91a0ae" } } }, plugins: { legend: { display: false }, tooltip: { displayColors: false, callbacks: { title: items => { const snapshot = websiteRaceSnapshots[items[0]?.raw?.snapshotIndex]; return snapshot ? new Date(snapshot.timestamp).toLocaleString([], { weekday: "short", hour: "numeric", minute: "2-digit", second: "2-digit" }) : ""; }, label: context => { const value = context.raw.metricValue, formatted = metric === "winProbability" || metric === "winPercent" ? websiteProbabilityText(value) : value.toLocaleString(); return [context.dataset.label, `Rank #${context.parsed.y}`, `${websiteRaceMetricLabel(metric)}: ${formatted}`]; }, afterLabel: context => websiteRaceCheckpointChanges(context.raw.snapshotIndex) } } } };
   if (websiteRaceLineChart) websiteRaceLineChart.destroy();
-  websiteRaceLineChart = new Chart(canvas, { type: "line", data, options, plugins: [endpointLabels] });
+  websiteRaceLineChart = new Chart(canvas, { type: "line", data, options, plugins: [checkpointEvents, endpointLabels] });
 }
 function showWebsiteRaceFrame(frame, animate = true) {
   if (!websiteRaceSnapshots.length) return;
