@@ -10,6 +10,24 @@ npm run notifications:report
 
 The report is private and reads D1 directly. It lists each player or pool-wide subscription, exact destination, verification status, enabled alert types, and update time. Do not publish or paste the report into public issues or logs.
 
+## Missing-picks reminder and email previews
+
+Player subscriptions include a missing-picks reminder. It defaults to two hours before the first kickoff and can be set from 5 through 300 minutes. The reminder is sent once per week only when the followed player's active card is absent.
+
+Preview all alert messages without sending:
+
+```powershell
+npm run notifications:preview
+```
+
+After email relay setup, send the preview set to the owner address by putting the relay URL and secret in the current terminal environment and running:
+
+```powershell
+npm run notifications:preview -- --send --to=fbpool07@gmail.com
+```
+
+Do not put the relay secret in command history, source, configuration files, D1, Sheets, browser storage, or chat.
+
 ## Email configuration
 
 Email delivery uses the existing Apps Script account as a relay. The same long random secret must be stored in both places:
