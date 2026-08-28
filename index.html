@@ -97,10 +97,10 @@
   .notification-choice label:has(input:checked) { border-color: var(--accent); color: #7ee2b8; }
   .notification-choice label:has(input:disabled) { opacity: .52; cursor: not-allowed; }
   .notification-contact-grid { display: grid; grid-template-columns: minmax(180px, 1fr) minmax(220px, 1.4fr); gap: 10px; }
+  .notification-contact-grid small { display: block; margin-top: 4px; color: var(--muted); font: 10px/1.4 Arial, sans-serif; text-transform: none; letter-spacing: 0; }
   .notification-events { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 6px 12px; }
   .notification-events label { display: grid; grid-template-columns: 18px minmax(0, 1fr); align-items: start; gap: 7px; padding: 5px 0; color: var(--text); font: 12px/1.35 Arial, sans-serif; text-transform: none; letter-spacing: 0; }
-  .notification-events .notification-reminder-time { grid-template-columns: minmax(0, 1fr); }
-  .notification-reminder-time input { width: 92px; margin-top: 4px; }
+  .notification-reminder-time input[type="number"] { width: 72px; margin: 4px 3px 0 0; }
   .notification-events small, .notification-note { display: block; color: var(--muted); font: 10px/1.4 Arial, sans-serif; }
   .notification-form button { justify-self: start; }
   .notification-status { min-height: 18px; margin: 0; color: var(--muted); font: 11px/1.4 Arial, sans-serif; }
@@ -1567,13 +1567,6 @@ let websiteLastWeekData = null;
 let websiteDiscoveredPreseasonData = null;
 const WEBSITE_WEEK_NOTIFICATION_ENABLED = "fbpWeekNotificationEnabled";
 const WEBSITE_WEEK_NOTIFICATION_SEEN = "fbpWeekNotificationSeen";
-function updateNotificationScope() {
-  const playerScope = document.querySelector('input[name="notification-scope"]:checked')?.value === "player";
-  const player = document.getElementById("notification-player"), label = document.getElementById("notification-player-label");
-  player.required = playerScope;
-  player.disabled = !playerScope;
-  label.style.display = playerScope ? "grid" : "none";
-}
 function notificationPlayerValidation(value) {
   const names = [...document.getElementById("notification-player-options").options].map(option => option.value).filter(Boolean);
   if (names.includes(value)) return { name: value, message: "" };
@@ -1589,12 +1582,17 @@ function notificationPlayerValidation(value) {
 async function initializeNotificationPreferences() {
   const sms = document.getElementById("notification-sms-channel"), save = document.getElementById("notification-save"), status = document.getElementById("notification-status");
   const form = document.getElementById("notification-preferences-form");
-  document.getElementById("notification-player")?.addEventListener("input", event => event.currentTarget.setCustomValidity(""));
+  const playerInput = document.getElementById("notification-player"), playerLabel = document.getElementById("notification-player-label");
+  playerInput.required = false;
+  playerInput.addEventListener("input", event => event.currentTarget.setCustomValidity(""));
+  playerLabel.childNodes[0].textContent = "Player name (recommended)";
+  playerInput.insertAdjacentHTML("afterend", "<small>For personal standings and a missing-picks reminder.</small>");
   const summary = document.querySelector(".notification-settings > summary");
   if (summary) summary.textContent = "Email alert preferences";
-  sms?.closest("label")?.remove();
+  sms?.closest(".notification-choice")?.parentElement?.remove();
+  form.querySelector('input[name="notification-scope"]')?.closest(".notification-choice")?.parentElement?.remove();
   if (form && !form.elements.picksDue) {
-    form.elements.firstPlace.closest("label").insertAdjacentHTML("beforebegin", '<label><input type="checkbox" name="picksDue" checked><span>Picks due reminder<small>Only if your name is missing.</small></span></label><label class="notification-reminder-time"><span>Reminder lead time<small><input type="number" name="picksDueMinutes" min="5" max="300" step="5" value="120"> minutes before first kickoff</small></span></label>');
+    form.elements.firstPlace.closest("label").insertAdjacentHTML("beforebegin", '<label class="notification-reminder-time"><input type="checkbox" name="picksDue" checked><span>Picks due reminder<small>Email me <input type="number" name="picksDueMinutes" min="5" max="300" step="5" value="120" aria-label="Minutes before first kickoff"> minutes before first kickoff, only if my picks are still missing.</small></span></label>');
     const toggleReminderTime = () => { form.elements.picksDueMinutes.disabled = !form.elements.picksDue.checked; };
     form.elements.picksDue.addEventListener("change", toggleReminderTime);
     toggleReminderTime();
@@ -1609,11 +1607,12 @@ async function initializeNotificationPreferences() {
 async function saveNotificationPreferences(event) {
   event.preventDefault();
   const form = event.currentTarget, button = document.getElementById("notification-save"), status = document.getElementById("notification-status");
-  const scope = form.elements["notification-scope"].value, channel = "email";
-  const playerInput = document.getElementById("notification-player"), player = notificationPlayerValidation(playerInput.value);
-  playerInput.setCustomValidity(scope === "player" ? player.message : "");
-  if (scope === "player" && player.message) { status.textContent = player.message; playerInput.reportValidity(); playerInput.focus(); return; }
-  const payload = { action: "subscribe-notifications", scope, channel, playerName: scope === "player" ? player.name : "FBP pool", destination: document.getElementById("notification-destination").value, picksDueMinutes: Number(form.elements.picksDueMinutes.value) || 120, preferences: Object.fromEntries(["picksReady", "picksDue", "firstPlace", "earlyWindow", "lateWindow", "beforeSnf", "beforeMnf", "weeklyResult"].map(name => [name, form.elements[name].checked])) };
+  const channel = "email", playerInput = document.getElementById("notification-player");
+  const player = playerInput.value ? notificationPlayerValidation(playerInput.value) : { name: "", message: "" };
+  playerInput.setCustomValidity(player.message);
+  if (player.message) { status.textContent = player.message; playerInput.reportValidity(); playerInput.focus(); return; }
+  const scope = player.name ? "player" : "pool";
+  const payload = { action: "subscribe-notifications", scope, channel, playerName: player.name || "FBP pool", destination: document.getElementById("notification-destination").value, picksDueMinutes: Number(form.elements.picksDueMinutes.value) || 120, preferences: Object.fromEntries(["picksReady", "picksDue", "firstPlace", "earlyWindow", "lateWindow", "beforeSnf", "beforeMnf", "weeklyResult"].map(name => [name, form.elements[name].checked])) };
   button.disabled = true;
   status.textContent = "Sending verification email...";
   try {
@@ -4893,9 +4892,7 @@ function applyHistoricalLabels() {
 }
 applyHistoricalLabels();
 document.getElementById("website-week-notifications")?.addEventListener("click", toggleWebsiteWeekNotifications);
-document.querySelectorAll('input[name="notification-scope"]').forEach(input => input.addEventListener("change", updateNotificationScope));
 document.getElementById("notification-preferences-form")?.addEventListener("submit", saveNotificationPreferences);
-updateNotificationScope();
 initializeNotificationPreferences();
 updateWebsiteNotificationControl();
 setInterval(() => {
