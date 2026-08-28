@@ -374,6 +374,7 @@
   .live-race-controls button:disabled { cursor: default; opacity: .55; }
   .live-race-time { min-width: 170px; padding: 9px 10px; color: var(--accent-2); font: 12px Consolas, monospace; text-align: right; }
   .live-race-line-wrap { position: relative; height: 430px; border-block: 1px solid var(--border); background: #0f171e99; padding: 12px 8px 8px; }
+  .live-race-line-wrap canvas { cursor: pointer; }
   .live-race-track { display: none; position: relative; height: 340px; overflow: hidden; border-block: 1px solid var(--border); background: linear-gradient(90deg, #0f171e 0 54px, transparent 54px); }
   .live-race-leader { position: absolute; inset: 50% 2% auto; overflow: hidden; color: #ffffff08; font: bold clamp(58px, 13vw, 150px)/.8 Georgia, serif; letter-spacing: 0; text-align: center; text-overflow: ellipsis; white-space: nowrap; transform: translateY(-50%); transition: opacity 350ms ease; pointer-events: none; }
   .live-racer { position: absolute; inset: 0 8px auto; display: grid; grid-template-columns: 38px 62px minmax(90px, 1fr) 82px; align-items: center; gap: 8px; height: 34px; border-bottom: 1px solid #202c3866; border-left: 3px solid var(--runner-color); padding: 0 8px; transition: transform 650ms cubic-bezier(.2,.75,.25,1), opacity 220ms ease, background 220ms ease; }
@@ -397,7 +398,8 @@
   .live-leader-stat span { display: block; margin-top: 3px; color: var(--muted); font: 10px/1.35 Arial, sans-serif; }
   .live-race-empty { display: grid; min-height: 220px; place-items: center; padding: 24px; color: var(--muted); font: 13px/1.55 Arial, sans-serif; text-align: center; }
   @media (prefers-reduced-motion: reduce) { .live-racer { transition: none; } }
-  @media (max-width: 620px) { .live-race-line-wrap { display: none; } .live-race-track { display: block; } .live-race-head { gap: 8px; margin-bottom: 8px; } .live-race-controls { display: grid; grid-template-columns: minmax(105px, 1fr) 32px 70px 32px; gap: 4px; width: 100%; } .live-race-controls label { width: auto; } .live-race-controls button { min-height: 32px; padding: 5px; } #website-race-restart { display: none; } .live-race-controls label:has(#website-race-speed) { grid-column: 1; } .live-race-time { grid-column: 2 / -1; min-width: 0; width: auto; padding: 7px 2px; text-align: right; } .live-racer { grid-template-columns: 28px 48px minmax(58px, 1fr) 52px; gap: 4px; padding-inline: 4px; } .live-racer-name, .live-racer-value, .live-racer-movement { font-size: 10px; } .live-race-leadership-head { align-items: start; flex-direction: column; gap: 3px; } .live-race-leadership-head p { text-align: left; } .live-leader-stats { grid-template-columns: repeat(2, minmax(0, 1fr)); } }
+  @media (max-width: 620px) and (orientation: portrait) { .live-race-line-wrap { display: none; } .live-race-track { display: block; } .live-race-head { gap: 8px; margin-bottom: 8px; } .live-race-controls { display: grid; grid-template-columns: minmax(105px, 1fr) 32px 70px 32px; gap: 4px; width: 100%; } .live-race-controls label { width: auto; } .live-race-controls button { min-height: 32px; padding: 5px; } #website-race-restart { display: none; } .live-race-controls label:has(#website-race-speed) { grid-column: 1; } .live-race-time { grid-column: 2 / -1; min-width: 0; width: auto; padding: 7px 2px; text-align: right; } .live-racer { grid-template-columns: 28px 48px minmax(58px, 1fr) 52px; gap: 4px; padding-inline: 4px; } .live-racer-name, .live-racer-value, .live-racer-movement { font-size: 10px; } .live-race-leadership-head { align-items: start; flex-direction: column; gap: 3px; } .live-race-leadership-head p { text-align: left; } .live-leader-stats { grid-template-columns: repeat(2, minmax(0, 1fr)); } }
+  @media (orientation: landscape) and (max-height: 600px) { .live-race-line-wrap { height: 300px; } }
   @media (max-width: 850px) { .week-recap-grid { grid-template-columns: 1fr; } }
   @media (max-width: 560px) {
     #view-enter-picks .intro { margin-bottom: 10px; }
@@ -582,17 +584,17 @@ const WEBSITE_EXACT_SCENARIO_GAME_LIMIT = 6;
 let websiteScenarioMode = "current";
 let websiteContenderDetailMode = "simple";
 let websiteSankeyChart = null, websiteConfirmationSplitChart = null;
-let websiteRaceSnapshots = [], websiteRaceContext = "", websiteRaceAutoplayContext = "", websiteRaceFrame = 0, websiteRaceTimer = null, websiteRaceRows = new Map(), websiteRacePlaybackRequested = false, websiteRaceLineChart = null;
+let websiteRaceSnapshots = [], websiteRaceContext = "", websiteRaceAutoplayContext = "", websiteRaceFrame = 0, websiteRaceTimer = null, websiteRaceRows = new Map(), websiteRacePlaybackRequested = false, websiteRaceLineChart = null, websiteRaceSelectedPlayer = "";
 function websiteProbabilityText(percent) {
   const value = Number(percent);
   if (!Number.isFinite(value)) return "";
   if (value > 0 && value < .01) return "0.01%";
   return `${value.toFixed(2)}%`;
 }
-function websiteRaceColor(name) {
+function websiteRaceColor(name, alpha = 1) {
   let hash = 0;
   String(name).split("").forEach(character => { hash = ((hash << 5) - hash + character.charCodeAt(0)) | 0; });
-  return `hsl(${Math.abs(hash) % 360} 72% 58%)`;
+  return `hsl(${Math.abs(hash) % 360} 72% 58% / ${alpha})`;
 }
 function websiteRaceMetric() { return document.getElementById("website-race-metric")?.value || "winProbability"; }
 function websiteStoredRaceSnapshots(context) {
@@ -656,23 +658,62 @@ function renderWebsiteRaceLeadership() {
   const leadChanges = intervals.slice(1).filter((interval, index) => interval.name !== intervals[index].name).length;
   host.innerHTML = `<div class="live-race-leadership-head"><h4>Time on top</h4><p>${leadChanges} lead change${leadChanges === 1 ? "" : "s"} during play · ${websiteRaceDuration(totalDuration)} measured · Longest: ${websiteEscapeHtml(longest.name)} ${websiteRaceDuration(longest.duration)}</p></div><div class="live-leader-trail" aria-label="Time on top while games were live">${reigns.map(reign => `<span class="live-leader-segment" style="--runner-color:${websiteRaceColor(reign.name)};flex:${reign.duration / totalDuration}" title="${websiteEscapeHtml(reign.name)} · ${websiteRaceDuration(reign.duration)} on top while games were live">${reign.duration / totalDuration >= .09 ? websiteEscapeHtml(reign.name) : ""}</span>`).join("")}</div><div class="live-leader-stats">${leaders.map(leader => `<div class="live-leader-stat" style="--runner-color:${websiteRaceColor(leader.name)}"><strong>${websiteEscapeHtml(leader.name)}</strong><span>${websiteRaceDuration(leader.duration)} on top during live play</span></div>`).join("")}</div>`;
 }
+function websiteRaceMetricLabel(metric) {
+  return metric === "winProbability" ? "Win probability" : metric === "winPercent" ? "Win %" : "Paths to victory";
+}
+function websiteRaceGameKey(game) {
+  return String(game?.gameId || `${game?.away || "away"}|${game?.home || "home"}`);
+}
+function websiteRaceGameMoment(game) {
+  const period = Number(game?.period || 0), clock = String(game?.clock || "").trim();
+  if (period && clock) return `Q${period} ${clock}`;
+  const status = String(game?.status || game?.espnStatus || "").toUpperCase();
+  return status === "FINAL" || status === "COMPLETED" ? "Final" : status === "IN_PROGRESS" || status === "LIVE" ? "Live" : "";
+}
+function websiteRaceCheckpointChanges(snapshotIndex) {
+  if (!snapshotIndex) return ["Opening checkpoint"];
+  const current = websiteRaceSnapshots[snapshotIndex], previous = websiteRaceSnapshots[snapshotIndex - 1];
+  const priorGames = new Map((previous?.gameState || []).map(game => [websiteRaceGameKey(game), game]));
+  const changes = [];
+  (current?.gameState || []).forEach(game => {
+    const prior = priorGames.get(websiteRaceGameKey(game));
+    const away = game.away || "Away", home = game.home || "Home";
+    const awayScore = Number(game.awayScore), homeScore = Number(game.homeScore);
+    const priorAway = Number(prior?.awayScore), priorHome = Number(prior?.homeScore);
+    const moment = websiteRaceGameMoment(game);
+    if (prior && Number.isFinite(awayScore) && Number.isFinite(priorAway) && awayScore > priorAway) changes.push(`${away} scored ${awayScore - priorAway} · ${away} ${awayScore}, ${home} ${homeScore}${moment ? ` · ${moment}` : ""}`);
+    if (prior && Number.isFinite(homeScore) && Number.isFinite(priorHome) && homeScore > priorHome) changes.push(`${home} scored ${homeScore - priorHome} · ${away} ${awayScore}, ${home} ${homeScore}${moment ? ` · ${moment}` : ""}`);
+    const status = String(game.status || game.espnStatus || "").toUpperCase(), priorStatus = String(prior?.status || prior?.espnStatus || "").toUpperCase();
+    if (prior && status !== priorStatus) {
+      if (["IN_PROGRESS", "LIVE"].includes(status)) changes.push(`${away}–${home} kicked off`);
+      if (["FINAL", "COMPLETED"].includes(status)) changes.push(`${away}–${home} final · ${awayScore}-${homeScore}`);
+    }
+    if (prior && !changes.length && (game.period !== prior.period || game.clock !== prior.clock)) changes.push(`${away}–${home} · ${websiteRaceGameMoment(game)}`);
+  });
+  if (changes.length) return changes.slice(0, 4);
+  const liveGame = (current?.gameState || []).find(game => ["IN_PROGRESS", "LIVE"].includes(String(game.status || game.espnStatus || "").toUpperCase()));
+  return [liveGame ? `${liveGame.away || "Away"}–${liveGame.home || "Home"} · ${websiteRaceGameMoment(liveGame)} · no score change` : "No score or game-status change"];
+}
 function renderWebsiteRaceLineChart(animate = true) {
   const canvas = document.getElementById("website-race-line-chart");
-  if (!canvas || matchMedia("(max-width: 620px)").matches) {
+  if (!canvas || matchMedia("(max-width: 620px) and (orientation: portrait)").matches) {
     if (websiteRaceLineChart) websiteRaceLineChart.destroy();
     websiteRaceLineChart = null;
     return;
   }
   const metric = websiteRaceMetric(), shownSnapshots = websiteRaceSnapshots.slice(0, websiteRaceFrame + 1);
   const names = [...new Set(websiteRaceSnapshots.flatMap(snapshot => snapshot.players.map(player => player.name)))];
+  if (websiteRaceSelectedPlayer && !names.includes(websiteRaceSelectedPlayer)) websiteRaceSelectedPlayer = "";
+  const compactLandscape = matchMedia("(orientation: landscape) and (max-height: 600px)").matches;
+  document.querySelector(".live-race-line-wrap").style.height = compactLandscape ? "300px" : `${Math.max(430, Math.min(650, names.length * 19 + 70))}px`;
   const datasets = names.map(name => {
-    const color = websiteRaceColor(name);
+    const selected = !websiteRaceSelectedPlayer || websiteRaceSelectedPlayer === name, color = websiteRaceColor(name), displayColor = selected ? color : websiteRaceColor(name, .12);
     const data = shownSnapshots.map((snapshot, index) => {
       const ranked = [...snapshot.players].sort((left, right) => Number(right[metric] || 0) - Number(left[metric] || 0) || left.name.localeCompare(right.name));
-      const rank = ranked.findIndex(player => player.name === name);
-      return rank < 0 ? null : { x: index, y: rank + 1 };
+      const rank = ranked.findIndex(player => player.name === name), player = ranked[rank];
+      return rank < 0 ? null : { x: index, y: rank + 1, snapshotIndex: index, metricValue: Number(player[metric] || 0) };
     }).filter(Boolean);
-    return { label: name, data, borderColor: color, backgroundColor: color, borderWidth: 2, tension: .24, spanGaps: true, pointRadius: context => context.dataIndex === data.length - 1 ? 5 : context.dataIndex === 0 ? 4 : 1.5, pointHoverRadius: 6, pointBackgroundColor: context => context.dataIndex === 0 && data.length > 1 ? "#0f171e" : color, pointBorderColor: color, pointBorderWidth: 2 };
+    return { label: name, data, borderColor: displayColor, backgroundColor: displayColor, borderWidth: websiteRaceSelectedPlayer === name ? 4 : selected ? 2 : 1, tension: .24, spanGaps: true, pointRadius: context => context.dataIndex === data.length - 1 ? 5 : context.dataIndex === 0 ? 4 : selected ? 1.5 : 0, pointHoverRadius: 7, pointBackgroundColor: context => context.dataIndex === 0 && data.length > 1 ? "#0f171e" : displayColor, pointBorderColor: displayColor, pointBorderWidth: 2 };
   });
   const endpointLabels = {
     id: "websiteRaceEndpointLabels",
@@ -684,6 +725,7 @@ function renderWebsiteRaceLineChart(animate = true) {
         const points = chart.getDatasetMeta(index).data;
         const point = points[points.length - 1], value = dataset.data[dataset.data.length - 1];
         if (!point || !value) return;
+        if (websiteRaceSelectedPlayer && dataset.label !== websiteRaceSelectedPlayer) return;
         ctx.fillStyle = dataset.borderColor;
         ctx.textBaseline = "middle";
         ctx.fillText(`${dataset.label}  #${value.y}`, point.x + 8, point.y);
@@ -698,7 +740,7 @@ function renderWebsiteRaceLineChart(animate = true) {
     }
   };
   const data = { datasets };
-  const options = { responsive: true, maintainAspectRatio: false, animation: animate ? { duration: 520 } : false, layout: { padding: { top: 16, right: 118 } }, interaction: { mode: "nearest", intersect: false }, scales: { x: { type: "linear", min: 0, max: Math.max(1, websiteRaceFrame), grid: { color: "#2a374466" }, ticks: { color: "#91a0ae", maxTicksLimit: 7, callback: value => { const snapshot = websiteRaceSnapshots[Math.round(Number(value))]; return snapshot ? new Date(snapshot.timestamp).toLocaleTimeString([], { hour: "numeric", minute: "2-digit" }) : ""; } }, title: { display: true, text: "Race checkpoints", color: "#91a0ae" } }, y: { min: 1, max: Math.max(2, names.length), reverse: true, grid: { color: "#2a3744" }, ticks: { color: "#91a0ae", stepSize: 1, callback: value => `#${value}` }, title: { display: true, text: "Rank", color: "#91a0ae" } } }, plugins: { legend: { display: false }, tooltip: { callbacks: { label: context => `${context.dataset.label}: #${context.parsed.y}` } } } };
+  const options = { responsive: true, maintainAspectRatio: false, animation: animate ? { duration: 520 } : false, layout: { padding: { top: 16, right: compactLandscape ? 80 : 118 } }, interaction: { mode: "nearest", intersect: false }, onClick: (event, elements) => { const name = elements[0] ? websiteRaceLineChart.data.datasets[elements[0].datasetIndex].label : ""; websiteRaceSelectedPlayer = websiteRaceSelectedPlayer === name ? "" : name; renderWebsiteRaceLineChart(false); }, scales: { x: { type: "linear", min: 0, max: Math.max(1, websiteRaceFrame), grid: { color: "#2a374466" }, ticks: { color: "#91a0ae", maxTicksLimit: 7, callback: value => { const snapshot = websiteRaceSnapshots[Math.round(Number(value))]; return snapshot ? new Date(snapshot.timestamp).toLocaleTimeString([], { hour: "numeric", minute: "2-digit" }) : ""; } }, title: { display: true, text: "Race checkpoints", color: "#91a0ae" } }, y: { min: 1, max: Math.max(2, names.length), reverse: true, grid: { color: "#2a3744" }, ticks: { color: "#91a0ae", stepSize: 1, callback: value => `#${value}` }, title: { display: true, text: "Rank", color: "#91a0ae" } } }, plugins: { legend: { display: false }, tooltip: { callbacks: { title: items => { const snapshot = websiteRaceSnapshots[items[0]?.raw?.snapshotIndex]; return snapshot ? new Date(snapshot.timestamp).toLocaleString([], { weekday: "short", hour: "numeric", minute: "2-digit", second: "2-digit" }) : ""; }, label: context => { const value = context.raw.metricValue, formatted = metric === "winProbability" || metric === "winPercent" ? websiteProbabilityText(value) : value.toLocaleString(); return `${context.dataset.label} · Rank #${context.parsed.y} · ${websiteRaceMetricLabel(metric)} ${formatted}`; }, afterLabel: context => websiteRaceCheckpointChanges(context.raw.snapshotIndex) } } } };
   if (websiteRaceLineChart) websiteRaceLineChart.destroy();
   websiteRaceLineChart = new Chart(canvas, { type: "line", data, options, plugins: [endpointLabels] });
 }
@@ -746,7 +788,7 @@ function renderWebsiteRace(data) {
   websiteRaceLineChart = null;
   const context = `${data.testMode ? "preseason" : "regular"}-${data.season}-${data.week}`;
   const snapshots = Array.isArray(data.raceSnapshots) && data.raceSnapshots.length ? [...data.raceSnapshots] : context === websiteRaceContext ? [...websiteRaceSnapshots] : data.testMode ? websiteStoredRaceSnapshots(context) : [];
-  const current = { timestamp: data.updatedAt || new Date().toISOString(), gameState: (data.games || []).map(game => ({ gameId: game.gameId || "", status: game.espnStatus || game.status || "", awayScore: game.awayScore ?? game.favoriteScore ?? "", homeScore: game.homeScore ?? game.underdogScore ?? "" })), players: (data.players || []).map(player => ({ name: player.name, winProbability: parseFloat(player.winProbability || 0) || 0, pathsToVictory: Number(player.pathsToVictory || 0), winPercent: parseFloat(player.winPercent || 0) || 0 })) };
+  const current = { timestamp: data.updatedAt || new Date().toISOString(), gameState: (data.games || []).map(game => ({ gameId: game.gameId || "", away: game.away || "", home: game.home || "", status: game.espnStatus || game.status || "", period: game.period || "", clock: game.clock || "", awayScore: game.awayScore ?? game.favoriteScore ?? "", homeScore: game.homeScore ?? game.underdogScore ?? "" })), players: (data.players || []).map(player => ({ name: player.name, winProbability: parseFloat(player.winProbability || 0) || 0, pathsToVictory: Number(player.pathsToVictory || 0), winPercent: parseFloat(player.winPercent || 0) || 0 })) };
   const latestStored = snapshots[snapshots.length - 1];
   const currentSignature = websiteRaceSnapshotSignature(current);
   const latestSignature = websiteRaceSnapshotSignature(latestStored);
