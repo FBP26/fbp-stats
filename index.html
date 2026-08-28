@@ -101,6 +101,19 @@
   .notification-reminder-time input[type="number"] { width: 72px; margin: 4px 3px 0 0; }
   .notification-events small, .notification-note { display: block; color: var(--muted); font: 10px/1.4 Arial, sans-serif; }
   .notification-form button { justify-self: start; }
+  .website-best-bet-field { position: relative; }
+  .website-best-bet-native { position: absolute; width: 1px; height: 1px; margin: 0; opacity: 0; pointer-events: none; }
+  .website-best-bet-picker { position: relative; margin-top: 5px; text-transform: none; letter-spacing: 0; }
+  .website-best-bet-picker > summary { display: flex; align-items: center; gap: 8px; min-height: 38px; padding: 6px 10px; border: 1px solid var(--border); border-radius: 5px; background: var(--panel-2); color: var(--text); cursor: pointer; list-style: none; }
+  .website-best-bet-picker > summary::-webkit-details-marker { display: none; }
+  .website-best-bet-picker > summary::after { content: "⌄"; margin-left: auto; color: var(--muted); font-size: 15px; }
+  .website-best-bet-picker[open] > summary { border-color: var(--accent); }
+  .website-best-bet-menu { position: absolute; z-index: 20; top: calc(100% + 4px); left: 0; width: min(280px, 80vw); max-height: 290px; overflow-y: auto; border: 1px solid var(--border); border-radius: 5px; padding: 4px; background: var(--panel); box-shadow: 0 10px 28px #0009; }
+  .website-best-bet-option { display: grid; grid-template-columns: 30px minmax(0, 1fr) auto; align-items: center; gap: 8px; width: 100%; min-height: 38px; border: 0; border-radius: 3px; padding: 4px 7px; background: transparent; color: var(--text); text-align: left; cursor: pointer; }
+  .website-best-bet-option:hover, .website-best-bet-option[aria-selected="true"] { background: #263b40; }
+  .website-best-bet-logo { width: 28px; height: 28px; object-fit: contain; }
+  .website-best-bet-name { overflow: hidden; font: 12px Arial, sans-serif; text-overflow: ellipsis; white-space: nowrap; }
+  .website-best-bet-code { color: var(--accent); font: bold 11px Arial, sans-serif; }
   .notification-status { min-height: 18px; margin: 0; color: var(--muted); font: 11px/1.4 Arial, sans-serif; }
   @media (max-width: 620px) { .notification-contact-grid, .notification-events { grid-template-columns: 1fr; } }
   .website-test-notice { display: none; margin: 0 0 14px; padding: 10px 12px; border-left: 3px solid var(--accent-2); background: #251f14; color: #ffd28a; font: 12px/1.5 Arial, sans-serif; }
@@ -429,6 +442,12 @@
     #view-enter-picks .website-entry-context { margin-bottom: 9px; font-size: 11px; }
     #view-enter-picks .website-test-notice { margin-bottom: 9px; padding: 8px 10px; font-size: 10px; line-height: 1.4; }
     #website-picks-form .website-identity-controls { gap: 5px; }
+    .website-best-bet-picker > summary { min-height: 34px; padding: 4px 7px; }
+    .website-best-bet-menu { width: min(210px, 88vw); }
+    .website-best-bet-option { grid-template-columns: 26px minmax(0, 1fr); min-height: 34px; }
+    .website-best-bet-logo { width: 24px; height: 24px; }
+    .website-best-bet-name { display: none; }
+    .website-best-bet-code { font-size: 12px; }
     .website-game-group legend { padding-top: 3px; }
     .website-game-row { padding: 0 0 1px; }
     .website-matchup { grid-template-columns: minmax(0, 1fr) 34px minmax(0, 1fr); gap: 0; }
@@ -564,7 +583,7 @@ async function initializeWebsiteAnalytics() {
 }
 initializeWebsiteAnalytics();
 function showWebsiteConfirmation() { showView("picks-confirmation"); }
-function resetWebsiteBestBet() { const bestBet = document.getElementById("website-best-bet"); if (!bestBet) return; if (!bestBet.options.length || bestBet.options[0].value !== "") bestBet.insertBefore(new Option("Choose a best bet", ""), bestBet.options[0] || null); bestBet.value = ""; }
+function resetWebsiteBestBet() { const bestBet = document.getElementById("website-best-bet"); if (!bestBet) return; if (!bestBet.options.length || bestBet.options[0].value !== "") bestBet.insertBefore(new Option("Choose a best bet", ""), bestBet.options[0] || null); bestBet.value = ""; updateWebsiteBestBetPicker(); }
 const WEBSITE_TEAM_NAMES = { ari:"arizona",atl:"atlanta",bal:"baltimore",buf:"buffalo",car:"carolina",chi:"chicago",cin:"cincinnati",cle:"cleveland",dal:"dallas",den:"denver",det:"detroit",gb:"green bay",hou:"houston",ind:"indianapolis",jax:"jacksonville",kc:"kansas city",lar:"la rams",lac:"la chargers",lv:"las vegas",mia:"miami",min:"minnesota",ne:"new england",no:"new orleans",nyg:"ny giants",nyj:"ny jets",phi:"philadelphia",pit:"pittsburgh",sea:"seattle",sf:"san francisco",tb:"tampa bay",ten:"tennessee",was:"washington" };
 const WEBSITE_FORM_TEAM_NAMES = { ari:"cardinals",atl:"falcons",bal:"ravens",buf:"bills",car:"panthers",chi:"bears",cin:"bengals",cle:"browns",dal:"cowboys",den:"broncos",det:"lions",gb:"packers",hou:"texans",ind:"colts",jax:"jaguars",kc:"chiefs",lar:"rams",lac:"chargers",lv:"raiders",mia:"dolphins",min:"vikings",ne:"patriots",no:"saints",nyg:"giants",nyj:"jets",phi:"eagles",pit:"steelers",sea:"seahawks",sf:"49ers",tb:"buccaneers",ten:"titans",was:"commanders" };
 const WEBSITE_TEAM_DIVISIONS = { ari:"NFC West",atl:"NFC South",bal:"AFC North",buf:"AFC East",car:"NFC South",chi:"NFC North",cin:"AFC North",cle:"AFC North",dal:"NFC East",den:"AFC West",det:"NFC North",gb:"NFC North",hou:"AFC South",ind:"AFC South",jax:"AFC South",kc:"AFC West",lar:"NFC West",lac:"AFC West",lv:"AFC West",mia:"AFC East",min:"NFC North",ne:"AFC East",no:"NFC South",nyg:"NFC East",nyj:"AFC East",phi:"NFC East",pit:"AFC North",sea:"NFC West",sf:"NFC West",tb:"NFC South",ten:"AFC South",was:"NFC East" };
@@ -574,6 +593,35 @@ function websiteTeamName(abbreviation) { const name = WEBSITE_TEAM_NAMES[abbrevi
 function websiteFormTeamName(abbreviation) { const name = WEBSITE_FORM_TEAM_NAMES[abbreviation.toLowerCase()] || abbreviation; return abbreviation === abbreviation.toUpperCase() ? name.toUpperCase() : name; }
 function websiteNaturalTeamName(abbreviation) { return websiteFormTeamName(String(abbreviation || "").toLowerCase()).replace(/\b[a-z]/g, letter => letter.toUpperCase()); }
 function websiteEscapeHtml(value) { return String(value).replace(/[&<>"']/g, character => ({ "&": "&amp;", "<": "&lt;", ">": "&gt;", '"': "&quot;", "'": "&#39;" })[character]); }
+function websiteBestBetTeam(team) {
+  const game = websiteActiveGames.find(item => [item.favorite, item.underdog].some(value => String(value).toLowerCase() === String(team).toLowerCase())) || {};
+  const isAway = game.away ? String(game.away).toLowerCase() === String(team).toLowerCase() : team !== String(team).toUpperCase();
+  const metadata = isAway ? game.awayTeam : game.homeTeam;
+  const logoCode = WEBSITE_TEAM_LOGO_CODES[String(team).toLowerCase()] || String(team).toLowerCase();
+  return { team, name: metadata?.name || websiteNaturalTeamName(team), logo: metadata?.logo || `https://a.espncdn.com/i/teamlogos/nfl/500/scoreboard/${logoCode}.png` };
+}
+function updateWebsiteBestBetPicker() {
+  const bestBet = document.getElementById("website-best-bet"), picker = document.querySelector(".website-best-bet-picker");
+  if (!bestBet || !picker) return;
+  const selected = bestBet.value ? websiteBestBetTeam(bestBet.value) : null;
+  picker.querySelector("summary").innerHTML = selected ? `<img class="website-best-bet-logo" src="${websiteEscapeHtml(selected.logo)}" alt=""><span class="website-best-bet-name">${websiteEscapeHtml(selected.name)}</span><span class="website-best-bet-code">${websiteEscapeHtml(selected.team)}</span>` : "Choose a best bet";
+  picker.querySelectorAll("[role=option]").forEach(option => option.setAttribute("aria-selected", String(option.dataset.team === bestBet.value)));
+}
+function renderWebsiteBestBetPicker(teams, enabled) {
+  const bestBet = document.getElementById("website-best-bet"), field = bestBet.closest("label");
+  bestBet.classList.add("website-best-bet-native");
+  field.classList.add("website-best-bet-field");
+  field.querySelector(".website-best-bet-picker")?.remove();
+  const picker = document.createElement("details");
+  picker.className = "website-best-bet-picker";
+  const options = teams.map(websiteBestBetTeam);
+  picker.innerHTML = `<summary aria-label="Choose a best bet">Choose a best bet</summary><div class="website-best-bet-menu" role="listbox">${options.map(option => `<button class="website-best-bet-option" type="button" role="option" data-team="${websiteEscapeHtml(option.team)}" aria-selected="false"><img class="website-best-bet-logo" src="${websiteEscapeHtml(option.logo)}" alt="" loading="lazy"><span class="website-best-bet-name">${websiteEscapeHtml(option.name)}</span><span class="website-best-bet-code">${websiteEscapeHtml(option.team)}</span></button>`).join("")}</div>`;
+  picker.hidden = !enabled;
+  picker.querySelector("summary").onclick = event => { event.preventDefault(); event.stopPropagation(); picker.open = !picker.open; };
+  picker.querySelectorAll("[role=option]").forEach(option => option.onclick = event => { event.preventDefault(); event.stopPropagation(); bestBet.value = option.dataset.team; bestBet.dispatchEvent(new Event("change", { bubbles: true })); picker.open = false; updateWebsiteBestBetPicker(); });
+  field.appendChild(picker);
+  updateWebsiteBestBetPicker();
+}
 function websiteIsNeutralSite(game) { return [game.neutralSite, game.neutral, game.isNeutral].some(value => value === true || String(value).toLowerCase() === "true"); }
 function websiteTeamChoice(game, abbreviation) {
   const isAway = game.away ? String(game.away).toUpperCase() === String(abbreviation).toUpperCase() : abbreviation !== abbreviation.toUpperCase();
@@ -1717,7 +1765,9 @@ async function renderWebsitePicksForm() {
     const bestBet = document.getElementById("website-best-bet");
     bestBet.innerHTML = '';
     bestBet.add(new Option(linesReady ? "Choose a best bet" : "Available when lines are posted", ""));
-    if (linesReady) websiteActiveGames.flatMap(game => [game.favorite, game.underdog]).sort((a, b) => websiteFormTeamName(a).localeCompare(websiteFormTeamName(b), undefined, { sensitivity: "base" })).forEach(team => bestBet.add(new Option(websiteFormTeamName(team), team)));
+    const bestBetTeams = linesReady ? websiteActiveGames.flatMap(game => [game.favorite, game.underdog]).sort((a, b) => websiteFormTeamName(a).localeCompare(websiteFormTeamName(b), undefined, { sensitivity: "base" })) : [];
+    bestBetTeams.forEach(team => bestBet.add(new Option(websiteFormTeamName(team), team)));
+    renderWebsiteBestBetPicker(bestBetTeams, linesReady);
     bestBet.disabled = !linesReady;
     document.querySelector('#website-picks-form button[type="submit"]').disabled = !linesReady;
     document.getElementById("website-picks-status").textContent = linesReady ? "" : "Yahoo has not posted every spread yet. Matchups are available for review; picks open after the Tuesday refresh fills the lines.";
