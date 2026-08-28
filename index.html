@@ -437,7 +437,7 @@
     <section class="intro"><div><h2>Enter Picks</h2></div><p>Week 1 · 2026-2027</p></section>
     <div class="panel"><p id="website-entry-context" class="website-entry-context">Loading the active slate...</p><div class="website-notification-row"><button id="website-week-notifications" type="button">Notify me when a new week opens</button><span id="website-week-notification-status">Browser alerts work while FBP is open.</span></div><details class="notification-settings"><summary>Email and text alert preferences</summary><form id="notification-preferences-form" class="notification-form"><div><span class="notification-note">Delivery</span><div class="notification-choice"><label><input type="radio" name="notification-channel" value="email" checked> Email</label><label title="Text alerts need an SMS provider before they can be enabled"><input id="notification-sms-channel" type="radio" name="notification-channel" value="sms" disabled> Text · setup required</label></div></div><div><span class="notification-note">Coverage</span><div class="notification-choice"><label><input type="radio" name="notification-scope" value="player" checked> Follow one player</label><label><input type="radio" name="notification-scope" value="pool"> General pool alerts</label></div></div><div class="notification-contact-grid"><label id="notification-player-label">Player<input id="notification-player" list="notification-player-options" autocomplete="off" required><datalist id="notification-player-options"></datalist></label><label>Email<input id="notification-destination" type="email" autocomplete="email" required></label></div><div><span class="notification-note">Send me</span><div class="notification-events"><label><input type="checkbox" name="picksReady" checked><span>Picks are ready<small>A new weekly slate opens.</small></span></label><label><input type="checkbox" name="firstPlace"><span>First-place jump<small>Your player moves into first.</small></span></label><label><input type="checkbox" name="earlyWindow"><span>After early games<small>Personal standing after the 1 PM window.</small></span></label><label><input type="checkbox" name="lateWindow"><span>After late games<small>Personal standing after the late window.</small></span></label><label><input type="checkbox" name="beforeSnf"><span>Before Sunday night<small>Paths and pivotal SNF scenarios.</small></span></label><label><input type="checkbox" name="beforeMnf"><span>Before Monday night<small>Paths and pivotal MNF scenarios.</small></span></label><label><input type="checkbox" name="weeklyResult" checked><span>Weekly result<small>Winner and your final result.</small></span></label></div></div><button id="notification-save" type="submit">Email verification link</button><p id="notification-status" class="notification-status" role="status">Nothing is active until you verify the email. Every message includes a stop link.</p></form></details><p id="website-test-notice" class="website-test-notice">TEST MODE · Entries and scores are isolated from regular-season standings, logs, awards, and archives.</p><div class="website-instructions">Favorites left; underdogs right. HOME teams are in CAPS.<br>Spreads post Tuesday and lock when posted.</div><form id="website-picks-form"><div class="explorer-controls website-identity-controls"><label>Name<input id="website-picks-name" required autocomplete="name"></label><label><span id="website-week-name-label">Week 1 name</span><input id="website-week-name" required></label></div><div id="website-game-picks" class="website-game-list"></div><div class="explorer-controls website-final-controls" style="margin-top:18px"><label>Best Bet<select id="website-best-bet" required></select></label><label>Tiebreaker · Total net passing yards<input id="website-tiebreaker" type="number" inputmode="decimal" min="-100" max="1200" step="any" title="Enter a number from -100 through 1200" required><small style="color:var(--muted);font:11px Arial,sans-serif;text-transform:none;letter-spacing:0">Net passing yards include yards lost to sacks. Guesses may range from -100 to 1200.</small></label></div><button type="submit" style="margin-top:18px">Submit picks</button><p id="website-picks-status" style="color:var(--muted);font:13px Arial,sans-serif" tabindex="-1"></p></form></div>
   </section>
-  <section id="view-picks-confirmation" class="view"><section class="intro"><div><h2>Picks submitted</h2></div><p>Week 1 · 2026-2027</p></section><div class="panel website-confirmation"><p id="confirmation-lead" class="confirmation-lead">Your picks were submitted successfully.</p><div class="confirmation-grid"><section id="confirmation-identity" class="confirmation-block"><h3>Your pool history</h3><p>Finding your place in the archive...</p></section><section id="confirmation-week-name" class="confirmation-block"><h3>Your week name</h3><p>Reading the room...</p></section><section id="confirmation-picks" class="confirmation-block"><h3>Live outlook</h3><p>Comparing your card with the field...</p></section><section id="confirmation-history" class="confirmation-block"><h3>This card in your history</h3><p>Loading your historical picks...</p></section></div><button id="website-view-week-one" type="button">View Week 1</button></div></section>
+  <section id="view-picks-confirmation" class="view"><section class="intro"><div><h2>Picks submitted</h2></div><p>Week 1 · 2026-2027</p></section><div class="panel website-confirmation"><p id="confirmation-lead" class="confirmation-lead">Your picks were submitted successfully.</p><div class="confirmation-grid"><section id="confirmation-identity" class="confirmation-block"><h3>Your pool history</h3><p>Finding your place in the archive...</p></section><section id="confirmation-picks" class="confirmation-block"><h3>Live outlook</h3><p>Comparing your card with the field...</p></section><section id="confirmation-history" class="confirmation-block"><h3>This card in your history</h3><p>Loading your historical picks...</p></section></div><button id="website-view-week-one" type="button">View Week 1</button></div></section>
   <section id="view-week-one" class="view active">
     <section class="intro"><div><h2>Week 1</h2></div><p>2026-2027 submissions and weekly standings.</p></section>
     <div class="panel"><div id="week-one-status"><p class="website-instructions">Loading the active week...</p></div><div id="week-one-table" style="overflow-x:auto"></div><section id="week-one-live-race" class="live-race"></section><div id="week-one-recap"></div><div id="week-one-scenarios" class="weekly-subview"></div><div id="week-one-sankey" class="weekly-subview"></div><div id="week-one-paths" class="weekly-subview"></div></div>
@@ -1915,24 +1915,6 @@ async function renderConfirmationHistory(submission) {
       const againstRows = completedHistory.filter(row => String(row.pick).toUpperCase() !== opponent && [row.game.favorite, row.game.underdog].map(value => String(value).toUpperCase()).includes(opponent));
       return [{ mode: "for", team, opponent, current, rows: forRows, last: forRows.at(-1) }, { mode: "against", team: opponent, currentPick: team, current, rows: againstRows, last: againstRows.at(-1) }];
     }).filter(candidate => candidate.mode === "for" ? candidate.team && candidate.opponent : candidate.team && candidate.currentPick && candidate.currentPick !== candidate.team);
-    const longestDrought = droughtCandidates.sort((left, right) => gapSince(right.last).days - gapSince(left.last).days || left.rows.length - right.rows.length)[0];
-    let droughtText = "";
-    if (longestDrought) {
-      const gap = gapSince(longestDrought.last), selectedTeam = teamName(longestDrought.team), record = recordLabel(resultRecord(longestDrought.rows));
-      if (!longestDrought.last) {
-        const matchup = longestDrought.mode === "for" ? `against the ${teamName(longestDrought.opponent)}` : `with the ${teamName(longestDrought.currentPick)}`;
-        droughtText = `This is your first archived pick ${longestDrought.mode === "for" ? "on" : "against"} the <strong>${selectedTeam}</strong>, ${matchup}.`;
-      } else {
-        const when = `${longestDrought.last.game.season} ${weeklyRankWeekLabel(String(longestDrought.last.game.week).toLowerCase())}`;
-        if (longestDrought.mode === "for") {
-          const result = String(longestDrought.last.result).toLowerCase() === "win" ? "covered" : String(longestDrought.last.result).toLowerCase() === "loss" ? "did not cover" : "pushed";
-          const opponent = teamName(opponentIn(longestDrought.last));
-          const missed = missedTeamChances(longestDrought.team, longestDrought.last);
-          droughtText = `The last time you picked the <strong>${selectedTeam}</strong>, they ${result} against the <strong>${opponent}</strong> (${websiteEscapeHtml(when)})${priorWeekFinish(longestDrought.last)}. ${missed ? `You have not picked the ${selectedTeam} in the ${missed} chances since.` : `That was your most recent chance to pick them.`} Your career record picking the ${selectedTeam} is ${record}.`;
-        }
-        else droughtText = `It's been <strong>${websiteEscapeHtml(gap.label)}</strong> since you picked against the <strong>${selectedTeam}</strong>. Your record picking against the ${selectedTeam} is ${record}. The last time you faded them, ${previousGame(longestDrought.last)} (${websiteEscapeHtml(when)}).`;
-      }
-    }
     const bestBetRow = currentRows.find(row => row.pick === String(submission.bestBet || "").toUpperCase());
     const bestBetOpponent = bestBetRow ? [bestBetRow.game.favorite, bestBetRow.game.underdog].map(team => String(team).toUpperCase()).find(team => team !== bestBetRow.pick) : "";
     const currentBestBetTeam = String(submission.bestBet || "").toUpperCase();
@@ -1940,23 +1922,6 @@ async function renderConfirmationHistory(submission) {
     const bestBetAgainstRows = bestBetOpponent ? completedHistory.filter(row => String(row.bestBet).toUpperCase() === String(row.pick).toUpperCase() && String(row.pick).toUpperCase() !== bestBetOpponent && [row.game.favorite, row.game.underdog].map(team => String(team).toUpperCase()).includes(bestBetOpponent)) : [];
     const bestBetCandidates = [{ mode: "for", team: currentBestBetTeam, opponent: bestBetOpponent, rows: bestBetForRows, last: bestBetForRows.at(-1) }, { mode: "against", team: bestBetOpponent, currentPick: currentBestBetTeam, rows: bestBetAgainstRows, last: bestBetAgainstRows.at(-1) }].filter(candidate => candidate.mode === "for" ? candidate.team && candidate.opponent : candidate.team && candidate.currentPick && candidate.currentPick !== candidate.team);
     const bestBetCallback = bestBetCandidates.sort((left, right) => gapSince(right.last).days - gapSince(left.last).days || left.rows.length - right.rows.length)[0];
-    let bestBetText = "";
-    if (bestBetCallback && !bestBetCallback.last) {
-      const selectedTeam = teamName(bestBetCallback.team);
-      bestBetText = bestBetCallback.mode === "for" ? `This is your first archived Best Bet on the <strong>${selectedTeam}</strong>.` : `This is your first archived Best Bet against the <strong>${selectedTeam}</strong>.`;
-    } else if (bestBetCallback?.last) {
-      const lastBestBet = bestBetCallback.last;
-      const picked = String(lastBestBet.pick).toUpperCase();
-      const favorite = String(lastBestBet.game.favorite).toUpperCase();
-      const spread = Number(lastBestBet.game.spread || 0);
-      const line = spread ? `${picked === favorite ? "-" : "+"}${spread}` : "PK";
-      const when = `${lastBestBet.game.season} ${weeklyRankWeekLabel(String(lastBestBet.game.week).toLowerCase())}`;
-      const result = lastBestBet.bestBetResult === "win" ? "won" : lastBestBet.bestBetResult === "loss" ? "lost" : "pushed";
-      const gap = gapSince(lastBestBet), record = recordLabel(resultRecord(bestBetCallback.rows, "bestBetResult"));
-      const priorGame = previousGame(lastBestBet, false).replace(/(covered|did not cover|pushed)$/, result === "won" ? "covered" : result === "lost" ? "did not cover" : "pushed");
-      if (bestBetCallback.mode === "for") bestBetText = `It's been <strong>${websiteEscapeHtml(gap.label)}</strong> since you made the <strong>${teamName(bestBetCallback.team)}</strong> your Best Bet. Your Best Bet record on them is ${record}. Last time, you had <strong>${teamName(picked)} ${websiteEscapeHtml(line)}</strong>; ${priorGame} (${websiteEscapeHtml(when)}).`;
-      else bestBetText = `It's been <strong>${websiteEscapeHtml(gap.label)}</strong> since you made a Best Bet against the <strong>${teamName(bestBetCallback.team)}</strong>. Your Best Bet record against them is ${record}. Last time, you had <strong>${teamName(picked)} ${websiteEscapeHtml(line)}</strong>; ${priorGame} (${websiteEscapeHtml(when)}).`;
-    }
     const backingRuns = currentTeams.map(team => ({ team, length: longestWinningRun(completedHistory.filter(row => String(row.pick).toUpperCase() === team)) })).sort((left, right) => right.length - left.length);
     const fadingRuns = currentOpponents.map(team => ({ team, length: longestWinningRun(completedHistory.filter(row => String(row.pick).toUpperCase() !== team && [row.game.favorite, row.game.underdog].map(value => String(value).toUpperCase()).includes(team))) })).sort((left, right) => right.length - left.length);
     const bestBackingRun = backingRuns.find(run => run.length >= 2);
@@ -1982,13 +1947,10 @@ async function renderConfirmationHistory(submission) {
     const currentTeamRanks = [...currentTeams.map(team => teamRank(team)), ...currentOpponents.map(team => teamRank(team, true))];
     const notableRank = currentTeamRanks.find(result => result?.rank === 1) || currentTeamRanks.find(Boolean);
     const rankText = notableRank ? `Among ${notableRank.total} players with at least 10 ${notableRank.against ? `picks against the ${websiteEscapeHtml(websiteFormTeamName(notableRank.team))}` : `${websiteEscapeHtml(websiteFormTeamName(notableRank.team))} picks`}, your ${notableRank.record.wins}-${notableRank.record.losses}${notableRank.record.pushes ? `-${notableRank.record.pushes}` : ""} record ranks <strong>${notableRank.rank === 1 ? "best" : "last"}</strong>.` : "";
-    const lastResult = completedHistory.at(-1)?.result;
-    let streak = 0;
-    for (let index = completedHistory.length - 1; index >= 0 && String(completedHistory[index].result).toLowerCase() === String(lastResult).toLowerCase(); index--) streak += 1;
-    const streakResult = streak === 1 ? lastResult : lastResult === "loss" ? "losses" : `${lastResult}s`;
-    const streakRows = streak ? completedHistory.slice(-streak) : [];
-    const streakTeams = streakRows.map(row => websiteFormTeamName(teamDisplay(row.pick, row.game))).join(", ");
-    const streakText = lastResult ? `Current streak: ${streak} ${websiteEscapeHtml(streakResult)}${streakTeams ? ` · ${websiteEscapeHtml(streakTeams)}` : ""}.` : "";
+    const familiarTeams = currentTeams.map(team => ({ team, rows: completedHistory.filter(row => String(row.pick).toUpperCase() === team) })).sort((left, right) => right.rows.length - left.rows.length);
+    const mostFamiliar = familiarTeams[0];
+    const firstTimeTeams = familiarTeams.filter(item => !item.rows.length).length;
+    const familiarityText = mostFamiliar?.rows.length ? `The <strong>${teamName(mostFamiliar.team)}</strong> are your most familiar pick on this card: you have taken them ${mostFamiliar.rows.length} times, going ${recordLabel(resultRecord(mostFamiliar.rows))}.` : firstTimeTeams ? `${firstTimeTeams === currentTeams.length ? "Every team" : `${firstTimeTeams} teams`} on this card would be a first archived pick for you.` : "";
     const opportunityRun = (team, against = false) => {
       const opportunities = history.filter(row => [row.game.favorite, row.game.underdog].some(value => String(value).toUpperCase() === team));
       const rows = [];
@@ -2001,9 +1963,7 @@ async function renderConfirmationHistory(submission) {
     };
     const backingHabit = currentTeams.map(team => ({ team, ...opportunityRun(team) })).sort((left, right) => right.length - left.length)[0];
     const fadingHabit = currentOpponents.map(team => ({ team, ...opportunityRun(team, true) })).sort((left, right) => right.length - left.length)[0];
-    const activeRunRecord = habit => habit.rows.length ? ` You went <strong>${recordLabel(resultRecord(habit.rows))}</strong> in the ${habit.rows.length} completed ${habit.rows.length === 1 ? "game" : "games"} in that run; this card is still pending.` : " This card starts the run, so there is no completed record yet.";
-    const activeRunsText = [backingHabit ? `Counting this card, your longest active backing streak is <strong>${backingHabit.length} straight ${teamName(backingHabit.team)} games</strong>.${activeRunRecord(backingHabit)}` : "", fadingHabit ? `Your longest active fade is <strong>${fadingHabit.length} straight ${teamName(fadingHabit.team)} games</strong> picking against them.${activeRunRecord(fadingHabit)}` : ""].filter(Boolean).join(" ");
-    const stories = [activeRunsText, teamStreakText, streakText, droughtText, bestBetText, rankText].filter(Boolean).slice(0, 6);
+    const stories = [rankText, familiarityText, teamStreakText].filter(Boolean);
     if (!stories.length) stories.push("The archives know you, but this particular card is breaking new ground. We will have better material after the games.");
     const historyRow = ({ type, team, choice, run, runRows = [], rows = [], last }) => {
       const gap = gapSince(last), runRecord = recordLabel(resultRecord(runRows)), careerRecord = recordLabel(resultRecord(rows));
@@ -2013,7 +1973,7 @@ async function renderConfirmationHistory(submission) {
     const pickGap = [...droughtCandidates].filter(row => row.mode === "for").sort((left, right) => gapSince(right.last).days - gapSince(left.last).days)[0];
     const fadeGap = [...droughtCandidates].filter(row => row.mode === "against").sort((left, right) => gapSince(right.last).days - gapSince(left.last).days)[0];
     const ledgerRows = [
-      backingHabit && historyRow({ type: "Backing run", team: backingHabit.team, choice: "Picked", run: `${backingHabit.length} including this card`, runRows: backingHabit.rows, rows: completedHistory.filter(row => String(row.pick).toUpperCase() === backingHabit.team), last: backingHabit.rows.at(-1) }),
+      backingHabit && historyRow({ type: "Team pick run", team: backingHabit.team, choice: "Picked", run: `${backingHabit.length} including this card`, runRows: backingHabit.rows, rows: completedHistory.filter(row => String(row.pick).toUpperCase() === backingHabit.team), last: backingHabit.rows.at(-1) }),
       fadingHabit && historyRow({ type: "Fade run", team: fadingHabit.team, choice: "Picked against", run: `${fadingHabit.length} including this card`, runRows: fadingHabit.rows, rows: completedHistory.filter(row => String(row.pick).toUpperCase() !== fadingHabit.team && [row.game.favorite, row.game.underdog].map(value => String(value).toUpperCase()).includes(fadingHabit.team)), last: fadingHabit.rows.at(-1) }),
       pickGap && historyRow({ type: "Longest pick gap", team: pickGap.team, choice: "Picked", run: `${opportunityRun(pickGap.team).length} active`, runRows: opportunityRun(pickGap.team).rows, rows: pickGap.rows, last: pickGap.last }),
       fadeGap && historyRow({ type: "Longest fade gap", team: fadeGap.team, choice: "Picked against", run: `${opportunityRun(fadeGap.team, true).length} active`, runRows: opportunityRun(fadeGap.team, true).rows, rows: fadeGap.rows, last: fadeGap.last }),
@@ -2027,8 +1987,6 @@ async function renderWebsiteConfirmation(submission, result) {
   submission.submittedAt = result?.submittedAt || submission.submittedAt || "";
   document.getElementById("confirmation-lead").textContent = result?.unchanged ? `These picks were already saved for ${submission.name.trim()}. The original submission was kept.` : submission.mode === "test" ? "Test picks submitted. Season records were not changed." : `Picks submitted for ${submission.name.trim()}.`;
   renderConfirmationIdentity(submission, result?.identity);
-  const interpretation = interpretWebsiteWeekName(submission.weekName, submission.name);
-  document.getElementById("confirmation-week-name").innerHTML = `<h3>Your week name · ${websiteEscapeHtml(interpretation.category)}</h3><p>${websiteEscapeHtml(interpretation.read)}</p>`;
   renderConfirmationPicks(submission);
   renderConfirmationHistory(submission);
   loadConfirmationProbability(submission);
