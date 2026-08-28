@@ -1592,7 +1592,7 @@ async function initializeNotificationPreferences() {
   sms?.closest(".notification-choice")?.parentElement?.remove();
   form.querySelector('input[name="notification-scope"]')?.closest(".notification-choice")?.parentElement?.remove();
   if (form && !form.elements.picksDue) {
-    form.elements.firstPlace.closest("label").insertAdjacentHTML("beforebegin", '<label class="notification-reminder-time"><input type="checkbox" name="picksDue" checked><span>Picks due reminder<small>Email me <input type="number" name="picksDueMinutes" min="5" max="300" step="5" value="120" aria-label="Minutes before first kickoff"> minutes before first kickoff, only if my picks are still missing.</small></span></label>');
+    form.elements.firstPlace.closest("label").insertAdjacentHTML("beforebegin", '<label class="notification-reminder-time"><input type="checkbox" name="picksDue" checked><span>Picks due reminder<small>Email me <input type="number" name="picksDueMinutes" min="5" max="300" step="5" value="60" aria-label="Minutes before first kickoff"> minutes before first kickoff, only if my picks are still missing.</small></span></label>');
     const toggleReminderTime = () => { form.elements.picksDueMinutes.disabled = !form.elements.picksDue.checked; };
     form.elements.picksDue.addEventListener("change", toggleReminderTime);
     toggleReminderTime();
@@ -1612,7 +1612,7 @@ async function saveNotificationPreferences(event) {
   playerInput.setCustomValidity(player.message);
   if (player.message) { status.textContent = player.message; playerInput.reportValidity(); playerInput.focus(); return; }
   const scope = player.name ? "player" : "pool";
-  const payload = { action: "subscribe-notifications", scope, channel, playerName: player.name || "FBP pool", destination: document.getElementById("notification-destination").value, picksDueMinutes: Number(form.elements.picksDueMinutes.value) || 120, preferences: Object.fromEntries(["picksReady", "picksDue", "firstPlace", "earlyWindow", "lateWindow", "beforeSnf", "beforeMnf", "weeklyResult"].map(name => [name, form.elements[name].checked])) };
+  const payload = { action: "subscribe-notifications", scope, channel, playerName: player.name || "FBP pool", destination: document.getElementById("notification-destination").value, picksDueMinutes: Number(form.elements.picksDueMinutes.value) || 60, preferences: Object.fromEntries(["picksReady", "picksDue", "firstPlace", "earlyWindow", "lateWindow", "beforeSnf", "beforeMnf", "weeklyResult"].map(name => [name, form.elements[name].checked])) };
   button.disabled = true;
   status.textContent = "Sending verification email...";
   try {

@@ -496,7 +496,7 @@ const subscribeNotifications = async (request: Request, payload: JsonObject, env
   if (!playerName) return json({ ok: false, error: "Choose the player these alerts should follow." }, 400, env.CORS_ORIGIN);
   const normalizedDestination = normalizeNotificationDestination(channel, payload.destination);
   const preferences = parseNotificationPreferences(payload.preferences);
-  const picksDueMinutes = Math.max(5, Math.min(300, Math.round(Number(payload.picksDueMinutes) || 120)));
+  const picksDueMinutes = Math.max(5, Math.min(300, Math.round(Number(payload.picksDueMinutes) || 60)));
   if (!notificationEvents.some((event) => preferences[event])) {
     return json({ ok: false, error: "Choose at least one alert." }, 400, env.CORS_ORIGIN);
   }
@@ -563,7 +563,7 @@ const dispatchWeekNotifications = async (env: Env, week: Record<string, unknown>
     const followed = players.find((player) => String(player.name).toLowerCase() === followedName.toLowerCase());
     const rank = followed ? players.indexOf(followed) + 1 : 0;
     const subscriptionEvents = new Set(eventSet);
-    if (picksDueReminderIsEligible(new Date(), games, String(week.status), Number(subscription.picks_due_minutes) || 120)) subscriptionEvents.add("picksDue");
+    if (picksDueReminderIsEligible(new Date(), games, String(week.status), Number(subscription.picks_due_minutes) || 60)) subscriptionEvents.add("picksDue");
     for (const event of subscriptionEvents) {
       if (!Number(subscription[notificationPreferenceColumns[event]])) continue;
       if (event === "picksDue" && (followed || followedName === "FBP pool")) continue;

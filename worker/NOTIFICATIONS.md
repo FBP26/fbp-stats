@@ -12,7 +12,7 @@ The report is private and reads D1 directly. It lists each player or pool-wide s
 
 ## Missing-picks reminder and email previews
 
-Player subscriptions include a missing-picks reminder. It defaults to two hours before the first kickoff and can be set from 5 through 300 minutes. The reminder is sent once per week only when the followed player's active card is absent.
+Player subscriptions include a missing-picks reminder. It defaults to one hour before the first kickoff and can be set from 5 through 300 minutes. The reminder is sent once per week only when the followed player's active card is absent.
 
 Preview all alert messages without sending:
 
