@@ -586,6 +586,10 @@ function websiteRaceColor(name) {
   return `hsl(${Math.abs(hash) % 360} 72% 58%)`;
 }
 function websiteRaceMetric() { return document.getElementById("website-race-metric")?.value || "winProbability"; }
+function websiteStoredRaceSnapshots(context) {
+  try { return JSON.parse(localStorage.getItem(`fbpRaceSnapshots-${context}`) || "[]"); }
+  catch (error) { return []; }
+}
 function stopWebsiteRace() {
   if (websiteRaceTimer) clearTimeout(websiteRaceTimer);
   websiteRaceTimer = null;
@@ -626,14 +630,18 @@ function renderWebsiteRace(data) {
   if (!host) return;
   stopWebsiteRace();
   const context = `${data.testMode ? "preseason" : "regular"}-${data.season}-${data.week}`;
-  const snapshots = Array.isArray(data.raceSnapshots) && data.raceSnapshots.length ? [...data.raceSnapshots] : context === websiteRaceContext ? [...websiteRaceSnapshots] : [];
+  const snapshots = Array.isArray(data.raceSnapshots) && data.raceSnapshots.length ? [...data.raceSnapshots] : context === websiteRaceContext ? [...websiteRaceSnapshots] : data.testMode ? websiteStoredRaceSnapshots(context) : [];
   const current = { timestamp: data.updatedAt || new Date().toISOString(), players: (data.players || []).map(player => ({ name: player.name, winProbability: parseFloat(player.winProbability || 0) || 0, pathsToVictory: Number(player.pathsToVictory || 0), winPercent: parseFloat(player.winPercent || 0) || 0 })) };
   const latestStored = snapshots[snapshots.length - 1];
   const currentSignature = JSON.stringify(current.players);
   const latestSignature = JSON.stringify(latestStored?.players || []);
   if (current.players.length && currentSignature !== latestSignature) snapshots.push(current);
   websiteRaceContext = context;
-  websiteRaceSnapshots = snapshots.filter(snapshot => snapshot?.timestamp && Array.isArray(snapshot.players) && snapshot.players.length);
+  websiteRaceSnapshots = snapshots.filter(snapshot => snapshot?.timestamp && Array.isArray(snapshot.players) && snapshot.players.length).slice(-360);
+  if (data.testMode) {
+    try { localStorage.setItem(`fbpRaceSnapshots-${context}`, JSON.stringify(websiteRaceSnapshots)); }
+    catch (error) { console.warn(`Preseason race history could not be saved: ${error.message}`); }
+  }
   if (!websiteRaceSnapshots.length) { host.innerHTML = '<div class="live-race-head"><div><h3>Live Weekly Race</h3><p>Win probability and paths will build here every five minutes once the live refresh starts.</p></div></div><div class="live-race-empty">No race snapshots yet. The first production refresh will create the opening frame.</div>'; return; }
   const names = [...new Set(websiteRaceSnapshots.flatMap(snapshot => snapshot.players.map(player => player.name)))];
   const waitingForUpdate = websiteRaceSnapshots.length < 2;
