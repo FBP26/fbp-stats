@@ -564,7 +564,7 @@ const WEBSITE_EXACT_SCENARIO_GAME_LIMIT = 6;
 let websiteScenarioMode = "current";
 let websiteContenderDetailMode = "simple";
 let websiteSankeyChart = null, websiteConfirmationSplitChart = null;
-let websiteRaceSnapshots = [], websiteRaceFrame = 0, websiteRaceTimer = null, websiteRaceRows = new Map();
+let websiteRaceSnapshots = [], websiteRaceContext = "", websiteRaceFrame = 0, websiteRaceTimer = null, websiteRaceRows = new Map();
 function websiteProbabilityText(percent) {
   const value = Number(percent);
   if (!Number.isFinite(value)) return "";
@@ -616,14 +616,19 @@ function renderWebsiteRace(data) {
   const host = document.getElementById("week-one-live-race");
   if (!host) return;
   stopWebsiteRace();
-  const snapshots = Array.isArray(data.raceSnapshots) ? [...data.raceSnapshots] : [];
+  const context = `${data.testMode ? "preseason" : "regular"}-${data.season}-${data.week}`;
+  const snapshots = Array.isArray(data.raceSnapshots) && data.raceSnapshots.length ? [...data.raceSnapshots] : context === websiteRaceContext ? [...websiteRaceSnapshots] : [];
   const current = { timestamp: data.updatedAt || new Date().toISOString(), players: (data.players || []).map(player => ({ name: player.name, winProbability: parseFloat(player.winProbability || 0) || 0, pathsToVictory: Number(player.pathsToVictory || 0), winPercent: parseFloat(player.winPercent || 0) || 0 })) };
   const latestStored = snapshots[snapshots.length - 1];
-  if (current.players.length && (!latestStored || current.timestamp !== latestStored.timestamp)) snapshots.push(current);
+  const currentSignature = JSON.stringify(current.players);
+  const latestSignature = JSON.stringify(latestStored?.players || []);
+  if (current.players.length && currentSignature !== latestSignature) snapshots.push(current);
+  websiteRaceContext = context;
   websiteRaceSnapshots = snapshots.filter(snapshot => snapshot?.timestamp && Array.isArray(snapshot.players) && snapshot.players.length);
   if (!websiteRaceSnapshots.length) { host.innerHTML = '<div class="live-race-head"><div><h3>Live Weekly Race</h3><p>Win probability and paths will build here every five minutes once the live refresh starts.</p></div></div><div class="live-race-empty">No race snapshots yet. The first production refresh will create the opening frame.</div>'; return; }
   const names = [...new Set(websiteRaceSnapshots.flatMap(snapshot => snapshot.players.map(player => player.name)))];
-  host.innerHTML = '<div class="live-race-head"><div><h3>Live Weekly Race</h3><p>The top 10 reorder as results change. Bars are scaled to the leader; labels show actual values.</p></div><div class="live-race-controls"><label>Race by<select id="website-race-metric"><option value="winProbability">Win probability</option><option value="winPercent">Win %</option><option value="pathsToVictory">Paths to victory</option></select></label><button id="website-race-play" type="button">Play race</button><button id="website-race-restart" type="button">Restart</button><label>Speed<select id="website-race-speed"><option value="1400">0.75x</option><option value="900" selected>1x</option><option value="500">2x</option></select></label><output id="website-race-time" class="live-race-time" aria-live="polite"></output></div></div><div id="website-race-track" class="live-race-track"><div id="website-race-leader" class="live-race-leader" aria-hidden="true"></div></div>';
+  const waitingForUpdate = websiteRaceSnapshots.length < 2;
+  host.innerHTML = `<div class="live-race-head"><div><h3>Live Weekly Race</h3><p>${waitingForUpdate ? "The opening frame is saved. Playback unlocks after the next changed live update." : "The top 10 reorder as results change. Bars are scaled to the leader; labels show actual values."}</p></div><div class="live-race-controls"><label>Race by<select id="website-race-metric"><option value="winProbability">Win probability</option><option value="winPercent">Win %</option><option value="pathsToVictory">Paths to victory</option></select></label><button id="website-race-play" type="button"${waitingForUpdate ? " disabled" : ""}>${waitingForUpdate ? "Waiting for next update" : "Play race"}</button><button id="website-race-restart" type="button">Restart</button><label>Speed<select id="website-race-speed"><option value="1400">0.75x</option><option value="900" selected>1x</option><option value="500">2x</option></select></label><output id="website-race-time" class="live-race-time" aria-live="polite"></output></div></div><div id="website-race-track" class="live-race-track"><div id="website-race-leader" class="live-race-leader" aria-hidden="true"></div></div>`;
   const track = document.getElementById("website-race-track");
   websiteRaceRows = new Map();
   names.forEach(name => {
@@ -829,7 +834,7 @@ function websitePreparePlayers(data) {
   });
   websiteSortPlayers(data.players);
 }
-function websiteSortPlayers(players) { return players.sort((left, right) => parseFloat(right.winPercent || 0) - parseFloat(left.winPercent || 0) || Number(right.wins || 0) - Number(left.wins || 0) || parseFloat(right.winProbability || 0) - parseFloat(left.winProbability || 0) || left.name.localeCompare(right.name)); }
+function websiteSortPlayers(players) { return players.sort((left, right) => parseFloat(right.winPercent || 0) - parseFloat(left.winPercent || 0) || Number(right.wins || 0) - Number(left.wins || 0) || Number(left.losses || 0) - Number(right.losses || 0) || parseFloat(right.winProbability || 0) - parseFloat(left.winProbability || 0) || left.name.localeCompare(right.name)); }
 function renderWebsitePlayerLedgers(data) {
   const host = document.getElementById("week-one-ledger");
   if (!host || !(data.players || []).length) return;
