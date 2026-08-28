@@ -1584,6 +1584,7 @@ async function initializeNotificationPreferences() {
   form.elements.picksReady.closest("label").querySelector("small").textContent = "A new week is ready for picks.";
   const summary = document.querySelector(".notification-settings > summary");
   if (summary) summary.textContent = "Email alert preferences";
+  status.textContent = "We'll email you a verification link to confirm the address. Alerts start only after you open it, and every email includes a stop link.";
   sms?.closest(".notification-choice")?.parentElement?.remove();
   form.querySelector('input[name="notification-scope"]')?.closest(".notification-choice")?.parentElement?.remove();
   if (form && !form.elements.picksDue) {
@@ -2060,12 +2061,6 @@ async function preflightWebsiteIdentity(submission, status) {
   let identity = result.identity || {};
   const canonicalSuggestion = websiteCanonicalPlayerSuggestion(submission.name);
   if (canonicalSuggestion && identity.status === "known") identity = { status: "suggestion", submittedName: submission.name.trim(), suggestedName: canonicalSuggestion, reason: "similar-to-canonical-player" };
-  if (identity.canonicalizedFrom && identity.submittedName) {
-    submission.name = identity.submittedName;
-    document.getElementById("website-picks-name").value = identity.submittedName;
-    websiteApprovedNewPlayerName = "";
-    return true;
-  }
   if (identity.status === "known") { websiteApprovedNewPlayerName = ""; return true; }
   const enteredName = submission.name.trim();
   const normalizedName = enteredName.toLowerCase();
