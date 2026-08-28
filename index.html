@@ -95,7 +95,7 @@
   .notification-choice label:has(input:checked) { border-color: var(--accent); color: #7ee2b8; }
   .notification-choice label:has(input:disabled) { opacity: .52; cursor: not-allowed; }
   .notification-contact-grid { display: grid; grid-template-columns: minmax(0, 440px); gap: 10px; }
-  .notification-contact-note { display: block; max-width: 440px; margin-top: -7px; color: var(--muted); font: 10px/1.4 Arial, sans-serif; text-transform: none; letter-spacing: 0; }
+  .notification-contact-note { display: block; margin-top: 4px; color: var(--muted); font: 10px/1.4 Arial, sans-serif; text-transform: none; letter-spacing: 0; }
   .notification-events { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 6px 12px; }
   .notification-events label { display: grid; grid-template-columns: 18px minmax(0, 1fr); align-items: start; gap: 7px; padding: 5px 0; color: var(--text); font: 12px/1.35 Arial, sans-serif; text-transform: none; letter-spacing: 0; }
   .notification-reminder-time input[type="number"] { width: 72px; margin: 4px 3px 0 0; }
@@ -1672,8 +1672,10 @@ async function initializeNotificationPreferences() {
   playerInput.required = true;
   playerInput.addEventListener("input", event => event.currentTarget.setCustomValidity(""));
   playerLabel.childNodes[0].textContent = "Player name";
+  const contactGrid = playerLabel.closest(".notification-contact-grid"), emailLabel = document.getElementById("notification-destination").closest("label");
+  contactGrid.insertBefore(emailLabel, playerLabel);
   playerInput.setAttribute("aria-describedby", "notification-contact-note");
-  playerLabel.closest(".notification-contact-grid").insertAdjacentHTML("afterend", '<small id="notification-contact-note" class="notification-contact-note">Choose an existing player so emails can include your Current Week position and highlights and remind you before picks are due.</small>');
+  playerInput.insertAdjacentHTML("afterend", '<small id="notification-contact-note" class="notification-contact-note">Choose an existing player so emails can include your Current Week position and highlights and remind you before picks are due.</small>');
   form.elements.picksReady.closest("label").querySelector("small").textContent = "A new week is ready for picks.";
   const eventCopy = {
     firstPlace: "Current Week update when your player moves into first.",
