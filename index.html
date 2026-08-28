@@ -599,8 +599,10 @@ function websiteStoredRaceSnapshots(context) {
   try { return JSON.parse(localStorage.getItem(`fbpRaceSnapshots-${context}`) || "[]"); }
   catch (error) { return []; }
 }
-function websiteRaceSnapshotSignature(players) {
-  return JSON.stringify((players || []).map(player => [player.name, Number(player.winProbability || 0), Number(player.pathsToVictory || 0), Number(player.winPercent || 0)]).sort((left, right) => String(left[0]).localeCompare(String(right[0]))));
+function websiteRaceSnapshotSignature(snapshot) {
+  const players = (snapshot?.players || []).map(player => [player.name, Number(player.winProbability || 0), Number(player.pathsToVictory || 0), Number(player.winPercent || 0)]).sort((left, right) => String(left[0]).localeCompare(String(right[0])));
+  const games = (snapshot?.gameState || []).map(game => [game.gameId || "", game.status || game.espnStatus || "", Number(game.awayScore ?? game.favoriteScore ?? 0), Number(game.homeScore ?? game.underdogScore ?? 0)]);
+  return JSON.stringify([players, games]);
 }
 function stopWebsiteRace(preservePlaybackRequest = false) {
   if (websiteRaceTimer) clearTimeout(websiteRaceTimer);
@@ -617,38 +619,42 @@ function startWebsiteRace() {
   websiteRaceTimer = setTimeout(advanceWebsiteRace, Number(document.getElementById("website-race-speed")?.value || 900));
 }
 function websiteRaceDuration(milliseconds) {
-  const minutes = Math.max(1, Math.round(milliseconds / 60000));
-  if (minutes < 60) return `${minutes}m`;
-  const hours = Math.floor(minutes / 60), remainder = minutes % 60;
-  return `${hours}h${remainder ? ` ${remainder}m` : ""}`;
+  const seconds = Math.max(0, Math.round(milliseconds / 1000));
+  if (seconds < 60) return `${seconds}s`;
+  const minutes = Math.floor(seconds / 60), remainingSeconds = seconds % 60;
+  if (minutes < 60) return `${minutes}m ${String(remainingSeconds).padStart(2, "0")}s`;
+  const hours = Math.floor(minutes / 60), remainingMinutes = minutes % 60;
+  return `${hours}h ${String(remainingMinutes).padStart(2, "0")}m`;
+}
+function websiteRaceHasLiveGame(snapshot) {
+  return (snapshot?.gameState || []).some(game => ["IN_PROGRESS", "LIVE"].includes(String(game.status || game.espnStatus || "").toUpperCase()));
 }
 function renderWebsiteRaceLeadership() {
   const host = document.getElementById("website-race-leadership");
   if (!host || !websiteRaceSnapshots.length) return;
   const metric = websiteRaceMetric();
   const timestamps = websiteRaceSnapshots.map(snapshot => new Date(snapshot.timestamp).getTime());
-  const gaps = timestamps.slice(1).map((timestamp, index) => timestamp - timestamps[index]).filter(gap => Number.isFinite(gap) && gap > 0).sort((left, right) => left - right);
-  const cadence = gaps.length ? gaps[Math.floor(gaps.length / 2)] : 300000;
-  const checkpoints = websiteRaceSnapshots.map((snapshot, index) => {
+  const intervals = websiteRaceSnapshots.map((snapshot, index) => {
+    if (!websiteRaceHasLiveGame(snapshot)) return null;
     const leader = [...snapshot.players].sort((left, right) => Number(right[metric] || 0) - Number(left[metric] || 0) || left.name.localeCompare(right.name))[0];
-    const nextTimestamp = timestamps[index + 1];
-    return leader ? { name: leader.name, duration: nextTimestamp > timestamps[index] ? nextTimestamp - timestamps[index] : cadence } : null;
+    const nextTimestamp = timestamps[index + 1] || Date.now(), duration = nextTimestamp - timestamps[index];
+    return leader && Number.isFinite(duration) && duration > 0 ? { name: leader.name, duration, index } : null;
   }).filter(Boolean);
-  if (!checkpoints.length) { host.innerHTML = ""; return; }
+  if (!intervals.length) { host.innerHTML = '<div class="live-race-leadership-head"><h4>Time on top</h4><p>Timing begins with the next live-game snapshot.</p></div>'; return; }
   const totals = new Map(), reigns = [];
-  checkpoints.forEach(checkpoint => {
-    const total = totals.get(checkpoint.name) || { name: checkpoint.name, count: 0, duration: 0 };
-    total.count += 1;
-    total.duration += checkpoint.duration;
-    totals.set(checkpoint.name, total);
+  intervals.forEach(interval => {
+    const total = totals.get(interval.name) || { name: interval.name, duration: 0 };
+    total.duration += interval.duration;
+    totals.set(interval.name, total);
     const latest = reigns[reigns.length - 1];
-    if (latest?.name === checkpoint.name) { latest.count += 1; latest.duration += checkpoint.duration; }
-    else reigns.push({ ...checkpoint, count: 1 });
+    if (latest?.name === interval.name && latest.lastIndex === interval.index - 1) { latest.duration += interval.duration; latest.lastIndex = interval.index; }
+    else reigns.push({ ...interval, lastIndex: interval.index });
   });
   const totalDuration = reigns.reduce((sum, reign) => sum + reign.duration, 0) || reigns.length;
   const longest = [...reigns].sort((left, right) => right.duration - left.duration)[0];
-  const leaders = [...totals.values()].sort((left, right) => right.count - left.count || right.duration - left.duration || left.name.localeCompare(right.name));
-  host.innerHTML = `<div class="live-race-leadership-head"><h4>Time on top</h4><p>${Math.max(0, reigns.length - 1)} lead change${reigns.length === 2 ? "" : "s"} · ${leaders.length} leader${leaders.length === 1 ? "" : "s"} · Longest reign: ${websiteEscapeHtml(longest.name)} ~${websiteRaceDuration(longest.duration)}</p></div><div class="live-leader-trail" aria-label="Estimated time on top by race leader">${reigns.map(reign => `<span class="live-leader-segment" style="--runner-color:${websiteRaceColor(reign.name)};flex:${reign.duration / totalDuration}" title="${websiteEscapeHtml(reign.name)} · ${reign.count} update${reign.count === 1 ? "" : "s"} · about ${websiteRaceDuration(reign.duration)}">${reign.duration / totalDuration >= .09 ? websiteEscapeHtml(reign.name) : ""}</span>`).join("")}</div><div class="live-leader-stats">${leaders.map(leader => `<div class="live-leader-stat" style="--runner-color:${websiteRaceColor(leader.name)}"><strong>${websiteEscapeHtml(leader.name)}</strong><span>${leader.count} update${leader.count === 1 ? "" : "s"} led · ~${websiteRaceDuration(leader.duration)} on top</span></div>`).join("")}</div>`;
+  const leaders = [...totals.values()].sort((left, right) => right.duration - left.duration || left.name.localeCompare(right.name));
+  const leadChanges = intervals.slice(1).filter((interval, index) => interval.name !== intervals[index].name).length;
+  host.innerHTML = `<div class="live-race-leadership-head"><h4>Time on top</h4><p>${leadChanges} lead change${leadChanges === 1 ? "" : "s"} during play · ${websiteRaceDuration(totalDuration)} measured · Longest: ${websiteEscapeHtml(longest.name)} ${websiteRaceDuration(longest.duration)}</p></div><div class="live-leader-trail" aria-label="Time on top while games were live">${reigns.map(reign => `<span class="live-leader-segment" style="--runner-color:${websiteRaceColor(reign.name)};flex:${reign.duration / totalDuration}" title="${websiteEscapeHtml(reign.name)} · ${websiteRaceDuration(reign.duration)} on top while games were live">${reign.duration / totalDuration >= .09 ? websiteEscapeHtml(reign.name) : ""}</span>`).join("")}</div><div class="live-leader-stats">${leaders.map(leader => `<div class="live-leader-stat" style="--runner-color:${websiteRaceColor(leader.name)}"><strong>${websiteEscapeHtml(leader.name)}</strong><span>${websiteRaceDuration(leader.duration)} on top during live play</span></div>`).join("")}</div>`;
 }
 function renderWebsiteRaceLineChart(animate = true) {
   const canvas = document.getElementById("website-race-line-chart");
@@ -740,10 +746,10 @@ function renderWebsiteRace(data) {
   websiteRaceLineChart = null;
   const context = `${data.testMode ? "preseason" : "regular"}-${data.season}-${data.week}`;
   const snapshots = Array.isArray(data.raceSnapshots) && data.raceSnapshots.length ? [...data.raceSnapshots] : context === websiteRaceContext ? [...websiteRaceSnapshots] : data.testMode ? websiteStoredRaceSnapshots(context) : [];
-  const current = { timestamp: data.updatedAt || new Date().toISOString(), players: (data.players || []).map(player => ({ name: player.name, winProbability: parseFloat(player.winProbability || 0) || 0, pathsToVictory: Number(player.pathsToVictory || 0), winPercent: parseFloat(player.winPercent || 0) || 0 })) };
+  const current = { timestamp: data.updatedAt || new Date().toISOString(), gameState: (data.games || []).map(game => ({ gameId: game.gameId || "", status: game.espnStatus || game.status || "", awayScore: game.awayScore ?? game.favoriteScore ?? "", homeScore: game.homeScore ?? game.underdogScore ?? "" })), players: (data.players || []).map(player => ({ name: player.name, winProbability: parseFloat(player.winProbability || 0) || 0, pathsToVictory: Number(player.pathsToVictory || 0), winPercent: parseFloat(player.winPercent || 0) || 0 })) };
   const latestStored = snapshots[snapshots.length - 1];
-  const currentSignature = websiteRaceSnapshotSignature(current.players);
-  const latestSignature = websiteRaceSnapshotSignature(latestStored?.players);
+  const currentSignature = websiteRaceSnapshotSignature(current);
+  const latestSignature = websiteRaceSnapshotSignature(latestStored);
   if (current.players.length && currentSignature !== latestSignature) snapshots.push(current);
   websiteRaceContext = context;
   websiteRaceSnapshots = snapshots.filter(snapshot => snapshot?.timestamp && Array.isArray(snapshot.players) && snapshot.players.length).slice(-360);
