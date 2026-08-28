@@ -1,5 +1,6 @@
 export const notificationEvents = [
   "picksReady",
+  "picksDue",
   "firstPlace",
   "earlyWindow",
   "lateWindow",
@@ -14,6 +15,7 @@ export type NotificationPreferences = Record<NotificationEvent, boolean>;
 
 export const defaultNotificationPreferences = (): NotificationPreferences => ({
   picksReady: true,
+  picksDue: true,
   firstPlace: false,
   earlyWindow: false,
   lateWindow: false,
@@ -57,6 +59,7 @@ export const maskNotificationDestination = (channel: NotificationChannel, destin
 
 export const notificationPreferenceColumns: Record<NotificationEvent, string> = {
   picksReady: "picks_ready",
+  picksDue: "picks_due",
   firstPlace: "first_place",
   earlyWindow: "early_window",
   lateWindow: "late_window",
@@ -109,4 +112,17 @@ export const scheduledNotificationEvents = (
   if (sundayNight.some(beginsSoon)) events.add("beforeSnf");
   if (mondayNight.some(beginsSoon)) events.add("beforeMnf");
   return [...events];
+};
+
+export const picksDueReminderIsEligible = (
+  now: Date,
+  games: NotificationGame[],
+  weekStatus: string,
+  minutesBeforeKickoff: number,
+): boolean => {
+  if (!["staged", "open"].includes(weekStatus)) return false;
+  const kickoffs = games.map((game) => easternKickoff(game.kickoff)?.time).filter((time): time is number => Number.isFinite(time));
+  if (!kickoffs.length) return false;
+  const untilFirstKickoff = Math.min(...kickoffs) - now.getTime();
+  return untilFirstKickoff >= 0 && untilFirstKickoff <= minutesBeforeKickoff * 60 * 1000;
 };

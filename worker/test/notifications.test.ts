@@ -5,6 +5,7 @@ import {
   maskNotificationDestination,
   normalizeNotificationDestination,
   parseNotificationPreferences,
+  picksDueReminderIsEligible,
   scheduledNotificationEvents,
 } from "../src/notifications.ts";
 
@@ -38,6 +39,16 @@ test("scheduled events follow completed Sunday windows and upcoming night games"
   ];
   assert.deepEqual(scheduledNotificationEvents(now, games, "live"), ["earlyWindow", "lateWindow", "beforeSnf"]);
   assert.deepEqual(scheduledNotificationEvents(now, games, "staged"), ["picksReady", "earlyWindow", "lateWindow", "beforeSnf"]);
+});
+
+test("picks due reminder honors a configurable lead time before the first kickoff", () => {
+  const games = [{ kickoff: "2026-09-10T00:20:00Z", state: "PREGAME" }];
+  assert.equal(picksDueReminderIsEligible(new Date("2026-09-10T00:04:59Z"), games, "staged", 15), false);
+  assert.equal(picksDueReminderIsEligible(new Date("2026-09-10T00:05:00Z"), games, "staged", 15), true);
+  assert.equal(picksDueReminderIsEligible(new Date("2026-09-10T00:10:00Z"), games, "staged", 10), true);
+  assert.equal(picksDueReminderIsEligible(new Date("2026-09-09T19:20:00Z"), games, "staged", 300), true);
+  assert.equal(picksDueReminderIsEligible(new Date("2026-09-10T00:20:00Z"), games, "staged", 15), true);
+  assert.equal(picksDueReminderIsEligible(new Date("2026-09-10T00:20:01Z"), games, "staged", 15), false);
 });
 
 test("weekly result is eligible only after finalization", () => {
