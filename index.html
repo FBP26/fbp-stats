@@ -611,11 +611,23 @@ function renderWebsiteBestBetPicker(teams, enabled) {
   const bestBet = document.getElementById("website-best-bet"), field = bestBet.closest("label");
   bestBet.classList.add("website-best-bet-native");
   field.classList.add("website-best-bet-field");
-  field.querySelector(".website-best-bet-picker")?.remove();
+  const previousPicker = field.querySelector(".website-best-bet-picker");
+  previousPicker?.bestBetMediaQuery?.removeEventListener("change", previousPicker.bestBetSortOptions);
+  previousPicker?.remove();
   const picker = document.createElement("details");
   picker.className = "website-best-bet-picker";
   const options = teams.map(websiteBestBetTeam);
   picker.innerHTML = `<summary aria-label="Choose a best bet">Choose a best bet</summary><div class="website-best-bet-menu" role="listbox">${options.map(option => `<button class="website-best-bet-option" type="button" role="option" data-team="${websiteEscapeHtml(option.team)}" aria-selected="false"><img class="website-best-bet-logo" src="${websiteEscapeHtml(option.logo)}" alt="" loading="lazy"><span class="website-best-bet-name">${websiteEscapeHtml(option.name)}</span><span class="website-best-bet-code">${websiteEscapeHtml(option.team)}</span></button>`).join("")}</div>`;
+  const mediaQuery = matchMedia("(max-width: 560px)"), menu = picker.querySelector(".website-best-bet-menu");
+  const sortOptions = () => [...menu.children].sort((left, right) => {
+    const leftLabel = mediaQuery.matches ? left.dataset.team : left.querySelector(".website-best-bet-name").textContent;
+    const rightLabel = mediaQuery.matches ? right.dataset.team : right.querySelector(".website-best-bet-name").textContent;
+    return leftLabel.localeCompare(rightLabel, undefined, { sensitivity: "base" });
+  }).forEach(option => menu.appendChild(option));
+  picker.bestBetMediaQuery = mediaQuery;
+  picker.bestBetSortOptions = sortOptions;
+  sortOptions();
+  mediaQuery.addEventListener("change", sortOptions);
   picker.hidden = !enabled;
   picker.querySelector("summary").onclick = event => { event.preventDefault(); event.stopPropagation(); picker.open = !picker.open; };
   picker.querySelectorAll("[role=option]").forEach(option => option.onclick = event => { event.preventDefault(); event.stopPropagation(); bestBet.value = option.dataset.team; bestBet.dispatchEvent(new Event("change", { bubbles: true })); picker.open = false; updateWebsiteBestBetPicker(); });
@@ -812,7 +824,7 @@ function websiteRaceCheckpointEvents(snapshotIndex) {
 function websiteRaceCheckpointChanges(snapshotIndex) {
   if (!snapshotIndex) return ["Opening checkpoint"];
   const events = websiteRaceCheckpointEvents(snapshotIndex);
-  return events.length ? events.flatMap(event => event.lines) : [];
+  return events.length ? [...new Set(events.flatMap(event => event.lines))] : [];
 }
 function websiteRaceCheckpointHeadline(snapshotIndex) {
   const events = websiteRaceCheckpointEvents(snapshotIndex);
@@ -916,7 +928,7 @@ function renderWebsiteRaceLineChart(animate = true) {
     }
   };
   const data = { datasets };
-  const options = { responsive: true, maintainAspectRatio: false, animation: animate ? { duration: 520 } : false, layout: { padding: { top: 16, right: compactLandscape ? 80 : 118 } }, interaction: { mode: "nearest", intersect: false }, onClick: (event, elements) => { const name = elements[0] ? websiteRaceLineChart.data.datasets[elements[0].datasetIndex].label : ""; websiteRaceSelectedPlayer = websiteRaceSelectedPlayer === name ? "" : name; renderWebsiteRaceLineChart(false); }, scales: { x: { type: "linear", min: 0, max: Math.max(1, websiteRaceFrame), grid: { color: "#2a374466" }, ticks: { color: "#91a0ae", maxTicksLimit: 7, callback: value => { const snapshot = websiteRaceSnapshots[Math.round(Number(value))]; return snapshot ? new Date(snapshot.timestamp).toLocaleTimeString([], { hour: "numeric", minute: "2-digit" }) : ""; } }, title: { display: true, text: "Race checkpoints", color: "#91a0ae" } }, y: { min: 1, max: Math.max(2, names.length), reverse: true, grid: { color: "#2a3744" }, ticks: { color: "#91a0ae", stepSize: 1, callback: value => `#${value}` }, title: { display: true, text: "Rank", color: "#91a0ae" } } }, plugins: { legend: { display: false }, tooltip: { displayColors: false, callbacks: { title: items => { const snapshot = websiteRaceSnapshots[items[0]?.raw?.snapshotIndex]; return snapshot ? new Date(snapshot.timestamp).toLocaleString([], { weekday: "short", hour: "numeric", minute: "2-digit", second: "2-digit" }) : ""; }, label: context => { const value = context.raw.metricValue, formatted = metric === "winProbability" || metric === "winPercent" ? websiteProbabilityText(value) : value.toLocaleString(); return [context.dataset.label, `Rank #${context.parsed.y}`, `${websiteRaceMetricLabel(metric)}: ${formatted}`]; }, afterLabel: context => websiteRaceCheckpointChanges(context.raw.snapshotIndex) } } } };
+  const options = { responsive: true, maintainAspectRatio: false, animation: animate ? { duration: 520 } : false, layout: { padding: { top: 16, right: compactLandscape ? 80 : 118 } }, interaction: { mode: "nearest", intersect: false }, onClick: (event, elements) => { const name = elements[0] ? websiteRaceLineChart.data.datasets[elements[0].datasetIndex].label : ""; websiteRaceSelectedPlayer = websiteRaceSelectedPlayer === name ? "" : name; renderWebsiteRaceLineChart(false); }, scales: { x: { type: "linear", min: 0, max: Math.max(1, websiteRaceFrame), grid: { color: "#2a374466" }, ticks: { color: "#91a0ae", maxTicksLimit: 7, callback: value => { const snapshot = websiteRaceSnapshots[Math.round(Number(value))]; return snapshot ? new Date(snapshot.timestamp).toLocaleTimeString([], { hour: "numeric", minute: "2-digit" }) : ""; } }, title: { display: true, text: "Race checkpoints", color: "#91a0ae" } }, y: { min: 1, max: Math.max(2, names.length), reverse: true, grid: { color: "#2a3744" }, ticks: { color: "#91a0ae", stepSize: 1, callback: value => `#${value}` }, title: { display: true, text: "Rank", color: "#91a0ae" } } }, plugins: { legend: { display: false }, tooltip: { displayColors: false, padding: 6, cornerRadius: 4, caretSize: 5, borderColor: "#52606d", borderWidth: 1, titleFont: { size: 9, weight: "normal" }, bodyFont: { size: 10 }, titleMarginBottom: 3, bodySpacing: 1, callbacks: { title: items => { const snapshot = websiteRaceSnapshots[items[0]?.raw?.snapshotIndex]; return snapshot ? new Date(snapshot.timestamp).toLocaleString([], { weekday: "short", hour: "numeric", minute: "2-digit", second: "2-digit" }) : ""; }, label: context => { const value = context.raw.metricValue, formatted = metric === "winProbability" || metric === "winPercent" ? websiteProbabilityText(value) : value.toLocaleString(); return [context.dataset.label, `Rank #${context.parsed.y}`, `${websiteRaceMetricLabel(metric)}: ${formatted}`]; }, afterLabel: context => websiteRaceCheckpointChanges(context.raw.snapshotIndex) } } } };
   if (websiteRaceLineChart) websiteRaceLineChart.destroy();
   websiteRaceLineChart = new Chart(canvas, { type: "line", data, options, plugins: [checkpointEvents, endpointLabels] });
 }
