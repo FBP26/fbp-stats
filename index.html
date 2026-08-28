@@ -322,6 +322,13 @@
   .pg-header-score { display: block; color: var(--text); font-size: 12px; line-height: 1.15; }
   .pg-header-spread { display: block; color: var(--accent-2) !important; line-height: 1.2; }
   .pg-header-kickoff { display: block; margin-top: 3px; color: var(--accent) !important; white-space: nowrap; }
+  .pg-cover-trigger { cursor: pointer; }
+  .pg-cover-trigger:focus-visible, .pg-cover-trigger.selected { outline: 2px solid var(--accent-2); outline-offset: -2px; }
+  .pg-cover-probability { display: block; margin-top: 3px; color: #f5b942 !important; font: bold 9px/1.25 Arial, sans-serif; white-space: nowrap; }
+  .game-cover-popover { position: fixed; z-index: 1200; width: min(360px, calc(100vw - 20px)); padding: 12px; border: 1px solid #4a6070; border-radius: 6px; background: #111b24; box-shadow: 0 16px 45px #000b; color: var(--text); }
+  .game-cover-popover h4 { margin: 0; font: bold 13px Arial, sans-serif; }
+  .game-cover-popover p { margin: 4px 0 8px; color: var(--muted); font: 10px/1.35 Arial, sans-serif; }
+  .game-cover-chart-wrap { position: relative; height: 190px; }
   .pg-round { background: #192a36; color: var(--accent); font-size: 10px; letter-spacing: .5px; text-transform: uppercase; }
   .pg-bb-hdr { background: #192a20; color: #7ee2b8; font-size: 10px; }
   .pg-sum-hdr { background: #202c38; color: var(--muted); font-size: 10px; }
@@ -460,7 +467,7 @@
       <details><summary>How does the weekly tiebreaker work?</summary><div class="faq-answer"><p>If players finish with the same number of wins, the closest guess to the combined net passing yards in the final game wins. Net passing yards include both teams' passing yards minus yards lost to sacks. Players equally close split the winnings.</p></div></details>
       <details><summary>When are picks due?</summary><div class="faq-answer"><p>Submit before the first game of the week to be eligible under the normal deadline. The submission time is recorded. A late entry after the Thursday game may still play, but takes a loss for that game under the existing pool rule.</p></div></details>
       <details><summary>How do I read Current Week?</summary><div class="faq-answer"><p>The main grid shows every active card, live pick results, record, rank, tiebreak position, paths to victory, and estimated win probability. Pending games remain unresolved; live games use the current against-the-spread leader provisionally.</p><p>The race playback shows how positions changed at recorded checkpoints. Scenario views explain which remaining outcomes help each player. Probabilities are estimates, not betting odds, and become exact only when all outcomes and the tiebreak are settled.</p></div></details>
-      <details><summary>How do filters, charts, and hovers work?</summary><div class="faq-answer"><p>Use the selectors above a chart or table to change season, player, team, metric, or lookback. Hover a chart point or bar for the exact sample and record. On a phone, tap to open the same detail and tap the close button, outside the tooltip, or press Escape to dismiss it.</p><p>Pay attention to sample sizes. A strong percentage over a few picks is descriptive, not proof of a lasting tendency. Tables can be sorted by selecting their column headings.</p></div></details>
+      <details><summary>How do filters, charts, and hovers work?</summary><div class="faq-answer"><p>Use the selectors above a chart or table to change season, player, team, metric, or lookback. Hover a chart point or bar for the exact sample and record. On a phone, tap intentionally to open the same detail; tap that item again, tap outside, use the close button, or press Escape to dismiss it.</p><p>Pay attention to sample sizes. A strong percentage over a few picks is descriptive, not proof of a lasting tendency. Tables can be sorted by selecting their column headings.</p></div></details>
       <details><summary>What can I find in each history section?</summary><div class="faq-answer"><ul><li><strong>Weeks:</strong> every card, weekly standings, and pick-by-pick separation.</li><li><strong>Seasons:</strong> standings, weekly form, money, consistency, and the season race.</li><li><strong>Players:</strong> records, streaks, team habits, and situational ATS splits.</li><li><strong>Names:</strong> the complete week-name archive and recurring themes.</li><li><strong>Teams:</strong> pool support, ATS outcomes, opponents, Best Bets, venues, and player affinity.</li><li><strong>Games:</strong> one matchup with every archived pick and result.</li></ul></div></details>
       <details><summary>How do the playoffs work?</summary><div class="faq-answer"><p>The playoff winner has the most wins across all four rounds. Round 1 has 6 games plus a Best Bet for 7 possible wins; Round 2 has 4 games plus a Best Bet for 5; Round 3 has 2 games plus a Best Bet for 3; and the Super Bowl pick is worth 2 wins. That is 13 games and 17 possible wins.</p><p>The Super Bowl's combined net passing yards break a tie. Starting in Round 2, picks remain hidden until every player who can still win has submitted for that round.</p></div></details>
       <details><summary>What notifications are available?</summary><div class="faq-answer"><p>The browser alert announces a newly opened regular-season week while FBP is open. Email preferences can cover a new slate, a move into first place, early and late game windows, Sunday and Monday night scenarios, and the final weekly result. An email address is inactive until its verification link is opened, and every message includes a one-click stop link.</p><p>Text alerts require a separate SMS provider and are not available yet. FBP does not save a phone number while text delivery is unavailable.</p></div></details>
@@ -585,6 +592,39 @@ let websiteScenarioMode = "current";
 let websiteContenderDetailMode = "simple";
 let websiteSankeyChart = null, websiteConfirmationSplitChart = null;
 let websiteRaceSnapshots = [], websiteRaceContext = "", websiteRaceAutoplayContext = "", websiteRaceFrame = 0, websiteRaceTimer = null, websiteRaceRows = new Map(), websiteRacePlaybackRequested = false, websiteRaceLineChart = null, websiteRaceSelectedPlayer = "";
+let websiteCoverTrendKey = "", websiteCoverTrendChart = null;
+function websiteUsesIntentionalTooltips() { return matchMedia("(hover: none), (pointer: coarse)").matches; }
+Chart.register({
+  id: "websiteIntentionalTouchTooltips",
+  beforeInit(chart) {
+    if (websiteUsesIntentionalTooltips()) chart.options.events = ["click"];
+  },
+  afterInit(chart) {
+    if (!websiteUsesIntentionalTooltips() || !chart.tooltip) return;
+    chart.$websiteTouchTooltipHandler = event => {
+      const active = chart.getElementsAtEventForMode(event, "nearest", { intersect: false }, false);
+      const rect = chart.canvas.getBoundingClientRect();
+      const position = { x: (event.clientX - rect.left) * chart.width / rect.width, y: (event.clientY - rect.top) * chart.height / rect.height };
+    const key = active.map(item => `${item.datasetIndex}:${item.index}`).join("|");
+    if (!key) { chart.$websiteTouchTooltipKey = ""; return; }
+    if (chart.$websiteTouchTooltipKey === key) {
+      chart.$websiteTouchTooltipKey = "";
+      chart.setActiveElements([]);
+        chart.tooltip.setActiveElements([], position);
+        chart.update("none");
+      return;
+    }
+    chart.$websiteTouchTooltipKey = key;
+    chart.setActiveElements(active);
+      chart.tooltip.setActiveElements(active, position);
+      chart.update("none");
+    };
+    chart.canvas.addEventListener("click", chart.$websiteTouchTooltipHandler);
+  },
+  beforeDestroy(chart) {
+    if (chart.$websiteTouchTooltipHandler) chart.canvas.removeEventListener("click", chart.$websiteTouchTooltipHandler);
+  }
+});
 function websiteProbabilityText(percent) {
   const value = Number(percent);
   if (!Number.isFinite(value)) return "";
@@ -603,7 +643,7 @@ function websiteStoredRaceSnapshots(context) {
 }
 function websiteRaceSnapshotSignature(snapshot) {
   const players = (snapshot?.players || []).map(player => [player.name, Number(player.winProbability || 0), Number(player.pathsToVictory || 0), Number(player.winPercent || 0)]).sort((left, right) => String(left[0]).localeCompare(String(right[0])));
-  const games = (snapshot?.gameState || []).map(game => [game.gameId || "", game.status || game.espnStatus || "", Number(game.awayScore ?? game.favoriteScore ?? 0), Number(game.homeScore ?? game.underdogScore ?? 0)]);
+  const games = (snapshot?.gameState || []).map(game => [game.gameId || "", game.status || game.espnStatus || "", Number(game.awayScore ?? game.favoriteScore ?? 0), Number(game.homeScore ?? game.underdogScore ?? 0), game.period || "", game.clock || "", game.possession || ""]);
   return JSON.stringify([players, games]);
 }
 function stopWebsiteRace(preservePlaybackRequest = false) {
@@ -664,10 +704,11 @@ function websiteRaceMetricLabel(metric) {
 function websiteRaceGameKey(game) {
   return String(game?.gameId || `${game?.away || "away"}|${game?.home || "home"}`);
 }
+function websiteGameStatus(game) { return String(game?.espnStatus || game?.status || game?.state || "").toUpperCase(); }
 function websiteRaceGameMoment(game) {
   const period = Number(game?.period || 0), clock = String(game?.clock || "").trim();
   if (period && clock) return `Q${period} ${clock}`;
-  const status = String(game?.status || game?.espnStatus || "").toUpperCase();
+  const status = websiteGameStatus(game);
   return status === "FINAL" || status === "COMPLETED" ? "Final" : status === "IN_PROGRESS" || status === "LIVE" ? "Live" : "";
 }
 function websiteRaceCheckpointEvents(snapshotIndex) {
@@ -683,7 +724,7 @@ function websiteRaceCheckpointEvents(snapshotIndex) {
     const moment = websiteRaceGameMoment(game);
     if (prior && Number.isFinite(awayScore) && Number.isFinite(priorAway) && awayScore > priorAway) events.push({ type: "score", short: `${away} +${awayScore - priorAway}`, lines: [`${away} scored ${awayScore - priorAway}`, `Score: ${away} ${awayScore}, ${home} ${homeScore}`, moment].filter(Boolean) });
     if (prior && Number.isFinite(homeScore) && Number.isFinite(priorHome) && homeScore > priorHome) events.push({ type: "score", short: `${home} +${homeScore - priorHome}`, lines: [`${home} scored ${homeScore - priorHome}`, `Score: ${away} ${awayScore}, ${home} ${homeScore}`, moment].filter(Boolean) });
-    const status = String(game.status || game.espnStatus || "").toUpperCase(), priorStatus = String(prior?.status || prior?.espnStatus || "").toUpperCase();
+    const status = websiteGameStatus(game), priorStatus = websiteGameStatus(prior);
     if (prior && status !== priorStatus) {
       if (["IN_PROGRESS", "LIVE"].includes(status)) events.push({ type: "status", short: `${away}–${home} kickoff`, lines: [`${away}–${home} kicked off`] });
       if (["FINAL", "COMPLETED"].includes(status)) events.push({ type: "status", short: `${away}–${home} final`, lines: [`${away}–${home} final`, `Score: ${away} ${awayScore}, ${home} ${homeScore}`] });
@@ -825,7 +866,7 @@ function renderWebsiteRace(data) {
   websiteRaceLineChart = null;
   const context = `${data.testMode ? "preseason" : "regular"}-${data.season}-${data.week}`;
   const snapshots = Array.isArray(data.raceSnapshots) && data.raceSnapshots.length ? [...data.raceSnapshots] : context === websiteRaceContext ? [...websiteRaceSnapshots] : data.testMode ? websiteStoredRaceSnapshots(context) : [];
-  const current = { timestamp: data.updatedAt || new Date().toISOString(), gameState: (data.games || []).map(game => ({ gameId: game.gameId || "", away: game.away || "", home: game.home || "", status: game.espnStatus || game.status || "", period: game.period || "", clock: game.clock || "", awayScore: game.awayScore ?? game.favoriteScore ?? "", homeScore: game.homeScore ?? game.underdogScore ?? "" })), players: (data.players || []).map(player => ({ name: player.name, winProbability: parseFloat(player.winProbability || 0) || 0, pathsToVictory: Number(player.pathsToVictory || 0), winPercent: parseFloat(player.winPercent || 0) || 0 })) };
+  const current = { timestamp: data.updatedAt || new Date().toISOString(), gameState: (data.games || []).map(game => ({ gameId: game.gameId || "", away: game.away || "", home: game.home || "", status: websiteGameStatus(game), period: game.period || "", clock: game.clock || "", possession: game.possession || "", awayScore: game.awayScore ?? game.favoriteScore ?? "", homeScore: game.homeScore ?? game.underdogScore ?? "" })), players: (data.players || []).map(player => ({ name: player.name, winProbability: parseFloat(player.winProbability || 0) || 0, pathsToVictory: Number(player.pathsToVictory || 0), winPercent: parseFloat(player.winPercent || 0) || 0 })) };
   const latestStored = snapshots[snapshots.length - 1];
   const currentSignature = websiteRaceSnapshotSignature(current);
   const latestSignature = websiteRaceSnapshotSignature(latestStored);
@@ -872,7 +913,7 @@ document.addEventListener("visibilitychange", () => {
 });
 function websiteGameWinner(data, index) {
   const game = data.games[index] || {};
-  const status = String(game.espnStatus || game.status || "").toUpperCase();
+  const status = websiteGameStatus(game);
   if (!["POST", "FINAL", "COMPLETED"].includes(status)) return null;
   const margin = Number(data.favoriteScores[index]) - Number(data.underdogScores[index]) - Number(data.spreads[index]);
   return margin === 0 ? "PUSH" : margin > 0 ? data.favorites[index] : data.underdogs[index];
@@ -886,13 +927,13 @@ function websiteNormalCdf(value) {
 }
 function websiteGameOutcomeProbabilities(data, index) {
   const game = data.games[index] || {};
-  const status = String(game.espnStatus || game.status || "").toUpperCase();
+  const status = websiteGameStatus(game);
   if (["POST", "FINAL", "COMPLETED"].includes(status)) {
     const winner = websiteGameWinner(data, index);
     return { favorite: winner === data.favorites[index] ? 1 : 0, underdog: winner === data.underdogs[index] ? 1 : 0, push: winner === "PUSH" ? 1 : 0 };
   }
   const integerSpread = Number(data.spreads[index]) % 1 === 0;
-  if (!["IN", "IN_PROGRESS"].includes(status)) return { favorite: integerSpread ? .485 : .5, underdog: integerSpread ? .485 : .5, push: integerSpread ? .03 : 0 };
+  if (!["IN", "LIVE", "IN_PROGRESS"].includes(status)) return { favorite: integerSpread ? .485 : .5, underdog: integerSpread ? .485 : .5, push: integerSpread ? .03 : 0 };
   const period = Math.max(1, Math.min(4, Number(game.period) || 1));
   const clockParts = String(game.clock || "15:00").split(":").map(Number);
   const secondsInPeriod = Math.max(0, Math.min(900, (clockParts[0] || 0) * 60 + (clockParts[1] || 0)));
@@ -911,6 +952,64 @@ function websiteGameOutcomeProbabilities(data, index) {
   const favoriteCover = Math.max(.005, Math.min(.995, websiteNormalCdf(projectedAtsMargin / remainingDeviation)));
   const push = integerSpread ? Math.min(.04, .015 / Math.sqrt(remainingFraction)) : 0;
   return { favorite: favoriteCover * (1 - push), underdog: (1 - favoriteCover) * (1 - push), push };
+}
+function websiteGameStateForSnapshot(snapshot, game) {
+  const gameId = String(game?.gameId || "");
+  return (snapshot?.gameState || []).find(state => gameId && String(state.gameId || "") === gameId) || (snapshot?.gameState || []).find(state => {
+    const teams = [state.away, state.home].map(team => String(team || "").toUpperCase());
+    return teams.includes(String(game?.favorite || "").toUpperCase()) && teams.includes(String(game?.underdog || "").toUpperCase());
+  });
+}
+function websiteGameCoverProbability(data, index, state = null) {
+  const game = data.games[index] || {}, current = state || game;
+  const favorite = data.favorites[index], underdog = data.underdogs[index], spread = Number(data.spreads[index]);
+  const favoriteIsAway = String(favorite).toUpperCase() === String(current.away || game.away).toUpperCase();
+  const awayScore = current.awayScore ?? current.espnAwayScore ?? game.awayScore ?? game.espnAwayScore;
+  const homeScore = current.homeScore ?? current.espnHomeScore ?? game.homeScore ?? game.espnHomeScore;
+  const favoriteScore = favoriteIsAway ? awayScore : homeScore, underdogScore = favoriteIsAway ? homeScore : awayScore;
+  const modeledGame = { ...game, ...current, favorite, underdog, espnStatus: websiteGameStatus(current) || websiteGameStatus(game), espnAwayScore: awayScore, espnHomeScore: homeScore };
+  return websiteGameOutcomeProbabilities({ games: [modeledGame], favorites: [favorite], underdogs: [underdog], spreads: [spread], favoriteScores: [favoriteScore], underdogScores: [underdogScore] }, 0);
+}
+function websiteGameCoverSeries(data, index) {
+  const game = data.games[index] || {};
+  return websiteRaceSnapshots.map(snapshot => {
+    const state = websiteGameStateForSnapshot(snapshot, game);
+    if (!state) return null;
+    const status = websiteGameStatus(state);
+    const live = ["IN", "LIVE", "IN_PROGRESS"].includes(status);
+    if (live && (!state.period || !state.clock)) return null;
+    const probabilities = websiteGameCoverProbability(data, index, state);
+    return { timestamp: snapshot.timestamp, favorite: probabilities.favorite * 100, underdog: probabilities.underdog * 100, push: probabilities.push * 100, period: state.period || "", clock: state.clock || "", awayScore: state.awayScore, homeScore: state.homeScore };
+  }).filter(Boolean);
+}
+function closeWebsiteCoverTrend() {
+  if (websiteCoverTrendChart) websiteCoverTrendChart.destroy();
+  websiteCoverTrendChart = null;
+  document.getElementById("game-cover-popover")?.remove();
+  document.querySelectorAll(".pg-cover-trigger.selected").forEach(header => header.classList.remove("selected"));
+  websiteCoverTrendKey = "";
+}
+function showWebsiteCoverTrend(data, index, header) {
+  const game = data.games[index] || {}, key = String(game.gameId || `${data.favorites[index]}|${data.underdogs[index]}`);
+  if (websiteCoverTrendKey === key) { closeWebsiteCoverTrend(); return; }
+  closeWebsiteCoverTrend();
+  const series = websiteGameCoverSeries(data, index);
+  if (!series.length) return;
+  websiteCoverTrendKey = key;
+  header.classList.add("selected");
+  const favorite = data.favorites[index], underdog = data.underdogs[index], latest = series[series.length - 1];
+  const popover = document.createElement("div");
+  popover.id = "game-cover-popover";
+  popover.className = "game-cover-popover";
+  popover.setAttribute("role", "dialog");
+  popover.setAttribute("aria-label", `${favorite} and ${underdog} estimated cover probability`);
+  popover.innerHTML = `<h4>${websiteEscapeHtml(favorite)} ${websiteProbabilityText(latest.favorite)} · ${websiteEscapeHtml(underdog)} ${websiteProbabilityText(latest.underdog)}</h4><p>Estimated chance to cover the locked ${websiteEscapeHtml(String(data.spreads[index]))} spread at each saved checkpoint${latest.push ? ` · Push ${websiteProbabilityText(latest.push)}` : ""}.</p><div class="game-cover-chart-wrap"><canvas></canvas></div>`;
+  document.body.appendChild(popover);
+  const rect = header.getBoundingClientRect(), width = Math.min(360, innerWidth - 20);
+  popover.style.left = `${Math.max(10, Math.min(innerWidth - width - 10, rect.left + rect.width / 2 - width / 2))}px`;
+  popover.style.top = `${Math.max(10, Math.min(innerHeight - popover.offsetHeight - 10, rect.bottom + 8))}px`;
+  const points = series.map((point, pointIndex) => ({ x: pointIndex, ...point }));
+  websiteCoverTrendChart = new Chart(popover.querySelector("canvas"), { type: "line", data: { datasets: [{ label: favorite, data: points.map(point => ({ x: point.x, y: point.favorite, point })), borderColor: "#54d6b2", backgroundColor: "#54d6b2", tension: .25, borderWidth: 3, pointRadius: 3 }, { label: underdog, data: points.map(point => ({ x: point.x, y: point.underdog, point })), borderColor: "#f5b942", backgroundColor: "#f5b942", tension: .25, borderWidth: 3, pointRadius: 3 }] }, options: { responsive: true, maintainAspectRatio: false, events: ["click"], interaction: { mode: "index", intersect: false }, scales: { x: { type: "linear", min: 0, max: Math.max(1, points.length - 1), grid: { color: "#2a374466" }, ticks: { color: "#91a0ae", maxTicksLimit: 5, callback: value => { const point = points[Math.round(Number(value))]; return point ? new Date(point.timestamp).toLocaleTimeString([], { hour: "numeric", minute: "2-digit" }) : ""; } }, title: { display: true, text: "Saved checkpoints", color: "#91a0ae" } }, y: { min: 0, max: 100, ticks: { color: "#91a0ae", callback: value => `${value}%` }, grid: { color: "#2a3744" } } }, plugins: { legend: { labels: { color: "#e8eef5", boxWidth: 10 } }, tooltip: { displayColors: true, callbacks: { title: items => new Date(items[0].raw.point.timestamp).toLocaleString([], { weekday: "short", hour: "numeric", minute: "2-digit" }), label: context => `${context.dataset.label}: ${websiteProbabilityText(context.parsed.y)} to cover`, afterBody: items => { const point = items[0].raw.point; return [[point.period ? `Q${point.period}` : "", point.clock].filter(Boolean).join(" "), `Score: ${game.away || "Away"} ${point.awayScore ?? "-"}, ${game.home || "Home"} ${point.homeScore ?? "-"}`, point.push ? `Push: ${websiteProbabilityText(point.push)}` : ""].filter(Boolean); } } } } } });
 }
 function websiteAnalysisData(data) {
   const previewCount = websiteScenarioMode === "preview-four" ? 4 : websiteScenarioMode === "preview-three" ? 3 : 0;
@@ -944,11 +1043,11 @@ function websiteScenarioOutcomes(data, forced = {}) {
 function websiteTiebreakDistribution(data) {
   const currentYards = Number(data.actualTiebreaker);
   const game = (data.games || [])[data.games.length - 1] || {};
-  const status = String(game.espnStatus || game.status || "").toUpperCase();
+  const status = websiteGameStatus(game);
   if (Number.isFinite(currentYards) && data.actualTiebreaker !== "" && ["POST", "FINAL", "COMPLETED"].includes(status)) {
     return { mean: currentYards, deviation: 0 };
   }
-  if (Number.isFinite(currentYards) && data.actualTiebreaker !== "" && ["IN", "IN_PROGRESS"].includes(status)) {
+  if (Number.isFinite(currentYards) && data.actualTiebreaker !== "" && ["IN", "LIVE", "IN_PROGRESS"].includes(status)) {
     const period = Math.max(1, Math.min(4, Number(game.period) || 1));
     const clockParts = String(game.clock || "15:00").split(":").map(Number);
     const secondsInPeriod = Math.max(0, Math.min(900, (clockParts[0] || 0) * 60 + (clockParts[1] || 0)));
@@ -1065,7 +1164,7 @@ function renderWebsitePlayerLedgers(data) {
   const host = document.getElementById("week-one-ledger");
   if (!host || !(data.players || []).length) return;
   const players = [...data.players].sort((left, right) => parseFloat(right.winProbability || 0) - parseFloat(left.winProbability || 0));
-  host.innerHTML = `<h3 class="compact-live-title">Player ledgers</h3><p class="analysis-note">Portrait detail: tap a player to see every pick, matchup, score, and game state.</p><div class="player-ledger-list">${players.map(player => `<details class="player-ledger"><summary><span>${player.name}</span><span>${player.winProbability || "-"}</span><span>${player.wins}-${player.losses}</span></summary><div class="ledger-games">${data.games.map((game, index) => { const status = String(game.status || "").toUpperCase(); const live = status === "IN_PROGRESS"; const final = ["FINAL", "COMPLETED"].includes(status); const pickClass = websiteWeekOnePickClass(data, index, player.picks[index]); const resultClass = pickClass === "pg-pick-win" ? "correct" : pickClass === "pg-pick-loss" ? "incorrect" : pickClass === "pg-pick-push" ? "push" : "pending"; const score = live || final ? `${data.favoriteScores[index]}-${data.underdogScores[index]}` : game.kickoffGroup || game.kickoff || "Upcoming"; return `<div class="ledger-game ${resultClass} ${live ? "live" : ""}"><strong>${player.picks[index]}${player.bestBet === player.picks[index] ? " · BB" : ""}</strong>${game.favorite} ${data.spreads[index]} ${game.underdog}<br>${score}</div>`; }).join("")}</div></details>`).join("")}</div>`;
+  host.innerHTML = `<h3 class="compact-live-title">Player ledgers</h3><p class="analysis-note">Portrait detail: tap a player to see every pick, matchup, score, and game state.</p><div class="player-ledger-list">${players.map(player => `<details class="player-ledger"><summary><span>${player.name}</span><span>${player.winProbability || "-"}</span><span>${player.wins}-${player.losses}</span></summary><div class="ledger-games">${data.games.map((game, index) => { const status = websiteGameStatus(game); const live = ["LIVE", "IN_PROGRESS"].includes(status); const final = ["FINAL", "COMPLETED"].includes(status); const pickClass = websiteWeekOnePickClass(data, index, player.picks[index]); const resultClass = pickClass === "pg-pick-win" ? "correct" : pickClass === "pg-pick-loss" ? "incorrect" : pickClass === "pg-pick-push" ? "push" : "pending"; const score = live || final ? `${data.favoriteScores[index]}-${data.underdogScores[index]}` : game.kickoffGroup || game.kickoff || "Upcoming"; return `<div class="ledger-game ${resultClass} ${live ? "live" : ""}"><strong>${player.picks[index]}${player.bestBet === player.picks[index] ? " · BB" : ""}</strong>${game.favorite} ${data.spreads[index]} ${game.underdog}<br>${score}</div>`; }).join("")}</div></details>`).join("")}</div>`;
 }
 function renderWebsitePaths(data) {
   const host = document.getElementById("week-one-paths");
@@ -2080,12 +2179,12 @@ document.getElementById("website-picks-form").onsubmit = async event => {
   } catch (error) { status.textContent = `Could not submit picks: ${error.message}`; }
 };
 function websiteWeekOneFallback() { return { favorites: WEBSITE_WEEK_ONE_GAMES.map(game => game.favorite), favoriteScores: Array(16).fill(""), spreads: WEBSITE_WEEK_ONE_GAMES.map(game => game.spread), underdogScores: Array(16).fill(""), underdogs: WEBSITE_WEEK_ONE_GAMES.map(game => game.underdog), actualTiebreaker: "", players: JSON.parse(localStorage.getItem("fbpWebsiteSubmissions") || "[]").map(row => ({ name: row.name, weekName: row.weekName, picks: row.picks, bestBet: row.bestBet, tiebreaker: row.tiebreaker, wins: "", losses: "", total: "", winPercent: "", winProbability: "", pathsToVictory: "" })) }; }
-function websiteWeekOnePickClass(data, gameIndex, pick) { const game = (data.games || [])[gameIndex]; const status = String(game?.status || "").toUpperCase(); if (game && !["IN_PROGRESS", "FINAL", "COMPLETED"].includes(status)) return "pg-pick-pending"; const favoriteScore = Number(data.favoriteScores[gameIndex]); const underdogScore = Number(data.underdogScores[gameIndex]); if (data.favoriteScores[gameIndex] === "" || data.underdogScores[gameIndex] === "") return "pg-pick-pending"; const margin = favoriteScore - underdogScore - Number(data.spreads[gameIndex]); if (margin === 0) return "pg-pick-push"; const winner = margin > 0 ? data.favorites[gameIndex] : data.underdogs[gameIndex]; return pick === winner ? "pg-pick-win" : "pg-pick-loss"; }
+function websiteWeekOnePickClass(data, gameIndex, pick) { const game = (data.games || [])[gameIndex]; const status = websiteGameStatus(game); if (game && !["IN_PROGRESS", "LIVE", "FINAL", "COMPLETED"].includes(status)) return "pg-pick-pending"; const favoriteScore = Number(data.favoriteScores[gameIndex]); const underdogScore = Number(data.underdogScores[gameIndex]); if (data.favoriteScores[gameIndex] === "" || data.underdogScores[gameIndex] === "") return "pg-pick-pending"; const margin = favoriteScore - underdogScore - Number(data.spreads[gameIndex]); if (margin === 0) return "pg-pick-push"; const winner = margin > 0 ? data.favorites[gameIndex] : data.underdogs[gameIndex]; return pick === winner ? "pg-pick-win" : "pg-pick-loss"; }
 function renderWebsiteWeekRecap(data) {
   const host = document.getElementById("week-one-recap");
   if (!host) return;
   websiteLastWeekData = data;
-  const final = (data.games || []).length && data.games.every(game => ["POST", "FINAL", "COMPLETED"].includes(String(game.espnStatus || game.status || "").toUpperCase()));
+  const final = (data.games || []).length && data.games.every(game => ["POST", "FINAL", "COMPLETED"].includes(websiteGameStatus(game)));
   if (!final || data.testMode || !(data.players || []).length) { host.innerHTML = ""; return; }
   const actual = Number(data.actualTiebreaker);
   const score = player => Number(player.total ?? player.wins) || 0;
@@ -2202,13 +2301,20 @@ function decorateWebsiteWeekOneHeadersLive(data) {
     const game = (data.games || []).find(item => item.favorite?.toLowerCase() === favorite.toLowerCase() && item.underdog?.toLowerCase() === underdog.toLowerCase());
     const favoriteScore = data.favoriteScores[index];
     const underdogScore = data.underdogScores[index];
-    const gameStatus = String(game?.espnStatus || game?.status || "").toUpperCase();
-    const started = ["IN", "POST", "IN_PROGRESS", "FINAL", "COMPLETED"].includes(gameStatus);
+    const gameStatus = websiteGameStatus(game);
+    const started = ["IN", "LIVE", "POST", "IN_PROGRESS", "FINAL", "COMPLETED"].includes(gameStatus);
     const spread = `<small class="pg-header-spread">${data.spreads[index]}</small>`;
     if (!started && game) { const kickoff = game.kickoffGroup || game.kickoff || game.statusText || ""; header.innerHTML = `${favorite}${spread}${underdog}${kickoff ? `<small class="pg-header-kickoff">${kickoff}</small>` : ""}`; return; }
     const score = value => `<span class="pg-header-score">${value === "" ? "-" : value}</span>`;
     const liveState = game?.espnStatusText || game?.statusText || (["POST", "FINAL", "COMPLETED"].includes(gameStatus) ? "Final" : [game?.period ? `Q${game.period}` : "", game?.clock, game?.possession ? `${game.possession} ball` : ""].filter(Boolean).join(" · "));
-    header.innerHTML = `${favorite}${score(favoriteScore)}${spread}${score(underdogScore)}${underdog}${liveState ? `<small class="pg-header-kickoff">${liveState}</small>` : ""}`;
+    const probabilities = websiteGameCoverProbability(data, index);
+    header.innerHTML = `${favorite}${score(favoriteScore)}${spread}${score(underdogScore)}${underdog}${liveState ? `<small class="pg-header-kickoff">${liveState}</small>` : ""}<small class="pg-cover-probability">${favorite} ${websiteProbabilityText(probabilities.favorite * 100)}<br>${underdog} ${websiteProbabilityText(probabilities.underdog * 100)}</small>`;
+    header.classList.add("pg-cover-trigger");
+    header.tabIndex = 0;
+    header.setAttribute("role", "button");
+    header.setAttribute("aria-label", `Show ${favorite} and ${underdog} estimated cover probability trend`);
+    header.onclick = event => { event.stopPropagation(); showWebsiteCoverTrend(data, index, header); };
+    header.onkeydown = event => { if (event.key === "Enter" || event.key === " ") { event.preventDefault(); showWebsiteCoverTrend(data, index, header); } };
   });
 }
 renderWebsiteWeekOneGrid = function(data) { websiteSortPlayers(data.players || []); return renderWebsiteWeekOneGridClean(data); };
@@ -3779,9 +3885,9 @@ const weeklyRankHoverRows = new Map();
 function hideWeeklyGameTooltip() { weeklyTooltipPinnedTarget = null; const element = document.getElementById("weekly-game-tooltip"); if (element) element.style.display = "none"; }
 function positionWeeklyGameTooltip(event) { const element = document.getElementById("weekly-game-tooltip"); if (!element || element.style.display === "none") return; const margin = 8; element.style.left = `${Math.max(margin, Math.min(window.innerWidth - element.offsetWidth - margin, event.clientX + margin))}px`; element.style.top = `${Math.max(margin, Math.min(window.innerHeight - element.offsetHeight - margin, event.clientY + margin))}px`; }
 function showWeeklyGameTooltip(target, event) { let element = document.getElementById("weekly-game-tooltip"); if (!element) { element = document.createElement("div"); element.id = "weekly-game-tooltip"; element.className = "profile-chart-tooltip weekly-game-tooltip"; document.body.appendChild(element); } clearTimeout(weeklyTooltipHideTimer); element.classList.toggle("weekly-rank-tooltip", Boolean(target.dataset.weeklyRankKey)); element.innerHTML = `<button type="button" class="tooltip-close" aria-label="Close week details" title="Close">&times;</button>${target.dataset.weeklyTooltip || weeklyRankTooltip(weeklyRankHoverRows.get(target.dataset.weeklyRankKey))}`; element.style.display = "block"; element.onclick = clickEvent => { clickEvent.stopPropagation(); hideWeeklyGameTooltip(); }; element.onpointerenter = () => clearTimeout(weeklyTooltipHideTimer); element.onpointerleave = () => { weeklyTooltipHideTimer = setTimeout(() => { if (!element.matches(":hover") && !weeklyTooltipPinnedTarget) element.style.display = "none"; }, 180); }; positionWeeklyGameTooltip(event); }
-document.addEventListener("pointerover", event => { const target = event.target.closest?.("[data-weekly-tooltip],[data-weekly-rank-key]"); if (!target || weeklyTooltipPinnedTarget) return; showWeeklyGameTooltip(target, event); });
-document.addEventListener("pointermove", event => { if (!weeklyTooltipPinnedTarget) positionWeeklyGameTooltip(event); });
-document.addEventListener("pointerout", event => { if (!event.target.closest?.("[data-weekly-tooltip],[data-weekly-rank-key]") || weeklyTooltipPinnedTarget) return; const element = document.getElementById("weekly-game-tooltip"); clearTimeout(weeklyTooltipHideTimer); weeklyTooltipHideTimer = setTimeout(() => { if (element && !element.matches(":hover")) element.style.display = "none"; }, 180); });
+document.addEventListener("pointerover", event => { if (websiteUsesIntentionalTooltips()) return; const target = event.target.closest?.("[data-weekly-tooltip],[data-weekly-rank-key]"); if (!target || weeklyTooltipPinnedTarget) return; showWeeklyGameTooltip(target, event); });
+document.addEventListener("pointermove", event => { if (!websiteUsesIntentionalTooltips() && !weeklyTooltipPinnedTarget) positionWeeklyGameTooltip(event); });
+document.addEventListener("pointerout", event => { if (websiteUsesIntentionalTooltips() || !event.target.closest?.("[data-weekly-tooltip],[data-weekly-rank-key]") || weeklyTooltipPinnedTarget) return; const element = document.getElementById("weekly-game-tooltip"); clearTimeout(weeklyTooltipHideTimer); weeklyTooltipHideTimer = setTimeout(() => { if (element && !element.matches(":hover")) element.style.display = "none"; }, 180); });
 document.addEventListener("click", event => { const target = event.target.closest?.("[data-weekly-tooltip],[data-weekly-rank-key]"); if (!target) { hideWeeklyGameTooltip(); return; } weeklyTooltipPinnedTarget = weeklyTooltipPinnedTarget === target ? null : target; if (weeklyTooltipPinnedTarget) showWeeklyGameTooltip(target, event); else hideWeeklyGameTooltip(); });
 document.addEventListener("keydown", event => { if (event.key === "Escape") hideWeeklyGameTooltip(); });
 function websiteWeekNameTheme(value) {

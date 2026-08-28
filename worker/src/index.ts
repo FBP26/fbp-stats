@@ -794,6 +794,7 @@ const storeRaceSnapshot = async (payload: JsonObject, env: Env): Promise<Respons
     status: game.status || game.state,
     period: game.period || "",
     clock: game.clock || "",
+    possession: game.possession || "",
   }));
   const gameStateJson = JSON.stringify(gameState);
   const latest = await env.DB
