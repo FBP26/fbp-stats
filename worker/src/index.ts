@@ -30,6 +30,8 @@ const html = (body: string, status = 200): Response => new Response(body, {
   headers: { "Content-Type": "text/html;charset=UTF-8", "Cache-Control": "no-store" },
 });
 
+const notificationPage = (title: string, body: string, status = 200): Response => html(`<!doctype html><html lang="en"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1"><title>${escapeHtml(title)}</title><style>body{margin:0;background:#0d1117;color:#e8eef5;font:16px/1.55 Arial,sans-serif}main{width:min(560px,calc(100% - 32px));margin:48px auto;padding:28px;border:1px solid #2a3744;border-radius:6px;background:#151c24;box-sizing:border-box}h1{margin:0 0 10px;color:#ffcf40;font-size:26px;letter-spacing:0}p{margin:8px 0 18px}.alert-list{margin:10px 0 24px;padding-left:22px}.alert-list li{margin:5px 0}.actions{display:flex;flex-wrap:wrap;gap:10px;margin-top:24px}.button{display:inline-block;padding:10px 16px;border:1px solid #ffcf40;border-radius:5px;background:#ffcf40;color:#111;text-decoration:none;font-weight:bold}.button.secondary{background:transparent;color:#e8eef5;border-color:#536273}@media(max-width:480px){main{margin:20px auto;padding:22px}.actions{display:grid}.button{text-align:center}}</style></head><body><main>${body}</main></body></html>`, status);
+
 const escapeHtml = (value: unknown): string => String(value).replace(/[&<>"']/g, (character) => ({
   "&": "&amp;", "<": "&lt;", ">": "&gt;", '"': "&quot;", "'": "&#39;",
 }[character] || character));
@@ -355,16 +357,19 @@ const handleGet = async (request: Request, env: Env): Promise<Response> => {
     const tokenHash = await sha256(rawToken);
     if (action === "verify-notifications") {
       const subscription = await env.DB.prepare(
-        "SELECT id, channel, destination, status FROM notification_subscriptions WHERE verification_token_hash = ? AND status IN ('pending', 'active')",
-      ).bind(tokenHash).first<{ id: number; channel: NotificationChannel; destination: string; status: string }>();
+        "SELECT * FROM notification_subscriptions WHERE verification_token_hash = ? AND status IN ('pending', 'active')",
+      ).bind(tokenHash).first<Record<string, unknown>>();
       if (!subscription) return html("<h1>Verification link expired</h1><p>Return to FBP and request a new verification email.</p>", 404);
-      if (subscription.status === "active") {
-        return html(`<h1>FBP alerts are already on</h1><p>${escapeHtml(maskNotificationDestination(subscription.channel, subscription.destination))} is verified. You can close this page.</p>`);
-      }
-      await env.DB.prepare(
+      if (subscription.status !== "active") await env.DB.prepare(
         "UPDATE notification_subscriptions SET status = 'active', verified_at = CURRENT_TIMESTAMP, updated_at = CURRENT_TIMESTAMP WHERE id = ?",
       ).bind(subscription.id).run();
-      return html(`<h1>FBP alerts are on</h1><p>${escapeHtml(maskNotificationDestination(subscription.channel, subscription.destination))} is verified. You can close this page.</p>`);
+      const enabledAlerts = notificationEvents.filter((event) => Number(subscription[notificationPreferenceColumns[event]]));
+      const confirmationLabels: Record<NotificationEvent, string> = { picksReady: "When picks are ready", picksDue: "Picks due reminder", firstPlace: "When you move into first place", earlyWindow: "After the early games", lateWindow: "After the late games", beforeSnf: "Before Sunday Night Football", beforeMnf: "Before Monday Night Football", weeklyResult: "Weekly result" };
+      const alertItems = enabledAlerts.map((event) => `<li>${escapeHtml(confirmationLabels[event])}${event === "picksDue" ? ` (${Number(subscription.picks_due_minutes) || 60} minutes before kickoff)` : ""}</li>`).join("");
+      const siteUrl = (env.PUBLIC_SITE_URL || "https://fbp26.github.io/fbp-stats/").replace(/\/$/, "");
+      const editUrl = `${siteUrl}/?alerts=${encodeURIComponent(String(subscription.manage_token || ""))}#enter-picks`;
+      const stopUrl = `${new URL(request.url).origin}/?action=unsubscribe-notifications&token=${encodeURIComponent(String(subscription.manage_token || ""))}`;
+      return notificationPage("FBP alerts are on", `<h1>Your alerts are activated</h1><p>${escapeHtml(maskNotificationDestination(String(subscription.channel) as NotificationChannel, String(subscription.destination)))} is verified.</p><p>You have signed up for:</p><ul class="alert-list">${alertItems}</ul><p>You can edit or stop these alerts at any time.</p><div class="actions"><a class="button" href="${escapeHtml(editUrl)}">Edit alerts</a><a class="button secondary" href="${escapeHtml(stopUrl)}">Stop alerts</a></div>`);
     }
     const result = await env.DB.prepare(
       "UPDATE notification_subscriptions SET status = 'unsubscribed', unsubscribed_at = CURRENT_TIMESTAMP, updated_at = CURRENT_TIMESTAMP WHERE manage_token_hash = ?",
@@ -372,6 +377,16 @@ const handleGet = async (request: Request, env: Env): Promise<Response> => {
     return result.meta.changes
       ? html("<h1>FBP alerts stopped</h1><p>You will not receive additional messages. You can subscribe again from the FBP website.</p>")
       : html("<h1>Unsubscribe link expired</h1><p>No active notification contact was found for this link.</p>", 404);
+  }
+
+  if (action === "notification-preferences") {
+    const rawToken = url.searchParams.get("token") || "";
+    if (!/^[a-f0-9]{64}$/.test(rawToken)) return json({ ok: false, error: "This alert-management link is invalid." }, 400, env.CORS_ORIGIN);
+    const subscription = await env.DB.prepare(
+      "SELECT player_name, destination, picks_ready, picks_due, picks_due_minutes, first_place, early_window, late_window, before_snf, before_mnf, weekly_result FROM notification_subscriptions WHERE manage_token_hash = ? AND status = 'active'",
+    ).bind(await sha256(rawToken)).first<Record<string, unknown>>();
+    if (!subscription) return json({ ok: false, error: "This alert-management link has expired." }, 404, env.CORS_ORIGIN);
+    return json({ ok: true, playerName: subscription.player_name, destination: subscription.destination, picksDueMinutes: subscription.picks_due_minutes, preferences: Object.fromEntries(notificationEvents.map((event) => [event, Boolean(Number(subscription[notificationPreferenceColumns[event]]))])) }, 200, env.CORS_ORIGIN);
   }
 
   if (action === "active-week") {
@@ -538,6 +553,25 @@ const subscribeNotifications = async (request: Request, payload: JsonObject, env
     return json({ ok: false, error: "The verification email could not be sent. Try again later." }, 502, env.CORS_ORIGIN);
   }
   return json({ ok: true, status: "pending", maskedDestination: maskNotificationDestination(channel, normalizedDestination) }, 202, env.CORS_ORIGIN);
+};
+
+const updateNotificationPreferences = async (payload: JsonObject, env: Env): Promise<Response> => {
+  const manageToken = cleanText(payload.manageToken, 64);
+  if (!/^[a-f0-9]{64}$/.test(manageToken)) return json({ ok: false, error: "This alert-management link is invalid." }, 400, env.CORS_ORIGIN);
+  const playerName = cleanText(payload.playerName, 100).replace(/\s+/g, " ");
+  if (!playerName) return json({ ok: false, error: "Choose the player these alerts should follow." }, 400, env.CORS_ORIGIN);
+  const preferences = parseNotificationPreferences(payload.preferences);
+  if (!notificationEvents.some((event) => preferences[event])) return json({ ok: false, error: "Choose at least one alert." }, 400, env.CORS_ORIGIN);
+  const picksDueMinutes = Math.max(5, Math.min(300, Math.round(Number(payload.picksDueMinutes) || 60)));
+  const values = notificationEvents.map((event) => preferences[event] ? 1 : 0);
+  const result = await env.DB.prepare(
+    `UPDATE notification_subscriptions SET player_name = ?, picks_ready = ?, picks_due = ?, picks_due_minutes = ?,
+      first_place = ?, early_window = ?, late_window = ?, before_snf = ?, before_mnf = ?, weekly_result = ?, updated_at = CURRENT_TIMESTAMP
+     WHERE manage_token_hash = ? AND status = 'active'`,
+  ).bind(playerName, values[0], values[1], picksDueMinutes, ...values.slice(2), await sha256(manageToken)).run();
+  return result.meta.changes
+    ? json({ ok: true, status: "active" }, 200, env.CORS_ORIGIN)
+    : json({ ok: false, error: "This alert-management link has expired." }, 404, env.CORS_ORIGIN);
 };
 
 const notificationEventLabels: Record<NotificationEvent, string> = {
@@ -867,6 +901,7 @@ const handlePost = async (request: Request, env: Env): Promise<Response> => {
   const action = cleanText(payload.action, 50);
   if (action === "log-visit") return handleAnalytics(payload, env);
   if (action === "subscribe-notifications") return subscribeNotifications(request, payload, env);
+  if (action === "update-notifications") return updateNotificationPreferences(payload, env);
   if (action === "correct-submission-name") return correctSubmission(payload, env);
   if (action === "race-snapshot") return storeRaceSnapshot(payload, env);
   if (action === "assess-player-identity") {

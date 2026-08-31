@@ -1939,7 +1939,28 @@ async function initializeNotificationPreferences() {
     save.disabled = !data?.channels?.email;
     if (!data?.channels?.email) status.textContent = "Email sender setup is in progress. Preferences cannot be activated yet.";
   } catch (error) { save.disabled = true; status.textContent = "Alert preferences are temporarily unavailable."; }
+  const manageToken = new URLSearchParams(location.search).get("alerts") || "";
+  if (/^[a-f0-9]{64}$/.test(manageToken)) {
+    try {
+      const response = await fetch(`${WEBSITE_NOTIFICATION_ENDPOINT}/?action=notification-preferences&token=${encodeURIComponent(manageToken)}`, { signal: AbortSignal.timeout(10000) });
+      const data = await response.json();
+      if (!response.ok || !data.ok) throw new Error(data.error || "Alert preferences could not be loaded.");
+      document.getElementById("notification-destination").value = data.destination || "";
+      document.getElementById("notification-destination").disabled = true;
+      playerInput.value = data.playerName === "FBP pool" ? "" : data.playerName || "";
+      playerInput.required = data.playerName !== "FBP pool";
+      notificationEventsForForm().forEach(name => { if (form.elements[name]) form.elements[name].checked = Boolean(data.preferences?.[name]); });
+      form.elements.picksDueMinutes.value = Number(data.picksDueMinutes) || 60;
+      form.elements.picksDueMinutes.disabled = !form.elements.picksDue.checked;
+      form.dataset.manageToken = manageToken;
+      save.textContent = "Save alert changes";
+      if (summary?.parentElement) summary.parentElement.open = true;
+      status.textContent = "Your current alerts are loaded. Make changes and save.";
+      history.replaceState(null, "", `${location.pathname}#enter-picks`);
+    } catch (error) { status.textContent = error.message; }
+  }
 }
+function notificationEventsForForm() { return ["picksReady", "picksDue", "firstPlace", "earlyWindow", "lateWindow", "beforeSnf", "beforeMnf", "weeklyResult"]; }
 async function saveNotificationPreferences(event) {
   event.preventDefault();
   const form = event.currentTarget, button = document.getElementById("notification-save"), status = document.getElementById("notification-status");
@@ -1948,14 +1969,15 @@ async function saveNotificationPreferences(event) {
   playerInput.setCustomValidity(player.message);
   if (player.message) { status.textContent = player.message; playerInput.reportValidity(); playerInput.focus(); return; }
   const scope = player.name ? "player" : "pool";
-  const payload = { action: "subscribe-notifications", scope, channel, playerName: player.name || "FBP pool", destination: document.getElementById("notification-destination").value, picksDueMinutes: Number(form.elements.picksDueMinutes.value) || 60, preferences: Object.fromEntries(["picksReady", "picksDue", "firstPlace", "earlyWindow", "lateWindow", "beforeSnf", "beforeMnf", "weeklyResult"].map(name => [name, form.elements[name].checked])) };
+  const manageToken = form.dataset.manageToken || "";
+  const payload = { action: manageToken ? "update-notifications" : "subscribe-notifications", scope, channel, playerName: player.name || "FBP pool", destination: document.getElementById("notification-destination").value, manageToken, picksDueMinutes: Number(form.elements.picksDueMinutes.value) || 60, preferences: Object.fromEntries(notificationEventsForForm().map(name => [name, form.elements[name].checked])) };
   button.disabled = true;
   status.textContent = "Sending verification email...";
   try {
     const response = await fetch(WEBSITE_NOTIFICATION_ENDPOINT, { method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify(payload) });
     const data = await response.json();
     if (!response.ok || !data.ok) throw new Error(data.error || "Alert preferences could not be saved.");
-    status.textContent = `Verification sent to ${data.maskedDestination}. Open it to activate alerts.`;
+    status.textContent = manageToken ? "Your alert changes are saved." : `Verification sent to ${data.maskedDestination}. Open it to activate alerts.`;
   } catch (error) { status.textContent = error.message; }
   finally { button.disabled = false; }
 }
@@ -2552,7 +2574,7 @@ document.getElementById("website-picks-form").onsubmit = async event => {
     websiteBestBetMismatchAttempts = 0; websiteBestBetMismatchSignature = ""; websiteApprovedNewPlayerName = "";
   } catch (error) { status.textContent = `Could not submit picks: ${error.message}`; }
 };
-function websiteWeekOneFallback() { return { favorites: WEBSITE_WEEK_ONE_GAMES.map(game => game.favorite), favoriteScores: Array(16).fill(""), spreads: WEBSITE_WEEK_ONE_GAMES.map(game => game.spread), underdogScores: Array(16).fill(""), underdogs: WEBSITE_WEEK_ONE_GAMES.map(game => game.underdog), actualTiebreaker: "", players: JSON.parse(localStorage.getItem("fbpWebsiteSubmissions") || "[]").map(row => ({ name: row.name, weekName: row.weekName, picks: row.picks, bestBet: row.bestBet, tiebreaker: row.tiebreaker, wins: "", losses: "", total: "", winPercent: "", winProbability: "", pathsToVictory: "" })) }; }
+function websiteWeekOneFallback() { return { week: websiteRegularSelection.week, favorites: WEBSITE_WEEK_ONE_GAMES.map(game => game.favorite), favoriteScores: Array(16).fill(""), spreads: WEBSITE_WEEK_ONE_GAMES.map(game => game.spread), underdogScores: Array(16).fill(""), underdogs: WEBSITE_WEEK_ONE_GAMES.map(game => game.underdog), actualTiebreaker: "", games: WEBSITE_WEEK_ONE_GAMES, players: JSON.parse(localStorage.getItem("fbpWebsiteSubmissions") || "[]").map(row => ({ name: row.name, weekName: row.weekName, picks: row.picks, bestBet: row.bestBet, tiebreaker: row.tiebreaker, wins: "", losses: "", total: "", winPercent: "", winProbability: "", pathsToVictory: "" })) }; }
 function websiteWeekOnePickClass(data, gameIndex, pick) { const game = (data.games || [])[gameIndex]; const status = websiteGameStatus(game); if (game && !["IN", "IN_PROGRESS", "LIVE", "POST", "FINAL", "COMPLETED"].includes(status)) return "pg-pick-pending"; const favoriteScore = Number(data.favoriteScores[gameIndex]); const underdogScore = Number(data.underdogScores[gameIndex]); if (data.favoriteScores[gameIndex] === "" || data.underdogScores[gameIndex] === "") return "pg-pick-pending"; const margin = favoriteScore - underdogScore - Number(data.spreads[gameIndex]); if (margin === 0) return "pg-pick-push"; const winner = margin > 0 ? data.favorites[gameIndex] : data.underdogs[gameIndex]; return pick === winner ? "pg-pick-win" : "pg-pick-loss"; }
 function renderWebsiteWeekRecap(data) {
   const host = document.getElementById("week-one-recap");
@@ -2699,6 +2721,13 @@ async function renderSelectedWebsiteWeek(activeWeekKnown = false) {
   websiteLiveRefreshTimer = null;
   const selection = websitePickSelection();
   if (!selection.testMode) {
+    const table = document.getElementById("week-one-table");
+    if (!document.querySelector("#week-one-table .picks-grid") && table?.dataset.instantWeek !== "true") {
+      const fallback = websiteWeekOneFallback();
+      renderWebsiteWeekOneGrid(fallback, "Cached Week 1");
+      table.dataset.instantWeek = "true";
+      decorateWebsiteWeekOneHeaders(fallback);
+    }
     if (!activeWeekKnown) try { await loadActiveRegularWeek(); } catch (error) { console.warn(error.message); }
     const active = websitePickSelection();
     document.querySelector("#view-week-one .intro h2").textContent = `Week ${active.week}`;
@@ -5462,6 +5491,12 @@ if (tiebreaker) {
 }
 updateWebsiteWeekLabels(websiteEntrySelection);
 showView(startupRoute);
+if (startupRoute === "week-one") {
+  const fallback = websiteWeekOneFallback();
+  renderWebsiteWeekOneGrid(fallback, "Cached Week 1");
+  document.getElementById("week-one-table").dataset.instantWeek = "true";
+  decorateWebsiteWeekOneHeaders(fallback);
+}
 (async () => {
   if (startupRoute === "enter-picks") {
     await renderWebsitePicksForm();
