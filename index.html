@@ -87,21 +87,25 @@
   .website-spread { display: flex; align-items: center; justify-content: center; color: var(--accent-2); font: bold 13px Arial, sans-serif; text-align: center; width: 48px; min-height: 28px; }
   .website-instructions { margin: 0 0 18px; color: var(--muted); font: 13px/1.55 Arial, sans-serif; }
   .website-entry-context { margin: 0 0 14px; color: var(--accent); font: 12px/1.5 Arial, sans-serif; }
+  #view-enter-picks .intro { display: none; }
+  #view-enter-picks .website-entry-context { font-size: 14px; font-weight: bold; }
+  #view-enter-picks .notification-settings { margin: 14px 0 0; }
+  #view-enter-picks .website-notification-row { margin-top: 14px; }
   .notification-form button, #website-picks-form > button, #website-view-week-one { min-height: 34px; padding: 7px 10px; border: 1px solid var(--border); border-radius: 5px; background: var(--panel-2); color: var(--text); font: 11px Arial, sans-serif; cursor: pointer; }
   .notification-form button:disabled, #website-picks-form > button:disabled { opacity: .55; cursor: not-allowed; }
-  .notification-settings { margin: 0 0 18px; border-block: 1px solid var(--border); }
-  .notification-settings > summary { padding: 11px 0; color: var(--accent); font: bold 12px Arial, sans-serif; cursor: pointer; }
-  .notification-form { display: grid; gap: 13px; max-width: 720px; padding: 2px 0 16px; }
+  .notification-settings { margin: 0 0 14px; border-block: 1px solid var(--border); }
+  .notification-settings > summary { padding: 9px 0; color: var(--accent); font: bold 12px Arial, sans-serif; cursor: pointer; }
+  .notification-form { display: grid; gap: 9px; max-width: 720px; padding: 1px 0 12px; }
   .notification-choice { display: flex; flex-wrap: wrap; gap: 7px; }
   .notification-choice label { display: flex; align-items: center; gap: 6px; min-height: 34px; padding: 7px 10px; border: 1px solid var(--border); border-radius: 5px; background: var(--panel-2); color: var(--text); font: 12px Arial, sans-serif; text-transform: none; letter-spacing: 0; cursor: pointer; }
   .notification-choice label:has(input:checked) { border-color: var(--accent); color: var(--accent); }
   .notification-choice label:has(input:disabled) { opacity: .52; cursor: not-allowed; }
-  .notification-contact-grid { display: grid; grid-template-columns: minmax(0, 440px); gap: 10px; }
-  .notification-contact-note { display: block; margin-top: 4px; color: var(--muted); font: 10px/1.4 Arial, sans-serif; text-transform: none; letter-spacing: 0; }
-  .notification-events { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 6px 12px; }
-  .notification-events label { display: grid; grid-template-columns: 18px minmax(0, 1fr); align-items: start; gap: 7px; padding: 5px 0; color: var(--text); font: 12px/1.35 Arial, sans-serif; text-transform: none; letter-spacing: 0; }
-  .notification-reminder-time input[type="number"] { width: 72px; margin: 4px 3px 0 0; }
-  .notification-events small, .notification-note { display: block; color: var(--muted); font: 10px/1.4 Arial, sans-serif; }
+  .notification-contact-grid { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 9px; }
+  .notification-contact-note { display: block; margin-top: 3px; color: var(--muted); font: 10px/1.3 Arial, sans-serif; text-transform: none; letter-spacing: 0; }
+  .notification-events { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 2px 14px; }
+  .notification-events label { display: grid; grid-template-columns: 18px minmax(0, 1fr); align-items: start; gap: 6px; padding: 3px 0; color: var(--text); font: 12px/1.25 Arial, sans-serif; text-transform: none; letter-spacing: 0; }
+  .notification-reminder-time input[type="number"] { width: 58px; margin: 2px 2px 0 0; padding: 4px; }
+  .notification-events small, .notification-note { display: block; color: var(--muted); font: 10px/1.25 Arial, sans-serif; }
   .notification-form button { justify-self: start; }
   .website-best-bet-field { position: relative; }
   .website-best-bet-native { position: absolute; width: 1px; height: 1px; margin: 0; opacity: 0; pointer-events: none; }
@@ -736,7 +740,7 @@ function websiteTeamChoice(game, abbreviation) {
   const homeMarker = isHome ? '<span class="website-home-marker">at </span>' : "";
   return `<span class="website-team-choice"><img class="website-team-logo" src="${websiteEscapeHtml(logo)}" alt="" loading="lazy"><span class="website-team-name">${homeMarker}${websiteEscapeHtml(displayName)}</span><span class="website-team-abbreviation">${homeMarker}${websiteEscapeHtml(abbreviation)}</span><span class="website-team-record">${websiteEscapeHtml(metadata?.record || "0-0")}</span></span>`;
 }
-const WEBSITE_WEEK_ONE_GAMES = [["wed 8:20","SEA","3.5","ne"],["thur 8:35","LAR","3.5","sf"],["sun 1:00","HOU","1.5","buf"],["sun 1:00","PIT","3","atl"],["sun 1:00","JAX","7.5","cle"],["sun 1:00","TEN","2.5","nyj"],["sun 1:00","DET","6.5","no"],["sun 1:00","bal","3.5","IND"],["sun 1:00","chi","2.5","CAR"],["sun 1:00","CIN","3.5","tb"],["sun 4:25","MIN","1.5","gb"],["sun 4:25","PHI","5.5","was"],["sun 4:25","LAC","10.5","ari"],["sun 4:25","LV","3.5","mia"],["sun 8:20","dal","2.5","NYG"],["mon 8:15","KC","2.5","den"]].map(([time,favorite,spread,underdog],index)=>({id:`game-${index+1}`,time,favorite,spread,underdog}));
+const WEBSITE_WEEK_ONE_GAMES = [["wed 8:20","SEA","3.5","ne"],["thu 8:35","LAR","3.5","sf"],["sun 1:00","CIN","3.5","tb"],["sun 1:00","DET","7","no"],["sun 1:00","TEN","2.5","nyj"],["sun 1:00","bal","3.5","IND"],["sun 1:00","PIT","3","atl"],["sun 1:00","chi","2.5","CAR"],["sun 1:00","JAX","7.5","cle"],["sun 1:00","buf","1.5","HOU"],["sun 4:25","LV","3.5","mia"],["sun 4:25","MIN","1.5","gb"],["sun 4:25","PHI","4.5","was"],["sun 4:25","LAC","10.5","ari"],["sun 8:20","dal","2.5","NYG"],["mon 8:15","KC","3","den"]].map(([time,favorite,spread,underdog],index)=>({id:`game-${index+1}`,time,favorite,spread,underdog}));
 function renderWebsitePicksForm() { const host = document.getElementById("website-game-picks"); if (!host || host.dataset.ready) return; host.dataset.ready = "true"; const choices = WEBSITE_WEEK_ONE_GAMES.flatMap(game => [game.favorite, game.underdog]).sort((a, b) => websiteTeamName(a).localeCompare(websiteTeamName(b), undefined, { sensitivity: "base" })); const groups = []; WEBSITE_WEEK_ONE_GAMES.forEach((game, index) => { const previous = WEBSITE_WEEK_ONE_GAMES[index - 1]; if (!previous || previous.time !== game.time) groups.push({ time: game.time, games: [] }); groups[groups.length - 1].games.push({ game, index }); }); host.innerHTML = groups.map(group => `<fieldset class="website-game-group"><legend>${group.time}</legend>${group.games.map(({ game, index }) => `<div class="website-game-row"><label class="website-side"><input type="radio" name="game-${index + 1}" value="${game.favorite}" required><span>${websiteTeamName(game.favorite)}</span></label><span class="website-spread">${game.spread}</span><label class="website-side right"><span>${websiteTeamName(game.underdog)}</span><input type="radio" name="game-${index + 1}" value="${game.underdog}" required></label></div>`).join("")}</fieldset>`).join(""); const bestBet = document.getElementById("website-best-bet"); choices.forEach(team => bestBet.add(new Option(websiteTeamName(team), team))); document.getElementById("website-picks-form").onsubmit = async event => { event.preventDefault(); const form = event.currentTarget; const submission = { submittedAt: new Date().toISOString(), name: document.getElementById("website-picks-name").value.trim(), weekName: document.getElementById("website-week-name").value.trim(), picks: WEBSITE_WEEK_ONE_GAMES.map((game, index) => form.elements[`game-${index + 1}`].value), bestBet: bestBet.value, tiebreaker: document.getElementById("website-tiebreaker").value }; const stored = JSON.parse(localStorage.getItem("fbpWebsiteSubmissions") || "[]"); stored.push(submission); localStorage.setItem("fbpWebsiteSubmissions", JSON.stringify(stored)); if (WEBSITE_SUBMISSIONS_ENDPOINT) await fetch(WEBSITE_SUBMISSIONS_ENDPOINT, { method: "POST", mode: "no-cors", headers: { "Content-Type": "text/plain" }, body: JSON.stringify(submission) }); document.getElementById("website-picks-status").textContent = WEBSITE_SUBMISSIONS_ENDPOINT ? "Submitted to the test workbook." : "Saved in this browser test. Add the Apps Script URL to submit to Sheets."; renderWebsiteWeekOne(); }; }
 let websiteActiveGames = WEBSITE_WEEK_ONE_GAMES;
 let websiteLiveRefreshTimer = null, websiteSelectedWeekPlayer = "";
@@ -1857,10 +1861,25 @@ function renderWebsitePersonalizedSankey(data) {
 renderWebsitePlayerLedgers = function() {};
 renderWebsitePaths = renderWebsiteContenderPaths;
 renderWebsiteSankey = renderWebsitePersonalizedSankey;
-let websiteRegularSelection = { season: 2026, week: 1, phase: "REGULAR_SEASON", staged: false };
+let websiteRegularSelection = { season: 2026, week: 1, phase: "REGULAR_SEASON", staged: true };
 let websiteEntrySelection = { testMode: false, ...websiteRegularSelection };
 let websiteLastWeekData = null;
 let websiteDiscoveredPreseasonData = null;
+const websiteStagedGamesCache = new Map();
+websiteStagedGamesCache.set("REGULAR_SEASON-2026-1", { games: WEBSITE_WEEK_ONE_GAMES, storedAt: Date.now() });
+let websiteActiveRegularWeekPromise = null;
+let websiteActiveRegularWeekLoadedAt = 0;
+const WEBSITE_ACTIVE_SLATE_CACHE_KEY = "fbpActiveSlate";
+try {
+  const cachedSlate = JSON.parse(localStorage.getItem(WEBSITE_ACTIVE_SLATE_CACHE_KEY) || "null");
+  const cachedSelection = cachedSlate?.selection;
+  if (location.hash === "#enter-picks" && cachedSelection?.staged && Array.isArray(cachedSlate.games) && cachedSlate.games.length && Date.now() - Number(cachedSlate.storedAt) < 24 * 60 * 60 * 1000) {
+    websiteRegularSelection = { season: Number(cachedSelection.season), week: Number(cachedSelection.week), phase: "REGULAR_SEASON", staged: true };
+    websiteEntrySelection = { testMode: false, ...websiteRegularSelection };
+    websiteStagedGamesCache.set(`REGULAR_SEASON-${websiteRegularSelection.season}-${websiteRegularSelection.week}`, { games: cachedSlate.games, storedAt: Number(cachedSlate.storedAt) });
+    websiteActiveRegularWeekLoadedAt = Date.now();
+  }
+} catch (error) { console.warn(`Saved active slate unavailable: ${error.message}`); }
 function notificationPlayerValidation(value) {
   const names = [...document.getElementById("notification-player-options").options].map(option => option.value).filter(Boolean);
   if (names.includes(value)) return { name: value, message: "" };
@@ -1884,7 +1903,7 @@ async function initializeNotificationPreferences() {
   const contactGrid = playerLabel.closest(".notification-contact-grid"), emailLabel = document.getElementById("notification-destination").closest("label");
   contactGrid.insertBefore(emailLabel, playerLabel);
   playerInput.setAttribute("aria-describedby", "notification-contact-note");
-  playerInput.insertAdjacentHTML("afterend", '<small id="notification-contact-note" class="notification-contact-note">Choose an existing player so emails can include your Current Week position and highlights and remind you before picks are due.</small>');
+  playerInput.insertAdjacentHTML("afterend", '<small id="notification-contact-note" class="notification-contact-note">Used for your Current Week updates and picks reminder.</small>');
   form.elements.picksReady.closest("label").querySelector("small").textContent = "A new week is ready for picks.";
   const eventCopy = {
     firstPlace: "Current Week update when you move into 1st place.",
@@ -1901,7 +1920,7 @@ async function initializeNotificationPreferences() {
   sms?.closest(".notification-choice")?.parentElement?.remove();
   form.querySelector('input[name="notification-scope"]')?.closest(".notification-choice")?.parentElement?.remove();
   if (form && !form.elements.picksDue) {
-    form.elements.firstPlace.closest("label").insertAdjacentHTML("beforebegin", '<label class="notification-reminder-time"><input type="checkbox" name="picksDue" checked><span>Picks due reminder<small>Email me <input type="number" name="picksDueMinutes" min="5" max="300" step="5" value="60" aria-label="Minutes before first kickoff"> minutes before first kickoff, unless I have already submitted my picks.</small></span></label>');
+    form.elements.firstPlace.closest("label").insertAdjacentHTML("beforebegin", '<label class="notification-reminder-time"><input type="checkbox" name="picksDue" checked><span>Picks due reminder<small><input type="number" name="picksDueMinutes" min="5" max="300" step="5" value="60" aria-label="Minutes before first kickoff"> min before kickoff · skipped after you submit</small></span></label>');
     const toggleReminderTime = () => { form.elements.picksDueMinutes.disabled = !form.elements.picksDue.checked; };
     form.elements.picksDue.addEventListener("change", toggleReminderTime);
     toggleReminderTime();
@@ -1943,19 +1962,52 @@ function updateWebsiteWeekLabels(selection) {
   document.getElementById("website-view-week-one").textContent = `View ${weekLabel}`;
   document.getElementById("website-entry-context").textContent = selection.testMode ? `${weekLabel} rehearsal · results stay out of season records` : `${weekLabel} · ${seasonLabel}`;
 }
-async function loadActiveRegularWeek() {
+async function loadActiveRegularWeek(forceRefresh = false) {
   if (!WEBSITE_SUBMISSIONS_ENDPOINT) return websiteRegularSelection;
-  const separator = WEBSITE_SUBMISSIONS_ENDPOINT.includes("?") ? "&" : "?";
-  const response = await fetch(`${WEBSITE_SUBMISSIONS_ENDPOINT}${separator}action=active-week`, { signal: AbortSignal.timeout(20000) });
-  const data = await response.json();
-  if (!response.ok || !data.ok) throw new Error(data.error || "Could not load the active regular-season week.");
-  websiteRegularSelection = { season: Number(data.season) || 2026, week: Number(data.week) || 1, phase: "REGULAR_SEASON", staged: Boolean(data.staged) };
-  if (websiteRegularSelection.staged) websiteEntrySelection = { testMode: false, ...websiteRegularSelection };
-  updateWebsiteWeekLabels(websiteEntrySelection);
-  return websiteRegularSelection;
+  if (!forceRefresh && websiteActiveRegularWeekLoadedAt && Date.now() - websiteActiveRegularWeekLoadedAt < 5 * 60 * 1000) return websiteRegularSelection;
+  if (!websiteActiveRegularWeekPromise) websiteActiveRegularWeekPromise = (async () => {
+    const separator = WEBSITE_SUBMISSIONS_ENDPOINT.includes("?") ? "&" : "?";
+    const response = await fetch(`${WEBSITE_SUBMISSIONS_ENDPOINT}${separator}action=active-week`, { signal: AbortSignal.timeout(10000) });
+    const data = await response.json();
+    if (!response.ok || !data.ok) throw new Error(data.error || "Could not load the active regular-season week.");
+    websiteRegularSelection = { season: Number(data.season) || 2026, week: Number(data.week) || 1, phase: "REGULAR_SEASON", staged: Boolean(data.staged) };
+    if (websiteRegularSelection.staged) {
+      websiteEntrySelection = { testMode: false, ...websiteRegularSelection };
+      if (data.games?.length) {
+        const storedAt = Date.now();
+        websiteStagedGamesCache.set(`REGULAR_SEASON-${websiteRegularSelection.season}-${websiteRegularSelection.week}`, { games: data.games, storedAt });
+        try { localStorage.setItem(WEBSITE_ACTIVE_SLATE_CACHE_KEY, JSON.stringify({ selection: websiteRegularSelection, games: data.games, storedAt })); } catch (error) { console.warn(`Active slate could not be saved: ${error.message}`); }
+      }
+    }
+    websiteActiveRegularWeekLoadedAt = Date.now();
+    updateWebsiteWeekLabels(websiteEntrySelection);
+    return websiteRegularSelection;
+  })().finally(() => { websiteActiveRegularWeekPromise = null; });
+  return websiteActiveRegularWeekPromise;
 }
 async function selectStagedPreseasonWeek() { if (!WEBSITE_SUBMISSIONS_ENDPOINT) return false; const regular = await loadActiveRegularWeek(); if (regular.staged) return false; const separator = WEBSITE_SUBMISSIONS_ENDPOINT.includes("?") ? "&" : "?"; for (const week of [4, 3, 2, 1]) { try { const response = await fetch(`${WEBSITE_SUBMISSIONS_ENDPOINT}${separator}action=preseason-test&season=2026&week=${week}`, { signal: AbortSignal.timeout(20000) }); const data = await response.json(); if (!response.ok || !data.ok || !(data.games || []).length) continue; websiteDiscoveredPreseasonData = data; websiteEntrySelection = { testMode: true, season: 2026, week, phase: "PRESEASON" }; updateWebsiteWeekLabels(websiteEntrySelection); document.getElementById("website-game-picks").dataset.ready = ""; return true; } catch (error) { console.warn(`Preseason Week ${week} discovery failed: ${error.message}`); } } return false; }
-async function loadWebsiteStagedGames(selection) { if (!WEBSITE_SUBMISSIONS_ENDPOINT) return selection.testMode ? [] : WEBSITE_WEEK_ONE_GAMES; const separator = WEBSITE_SUBMISSIONS_ENDPOINT.includes("?") ? "&" : "?"; const url = `${WEBSITE_SUBMISSIONS_ENDPOINT}${separator}action=week-config&season=${selection.season}&week=${selection.week}&phase=${selection.phase}`; const response = await fetch(url); const data = await response.json(); if (!response.ok || !data.ok) throw new Error(data.error || "Could not load the staged games."); return (data.games || []).map((game, index) => ({ ...game, id: game.gameId || `game-${index + 1}`, time: game.kickoffGroup || game.kickoff || `Game ${index + 1}` })); }
+async function loadWebsiteStagedGames(selection) {
+  if (!WEBSITE_SUBMISSIONS_ENDPOINT) return selection.testMode ? [] : WEBSITE_WEEK_ONE_GAMES;
+  const cacheKey = `${selection.phase}-${selection.season}-${selection.week}`;
+  const discoveredGames = selection.testMode && websiteDiscoveredPreseasonData?.games;
+  const cached = websiteStagedGamesCache.get(cacheKey);
+  if (discoveredGames?.length) {
+    websiteDiscoveredPreseasonData = null;
+    websiteStagedGamesCache.set(cacheKey, { games: discoveredGames, storedAt: Date.now() });
+  } else if (cached && Date.now() - cached.storedAt < 5 * 60 * 1000) {
+    return cached.games.map((game, index) => ({ ...game, id: game.gameId || `game-${index + 1}`, time: game.kickoffGroup || game.kickoff || `Game ${index + 1}` }));
+  }
+  const rawGames = discoveredGames?.length ? discoveredGames : await (async () => {
+    const separator = WEBSITE_SUBMISSIONS_ENDPOINT.includes("?") ? "&" : "?";
+    const url = `${WEBSITE_SUBMISSIONS_ENDPOINT}${separator}action=week-config&season=${selection.season}&week=${selection.week}&phase=${selection.phase}`;
+    const response = await fetch(url, { signal: AbortSignal.timeout(10000) });
+    const data = await response.json();
+    if (!response.ok || !data.ok) throw new Error(data.error || "Could not load the staged games.");
+    websiteStagedGamesCache.set(cacheKey, { games: data.games || [], storedAt: Date.now() });
+    return data.games || [];
+  })();
+  return rawGames.map((game, index) => ({ ...game, id: game.gameId || `game-${index + 1}`, time: game.kickoffGroup || game.kickoff || `Game ${index + 1}` }));
+}
 function websiteGameContext(game) {
   const location = [game.venueCity, game.venueState].filter(Boolean).join(", ");
   const condition = String(game.weather || ""), normalizedCondition = condition.toLowerCase();
@@ -2001,7 +2053,9 @@ async function refreshWebsitePicksWeather() {
 async function renderWebsitePicksForm() {
   const host = document.getElementById("website-game-picks");
   if (!host) return;
-  if (!websitePickSelection().testMode) {
+  const initialSelection = websitePickSelection();
+  const initialCacheKey = `${initialSelection.phase}-${initialSelection.season}-${initialSelection.week}`;
+  if (!initialSelection.testMode && !websiteStagedGamesCache.has(initialCacheKey)) {
     try { await loadActiveRegularWeek(); } catch (error) { host.innerHTML = `<p class="website-instructions">${error.message}</p>`; return; }
   }
   const selection = websitePickSelection();
@@ -5374,6 +5428,39 @@ initializeNotificationPreferences();
 init().then(async () => { applyHistoricalLabels(); populateWeekSeasons(); populateSeasonChoices(); if (location.hash === "#weeks") { await loadDrilldown(); renderWinnerContributions(true); renderPicksGrid(); setTimeout(() => { orientWeekChart(); addGamePushMarkers(); }, 0); } const profileSelect = document.getElementById("profile-player"); if ([...profileSelect.options].some(option => option.value === "Thomas")) { profileSelect.value = "Thomas"; renderProfile("Thomas"); } if (websiteLastWeekData) renderWebsiteWeekRecap(websiteLastWeekData); });
 </script>
 <script src="teams.js?v=20260831-2"></script>
-<script>const initialRoute = location.hash.slice(1); const startupRoute = initialRoute || "week-one"; if (!initialRoute) history.replaceState(null, "", "#week-one"); showView(startupRoute); (async () => { let preseasonActive = false, activeWeekKnown = false; try { preseasonActive = await selectStagedPreseasonWeek(); activeWeekKnown = true; } catch (error) { console.warn(error.message); } if (startupRoute === "enter-picks") { await renderWebsitePicksForm(); resetWebsiteBestBet(); } if (startupRoute === "week-one") await (preseasonActive ? renderSelectedWebsiteWeek(true) : renderSelectedWebsiteWeek(activeWeekKnown)); startupRoutePending = false; })();</script>
+<script>
+const initialRoute = location.hash.slice(1);
+const startupRoute = initialRoute || "week-one";
+if (!initialRoute) history.replaceState(null, "", "#week-one");
+const entryForm = document.getElementById("website-picks-form");
+const notificationRow = document.querySelector("#view-enter-picks .website-notification-row");
+const notificationSettings = document.querySelector("#view-enter-picks .notification-settings");
+if (entryForm && notificationSettings) entryForm.insertAdjacentElement("afterend", notificationSettings);
+if (entryForm && notificationRow) entryForm.insertAdjacentElement("afterend", notificationRow);
+updateWebsiteWeekLabels(websiteEntrySelection);
+showView(startupRoute);
+(async () => {
+  if (startupRoute === "enter-picks") {
+    await renderWebsitePicksForm();
+    resetWebsiteBestBet();
+    const slateSignature = games => JSON.stringify(games.map(({ gameId, kickoff, favorite, spread, underdog }) => ({ gameId, kickoff, favorite, spread, underdog })));
+    const renderedSlate = slateSignature(websiteActiveGames);
+    startupRoutePending = false;
+    try {
+      const preseasonActive = await selectStagedPreseasonWeek();
+      const refreshedGames = preseasonActive ? websiteDiscoveredPreseasonData?.games || [] : websiteStagedGamesCache.get(`REGULAR_SEASON-${websiteRegularSelection.season}-${websiteRegularSelection.week}`)?.games || [];
+      if (preseasonActive || slateSignature(refreshedGames) !== renderedSlate) {
+        document.getElementById("website-game-picks").dataset.ready = "";
+        await renderWebsitePicksForm();
+      }
+    } catch (error) { console.warn(`Active slate refresh failed: ${error.message}`); }
+    return;
+  }
+  let preseasonActive = false, activeWeekKnown = false;
+  try { preseasonActive = await selectStagedPreseasonWeek(); activeWeekKnown = true; } catch (error) { console.warn(error.message); }
+  if (startupRoute === "week-one") await (preseasonActive ? renderSelectedWebsiteWeek(true) : renderSelectedWebsiteWeek(activeWeekKnown));
+  startupRoutePending = false;
+})();
+</script>
 </body>
 </html>

@@ -544,6 +544,20 @@ const notificationEventLabels: Record<NotificationEvent, string> = {
   weeklyResult: "Weekly result",
 };
 
+const picksReadySummary = (games: JsonObject[], weekNumber: unknown): string => {
+  const gameLines = games.flatMap((game, index) => {
+    const home = String(game.homeTeam || "").toUpperCase();
+    const displayTeam = (team: unknown): string => String(team || "").toUpperCase() === home
+      ? String(team || "").toUpperCase()
+      : String(team || "").toLowerCase();
+    const kickoff = new Date(String(game.kickoff || ""));
+    const date = Number.isNaN(kickoff.getTime()) ? "Date TBD" : kickoff.toLocaleDateString("en-US", { timeZone: "America/New_York", weekday: "short", month: "numeric", day: "numeric" });
+    const time = Number.isNaN(kickoff.getTime()) ? "Time TBD" : kickoff.toLocaleTimeString("en-US", { timeZone: "America/New_York", hour: "numeric", minute: "2-digit", timeZoneName: "short" });
+    return [`${index + 1}. ${displayTeam(game.favorite)}   ${Number(game.spread)}   ${displayTeam(game.underdog)}`, `   ${date} · ${time}`, ""];
+  });
+  return `The Week ${weekNumber} slate is open. All ${games.length} games and point spreads are posted.\n\n${gameLines.join("\n").trimEnd()}`;
+};
+
 const dispatchWeekNotifications = async (env: Env, week: Record<string, unknown>): Promise<void> => {
   if (!env.EMAIL_RELAY_URL?.trim() || !env.EMAIL_RELAY_SECRET?.trim()) return;
   const games = await getWeekConfig(env.DB, Number(week.id));
@@ -591,7 +605,7 @@ const dispatchWeekNotifications = async (env: Env, week: Record<string, unknown>
       const firstKickoff = games.map((game) => Date.parse(String(game.kickoff || ""))).filter(Number.isFinite).sort((left, right) => left - right)[0];
       const eventSummary = event === "picksDue"
         ? `${followedName}, your Week ${week.week} picks are not in yet.\n\nFirst kickoff: ${new Date(firstKickoff).toLocaleString("en-US", { timeZone: "America/New_York", weekday: "long", month: "short", day: "numeric", hour: "numeric", minute: "2-digit", timeZoneName: "short" })}\nSubmit before kickoff to avoid missing the opening game.`
-        : summary;
+        : event === "picksReady" ? picksReadySummary(games, week.week) : summary;
       const sent = await sendRelayEmail(env, String(subscription.destination),
         `FBP Week ${week.week}: ${notificationEventLabels[event]}`,
         `${notificationEventLabels[event]}\n\n${eventSummary}\n\nOpen FBP: ${env.PUBLIC_SITE_URL || "https://fbp26.github.io/fbp-stats/"}\n\nStop all FBP alerts: ${stopUrl}`);
