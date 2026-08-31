@@ -355,11 +355,14 @@ const handleGet = async (request: Request, env: Env): Promise<Response> => {
     const tokenHash = await sha256(rawToken);
     if (action === "verify-notifications") {
       const subscription = await env.DB.prepare(
-        "SELECT id, channel, destination FROM notification_subscriptions WHERE verification_token_hash = ? AND status = 'pending'",
-      ).bind(tokenHash).first<{ id: number; channel: NotificationChannel; destination: string }>();
+        "SELECT id, channel, destination, status FROM notification_subscriptions WHERE verification_token_hash = ? AND status IN ('pending', 'active')",
+      ).bind(tokenHash).first<{ id: number; channel: NotificationChannel; destination: string; status: string }>();
       if (!subscription) return html("<h1>Verification link expired</h1><p>Return to FBP and request a new verification email.</p>", 404);
+      if (subscription.status === "active") {
+        return html(`<h1>FBP alerts are already on</h1><p>${escapeHtml(maskNotificationDestination(subscription.channel, subscription.destination))} is verified. You can close this page.</p>`);
+      }
       await env.DB.prepare(
-        "UPDATE notification_subscriptions SET status = 'active', verified_at = CURRENT_TIMESTAMP, verification_token_hash = NULL, updated_at = CURRENT_TIMESTAMP WHERE id = ?",
+        "UPDATE notification_subscriptions SET status = 'active', verified_at = CURRENT_TIMESTAMP, updated_at = CURRENT_TIMESTAMP WHERE id = ?",
       ).bind(subscription.id).run();
       return html(`<h1>FBP alerts are on</h1><p>${escapeHtml(maskNotificationDestination(subscription.channel, subscription.destination))} is verified. You can close this page.</p>`);
     }
