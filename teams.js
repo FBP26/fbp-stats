@@ -324,7 +324,7 @@ function initializeTeamsControls() {
   const seasonSelect = document.getElementById("teams-season");
   const teamSelect = document.getElementById("teams-team");
   const priorTeam = teamSelect.value;
-  const teamPickerName = team => ({ OAK: "Raiders (Oakland 2009-2019)", STL: "Rams (St. Louis 2009-2015)", SD: "Chargers (San Diego 2009-2016)" }[team] || websiteNaturalTeamName(team));
+  const teamPickerName = team => ({ OAK: "Oakland", STL: "St Louis", SD: "San Diego" }[team] || websiteNaturalTeamName(team));
   if (seasonSelect.options.length === 1) {
     [...new Set(websiteGames.map(game => game.season))].sort().reverse()
       .forEach(season => seasonSelect.add(new Option(season, season)));
