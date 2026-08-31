@@ -477,12 +477,12 @@ const randomToken = (): string => {
   return [...bytes].map((byte) => byte.toString(16).padStart(2, "0")).join("");
 };
 
-const sendRelayEmail = async (env: Env, to: string, subject: string, body: string): Promise<boolean> => {
+const sendRelayEmail = async (env: Env, to: string, subject: string, body: string, htmlBody = ""): Promise<boolean> => {
   if (!env.EMAIL_RELAY_URL?.trim() || !env.EMAIL_RELAY_SECRET?.trim()) return false;
   const response = await fetch(env.EMAIL_RELAY_URL, {
     method: "POST",
     headers: { "Content-Type": "text/plain;charset=UTF-8" },
-    body: JSON.stringify({ action: "send-notification-email", secret: env.EMAIL_RELAY_SECRET, to, subject, body }),
+    body: JSON.stringify({ action: "send-notification-email", secret: env.EMAIL_RELAY_SECRET, to, subject, body, htmlBody }),
   });
   const result = await response.json().catch(() => null) as { ok?: boolean } | null;
   return response.ok && result?.ok === true;
@@ -525,8 +525,12 @@ const subscribeNotifications = async (request: Request, payload: JsonObject, env
        verified_at = NULL, unsubscribed_at = NULL`,
   ).bind(playerName, channel, normalizedDestination, normalizedDestination, await sha256(verificationToken), await sha256(manageToken), manageToken, values[0], values[1], picksDueMinutes, ...values.slice(2)).run();
   const workerOrigin = new URL(request.url).origin;
+  const verifyUrl = `${workerOrigin}/?action=verify-notifications&token=${verificationToken}`;
+  const stopUrl = `${workerOrigin}/?action=unsubscribe-notifications&token=${manageToken}`;
+  const requestedAt = env.PUBLIC_SITE_URL || "https://fbp26.github.io/fbp-stats/";
   const sent = await sendRelayEmail(env, normalizedDestination, "Verify your FBP alerts",
-    `Confirm alerts for ${playerName}:\n\n${workerOrigin}/?action=verify-notifications&token=${verificationToken}\n\nYou requested alerts at ${env.PUBLIC_SITE_URL || "https://fbp26.github.io/fbp-stats/"}\n\nStop these alerts: ${workerOrigin}/?action=unsubscribe-notifications&token=${manageToken}`);
+    `Confirm alerts for ${playerName}:\n\n${verifyUrl}\n\nYou requested alerts at ${requestedAt}\n\nStop these alerts: ${stopUrl}`,
+    `<div style="max-width:520px;padding:24px;font-family:Arial,sans-serif;color:#171e26"><h2 style="margin:0 0 12px">Confirm FBP alerts for ${escapeHtml(playerName)}</h2><p style="margin:0 0 22px;line-height:1.5">Verify this email address to activate the alert preferences you selected.</p><p style="margin:0 0 14px"><a href="${escapeHtml(verifyUrl)}" style="display:inline-block;padding:11px 18px;border-radius:5px;background:#d4af37;color:#111;text-decoration:none;font-weight:bold">Verify email</a></p><p style="margin:0 0 24px"><a href="${escapeHtml(stopUrl)}" style="display:inline-block;padding:9px 16px;border:1px solid #9aa4af;border-radius:5px;color:#374151;text-decoration:none">Stop alerts</a></p><p style="margin:0;color:#6b7280;font-size:12px;line-height:1.5">Requested from <a href="${escapeHtml(requestedAt)}" style="color:#52606d">FBP</a>.</p></div>`);
   if (!sent) {
     await env.DB.prepare(
       "UPDATE notification_subscriptions SET verification_token_hash = NULL, verification_sent_at = NULL, updated_at = CURRENT_TIMESTAMP WHERE channel = ? AND normalized_destination = ? AND status = 'pending'",
