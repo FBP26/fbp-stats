@@ -5373,7 +5373,7 @@ document.getElementById("notification-preferences-form")?.addEventListener("subm
 initializeNotificationPreferences();
 init().then(async () => { applyHistoricalLabels(); populateWeekSeasons(); populateSeasonChoices(); if (location.hash === "#weeks") { await loadDrilldown(); renderWinnerContributions(true); renderPicksGrid(); setTimeout(() => { orientWeekChart(); addGamePushMarkers(); }, 0); } const profileSelect = document.getElementById("profile-player"); if ([...profileSelect.options].some(option => option.value === "Thomas")) { profileSelect.value = "Thomas"; renderProfile("Thomas"); } if (websiteLastWeekData) renderWebsiteWeekRecap(websiteLastWeekData); });
 </script>
-<script src="teams.js?v=20260831-1"></script>
+<script src="teams.js?v=20260831-2"></script>
 <script>const initialRoute = location.hash.slice(1); const startupRoute = initialRoute || "week-one"; if (!initialRoute) history.replaceState(null, "", "#week-one"); showView(startupRoute); (async () => { let preseasonActive = false, activeWeekKnown = false; try { preseasonActive = await selectStagedPreseasonWeek(); activeWeekKnown = true; } catch (error) { console.warn(error.message); } if (startupRoute === "enter-picks") { await renderWebsitePicksForm(); resetWebsiteBestBet(); } if (startupRoute === "week-one") await (preseasonActive ? renderSelectedWebsiteWeek(true) : renderSelectedWebsiteWeek(activeWeekKnown)); startupRoutePending = false; })();</script>
 </body>
 </html>

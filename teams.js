@@ -30,7 +30,7 @@ function emptyTeamStat(team, season) {
   return {
     team, season, picks: 0, wins: 0, losses: 0, pushes: 0,
     fades: 0, fadeWins: 0, fadeLosses: 0, fadePushes: 0,
-    bestBets: 0, bestBetWins: 0, bestBetLosses: 0, bestBetPushes: 0,
+    bestBets: 0, bestBetsAgainst: 0, bestBetWins: 0, bestBetLosses: 0, bestBetPushes: 0,
     consensusWins: 0, consensusLosses: 0, lowWins: 0, lowLosses: 0, lowPushes: 0,
     games: 0, covers: 0, noCovers: 0, gamePushes: 0, supportShareTotal: 0, supportGames: 0
   };
@@ -76,12 +76,16 @@ function buildTeamsAnalytics() {
     }
     const bestBet = String(pick.bestBet || "").toUpperCase();
     const hasBestBetResult = Number(pick.bestBetWin || 0) || Number(pick.bestBetLoss || 0) || Number(pick.bestBetPush || 0);
-    if (hasBestBetResult && teams.includes(bestBet)) eachScope(bestBet, game.season, row => {
-      row.bestBets += 1;
-      row.bestBetWins += Number(pick.bestBetWin || 0);
-      row.bestBetLosses += Number(pick.bestBetLoss || 0);
-      row.bestBetPushes += Number(pick.bestBetPush || 0);
-    });
+    if (hasBestBetResult && teams.includes(bestBet)) {
+      eachScope(bestBet, game.season, row => {
+        row.bestBets += 1;
+        row.bestBetWins += Number(pick.bestBetWin || 0);
+        row.bestBetLosses += Number(pick.bestBetLoss || 0);
+        row.bestBetPushes += Number(pick.bestBetPush || 0);
+      });
+      const bestBetOpponent = teams.find(team => team !== bestBet);
+      if (bestBetOpponent) eachScope(bestBetOpponent, game.season, row => { row.bestBetsAgainst += 1; });
+    }
   });
 
   websiteGames.forEach(game => {
@@ -187,7 +191,12 @@ function renderTeamBehavior(selectedTeam, season) {
   const opponentDivision = row => WEBSITE_TEAM_DIVISIONS[opponent(row).toLowerCase()] || "";
   const spread = row => Math.abs(Number(row.game.spread || 0));
   const month = row => Number(String(row.game.gameDate || "").slice(5, 7));
+  const weekday = row => {
+    const date = new Date(`${row.game.gameDate || ""}T12:00:00`);
+    return Number.isNaN(date.getTime()) ? "" : ["Sunday", "Monday", "Tuesday", "Wednesday", "Thursday", "Friday", "Saturday"][date.getDay()];
+  };
   const segments = [
+    ["overall", "All games", () => true],
     ["venue", "At home", row => upper(row.game.home) === selectedTeam], ["venue", "On the road", row => upper(row.game.away) === selectedTeam], ["venue", "Neutral sites", row => websiteIsNeutralSite(row.game)],
     ["role", "As the favorite", row => upper(row.game.favorite) === selectedTeam], ["role", "As the underdog", row => upper(row.game.underdog) === selectedTeam],
     ["division", "Division games", row => division && opponentDivision(row) === division], ["conference", `${conference} opponents`, row => conference && opponentDivision(row).startsWith(conference)],
@@ -196,11 +205,17 @@ function renderTeamBehavior(selectedTeam, season) {
     ["temperature", "Cold games, 40°F or below", row => row.game.temperatureF != null && Number(row.game.temperatureF) <= 40], ["temperature", "Hot games, 80°F or above", row => row.game.temperatureF != null && Number(row.game.temperatureF) >= 80], ["wind", "Windy games, 15+ mph", row => row.game.windMph != null && Number(row.game.windMph) >= 15],
     ["spread", "Tight spreads, 2 points or less", row => spread(row) <= 2], ["spread", "Field-goal spreads, 2.5-3.5", row => spread(row) >= 2.5 && spread(row) <= 3.5], ["spread", "Big spreads, 7 points or more", row => spread(row) >= 7],
     ["kickoff", "1 PM kickoffs", row => { const hour = kickoffHour(row.game.officialGameTime || row.game.gameTime); return hour != null && hour >= 12.5 && hour < 15; }], ["kickoff", "Late-afternoon kickoffs", row => { const hour = kickoffHour(row.game.officialGameTime || row.game.gameTime); return hour != null && hour >= 15 && hour < 19; }], ["kickoff", "Night games", row => { const hour = kickoffHour(row.game.officialGameTime || row.game.gameTime); return hour != null && hour >= 19; }],
+    ["weekday", "Monday games", row => weekday(row) === "Monday"], ["weekday", "Thursday games", row => weekday(row) === "Thursday"], ["weekday", "Sunday games", row => weekday(row) === "Sunday"],
+    ["spot", "At home on Monday night", row => upper(row.game.home) === selectedTeam && weekday(row) === "Monday" && kickoffHour(row.game.officialGameTime || row.game.gameTime) >= 19],
+    ["spot", "Home division games", row => upper(row.game.home) === selectedTeam && division && opponentDivision(row) === division],
+    ["spot", "Road division games", row => upper(row.game.away) === selectedTeam && division && opponentDivision(row) === division],
+    ["spot", "Home underdog games", row => upper(row.game.home) === selectedTeam && upper(row.game.underdog) === selectedTeam],
+    ["spot", "Road favorite games", row => upper(row.game.away) === selectedTeam && upper(row.game.favorite) === selectedTeam],
     ["season", "September games", row => month(row) === 9], ["season", "December and January", row => [12, 1].includes(month(row))], ["season", "Playoff games", row => /round|super bowl|playoffs/i.test(String(row.game.week || "")) || String(row.game.competition || "").toLowerCase() === "playoffs"],
     ["support", "Heavy pool support, 65%+", row => row.support != null && row.support >= .65], ["support", "Low pool support, under 35%", row => row.support != null && row.support < .35]
   ].map(([group, label, test]) => { const selected = rows.filter(test), result = record(selected); return { group, label, selected, result, rate: rate(result) }; });
   const overall = record(rows), overallRate = rate(overall), minimum = Math.min(12, Math.max(5, Math.floor(rows.length * .04)));
-  const eligible = segments.filter(segment => segment.result.wins + segment.result.losses >= minimum);
+  const eligible = segments.filter(segment => segment.group !== "overall" && segment.result.wins + segment.result.losses >= minimum);
   const overlap = (left, right) => {
     const rightRows = new Set(right.selected), shared = left.selected.filter(row => rightRows.has(row)).length;
     return shared / Math.max(1, Math.min(left.selected.length, right.selected.length));
@@ -210,16 +225,34 @@ function renderTeamBehavior(selectedTeam, season) {
     ordered.forEach(segment => { if (selected.length < 5 && !excluded.includes(segment) && !selected.some(item => item.group === segment.group || overlap(item, segment) >= .7)) selected.push(segment); });
     return selected;
   };
-  const best = choose(eligible.filter(segment => segment.rate >= overallRate + .005).sort((left, right) => right.rate - left.rate || right.selected.length - left.selected.length));
-  const worst = choose(eligible.filter(segment => segment.rate <= overallRate - .005).sort((left, right) => left.rate - right.rate || right.selected.length - left.selected.length), best);
-  const worstSet = new Set(worst);
-  const section = groups => choose(eligible.filter(segment => groups.includes(segment.group) && segment.rate >= overallRate + .005 && !worstSet.has(segment)).sort((left, right) => right.rate - left.rate || right.selected.length - left.selected.length));
+  const best = choose(eligible.filter(segment => segment.rate >= Math.max(.52, overallRate + .005)).sort((left, right) => right.rate - left.rate || right.selected.length - left.selected.length));
+  const worst = choose(eligible.filter(segment => segment.rate <= Math.min(.48, overallRate - .005)).sort((left, right) => left.rate - right.rate || right.selected.length - left.selected.length), best);
   const rowsHtml = selected => selected.map(segment => {
     const difference = (segment.rate - overallRate) * 100;
     return `<div class="behavior-row"><div><strong>${websiteEscapeHtml(segment.label)}</strong><small>${segment.selected.length} games · ${difference >= 0 ? "+" : ""}${difference.toFixed(1)} points vs overall</small></div><span>${segment.result.wins}-${segment.result.losses}${segment.result.pushes ? `-${segment.result.pushes}` : ""}<br>${(segment.rate * 100).toFixed(1)}%</span></div>`;
   }).join("");
-  const situations = section(["venue", "role", "division", "conference", "season"]), conditions = section(["roof", "surface", "temperature", "wind"]), spotlight = section(["spread", "kickoff", "support"]);
-  host.innerHTML = `<h3 class="compact-live-title">Where ${websiteEscapeHtml(selectedTeam)} delivers and struggles</h3><p class="analysis-note">Team ATS results across ${rows.length} graded games. Green panels are strengths; red panels are watch-outs. Symbols and labels carry the same meaning without relying on color.</p><div class="behavior-grid"><section class="positive"><h4>▲ Reliable spots</h4>${situations.length ? rowsHtml(situations) : '<p class="analysis-note">No qualified situational samples.</p>'}</section><section class="positive"><h4>▲ Conditions that suit them</h4>${conditions.length ? rowsHtml(conditions) : '<p class="analysis-note">No qualified condition samples.</p>'}</section><section class="positive"><h4>▲ Line and spotlight</h4>${spotlight.length ? rowsHtml(spotlight) : '<p class="analysis-note">No qualified line or kickoff samples.</p>'}</section><section class="negative"><h4>▼ Watch-outs</h4>${worst.length ? rowsHtml(worst) : '<p class="analysis-note">No qualified watch-outs.</p>'}</section></div><p class="analysis-note">Samples require at least ${minimum} graded team games. Win rate excludes pushes.</p>`;
+  const chronological = selected => [...selected].sort((left, right) => String(left.game.gameDate || "").localeCompare(String(right.game.gameDate || "")) || Number(left.game.weekOrder || left.game.week || 0) - Number(right.game.weekOrder || right.game.week || 0) || Number(left.game.gameNum || 0) - Number(right.game.gameNum || 0));
+  const latestTeamSeason = chronological(rows).at(-1)?.game.season;
+  const streaks = segments.map(segment => {
+    const selected = chronological(segment.selected);
+    const latest = selected.at(-1), outcome = latest?.win ? "win" : latest?.loss ? "loss" : "";
+    let length = 0;
+    for (let index = selected.length - 1; index >= 0 && (outcome === "win" ? selected[index].win : selected[index].loss); index--) length += 1;
+    return { ...segment, outcome, length, latest };
+  }).filter(streak => streak.length >= 3 && streak.latest?.game.season === latestTeamSeason).sort((left, right) => right.length - left.length || right.selected.length - left.selected.length);
+  const chooseStreaks = outcome => {
+    const chosen = [];
+    streaks.filter(streak => streak.outcome === outcome).forEach(streak => {
+      if (chosen.length < 3 && !chosen.some(item => item.group === streak.group || overlap(item, streak) >= .8)) chosen.push(streak);
+    });
+    return chosen;
+  };
+  const streaksHtml = selected => selected.length ? `<div class="behavior-situation-group"><h5>Active streaks</h5>${selected.map(streak => {
+    const checkpoint = `${streak.latest.game.season} ${String(streak.latest.game.week).toLowerCase().includes("round") || String(streak.latest.game.week).toLowerCase().includes("bowl") ? streak.latest.game.week : `Week ${streak.latest.game.week}`}`;
+    const result = streak.outcome === "win" ? `Covered ${streak.length} straight` : `Failed to cover ${streak.length} straight`;
+    return `<div class="behavior-row"><div><strong>${websiteEscapeHtml(streak.label)}</strong><small>Active through ${websiteEscapeHtml(checkpoint)}</small></div><span>${websiteEscapeHtml(result)}</span></div>`;
+  }).join("")}</div>` : "";
+  host.innerHTML = `<h3 class="compact-live-title">Where ${websiteEscapeHtml(selectedTeam)} delivers and struggles</h3><p class="analysis-note">Team ATS results across ${rows.length} graded games. The strongest qualified rates and active ATS streaks are balanced across positive and negative panels.</p><div class="behavior-grid"><section class="positive"><h4>▲ Positive stats</h4>${best.length ? rowsHtml(best) : '<p class="analysis-note">No qualified positive splits.</p>'}${streaksHtml(chooseStreaks("win"))}</section><section class="negative"><h4>▼ Negative stats</h4>${worst.length ? rowsHtml(worst) : '<p class="analysis-note">No qualified negative splits.</p>'}${streaksHtml(chooseStreaks("loss"))}</section></div><p class="analysis-note">Rate samples require at least ${minimum} graded team games. Win rate excludes pushes; streaks require at least three consecutive decisions in the named situation.</p>`;
 }
 
 function setupTeamsSections() {
@@ -304,11 +337,13 @@ function renderTeams() {
   const record = (wins, losses, pushes) => `${wins}-${losses}${pushes ? `-${pushes}` : ""}`;
 
   document.getElementById("teams-summary").innerHTML = [
+    ["Wins ATS", selected.covers || 0],
+    ["Losses ATS", selected.noCovers || 0],
+    ["ATS win %", pct(selected.coverRate || 0)],
     ["Times picked", selected.picks || 0],
-    ["Picked ATS", record(selected.wins || 0, selected.losses || 0, selected.pushes || 0)],
-    ["Pick win %", pct(selected.pickRate || 0)],
-    ["Record when picked against", record(selected.fadeWins || 0, selected.fadeLosses || 0, selected.fadePushes || 0)],
-    ["Best Bet record", record(selected.bestBetWins || 0, selected.bestBetLosses || 0, selected.bestBetPushes || 0)]
+    ["Times picked against", selected.fades || 0],
+    ["Times Best Bet", selected.bestBets || 0],
+    ["Times BB against", selected.bestBetsAgainst || 0]
   ].map(([label, value]) => `<div class="metric"><span>${label}</span><strong>${value}</strong></div>`).join("");
   document.getElementById("teams-selected-title").textContent = `${selectedTeam} Team Detail`;
   renderTeamBehavior(selectedTeam, season);
