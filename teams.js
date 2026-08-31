@@ -15,7 +15,7 @@ const teamsBarValueLabels = {
         if (!lines.length || bar.base == null) return;
         const horizontal = chart.options.indexAxis === "y";
         const visibleBase = horizontal ? Math.max(chart.chartArea.left, Math.min(chart.chartArea.right, bar.base)) : Math.max(chart.chartArea.top, Math.min(chart.chartArea.bottom, bar.base));
-        const width = Math.max(...lines.map(line => context.measureText(line).width)), labelHeight = lines.length * 12, length = horizontal ? Math.abs(bar.x - visibleBase) : Math.abs(bar.y - visibleBase), outside = horizontal ? length < width + 12 : length < labelHeight + 10;
+        const width = Math.max(...lines.map(line => context.measureText(line).width)), labelHeight = lines.length * 12, length = horizontal ? Math.abs(bar.x - visibleBase) : Math.abs(bar.y - visibleBase), outside = dataset.forceInside ? false : horizontal ? length < width + 12 : length < labelHeight + 10;
         context.fillStyle = outside ? "#e8eef5" : "#0d1117";
         const x = outside ? Math.min(chart.chartArea.right - width / 2, Math.max(chart.chartArea.left + width / 2, bar.x + width / 2 + 6)) : horizontal ? (bar.x + visibleBase) / 2 : bar.x;
         const centerY = horizontal ? bar.y : outside ? Math.max(chart.chartArea.top + labelHeight / 2, visibleBase - labelHeight / 2 - 6) : (bar.y + visibleBase) / 2;
@@ -139,6 +139,89 @@ function teamRowsForSeason(season) {
     }));
 }
 
+function renderSortableTeamsSheet(host, rows, columns, defaultSort) {
+  if (!host) return;
+  const sortKey = host.dataset.sortKey || defaultSort, direction = host.dataset.sortDirection || "desc", column = columns.find(item => item.key === sortKey) || columns[0];
+  const ordered = [...rows].sort((left, right) => { const leftValue = column.value(left), rightValue = column.value(right), result = typeof leftValue === "number" && typeof rightValue === "number" ? leftValue - rightValue : String(leftValue).localeCompare(String(rightValue)); return direction === "asc" ? result : -result; });
+  host.innerHTML = `<div class="teams-sheet-wrap"><table class="teams-sheet"><thead><tr>${columns.map(item => `<th data-team-sort="${item.key}"${item.key === sortKey ? ` aria-sort="${direction === "asc" ? "ascending" : "descending"}"` : ""}>${websiteEscapeHtml(item.label)}${item.key === sortKey ? direction === "asc" ? " ↑" : " ↓" : ""}</th>`).join("")}</tr></thead><tbody>${ordered.map(row => `<tr>${columns.map(item => `<td>${item.html ? item.html(row) : websiteEscapeHtml(item.value(row))}</td>`).join("")}</tr>`).join("")}</tbody></table></div>`;
+  host.querySelectorAll("[data-team-sort]").forEach(header => header.onclick = () => { const key = header.dataset.teamSort; host.dataset.sortDirection = host.dataset.sortKey === key && direction === "desc" ? "asc" : "desc"; host.dataset.sortKey = key; renderSortableTeamsSheet(host, rows, columns, defaultSort); });
+}
+
+function teamsRateCell(value, label) {
+  const percentage = Number(value || 0) * 100, resultClass = percentage >= 52 ? "positive" : percentage < 48 ? "negative" : "";
+  return `<span class="teams-rate-cell ${resultClass}" style="--rate:${Math.max(0, Math.min(100, percentage))}"><span class="teams-rate-bar"></span><span>${websiteEscapeHtml(label)}</span></span>`;
+}
+
+function renderTeamBehavior(selectedTeam, season) {
+  let host = document.getElementById("teams-behavior");
+  if (!host) {
+    host = document.createElement("div");
+    host.id = "teams-behavior";
+    host.className = "team-behavior";
+    document.getElementById("teams-selected-summary").append(host);
+  }
+  const upper = value => String(value || "").toUpperCase();
+  const kickoffHour = value => {
+    const match = String(value || "").match(/(\d{1,2}):(\d{2})\s*(AM|PM)/i);
+    if (!match) return null;
+    return Number(match[1]) % 12 + (match[3].toUpperCase() === "PM" ? 12 : 0) + Number(match[2]) / 60;
+  };
+  const picksByGame = buildTeamsAnalytics().picksByGame;
+  const rows = websiteGames.filter(game => (season === "all" || game.season === season) && [upper(game.favorite), upper(game.underdog)].includes(selectedTeam)).map(game => {
+    const picks = (picksByGame.get(game.gameId) || []).filter(pick => pick.pick);
+    const direct = picks.find(pick => upper(pick.pick) === selectedTeam);
+    const opposite = picks.find(pick => upper(pick.pick) !== selectedTeam);
+    return {
+      game,
+      win: direct ? Number(direct.resultWin || 0) : Number(opposite?.resultLoss || 0),
+      loss: direct ? Number(direct.resultLoss || 0) : Number(opposite?.resultWin || 0),
+      push: direct ? Number(direct.resultPush || 0) : Number(opposite?.resultPush || 0),
+      support: picks.length ? picks.filter(pick => upper(pick.pick) === selectedTeam).length / picks.length : null
+    };
+  }).filter(row => row.win || row.loss || row.push);
+  const record = selected => selected.reduce((total, row) => ({ wins: total.wins + row.win, losses: total.losses + row.loss, pushes: total.pushes + row.push }), { wins: 0, losses: 0, pushes: 0 });
+  const rate = result => result.wins + result.losses ? result.wins / (result.wins + result.losses) : 0;
+  const division = WEBSITE_TEAM_DIVISIONS[selectedTeam.toLowerCase()] || "";
+  const conference = division.split(" ")[0];
+  const opponent = row => [upper(row.game.favorite), upper(row.game.underdog)].find(team => team !== selectedTeam) || "";
+  const opponentDivision = row => WEBSITE_TEAM_DIVISIONS[opponent(row).toLowerCase()] || "";
+  const spread = row => Math.abs(Number(row.game.spread || 0));
+  const month = row => Number(String(row.game.gameDate || "").slice(5, 7));
+  const segments = [
+    ["venue", "At home", row => upper(row.game.home) === selectedTeam], ["venue", "On the road", row => upper(row.game.away) === selectedTeam], ["venue", "Neutral sites", row => websiteIsNeutralSite(row.game)],
+    ["role", "As the favorite", row => upper(row.game.favorite) === selectedTeam], ["role", "As the underdog", row => upper(row.game.underdog) === selectedTeam],
+    ["division", "Division games", row => division && opponentDivision(row) === division], ["conference", `${conference} opponents`, row => conference && opponentDivision(row).startsWith(conference)],
+    ["roof", "Indoor games", row => /dome|closed|indoor/i.test(String(row.game.roof || ""))], ["roof", "Outdoor games", row => !/dome|closed|indoor/i.test(String(row.game.roof || ""))],
+    ["surface", "Grass fields", row => /grass/i.test(String(row.game.surface || ""))], ["surface", "Artificial turf", row => /turf|astro|artificial/i.test(String(row.game.surface || ""))],
+    ["temperature", "Cold games, 40°F or below", row => row.game.temperatureF != null && Number(row.game.temperatureF) <= 40], ["temperature", "Hot games, 80°F or above", row => row.game.temperatureF != null && Number(row.game.temperatureF) >= 80], ["wind", "Windy games, 15+ mph", row => row.game.windMph != null && Number(row.game.windMph) >= 15],
+    ["spread", "Tight spreads, 2 points or less", row => spread(row) <= 2], ["spread", "Field-goal spreads, 2.5-3.5", row => spread(row) >= 2.5 && spread(row) <= 3.5], ["spread", "Big spreads, 7 points or more", row => spread(row) >= 7],
+    ["kickoff", "1 PM kickoffs", row => { const hour = kickoffHour(row.game.officialGameTime || row.game.gameTime); return hour != null && hour >= 12.5 && hour < 15; }], ["kickoff", "Late-afternoon kickoffs", row => { const hour = kickoffHour(row.game.officialGameTime || row.game.gameTime); return hour != null && hour >= 15 && hour < 19; }], ["kickoff", "Night games", row => { const hour = kickoffHour(row.game.officialGameTime || row.game.gameTime); return hour != null && hour >= 19; }],
+    ["season", "September games", row => month(row) === 9], ["season", "December and January", row => [12, 1].includes(month(row))], ["season", "Playoff games", row => /round|super bowl|playoffs/i.test(String(row.game.week || "")) || String(row.game.competition || "").toLowerCase() === "playoffs"],
+    ["support", "Heavy pool support, 65%+", row => row.support != null && row.support >= .65], ["support", "Low pool support, under 35%", row => row.support != null && row.support < .35]
+  ].map(([group, label, test]) => { const selected = rows.filter(test), result = record(selected); return { group, label, selected, result, rate: rate(result) }; });
+  const overall = record(rows), overallRate = rate(overall), minimum = Math.min(12, Math.max(5, Math.floor(rows.length * .04)));
+  const eligible = segments.filter(segment => segment.result.wins + segment.result.losses >= minimum);
+  const overlap = (left, right) => {
+    const rightRows = new Set(right.selected), shared = left.selected.filter(row => rightRows.has(row)).length;
+    return shared / Math.max(1, Math.min(left.selected.length, right.selected.length));
+  };
+  const choose = (ordered, excluded = []) => {
+    const selected = [];
+    ordered.forEach(segment => { if (selected.length < 5 && !excluded.includes(segment) && !selected.some(item => item.group === segment.group || overlap(item, segment) >= .7)) selected.push(segment); });
+    return selected;
+  };
+  const best = choose(eligible.filter(segment => segment.rate >= overallRate + .005).sort((left, right) => right.rate - left.rate || right.selected.length - left.selected.length));
+  const worst = choose(eligible.filter(segment => segment.rate <= overallRate - .005).sort((left, right) => left.rate - right.rate || right.selected.length - left.selected.length), best);
+  const worstSet = new Set(worst);
+  const section = groups => choose(eligible.filter(segment => groups.includes(segment.group) && segment.rate >= overallRate + .005 && !worstSet.has(segment)).sort((left, right) => right.rate - left.rate || right.selected.length - left.selected.length));
+  const rowsHtml = selected => selected.map(segment => {
+    const difference = (segment.rate - overallRate) * 100;
+    return `<div class="behavior-row"><div><strong>${websiteEscapeHtml(segment.label)}</strong><small>${segment.selected.length} games · ${difference >= 0 ? "+" : ""}${difference.toFixed(1)} points vs overall</small></div><span>${segment.result.wins}-${segment.result.losses}${segment.result.pushes ? `-${segment.result.pushes}` : ""}<br>${(segment.rate * 100).toFixed(1)}%</span></div>`;
+  }).join("");
+  const situations = section(["venue", "role", "division", "conference", "season"]), conditions = section(["roof", "surface", "temperature", "wind"]), spotlight = section(["spread", "kickoff", "support"]);
+  host.innerHTML = `<h3 class="compact-live-title">Where ${websiteEscapeHtml(selectedTeam)} delivers and struggles</h3><p class="analysis-note">Team ATS results across ${rows.length} graded games. Green panels are strengths; red panels are watch-outs. Symbols and labels carry the same meaning without relying on color.</p><div class="behavior-grid"><section class="positive"><h4>▲ Reliable spots</h4>${situations.length ? rowsHtml(situations) : '<p class="analysis-note">No qualified situational samples.</p>'}</section><section class="positive"><h4>▲ Conditions that suit them</h4>${conditions.length ? rowsHtml(conditions) : '<p class="analysis-note">No qualified condition samples.</p>'}</section><section class="positive"><h4>▲ Line and spotlight</h4>${spotlight.length ? rowsHtml(spotlight) : '<p class="analysis-note">No qualified line or kickoff samples.</p>'}</section><section class="negative"><h4>▼ Watch-outs</h4>${worst.length ? rowsHtml(worst) : '<p class="analysis-note">No qualified watch-outs.</p>'}</section></div><p class="analysis-note">Samples require at least ${minimum} graded team games. Win rate excludes pushes.</p>`;
+}
+
 function setupTeamsSections() {
   const panel = document.querySelector("#view-teams > .panel");
   const charts = panel?.querySelector(".profile-charts");
@@ -152,24 +235,24 @@ function setupTeamsSections() {
   const selectedSection = document.createElement("section");
   selectedSection.id = "teams-selected-section";
   selectedSection.innerHTML = '<hr class="chart-divider"><h3 class="teams-section-title" id="teams-selected-title">Selected Team</h3><div id="teams-selected-summary"></div><div class="profile-charts" id="teams-selected-charts"></div>';
-  charts.before(globalSection, selectedSection);
+  charts.before(selectedSection);
   const sharedControls = panel.querySelector(":scope > .explorer-controls");
   const teamLabel = document.getElementById("teams-team")?.closest("label"), metricLabel = document.getElementById("teams-metric")?.closest("label");
-  const globalControls = document.createElement("div"), selectedControls = document.createElement("div");
-  globalControls.className = selectedControls.className = "explorer-controls";
-  globalControls.style.marginBottom = selectedControls.style.marginBottom = "12px";
-  if (metricLabel) globalControls.append(metricLabel);
+  const selectedControls = document.createElement("div");
+  selectedControls.className = "explorer-controls";
+  selectedControls.style.marginBottom = "12px";
+  metricLabel?.remove();
   if (teamLabel) selectedControls.append(teamLabel);
-  globalSection.querySelector(".teams-section-title").after(globalControls);
   selectedSection.querySelector(".teams-section-title").after(selectedControls);
   if (sharedControls && !sharedControls.children.length) sharedControls.remove();
-  globalSection.querySelector("#teams-global-charts").append(chartPanels[0]);
+  chartPanels[0]?.remove();
   selectedSection.querySelector("#teams-selected-summary").append(document.getElementById("teams-summary"));
-  selectedSection.querySelector("#teams-selected-charts").append(...chartPanels.slice(1));
-  ["Team leaderboard", "Best Bet records"].forEach(text => {
-    const heading = headingFor(text);
-    if (heading) globalSection.append(heading, heading.nextElementSibling);
-  });
+  chartPanels[3]?.remove();
+  selectedSection.querySelector("#teams-selected-charts").append(...chartPanels.slice(1, 3));
+  const comparisonHeading = headingFor("Team leaderboard"), comparisonHost = document.getElementById("teams-leaderboard-table"), bestBetHeading = headingFor("Best Bet records"), bestBetHost = document.getElementById("teams-bestbet-table");
+  if (comparisonHeading && comparisonHost) { comparisonHeading.remove(); globalSection.querySelector("#teams-global-charts").replaceWith(comparisonHost); panel.append(globalSection); }
+  bestBetHeading?.remove();
+  bestBetHost?.remove();
   const affinityHeading = document.getElementById("teams-affinity-title");
   if (affinityHeading) selectedSection.append(affinityHeading, document.getElementById("teams-affinity-table"));
   charts.remove();
@@ -189,20 +272,25 @@ function initializeTeamsControls() {
   if (!teamSelect.options.length) teams.forEach(team => teamSelect.add(new Option(team, team)));
   teamSelect.value = priorTeam || (teams.includes("ARI") ? "ARI" : teams[0] || "");
   let picker = teamSelect.parentElement.querySelector(".teams-team-picker");
+  const teamPickerName = team => ({ OAK: "Raiders (Oakland 2009-2019)", STL: "Rams (St. Louis 2009-2015)", SD: "Chargers (San Diego 2009-2016)" }[team] || websiteNaturalTeamName(team));
   if (!picker) {
     picker = document.createElement("details");
     picker.className = "teams-team-picker";
-    picker.innerHTML = `<summary aria-label="Choose a team"></summary><div class="teams-team-menu" role="listbox">${teams.map(team => { const logoCode = WEBSITE_TEAM_LOGO_CODES[team.toLowerCase()] || team.toLowerCase(); return `<button class="teams-team-option" type="button" role="option" data-team="${websiteEscapeHtml(team)}" aria-selected="false"><img class="teams-team-logo" src="https://a.espncdn.com/i/teamlogos/nfl/500/scoreboard/${logoCode}.png" alt="" loading="lazy"><span class="teams-team-name">${websiteEscapeHtml(websiteNaturalTeamName(team))}</span><span class="teams-team-code">${websiteEscapeHtml(team)}</span></button>`; }).join("")}</div>`;
+    picker.innerHTML = `<summary aria-label="Choose a team"></summary><div class="teams-team-menu" role="listbox">${teams.map(team => { const logoCode = WEBSITE_TEAM_LOGO_CODES[team.toLowerCase()] || team.toLowerCase(); return `<button class="teams-team-option" type="button" role="option" data-team="${websiteEscapeHtml(team)}" aria-selected="false"><img class="teams-team-logo" src="https://a.espncdn.com/i/teamlogos/nfl/500/scoreboard/${logoCode}.png" alt="" loading="lazy"><span class="teams-team-name">${websiteEscapeHtml(teamPickerName(team))}</span><span class="teams-team-code">${websiteEscapeHtml(team)}</span></button>`; }).join("")}</div>`;
     picker.querySelector("summary").onclick = event => { event.preventDefault(); event.stopPropagation(); picker.open = !picker.open; };
     picker.querySelectorAll("[role=option]").forEach(option => option.onclick = event => { event.preventDefault(); event.stopPropagation(); teamSelect.value = option.dataset.team; teamSelect.dispatchEvent(new Event("change", { bubbles: true })); picker.open = false; });
     teamSelect.after(picker);
   }
   const selectedTeam = teamSelect.value;
   const selectedLogoCode = WEBSITE_TEAM_LOGO_CODES[selectedTeam.toLowerCase()] || selectedTeam.toLowerCase();
-  picker.querySelector("summary").innerHTML = `<img class="teams-team-logo" src="https://a.espncdn.com/i/teamlogos/nfl/500/scoreboard/${selectedLogoCode}.png" alt=""><span class="teams-team-name">${websiteEscapeHtml(websiteNaturalTeamName(selectedTeam))}</span><span class="teams-team-code">${websiteEscapeHtml(selectedTeam)}</span>`;
+  picker.querySelector("summary").innerHTML = `<img class="teams-team-logo" src="https://a.espncdn.com/i/teamlogos/nfl/500/scoreboard/${selectedLogoCode}.png" alt=""><span class="teams-team-name">${websiteEscapeHtml(teamPickerName(selectedTeam))}</span><span class="teams-team-code">${websiteEscapeHtml(selectedTeam)}</span>`;
   picker.querySelectorAll("[role=option]").forEach(option => option.setAttribute("aria-selected", String(option.dataset.team === selectedTeam)));
+  if (!picker.dataset.clickAwayReady) {
+    document.addEventListener("click", event => { if (!picker.contains(event.target)) picker.open = false; });
+    picker.dataset.clickAwayReady = "true";
+  }
   [seasonSelect, teamSelect, document.getElementById("teams-metric")]
-    .forEach(select => select.onchange = renderTeams);
+    .filter(Boolean).forEach(select => select.onchange = renderTeams);
 }
 
 function renderTeams() {
@@ -210,7 +298,6 @@ function renderTeams() {
   initializeTeamsControls();
   const season = document.getElementById("teams-season").value;
   const selectedTeam = document.getElementById("teams-team").value;
-  const metric = document.getElementById("teams-metric").value;
   const rows = teamRowsForSeason(season);
   const selected = rows.find(row => row.team === selectedTeam) || emptyTeamStat(selectedTeam, season);
   const pct = value => `${(value * 100).toFixed(1)}%`;
@@ -224,40 +311,7 @@ function renderTeams() {
     ["Best Bet record", record(selected.bestBetWins || 0, selected.bestBetLosses || 0, selected.bestBetPushes || 0)]
   ].map(([label, value]) => `<div class="metric"><span>${label}</span><strong>${value}</strong></div>`).join("");
   document.getElementById("teams-selected-title").textContent = `${selectedTeam} Team Detail`;
-
-  const config = {
-    volume: { label: "Times picked", description: "Total individual picks on each team across the selected seasons. The number on each bar is the pick count; this measures pool attention, not ATS quality.", value: row => row.picks, eligible: row => row.picks > 0 },
-    ats: { label: "Pick win %", description: "How often picks on each team won against the spread, with at least 20 graded picks. Bar labels are ATS win rates.", value: row => row.pickRate * 100, eligible: row => row.picks >= 20 },
-    fade: { label: "Win % picking against", description: "How often the pool won by choosing each team's opponent against the spread, with at least 20 graded picks against. Bar labels are ATS win rates.", value: row => row.fadeRate * 100, eligible: row => row.fades >= 20 },
-    bestbet: { label: "Best Bet win %", description: "How often Best Bets on each team won against the spread, with at least five graded Best Bets. Bar labels are hit rates.", value: row => row.bestBetRate * 100, eligible: row => row.bestBets >= 5 }
-  }[metric];
-  const leaders = rows.filter(config.eligible)
-    .sort((left, right) => config.value(right) - config.value(left) || right.picks - left.picks).slice(0, 12);
-  if (teamsLeaderChart) teamsLeaderChart.destroy();
-  let leaderNote = document.getElementById("teams-leader-note");
-  if (!leaderNote) {
-    leaderNote = document.createElement("p");
-    leaderNote.id = "teams-leader-note";
-    leaderNote.className = "analysis-note";
-    document.getElementById("teams-leader-chart").closest(".profile-chart").querySelector(".panel-head").after(leaderNote);
-  }
-  leaderNote.textContent = config.description;
-  const leaderBarText = row => metric === "volume" ? row.picks.toLocaleString() : pct(metric === "fade" ? row.fadeRate : metric === "bestbet" ? row.bestBetRate : row.pickRate);
-  teamsLeaderChart = new Chart(document.getElementById("teams-leader-chart"), {
-    type: "bar",
-    data: { labels: leaders.map(row => row.team), datasets: [{
-      label: config.label,
-      data: leaders.map(config.value),
-      barText: leaders.map(leaderBarText),
-      backgroundColor: leaders.map(row => row.team === selectedTeam ? "#54d6b2bb" : "#8ca7ff99"),
-      borderColor: leaders.map(row => row.team === selectedTeam ? "#54d6b2" : "#8ca7ff"), borderWidth: 1
-    }] },
-    plugins: [teamsBarValueLabels],
-    options: { indexAxis: "y", responsive: true, maintainAspectRatio: false, layout: { padding: { top: 8 } },
-      scales: { x: { beginAtZero: metric === "volume", ticks: { color: "#91a0ae", callback: value => metric === "volume" ? value : value + "%" }, grid: { color: "#2a3744" } }, y: { ticks: { color: "#e8eef5" }, grid: { color: "#2a3744" } } },
-      plugins: { legend: { display: false }, tooltip: { callbacks: { afterBody: items => { const row = leaders[items[0].dataIndex]; return [`Picked: ${record(row.wins, row.losses, row.pushes)} (${pct(row.pickRate)})`, `Picked against: ${record(row.fadeWins, row.fadeLosses, row.fadePushes)} (${pct(row.fadeRate)})`, `Best Bets: ${record(row.bestBetWins, row.bestBetLosses, row.bestBetPushes)} (${pct(row.bestBetRate)})`]; } } } }
-    }
-  });
+  renderTeamBehavior(selectedTeam, season);
 
   const seasons = [...new Set(websiteGames.map(game => game.season))].sort();
   const trend = seasons.map(item => teamRowsForSeason(item).find(row => row.team === selectedTeam) || emptyTeamStat(selectedTeam, item));
@@ -271,7 +325,7 @@ function renderTeams() {
     type: "line",
     data: { labels: seasons, datasets: [
       { label: `Pool support for ${selectedTeam}`, data: trend.map(row => row.supportGames ? Number((row.supportRate * 100).toFixed(1)) : null), borderColor: "#8ca7ff", backgroundColor: "#8ca7ff", tension: .2 },
-      { label: `${selectedTeam} ATS cover rate`, data: trend.map(row => row.games ? Number((row.coverRate * 100).toFixed(1)) : null), borderColor: "#54d6b2", backgroundColor: "#54d6b2", tension: .2 },
+      { label: `${selectedTeam} ATS cover rate`, data: trend.map(row => row.games ? Number((row.coverRate * 100).toFixed(1)) : null), borderColor: "#ffcf40", backgroundColor: "#ffcf40", tension: .2 },
       { label: "50% break-even", data: seasons.map(() => 50), borderColor: "#91a0ae", backgroundColor: "#91a0ae", borderDash: [5, 5], pointRadius: 0, borderWidth: 1 }
     ] },
     options: { responsive: true, maintainAspectRatio: false, interaction: { mode: "index", intersect: false }, scales: { x: { ticks: { color: "#91a0ae", maxRotation: 60, minRotation: 45 }, grid: { color: "#2a3744" } }, y: { beginAtZero: true, max: 100, ticks: { color: "#91a0ae", callback: value => value + "%" }, grid: { color: "#2a3744" } } }, plugins: { legend: { labels: { color: "#e8eef5", filter: item => item.text !== "50% break-even" } }, tooltip: { filter: item => item.dataset.label !== "50% break-even", callbacks: { afterBody: items => { const row = trend[items[0].dataIndex]; return [`Average support: ${pct(row.supportRate)} across ${row.supportGames} games`, `Team ATS: ${record(row.covers, row.noCovers, row.gamePushes)} (${pct(row.coverRate)})`]; } } } } }
@@ -286,7 +340,7 @@ function renderTeams() {
     const win = direct ? Number(direct.resultWin || 0) : Number(opposite.resultLoss || 0), loss = direct ? Number(direct.resultLoss || 0) : Number(opposite.resultWin || 0), push = direct ? Number(direct.resultPush || 0) : Number(opposite.resultPush || 0);
     if (!(win || loss || push)) return;
     const row = opponentStats.get(opponent) || { opponent, wins: 0, losses: 0, pushes: 0, meetings: [] };
-    row.wins += win; row.losses += loss; row.pushes += push; row.meetings.push({ season: game.season, week: game.week, spread: game.spread, win, loss, push });
+    row.wins += win; row.losses += loss; row.pushes += push; row.meetings.push({ season: game.season, week: game.week, gameDate: game.gameDate, spread: game.spread, away: game.away, awayScore: game.awayScore, home: game.home, homeScore: game.homeScore, win, loss, push });
     opponentStats.set(opponent, row);
   });
   const allOpponents = [...opponentStats.values()].map(row => ({ ...row, rate: teamRate(row.wins, row.losses) }));
@@ -297,35 +351,9 @@ function renderTeams() {
   document.getElementById("teams-consensus-chart").parentElement.style.height = `${Math.max(335, opponents.length * 30 + 70)}px`;
   teamsConsensusChart = new Chart(document.getElementById("teams-consensus-chart"), {
     type: "bar",
-    data: { labels: opponents.map(row => `${selectedTeam} vs ${row.opponent}`), datasets: [{ label: "ATS cover %", data: opponents.map(row => Number((row.rate * 100).toFixed(1))), barText: opponents.map(row => [`${(row.rate * 100).toFixed(1)}%`, record(row.wins, row.losses, row.pushes)]), backgroundColor: opponents.map(row => row.rate >= .5 ? "#54d6b299" : "#ff8f7099"), borderColor: opponents.map(row => row.rate >= .5 ? "#54d6b2" : "#ff8f70"), borderWidth: 1 }] },
+    data: { labels: opponents.map(() => ""), datasets: [{ label: "ATS cover %", data: opponents.map(row => Number((row.rate * 100).toFixed(1))), barText: opponents.map(row => [`${selectedTeam} vs ${row.opponent}`, `${(row.rate * 100).toFixed(1)}% · ${record(row.wins, row.losses, row.pushes)}`]), forceInside: true, backgroundColor: opponents.map(row => row.rate >= .5 ? "#39c98299" : "#ff6b6b99"), borderColor: opponents.map(row => row.rate >= .5 ? "#39c982" : "#ff6b6b"), borderWidth: 1 }] },
     plugins: [teamsBarValueLabels],
-    options: { indexAxis: "y", responsive: true, maintainAspectRatio: false, scales: { x: { beginAtZero: true, max: 100, ticks: { color: "#91a0ae", callback: value => value + "%" }, grid: { color: "#2a3744" } }, y: { ticks: { color: "#e8eef5" }, grid: { color: "#2a3744" } } }, plugins: { legend: { display: false }, tooltip: { callbacks: { afterBody: items => { const row = opponents[items[0].dataIndex], seasons = [...new Set(row.meetings.map(meeting => meeting.season))]; return [`${selectedTeam} ATS: ${record(row.wins, row.losses, row.pushes)} (${pct(row.rate)})`, `${row.meetings.length} archived meetings`, `Seasons: ${seasons[0]}${seasons.length > 1 ? ` to ${seasons.at(-1)}` : ""}`, ...row.meetings.slice(-3).reverse().map(meeting => `${meeting.season} ${String(meeting.week).toLowerCase().includes("round") || String(meeting.week).toLowerCase().includes("bowl") ? meeting.week : `W${meeting.week}`} · ${selectedTeam} ${meeting.win ? "covered" : meeting.loss ? "did not cover" : "pushed"} · spread ${meeting.spread}`)]; } } } } }
-  });
-
-  const venueSplits = [
-    { label: "Neutral site", neutral: true, wins: 0, losses: 0, pushes: 0, games: new Set() },
-    { label: "Traditional venue", neutral: false, wins: 0, losses: 0, pushes: 0, games: new Set() }
-  ];
-  websitePicks.forEach(pick => {
-    const game = buildTeamsAnalytics().gameById.get(pick.gameId);
-    if (!game || (season !== "all" && game.season !== season) || String(pick.pick || "").toUpperCase() !== selectedTeam) return;
-    const split = venueSplits[websiteIsNeutralSite(game) ? 0 : 1];
-    const win = Number(pick.resultWin || 0), loss = Number(pick.resultLoss || 0), push = Number(pick.resultPush || 0);
-    if (!(win || loss || push)) return;
-    split.wins += win; split.losses += loss; split.pushes += push; split.games.add(game.gameId);
-  });
-  venueSplits.forEach(split => { split.rate = teamRate(split.wins, split.losses); });
-  const neutral = venueSplits[0], traditional = venueSplits[1];
-  document.getElementById("teams-neutral-title").textContent = `${selectedTeam}: Neutral-Site Picks`;
-  document.getElementById("teams-neutral-note").textContent = neutral.games.size
-    ? `Pool picks on ${selectedTeam} at NFL-designated neutral sites compared with all other venues. Neutral sample: ${neutral.games.size} games and ${neutral.wins + neutral.losses + neutral.pushes} picks; records use the pool's archived spreads.`
-    : `No archived picks on ${selectedTeam} at an NFL-designated neutral site are available for the selected seasons.`;
-  if (teamsNeutralChart) teamsNeutralChart.destroy();
-  teamsNeutralChart = new Chart(document.getElementById("teams-neutral-chart"), {
-    type: "bar",
-    data: { labels: venueSplits.map(split => split.label), datasets: [{ label: "ATS win % when picked", data: venueSplits.map(split => split.wins + split.losses ? Number((split.rate * 100).toFixed(1)) : null), barText: venueSplits.map(split => split.wins + split.losses + split.pushes ? [`${(split.rate * 100).toFixed(1)}%`, record(split.wins, split.losses, split.pushes)] : "No picks"), backgroundColor: ["#ffb454aa", "#8ca7ffaa"], borderColor: ["#ffb454", "#8ca7ff"], borderWidth: 1 }] },
-    plugins: [teamsBarValueLabels],
-    options: { responsive: true, maintainAspectRatio: false, scales: { x: { ticks: { color: "#e8eef5" }, grid: { color: "#2a3744" } }, y: { beginAtZero: true, max: 100, ticks: { color: "#91a0ae", callback: value => value + "%" }, grid: { color: "#2a3744" } } }, plugins: { legend: { display: false }, tooltip: { callbacks: { afterBody: items => { const split = venueSplits[items[0].dataIndex]; return [`Record: ${record(split.wins, split.losses, split.pushes)}`, `Individual picks: ${split.wins + split.losses + split.pushes}`, `Games represented: ${split.games.size}`, split.neutral && split.games.size < 3 ? "Small game sample; treat this as descriptive." : ""]; } } } } }
+    options: { indexAxis: "y", responsive: true, maintainAspectRatio: false, scales: { x: { beginAtZero: true, max: 100, ticks: { color: "#91a0ae", callback: value => value + "%" }, grid: { color: "#2a3744" } }, y: { ticks: { display: false }, grid: { display: false } } }, plugins: { legend: { display: false }, tooltip: { callbacks: { afterBody: items => { const row = opponents[items[0].dataIndex], seasons = [...new Set(row.meetings.map(meeting => meeting.season))]; return [`${selectedTeam} ATS: ${record(row.wins, row.losses, row.pushes)} (${pct(row.rate)})`, `${row.meetings.length} archived meetings`, `Seasons: ${seasons[0]}${seasons.length > 1 ? ` to ${seasons.at(-1)}` : ""}`, ...[...row.meetings].sort((left, right) => String(right.gameDate).localeCompare(String(left.gameDate))).map(meeting => `${meeting.season} ${String(meeting.week).toLowerCase().includes("round") || String(meeting.week).toLowerCase().includes("bowl") ? meeting.week : `W${meeting.week}`} · ${meeting.away} ${meeting.awayScore}-${meeting.homeScore} ${meeting.home} · ${selectedTeam} ${meeting.win ? "covered" : meeting.loss ? "did not cover" : "pushed"} (${meeting.spread})`)]; } } } } }
   });
 
   const tableRows = [...rows].sort((left, right) => right.picks - left.picks).map(row => ({
@@ -333,15 +361,11 @@ function renderTeams() {
     fades: row.fades, fadeRecord: record(row.fadeWins, row.fadeLosses, row.fadePushes), fadePct: row.fadeRate,
     bestBets: row.bestBets, bestBetRecord: record(row.bestBetWins, row.bestBetLosses, row.bestBetPushes), bestBetPct: row.bestBetRate
   }));
-  if (teamsLeaderboardTable) teamsLeaderboardTable.destroy();
-  teamsLeaderboardTable = new Tabulator("#teams-leaderboard-table", { data: tableRows, layout: "fitDataStretch", columns: [
-    { title: "Team", field: "team" }, { title: "Picks", field: "picks", sorter: "number" }, { title: "Record", field: "record" }, { title: "Pick %", field: "pickPct", formatter: percentFormatter, sorter: "number" },
-    { title: "Picked against", field: "fades", sorter: "number" }, { title: "Against record", field: "fadeRecord" }, { title: "Against win %", field: "fadePct", formatter: percentFormatter, sorter: "number" }
-  ] });
-  if (teamsBestBetTable) teamsBestBetTable.destroy();
-  teamsBestBetTable = new Tabulator("#teams-bestbet-table", { data: tableRows.filter(row => row.bestBets).sort((left, right) => right.bestBets - left.bestBets), layout: "fitDataStretch", columns: [
-    { title: "Team", field: "team" }, { title: "Best Bets", field: "bestBets", sorter: "number" }, { title: "Record", field: "bestBetRecord" }, { title: "Hit rate", field: "bestBetPct", formatter: percentFormatter, sorter: "number" }
-  ] });
+  renderSortableTeamsSheet(document.getElementById("teams-leaderboard-table"), tableRows, [
+    { key: "team", label: "Team", value: row => row.team }, { key: "picks", label: "Picked", value: row => row.picks }, { key: "pickPct", label: "Pick ATS", value: row => row.pickPct, html: row => teamsRateCell(row.pickPct, `${row.record} · ${pct(row.pickPct)}`) },
+    { key: "fades", label: "Against", value: row => row.fades }, { key: "fadePct", label: "Against ATS", value: row => row.fadePct, html: row => teamsRateCell(row.fadePct, `${row.fadeRecord} · ${pct(row.fadePct)}`) },
+    { key: "bestBets", label: "Best Bets", value: row => row.bestBets }, { key: "bestBetPct", label: "BB ATS", value: row => row.bestBetPct, html: row => teamsRateCell(row.bestBetPct, `${row.bestBetRecord} · ${pct(row.bestBetPct)}`) }
+  ], "picks");
 
   const affinity = new Map();
   websitePicks.forEach(pick => {
@@ -370,13 +394,11 @@ function renderTeams() {
     againstRecord: record(row.againstWins, row.againstLosses, row.againstPushes), againstPct: teamRate(row.againstWins, row.againstLosses)
   })).sort((left, right) => right.picks - left.picks || right.affinityPct - left.affinityPct);
   document.getElementById("teams-affinity-title").textContent = `${selectedTeam} Player Affinity and Bet Against`;
-  if (teamsAffinityTable) teamsAffinityTable.destroy();
-  teamsAffinityTable = new Tabulator("#teams-affinity-table", { data: affinityRows, layout: "fitDataStretch", initialSort: [{ column: "picks", dir: "desc" }], columns: [
-    { title: "Player", field: "player", frozen: true },
-    { title: "Picked", field: "picks", sorter: "number" }, { title: "Pick share", field: "affinityPct", formatter: percentFormatter, sorter: "number" }, { title: "Record", field: "record" }, { title: "Win %", field: "winPct", formatter: percentFormatter, sorter: "number" },
-    { title: "Best Bets", field: "bestBets", sorter: "number" }, { title: "BB record", field: "bestBetRecord" }, { title: "BB %", field: "bestBetPct", formatter: percentFormatter, sorter: "number" },
-    { title: "Bet against", field: "against", sorter: "number" }, { title: "Against record", field: "againstRecord" }, { title: "Against %", field: "againstPct", formatter: percentFormatter, sorter: "number" }
-  ] });
+  renderSortableTeamsSheet(document.getElementById("teams-affinity-table"), affinityRows, [
+    { key: "player", label: "Player", value: row => row.player }, { key: "picks", label: "Picked", value: row => row.picks }, { key: "affinityPct", label: "Pick share", value: row => row.affinityPct, html: row => teamsRateCell(row.affinityPct, pct(row.affinityPct)) },
+    { key: "winPct", label: "Pick ATS", value: row => row.winPct, html: row => teamsRateCell(row.winPct, `${row.record} · ${pct(row.winPct)}`) }, { key: "bestBets", label: "Best Bets", value: row => row.bestBets }, { key: "bestBetPct", label: "BB ATS", value: row => row.bestBetPct, html: row => teamsRateCell(row.bestBetPct, `${row.bestBetRecord} · ${pct(row.bestBetPct)}`) },
+    { key: "against", label: "Against", value: row => row.against }, { key: "againstPct", label: "Against ATS", value: row => row.againstPct, html: row => teamsRateCell(row.againstPct, `${row.againstRecord} · ${pct(row.againstPct)}`) }
+  ], "picks");
 }
 
 async function loadTeamsView() {
