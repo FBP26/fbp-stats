@@ -1893,7 +1893,7 @@ try {
   if (location.hash === "#enter-picks" && cachedSelection?.staged && Array.isArray(cachedSlate.games) && cachedSlate.games.length && Date.now() - Number(cachedSlate.storedAt) < 24 * 60 * 60 * 1000) {
     websiteRegularSelection = { season: Number(cachedSelection.season), week: Number(cachedSelection.week), phase: "REGULAR_SEASON", staged: true };
     websiteEntrySelection = { testMode: false, ...websiteRegularSelection };
-    websiteStagedGamesCache.set(`REGULAR_SEASON-${websiteRegularSelection.season}-${websiteRegularSelection.week}`, { games: cachedSlate.games, storedAt: Number(cachedSlate.storedAt) });
+    websiteStagedGamesCache.set(`REGULAR_SEASON-${websiteRegularSelection.season}-${websiteRegularSelection.week}`, { games: cachedSlate.games, storedAt: Date.now() });
     websiteActiveRegularWeekLoadedAt = Date.now();
   }
 } catch (error) { console.warn(`Saved active slate unavailable: ${error.message}`); }
