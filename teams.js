@@ -26,6 +26,34 @@ const teamsBarValueLabels = {
   }
 };
 
+const teamsTrendGuides = {
+  id: "teamsTrendGuides",
+  beforeDatasetsDraw(chart) {
+    const scale = chart.scales.y, breakEven = scale?.getPixelForValue(50), area = chart.chartArea;
+    if (!area || !Number.isFinite(breakEven)) return;
+    chart.ctx.save();
+    chart.ctx.fillStyle = "rgba(57, 201, 130, .06)";
+    chart.ctx.fillRect(area.left, area.top, area.right - area.left, breakEven - area.top);
+    chart.ctx.fillStyle = "rgba(255, 107, 107, .045)";
+    chart.ctx.fillRect(area.left, breakEven, area.right - area.left, area.bottom - breakEven);
+    chart.ctx.restore();
+  },
+  afterDatasetsDraw(chart) {
+    const context = chart.ctx;
+    context.save();
+    context.font = "bold 10px Arial";
+    context.textAlign = "left";
+    context.textBaseline = "middle";
+    chart.data.datasets.slice(0, 2).forEach((dataset, datasetIndex) => {
+      const values = dataset.data.map(value => value == null ? NaN : Number(value)), lastIndex = values.findLastIndex(Number.isFinite), point = chart.getDatasetMeta(datasetIndex).data[lastIndex];
+      if (!point) return;
+      context.fillStyle = dataset.borderColor;
+      context.fillText(`${datasetIndex ? "ATS" : "POOL"} ${values[lastIndex].toFixed(1)}%`, point.x + 7, point.y + (datasetIndex ? 8 : -8));
+    });
+    context.restore();
+  }
+};
+
 function emptyTeamStat(team, season) {
   return {
     team, season, picks: 0, wins: 0, losses: 0, pushes: 0,
@@ -222,7 +250,7 @@ function renderTeamBehavior(selectedTeam, season) {
   };
   const choose = (ordered, excluded = []) => {
     const selected = [];
-    ordered.forEach(segment => { if (selected.length < 5 && !excluded.includes(segment) && !selected.some(item => item.group === segment.group || overlap(item, segment) >= .7)) selected.push(segment); });
+    ordered.forEach(segment => { if (selected.length < 7 && !excluded.includes(segment) && !selected.some(item => item.group === segment.group || overlap(item, segment) >= .7)) selected.push(segment); });
     return selected;
   };
   const best = choose(eligible.filter(segment => segment.rate >= Math.max(.52, overallRate + .005)).sort((left, right) => right.rate - left.rate || right.selected.length - left.selected.length));
@@ -296,16 +324,16 @@ function initializeTeamsControls() {
   const seasonSelect = document.getElementById("teams-season");
   const teamSelect = document.getElementById("teams-team");
   const priorTeam = teamSelect.value;
+  const teamPickerName = team => ({ OAK: "Raiders (Oakland 2009-2019)", STL: "Rams (St. Louis 2009-2015)", SD: "Chargers (San Diego 2009-2016)" }[team] || websiteNaturalTeamName(team));
   if (seasonSelect.options.length === 1) {
     [...new Set(websiteGames.map(game => game.season))].sort().reverse()
       .forEach(season => seasonSelect.add(new Option(season, season)));
   }
   const teams = [...new Set(websiteGames.flatMap(game => [game.favorite, game.underdog])
-    .map(value => String(value || "").toUpperCase()).filter(Boolean))].sort();
+    .map(value => String(value || "").toUpperCase()).filter(Boolean))].sort((left, right) => teamPickerName(left).localeCompare(teamPickerName(right)) || left.localeCompare(right));
   if (!teamSelect.options.length) teams.forEach(team => teamSelect.add(new Option(team, team)));
   teamSelect.value = priorTeam || (teams.includes("ARI") ? "ARI" : teams[0] || "");
   let picker = teamSelect.parentElement.querySelector(".teams-team-picker");
-  const teamPickerName = team => ({ OAK: "Raiders (Oakland 2009-2019)", STL: "Rams (St. Louis 2009-2015)", SD: "Chargers (San Diego 2009-2016)" }[team] || websiteNaturalTeamName(team));
   if (!picker) {
     picker = document.createElement("details");
     picker.className = "teams-team-picker";
@@ -360,10 +388,11 @@ function renderTeams() {
     type: "line",
     data: { labels: seasons, datasets: [
       { label: `Pool support for ${selectedTeam}`, data: trend.map(row => row.supportGames ? Number((row.supportRate * 100).toFixed(1)) : null), borderColor: "#8ca7ff", backgroundColor: "#8ca7ff", tension: .2 },
-      { label: `${selectedTeam} ATS cover rate`, data: trend.map(row => row.games ? Number((row.coverRate * 100).toFixed(1)) : null), borderColor: "#ffcf40", backgroundColor: "#ffcf40", tension: .2 },
+      { label: `${selectedTeam} ATS cover rate`, data: trend.map(row => row.games ? Number((row.coverRate * 100).toFixed(1)) : null), borderColor: "#39c982", backgroundColor: "#39c982", borderWidth: 3, tension: .2 },
       { label: "50% break-even", data: seasons.map(() => 50), borderColor: "#91a0ae", backgroundColor: "#91a0ae", borderDash: [5, 5], pointRadius: 0, borderWidth: 1 }
     ] },
-    options: { responsive: true, maintainAspectRatio: false, interaction: { mode: "index", intersect: false }, scales: { x: { ticks: { color: "#91a0ae", maxRotation: 60, minRotation: 45 }, grid: { color: "#2a3744" } }, y: { beginAtZero: true, max: 100, ticks: { color: "#91a0ae", callback: value => value + "%" }, grid: { color: "#2a3744" } } }, plugins: { legend: { labels: { color: "#e8eef5", filter: item => item.text !== "50% break-even" } }, tooltip: { filter: item => item.dataset.label !== "50% break-even", callbacks: { afterBody: items => { const row = trend[items[0].dataIndex]; return [`Average support: ${pct(row.supportRate)} across ${row.supportGames} games`, `Team ATS: ${record(row.covers, row.noCovers, row.gamePushes)} (${pct(row.coverRate)})`]; } } } } }
+    options: { responsive: true, maintainAspectRatio: false, layout: { padding: { right: 70 } }, interaction: { mode: "index", intersect: false }, scales: { x: { ticks: { color: "#91a0ae", maxRotation: 60, minRotation: 45 }, grid: { color: "#2a3744" } }, y: { beginAtZero: true, max: 100, ticks: { color: "#91a0ae", callback: value => value + "%" }, grid: { color: context => context.tick.value === 50 ? "#b8c4cf" : "#2a3744", lineWidth: context => context.tick.value === 50 ? 2 : 1 } } }, plugins: { legend: { labels: { color: "#e8eef5", filter: item => item.text !== "50% break-even" } }, tooltip: { filter: item => item.dataset.label !== "50% break-even", callbacks: { afterBody: items => { const row = trend[items[0].dataIndex]; return [`Average support: ${pct(row.supportRate)} across ${row.supportGames} games`, `Team ATS: ${record(row.covers, row.noCovers, row.gamePushes)} (${pct(row.coverRate)})`]; } } } } },
+    plugins: [teamsTrendGuides]
   });
 
   const opponentStats = new Map();
@@ -375,20 +404,30 @@ function renderTeams() {
     const win = direct ? Number(direct.resultWin || 0) : Number(opposite.resultLoss || 0), loss = direct ? Number(direct.resultLoss || 0) : Number(opposite.resultWin || 0), push = direct ? Number(direct.resultPush || 0) : Number(opposite.resultPush || 0);
     if (!(win || loss || push)) return;
     const row = opponentStats.get(opponent) || { opponent, wins: 0, losses: 0, pushes: 0, meetings: [] };
-    row.wins += win; row.losses += loss; row.pushes += push; row.meetings.push({ season: game.season, week: game.week, gameDate: game.gameDate, spread: game.spread, away: game.away, awayScore: game.awayScore, home: game.home, homeScore: game.homeScore, win, loss, push });
+    row.wins += win; row.losses += loss; row.pushes += push; row.meetings.push({ game, win, loss, push });
     opponentStats.set(opponent, row);
   });
   const allOpponents = [...opponentStats.values()].map(row => ({ ...row, rate: teamRate(row.wins, row.losses) }));
-  const repeatOpponents = allOpponents.filter(row => row.meetings.length >= 3), opponents = (repeatOpponents.length ? repeatOpponents : allOpponents).sort((left, right) => right.rate - left.rate || right.meetings.length - left.meetings.length || left.opponent.localeCompare(right.opponent)).slice(0, 10);
-  document.getElementById("teams-consensus-title").textContent = `${selectedTeam}: Best ATS Matchups`;
-  document.getElementById("teams-consensus-note").textContent = opponents.length ? `How often ${selectedTeam} covered against each specific opponent. The chart prefers matchups with at least three archived meetings and shows up to ten, ordered by cover rate.` : `No graded matchup history is available for ${selectedTeam} in the selected seasons.`;
+  const matchupHead = document.getElementById("teams-consensus-title").closest(".panel-head");
+  if (!document.getElementById("teams-matchup-mode")) matchupHead.insertAdjacentHTML("beforeend", '<label>View<select id="teams-matchup-mode" aria-label="Best or worst ATS matchups"><option value="best">Best ATS Matchups</option><option value="worst">Worst ATS Matchups</option></select></label><label>Opponent<select id="teams-matchup-opponent" aria-label="Matchup opponent"><option value="all">All opponents</option></select></label>');
+  const matchupMode = document.getElementById("teams-matchup-mode"), opponentSelect = document.getElementById("teams-matchup-opponent"), priorOpponent = opponentSelect.value;
+  const opponentName = team => websiteNaturalTeamName(String(team || "").toLowerCase());
+  opponentSelect.innerHTML = '<option value="all">All opponents</option>' + [...allOpponents].sort((left, right) => opponentName(left.opponent).localeCompare(opponentName(right.opponent))).map(row => `<option value="${websiteEscapeHtml(row.opponent)}">${websiteEscapeHtml(opponentName(row.opponent))}</option>`).join("");
+  opponentSelect.value = allOpponents.some(row => row.opponent === priorOpponent) ? priorOpponent : "all";
+  const mode = matchupMode.value, chosenOpponent = opponentSelect.value;
+  const repeatOpponents = allOpponents.filter(row => row.meetings.length >= 3), matchupPool = chosenOpponent === "all" ? (repeatOpponents.length ? repeatOpponents : allOpponents) : allOpponents.filter(row => row.opponent === chosenOpponent);
+  const opponents = [...matchupPool].sort((left, right) => (mode === "worst" ? left.rate - right.rate : right.rate - left.rate) || right.meetings.length - left.meetings.length || left.opponent.localeCompare(right.opponent)).slice(0, 10);
+  matchupMode.onchange = renderTeams;
+  opponentSelect.onchange = renderTeams;
+  document.getElementById("teams-consensus-title").textContent = `${selectedTeam}: ${mode === "worst" ? "Worst" : "Best"} ATS Matchups`;
+  document.getElementById("teams-consensus-note").textContent = opponents.length ? chosenOpponent === "all" ? `Specific opponents with at least three archived meetings, ordered from ${mode === "worst" ? "lowest to highest" : "highest to lowest"} cover rate. Choose an opponent to isolate its complete matchup history.` : `${selectedTeam}'s complete graded ATS history against ${opponentName(chosenOpponent)} in the selected seasons.` : `No graded matchup history is available for ${selectedTeam} in the selected seasons.`;
   if (teamsConsensusChart) teamsConsensusChart.destroy();
   document.getElementById("teams-consensus-chart").parentElement.style.height = `${Math.max(335, opponents.length * 30 + 70)}px`;
   teamsConsensusChart = new Chart(document.getElementById("teams-consensus-chart"), {
     type: "bar",
     data: { labels: opponents.map(() => ""), datasets: [{ label: "ATS cover %", data: opponents.map(row => Number((row.rate * 100).toFixed(1))), barText: opponents.map(row => [`${selectedTeam} vs ${row.opponent}`, `${(row.rate * 100).toFixed(1)}% · ${record(row.wins, row.losses, row.pushes)}`]), forceInside: true, backgroundColor: opponents.map(row => row.rate >= .5 ? "#39c98299" : "#ff6b6b99"), borderColor: opponents.map(row => row.rate >= .5 ? "#39c982" : "#ff6b6b"), borderWidth: 1 }] },
     plugins: [teamsBarValueLabels],
-    options: { indexAxis: "y", responsive: true, maintainAspectRatio: false, scales: { x: { beginAtZero: true, max: 100, ticks: { color: "#91a0ae", callback: value => value + "%" }, grid: { color: "#2a3744" } }, y: { ticks: { display: false }, grid: { display: false } } }, plugins: { legend: { display: false }, tooltip: { callbacks: { afterBody: items => { const row = opponents[items[0].dataIndex], seasons = [...new Set(row.meetings.map(meeting => meeting.season))]; return [`${selectedTeam} ATS: ${record(row.wins, row.losses, row.pushes)} (${pct(row.rate)})`, `${row.meetings.length} archived meetings`, `Seasons: ${seasons[0]}${seasons.length > 1 ? ` to ${seasons.at(-1)}` : ""}`, ...[...row.meetings].sort((left, right) => String(right.gameDate).localeCompare(String(left.gameDate))).map(meeting => `${meeting.season} ${String(meeting.week).toLowerCase().includes("round") || String(meeting.week).toLowerCase().includes("bowl") ? meeting.week : `W${meeting.week}`} · ${meeting.away} ${meeting.awayScore}-${meeting.homeScore} ${meeting.home} · ${selectedTeam} ${meeting.win ? "covered" : meeting.loss ? "did not cover" : "pushed"} (${meeting.spread})`)]; } } } } }
+    options: { indexAxis: "y", responsive: true, maintainAspectRatio: false, scales: { x: { beginAtZero: true, max: 100, ticks: { color: "#91a0ae", callback: value => value + "%" }, grid: { color: context => context.tick.value === 50 ? "#b8c4cf" : "#2a3744", lineWidth: context => context.tick.value === 50 ? 2 : 1 } }, y: { ticks: { display: false }, grid: { display: false } } }, plugins: { legend: { display: false }, tooltip: { enabled: false, external: context => profileChartTooltip(context, index => { const row = opponents[index]; return `<strong>${websiteEscapeHtml(`${selectedTeam} vs ${row.opponent} · ${record(row.wins, row.losses, row.pushes)} · ${pct(row.rate)}`)}</strong>${[...row.meetings].sort((left, right) => String(right.game.gameDate || "").localeCompare(String(left.game.gameDate || ""))).map(meeting => `<div>${weeklyGameTooltipHtml(meeting.game, meeting.win ? "win" : meeting.loss ? "loss" : "push", selectedTeam)}</div>`).join("")}`; }, true) } } }
   });
 
   const tableRows = [...rows].sort((left, right) => right.picks - left.picks).map(row => ({
