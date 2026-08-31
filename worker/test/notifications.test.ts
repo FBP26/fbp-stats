@@ -32,13 +32,14 @@ test("U.S. mobile destinations normalize without exposing the full number", () =
 test("scheduled events follow completed Sunday windows and upcoming night games", () => {
   const now = new Date("2026-09-13T23:55:00Z");
   const games = [
-    { kickoff: "2026-09-13T17:00:00Z", state: "FINAL" },
-    { kickoff: "2026-09-13T20:25:00Z", state: "FINAL" },
-    { kickoff: "2026-09-14T00:20:00Z", state: "PREGAME" },
-    { kickoff: "2026-09-15T00:15:00Z", state: "PREGAME" },
+    { kickoff: "2026-09-13T17:00:00Z", state: "FINAL", spread: 3.5 },
+    { kickoff: "2026-09-13T20:25:00Z", state: "FINAL", spread: 7 },
+    { kickoff: "2026-09-14T00:20:00Z", state: "PREGAME", spread: 2.5 },
+    { kickoff: "2026-09-15T00:15:00Z", state: "PREGAME", spread: 1.5 },
   ];
   assert.deepEqual(scheduledNotificationEvents(now, games, "live"), ["earlyWindow", "lateWindow", "beforeSnf"]);
   assert.deepEqual(scheduledNotificationEvents(now, games, "staged"), ["picksReady", "earlyWindow", "lateWindow", "beforeSnf"]);
+  assert.deepEqual(scheduledNotificationEvents(now, games.map((game, index) => index ? game : { ...game, spread: "" }), "staged"), ["earlyWindow", "lateWindow", "beforeSnf"]);
 });
 
 test("picks due reminder honors a configurable lead time before the first kickoff", () => {

@@ -71,6 +71,7 @@ export const notificationPreferenceColumns: Record<NotificationEvent, string> = 
 interface NotificationGame {
   kickoff?: unknown;
   state?: unknown;
+  spread?: unknown;
 }
 
 const easternKickoff = (value: unknown): { day: string; hour: number; time: number } | null => {
@@ -95,7 +96,8 @@ export const scheduledNotificationEvents = (
   weekStatus: string,
 ): NotificationEvent[] => {
   const events = new Set<NotificationEvent>();
-  if (["staged", "open"].includes(weekStatus) && games.length) events.add("picksReady");
+  const allSpreadsReady = games.length > 0 && games.every((game) => game.spread !== "" && game.spread != null && Number.isFinite(Number(game.spread)));
+  if (["staged", "open"].includes(weekStatus) && allSpreadsReady) events.add("picksReady");
   if (weekStatus === "finalized") events.add("weeklyResult");
   const timed = games.map((game) => ({ game, kickoff: easternKickoff(game.kickoff) })).filter((item) => item.kickoff);
   const final = (item: typeof timed[number]) => String(item.game.state) === "FINAL";

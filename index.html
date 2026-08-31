@@ -88,7 +88,9 @@
   .website-instructions { margin: 0 0 18px; color: var(--muted); font: 13px/1.55 Arial, sans-serif; }
   .website-entry-context { margin: 0 0 14px; color: var(--accent); font: 12px/1.5 Arial, sans-serif; }
   #view-enter-picks .intro { display: none; }
+  #view-week-one .intro { display: none; }
   #view-enter-picks .website-entry-context { font-size: 14px; font-weight: bold; }
+  #website-picks-form .website-identity-controls { grid-template-columns: 1fr !important; }
   #view-enter-picks .notification-settings { margin: 14px 0 0; }
   #view-enter-picks .website-notification-row { margin-top: 14px; }
   .notification-form button, #website-picks-form > button, #website-view-week-one { min-height: 34px; padding: 7px 10px; border: 1px solid var(--border); border-radius: 5px; background: var(--panel-2); color: var(--text); font: 11px Arial, sans-serif; cursor: pointer; }
@@ -111,6 +113,7 @@
   .website-best-bet-native { position: absolute; width: 1px; height: 1px; margin: 0; opacity: 0; pointer-events: none; }
   .website-best-bet-picker { position: relative; margin-top: 5px; text-transform: none; letter-spacing: 0; }
   .website-best-bet-picker > summary { display: flex; align-items: center; gap: 8px; min-height: 38px; padding: 6px 10px; border: 1px solid var(--border); border-radius: 5px; background: var(--panel-2); color: var(--text); cursor: pointer; list-style: none; }
+  .website-best-bet-picker.selected > summary { border-color: var(--accent); color: var(--accent); }
   .website-best-bet-picker > summary::-webkit-details-marker { display: none; }
   .website-best-bet-picker > summary::after { content: "⌄"; margin-left: auto; color: var(--muted); font-size: 15px; }
   .website-best-bet-picker[open] > summary { border-color: var(--accent); }
@@ -446,6 +449,7 @@
   .winner-draft { padding: 16px; border: 1px solid var(--border); background: #121920; font: 14px/1.65 Georgia, "Times New Roman", serif; white-space: pre-wrap; }
   .week-facts { margin: 12px 0 0; padding-left: 20px; color: var(--muted); font: 13px/1.55 Arial, sans-serif; }
   .live-race { margin-top: 28px; padding-top: 22px; border-top: 1px solid var(--border); }
+  #week-one-live-race:empty { display: none; }
   .live-race-head { display: flex; align-items: end; justify-content: space-between; gap: 14px; flex-wrap: wrap; margin-bottom: 14px; }
   .live-race-head h3 { margin: 0 0 4px; color: var(--accent); font: 11px Arial, sans-serif; letter-spacing: 1px; text-transform: uppercase; }
   .live-race-head p { margin: 0; color: var(--muted); font: 12px/1.45 Arial, sans-serif; }
@@ -698,6 +702,7 @@ function updateWebsiteBestBetPicker() {
   const bestBet = document.getElementById("website-best-bet"), picker = document.querySelector(".website-best-bet-picker");
   if (!bestBet || !picker) return;
   const selected = bestBet.value ? websiteBestBetTeam(bestBet.value) : null;
+  picker.classList.toggle("selected", Boolean(selected));
   picker.querySelector("summary").innerHTML = selected ? `<img class="website-best-bet-logo" src="${websiteEscapeHtml(selected.logo)}" alt=""><span class="website-best-bet-name">${websiteEscapeHtml(selected.name)}</span><span class="website-best-bet-code">${websiteEscapeHtml(selected.team)}</span>` : "Choose a best bet";
   picker.querySelectorAll("[role=option]").forEach(option => option.setAttribute("aria-selected", String(option.dataset.team === bestBet.value)));
 }
@@ -1198,6 +1203,9 @@ function advanceWebsiteRace() {
 function renderWebsiteRace(data) {
   const host = document.getElementById("week-one-live-race");
   if (!host) return;
+  const hasLiveData = (data.games || []).some(game => ["LIVE", "FINAL"].includes(websiteGameStatus(game)));
+  host.hidden = !hasLiveData;
+  if (!hasLiveData) { host.innerHTML = ""; return; }
   const wasPlaying = Boolean(websiteRaceTimer);
   stopWebsiteRace(true);
   if (websiteRaceLineChart) websiteRaceLineChart.destroy();
@@ -5437,6 +5445,21 @@ const notificationRow = document.querySelector("#view-enter-picks .website-notif
 const notificationSettings = document.querySelector("#view-enter-picks .notification-settings");
 if (entryForm && notificationSettings) entryForm.insertAdjacentElement("afterend", notificationSettings);
 if (entryForm && notificationRow) entryForm.insertAdjacentElement("afterend", notificationRow);
+const picksReadyNote = document.querySelector('#notification-preferences-form input[name="picksReady"] + span small');
+if (picksReadyNote) picksReadyNote.textContent = "All point spreads are posted.";
+const tiebreaker = document.getElementById("website-tiebreaker");
+if (tiebreaker) {
+  tiebreaker.removeAttribute("aria-label");
+  tiebreaker.removeAttribute("data-weekly-tooltip");
+  const note = tiebreaker.parentElement.querySelector("small");
+  if (note) note.textContent = "Net passing yards include yards lost to sacks.";
+  const validateTiebreaker = () => {
+    const value = tiebreaker.valueAsNumber;
+    tiebreaker.setCustomValidity(tiebreaker.value && (value < WEBSITE_TIEBREAK_MIN || value > WEBSITE_TIEBREAK_MAX) ? "Enter a value from -100 to 1200." : "");
+  };
+  tiebreaker.addEventListener("input", validateTiebreaker);
+  tiebreaker.addEventListener("change", validateTiebreaker);
+}
 updateWebsiteWeekLabels(websiteEntrySelection);
 showView(startupRoute);
 (async () => {
