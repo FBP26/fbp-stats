@@ -706,11 +706,30 @@ Chart.register({
     if (websiteUsesIntentionalTooltips()) chart.options.events = ["click"];
   },
   afterInit(chart) {
-    if (!websiteUsesIntentionalTooltips() || !chart.tooltip) return;
+    if (!chart.tooltip) return;
+    if (!websiteUsesIntentionalTooltips()) {
+      chart.$websiteDesktopTooltipHandler = () => {
+        if (!chart.tooltip?.getActiveElements().length) return;
+        chart.setActiveElements([]);
+        chart.tooltip.setActiveElements([], { x: 0, y: 0 });
+        chart.update("none");
+      };
+      chart.canvas.addEventListener("click", chart.$websiteDesktopTooltipHandler);
+      return;
+    }
     chart.$websiteTouchTooltipHandler = event => {
-      const active = chart.getElementsAtEventForMode(event, "nearest", { intersect: false }, false);
       const rect = chart.canvas.getBoundingClientRect();
       const position = { x: (event.clientX - rect.left) * chart.width / rect.width, y: (event.clientY - rect.top) * chart.height / rect.height };
+      const tooltip = chart.tooltip;
+      const insideTooltip = tooltip.opacity > 0 && position.x >= tooltip.x && position.x <= tooltip.x + tooltip.width && position.y >= tooltip.y && position.y <= tooltip.y + tooltip.height;
+      if (insideTooltip) {
+        chart.$websiteTouchTooltipKey = "";
+        chart.setActiveElements([]);
+        tooltip.setActiveElements([], position);
+        chart.update("none");
+        return;
+      }
+      const active = chart.getElementsAtEventForMode(event, "nearest", { intersect: false }, false);
     const key = active.map(item => `${item.datasetIndex}:${item.index}`).join("|");
     if (!key) { chart.$websiteTouchTooltipKey = ""; return; }
     if (chart.$websiteTouchTooltipKey === key) {
@@ -728,6 +747,7 @@ Chart.register({
     chart.canvas.addEventListener("click", chart.$websiteTouchTooltipHandler);
   },
   beforeDestroy(chart) {
+    if (chart.$websiteDesktopTooltipHandler) chart.canvas.removeEventListener("click", chart.$websiteDesktopTooltipHandler);
     if (chart.$websiteTouchTooltipHandler) chart.canvas.removeEventListener("click", chart.$websiteTouchTooltipHandler);
   }
 });
