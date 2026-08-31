@@ -115,6 +115,18 @@
   .website-best-bet-logo { width: 28px; height: 28px; object-fit: contain; }
   .website-best-bet-name { overflow: hidden; font: 12px Arial, sans-serif; text-overflow: ellipsis; white-space: nowrap; }
   .website-best-bet-code { display: none; color: var(--accent); font: bold 11px Arial, sans-serif; }
+  .teams-team-picker { position: relative; margin-top: 5px; text-transform: none; letter-spacing: 0; }
+  .teams-team-picker > summary { display: flex; align-items: center; gap: 8px; min-height: 38px; padding: 6px 10px; border: 1px solid var(--border); border-radius: 5px; background: var(--panel-2); color: var(--text); cursor: pointer; list-style: none; }
+  .teams-team-picker > summary::-webkit-details-marker { display: none; }
+  .teams-team-picker > summary::after { content: "⌄"; margin-left: auto; color: var(--muted); font-size: 15px; }
+  .teams-team-picker[open] > summary { border-color: var(--accent); }
+  .teams-team-menu { position: absolute; z-index: 20; top: calc(100% + 4px); left: 0; width: min(230px, 80vw); max-height: 320px; overflow-y: auto; border: 1px solid var(--border); border-radius: 5px; padding: 4px; background: var(--panel); box-shadow: 0 10px 28px #0009; }
+  .teams-team-option { display: grid; grid-template-columns: 30px minmax(0, 1fr) auto; align-items: center; gap: 8px; width: 100%; min-height: 38px; border: 0; border-radius: 3px; padding: 4px 7px; background: transparent; color: var(--text); text-align: left; cursor: pointer; }
+  .teams-team-option:hover, .teams-team-option[aria-selected="true"] { background: #263b40; }
+  .teams-team-logo { width: 28px; height: 28px; object-fit: contain; }
+  .teams-team-name { overflow: hidden; font: 12px Arial, sans-serif; text-overflow: ellipsis; white-space: nowrap; }
+  .teams-team-code { color: var(--accent); font: bold 11px Arial, sans-serif; }
+  #teams-team { position: absolute; width: 1px; height: 1px; margin: 0; opacity: 0; pointer-events: none; }
   .notification-status { min-height: 18px; margin: 0; color: var(--muted); font: 11px/1.4 Arial, sans-serif; }
   @media (max-width: 620px) { .notification-contact-grid, .notification-events { grid-template-columns: 1fr; } }
   .website-test-notice { display: none; margin: 0 0 14px; padding: 10px 12px; border-left: 3px solid var(--accent-2); background: #251f14; color: #ffd28a; font: 12px/1.5 Arial, sans-serif; }
@@ -631,6 +643,7 @@ function websiteEscapeHtml(value) { return String(value).replace(/[&<>"']/g, cha
 function websiteConvertNativeTooltips(root = document) {
   const elements = [...(root.matches?.("[title]") ? [root] : []), ...(root.querySelectorAll?.("[title]") || [])];
   elements.forEach(element => {
+    if (element.dataset.nativeTooltip === "true") return;
     const text = element.getAttribute("title");
     if (!text) return element.removeAttribute("title");
     if (!element.hasAttribute("aria-label")) element.setAttribute("aria-label", text);
@@ -690,7 +703,8 @@ function websiteTeamChoice(game, abbreviation) {
   const displayName = abbreviation === abbreviation.toUpperCase() ? String(name).toUpperCase() : String(name).toLowerCase();
   const logoCode = WEBSITE_TEAM_LOGO_CODES[String(abbreviation).toLowerCase()] || String(abbreviation).toLowerCase();
   const logo = metadata?.logo || `https://a.espncdn.com/i/teamlogos/nfl/500/scoreboard/${logoCode}.png`;
-  return `<span class="website-team-choice"><img class="website-team-logo" src="${websiteEscapeHtml(logo)}" alt="" loading="lazy"><span class="website-team-name">${websiteEscapeHtml(displayName)}</span><span class="website-team-abbreviation">${isHome ? '<span class="website-home-marker">at </span>' : ""}${websiteEscapeHtml(abbreviation)}</span><span class="website-team-record">${websiteEscapeHtml(metadata?.record || "0-0")}</span></span>`;
+  const homeMarker = isHome ? '<span class="website-home-marker">at </span>' : "";
+  return `<span class="website-team-choice"><img class="website-team-logo" src="${websiteEscapeHtml(logo)}" alt="" loading="lazy"><span class="website-team-name">${homeMarker}${websiteEscapeHtml(displayName)}</span><span class="website-team-abbreviation">${homeMarker}${websiteEscapeHtml(abbreviation)}</span><span class="website-team-record">${websiteEscapeHtml(metadata?.record || "0-0")}</span></span>`;
 }
 const WEBSITE_WEEK_ONE_GAMES = [["wed 8:20","SEA","3.5","ne"],["thur 8:35","LAR","3.5","sf"],["sun 1:00","HOU","1.5","buf"],["sun 1:00","PIT","3","atl"],["sun 1:00","JAX","7.5","cle"],["sun 1:00","TEN","2.5","nyj"],["sun 1:00","DET","6.5","no"],["sun 1:00","bal","3.5","IND"],["sun 1:00","chi","2.5","CAR"],["sun 1:00","CIN","3.5","tb"],["sun 4:25","MIN","1.5","gb"],["sun 4:25","PHI","5.5","was"],["sun 4:25","LAC","10.5","ari"],["sun 4:25","LV","3.5","mia"],["sun 8:20","dal","2.5","NYG"],["mon 8:15","KC","2.5","den"]].map(([time,favorite,spread,underdog],index)=>({id:`game-${index+1}`,time,favorite,spread,underdog}));
 function renderWebsitePicksForm() { const host = document.getElementById("website-game-picks"); if (!host || host.dataset.ready) return; host.dataset.ready = "true"; const choices = WEBSITE_WEEK_ONE_GAMES.flatMap(game => [game.favorite, game.underdog]).sort((a, b) => websiteTeamName(a).localeCompare(websiteTeamName(b), undefined, { sensitivity: "base" })); const groups = []; WEBSITE_WEEK_ONE_GAMES.forEach((game, index) => { const previous = WEBSITE_WEEK_ONE_GAMES[index - 1]; if (!previous || previous.time !== game.time) groups.push({ time: game.time, games: [] }); groups[groups.length - 1].games.push({ game, index }); }); host.innerHTML = groups.map(group => `<fieldset class="website-game-group"><legend>${group.time}</legend>${group.games.map(({ game, index }) => `<div class="website-game-row"><label class="website-side"><input type="radio" name="game-${index + 1}" value="${game.favorite}" required><span>${websiteTeamName(game.favorite)}</span></label><span class="website-spread">${game.spread}</span><label class="website-side right"><span>${websiteTeamName(game.underdog)}</span><input type="radio" name="game-${index + 1}" value="${game.underdog}" required></label></div>`).join("")}</fieldset>`).join(""); const bestBet = document.getElementById("website-best-bet"); choices.forEach(team => bestBet.add(new Option(websiteTeamName(team), team))); document.getElementById("website-picks-form").onsubmit = async event => { event.preventDefault(); const form = event.currentTarget; const submission = { submittedAt: new Date().toISOString(), name: document.getElementById("website-picks-name").value.trim(), weekName: document.getElementById("website-week-name").value.trim(), picks: WEBSITE_WEEK_ONE_GAMES.map((game, index) => form.elements[`game-${index + 1}`].value), bestBet: bestBet.value, tiebreaker: document.getElementById("website-tiebreaker").value }; const stored = JSON.parse(localStorage.getItem("fbpWebsiteSubmissions") || "[]"); stored.push(submission); localStorage.setItem("fbpWebsiteSubmissions", JSON.stringify(stored)); if (WEBSITE_SUBMISSIONS_ENDPOINT) await fetch(WEBSITE_SUBMISSIONS_ENDPOINT, { method: "POST", mode: "no-cors", headers: { "Content-Type": "text/plain" }, body: JSON.stringify(submission) }); document.getElementById("website-picks-status").textContent = WEBSITE_SUBMISSIONS_ENDPOINT ? "Submitted to the test workbook." : "Saved in this browser test. Add the Apps Script URL to submit to Sheets."; renderWebsiteWeekOne(); }; }
@@ -1134,6 +1148,7 @@ function renderWebsiteRace(data) {
   const waitingForUpdate = websiteRaceSnapshots.length < 2;
   const drama = websiteRaceGameDrama(data);
   host.innerHTML = `<div class="live-race-head"><div><h3>Live Weekly Race</h3><p>${waitingForUpdate ? "The opening frame is saved. Playback unlocks after the next changed live update." : "Desktop traces every player's rank from the start to the current checkpoint. Mobile follows the compact race ladder."}</p></div><div class="live-race-controls"><label>Race by<select id="website-race-metric"><option value="winProbability">Win probability</option><option value="winPercent">Win %</option><option value="pathsToVictory">Paths to victory</option></select></label><button id="website-race-previous" class="live-race-step" type="button" title="Previous frame" aria-label="Previous frame"${waitingForUpdate ? " disabled" : ""}>‹</button><button id="website-race-play" type="button"${waitingForUpdate ? " disabled" : ""}>${waitingForUpdate ? "Waiting for next update" : "Play race"}</button><button id="website-race-next" class="live-race-step" type="button" title="Next frame" aria-label="Next frame"${waitingForUpdate ? " disabled" : ""}>›</button><button id="website-race-restart" type="button">Restart</button><label>Speed<select id="website-race-speed"><option value="1400">0.75x</option><option value="900" selected>1x</option><option value="500">2x</option></select></label><div class="live-race-status"><output id="website-race-time" class="live-race-time" aria-live="polite"></output><output id="website-race-headline" class="live-race-headline" aria-live="polite"></output></div></div></div><div class="live-race-line-wrap"><canvas id="website-race-line-chart"></canvas></div><div id="website-race-track" class="live-race-track"><div id="website-race-leader" class="live-race-leader" aria-hidden="true"></div></div><section id="website-race-leadership" class="live-race-leadership"></section>${drama.length ? `<section class="live-game-drama"><h4>Game drama from saved checkpoints</h4><div class="live-game-drama-grid">${drama.map(([label, detail]) => `<div class="live-game-drama-item"><span>${label}</span><strong>${websiteEscapeHtml(detail)}</strong></div>`).join("")}</div></section>` : ""}`;
+  ["website-race-previous", "website-race-next"].forEach(id => { const button = document.getElementById(id); if (button) button.dataset.nativeTooltip = "true"; });
   document.getElementById("website-race-metric").value = "winPercent";
   document.querySelector("#website-live-race .live-race-line-wrap")?.insertAdjacentHTML("afterbegin", '<div id="website-race-line-leader" class="live-race-leader" aria-hidden="true"></div>');
   document.getElementById("website-race-metric")?.closest("label")?.insertAdjacentHTML("afterend", '<label>Field<select id="website-race-field"><option value="top10">Top 10</option><option value="all" selected>All players</option></select></label>');
@@ -1164,8 +1179,11 @@ document.addEventListener("visibilitychange", () => {
   if (document.hidden) {
     if (websiteRaceTimer) clearTimeout(websiteRaceTimer);
     websiteRaceTimer = null;
+    clearTimeout(websiteLiveRefreshTimer);
+    websiteLiveRefreshTimer = null;
   } else {
     startWebsiteRace();
+    if (document.getElementById("view-week-one")?.classList.contains("active")) renderSelectedWebsiteWeek(true);
   }
 });
 function websiteGameWinner(data, index) {
@@ -2458,9 +2476,8 @@ function renderWebsiteWeekRecap(data) {
 function decorateWebsiteWeekOneHeaders(data) { const headers = [...document.querySelectorAll("#week-one-table th.pg-game")].slice(1, 17); headers.forEach((header, index) => { const favorite = data.favorites[index]; const underdog = data.underdogs[index]; const favoriteScore = data.favoriteScores[index]; const underdogScore = data.underdogScores[index]; const game = (data.games || []).find(item => item.favorite?.toLowerCase() === favorite.toLowerCase() && item.underdog?.toLowerCase() === underdog.toLowerCase()); const gameStatus = String(game?.status || "").toUpperCase(); const started = ["IN_PROGRESS", "FINAL", "COMPLETED"].includes(gameStatus); const status = gameStatus === "IN_PROGRESS" ? game.statusText : ["FINAL", "COMPLETED"].includes(gameStatus) ? "Final" : ""; const spread = `<small class="pg-header-spread">${data.spreads[index]}</small>`; if (!started && game) { const kickoff = game.kickoffGroup || game.kickoff || game.statusText || ""; header.innerHTML = `${favorite}${spread}${underdog}${kickoff ? `<small class="pg-header-kickoff">${kickoff}</small>` : ""}`; return; } const score = value => `<span class="pg-header-score">${value === "" ? "-" : value}</span>`; header.innerHTML = `${favorite}${score(favoriteScore)}${spread}${score(underdogScore)}${underdog}${status ? `<small class="pg-header-kickoff">${status}</small>` : ""}`; }); }
 function renderWebsiteWeekOneGrid(data, source) { const rows = data.players || []; const status = document.getElementById("week-one-status"); const gamesFinal = (data.games || []).length ? data.games.filter(game => ["FINAL", "COMPLETED"].includes(String(game.status || "").toUpperCase())).length : (data.favoriteScores || []).filter((score, index) => score !== "" && data.underdogScores[index] !== "").length; status.innerHTML = [["Submissions", rows.length], ["Games final", gamesFinal], ["Source", source]].map(([label,value]) => `<div class="metric"><span>${label}</span><strong>${value}</strong></div>`).join(""); const table = document.getElementById("week-one-table"); if (!rows.length) { table.innerHTML = `<p style="color:var(--muted)">No Week 1 submissions yet.</p>`; return; } let html = '<table class="picks-grid"><thead><tr><th class="pg-player">Player</th><th class="pg-game">Week name</th>'; data.favorites.forEach((favorite, index) => { html += `<th class="pg-game">${favorite}<br><small>${data.spreads[index]}</small><br>${data.underdogs[index]}</th>`; }); html += `<th class="pg-bb-hdr">BB</th><th class="pg-sum-hdr">TB${data.actualTiebreaker ? `<br><small>${data.actualTiebreaker}</small>` : ""}</th><th class="pg-sum-hdr pg-w">W</th><th class="pg-sum-hdr pg-l">L</th><th class="pg-sum-hdr">Total</th><th class="pg-sum-hdr">Win%</th><th class="pg-sum-hdr">Prob</th><th class="pg-sum-hdr">Paths</th></tr></thead><tbody>`; rows.forEach(row => { html += `<tr><td class="pg-player">${row.name}</td><td class="pg-sum-cell">${row.weekName || ""}</td>`; row.picks.forEach((pick, index) => { html += `<td class="${websiteWeekOnePickClass(data, index, pick)}">${pick}</td>`; }); const bestBetIndex = row.picks.findIndex(pick => pick === row.bestBet); const bestBetClass = bestBetIndex < 0 ? "pg-bb-none" : websiteWeekOnePickClass(data, bestBetIndex, row.bestBet).replace("pg-pick", "pg-bb"); html += `<td class="${bestBetClass}">${row.bestBet || ""}</td><td class="pg-sum-cell">${row.tiebreaker || ""}</td><td class="pg-sum-cell pg-w">${row.wins || ""}</td><td class="pg-sum-cell pg-l">${row.losses || ""}</td><td class="pg-sum-cell">${row.total || ""}</td><td class="pg-sum-cell">${row.winPercent || ""}</td><td class="pg-sum-cell">${row.winProbability || ""}</td><td class="pg-sum-cell">${row.pathsToVictory || ""}</td></tr>`; }); table.innerHTML = html + '</tbody></table>'; }
 async function renderWebsiteWeekOne() {
-  const fallback = websiteWeekOneFallback();
-  renderWebsiteWeekOneGrid(fallback, WEBSITE_SUBMISSIONS_ENDPOINT ? "Loading" : "Browser test");
-  decorateWebsiteWeekOneHeaders(fallback);
+  const hasExistingBoard = Boolean(document.querySelector("#week-one-table .picks-grid"));
+  if (!hasExistingBoard) document.getElementById("week-one-table").innerHTML = '<p class="website-instructions">Loading this week\'s submissions...</p>';
   if (!WEBSITE_SUBMISSIONS_ENDPOINT) return;
   try {
     const separator = WEBSITE_SUBMISSIONS_ENDPOINT.includes("?") ? "&" : "?";
@@ -2477,10 +2494,10 @@ async function renderWebsiteWeekOne() {
     renderWebsiteWeekRecap(data);
     renderWebsitePaths(data);
     renderWebsiteSankey(data);
-    websiteLiveRefreshTimer = setTimeout(renderSelectedWebsiteWeek, 60000);
+    if (document.getElementById("view-week-one")?.classList.contains("active")) websiteLiveRefreshTimer = setTimeout(() => renderSelectedWebsiteWeek(true), 60000);
   } catch (error) {
-    document.getElementById("week-one-status").insertAdjacentHTML("afterend", `<p class="website-instructions">The current week could not load: ${error.message}</p>`);
-    websiteLiveRefreshTimer = setTimeout(renderSelectedWebsiteWeek, 60000);
+    if (!hasExistingBoard) document.getElementById("week-one-status").insertAdjacentHTML("afterend", `<p class="website-instructions">The current week could not load: ${error.message}</p>`);
+    if (document.getElementById("view-week-one")?.classList.contains("active")) websiteLiveRefreshTimer = setTimeout(() => renderSelectedWebsiteWeek(true), 60000);
   }
 }
 const renderWebsiteWeekOneGridBase = renderWebsiteWeekOneGrid;
@@ -2522,13 +2539,14 @@ function decorateWebsiteWeekOneHeadersLive(data) {
   const headers = [...document.querySelectorAll("#week-one-table th.pg-game")].slice(1, 17);
   headers.forEach((header, index) => {
     const favorite = data.favorites[index], underdog = data.underdogs[index];
-    const game = (data.games || []).find(item => item.favorite?.toLowerCase() === favorite.toLowerCase() && item.underdog?.toLowerCase() === underdog.toLowerCase());
+    const teams = [favorite, underdog].map(team => String(team || "").toLowerCase());
+    const game = (data.games || []).find(item => teams.includes(String(item.away || "").toLowerCase()) && teams.includes(String(item.home || "").toLowerCase()));
     const favoriteScore = data.favoriteScores[index];
     const underdogScore = data.underdogScores[index];
     const gameStatus = websiteGameStatus(game);
     const started = ["IN", "LIVE", "POST", "IN_PROGRESS", "FINAL", "COMPLETED"].includes(gameStatus);
     const spread = `<small class="pg-header-spread">${data.spreads[index]}</small>`;
-    if (!started && game) { const kickoff = game.kickoffGroup || game.kickoff || game.statusText || ""; header.innerHTML = `${favorite}${spread}${underdog}${kickoff ? `<small class="pg-header-kickoff">${kickoff}</small>` : ""}`; return; }
+    if (!started) { const kickoff = game?.kickoffGroup || game?.kickoff || game?.statusText || ""; header.innerHTML = `${favorite}${spread}${underdog}${kickoff ? `<small class="pg-header-kickoff">${kickoff}</small>` : ""}`; return; }
     const score = value => `<span class="pg-header-score">${value === "" ? "-" : value}</span>`;
     const final = ["POST", "FINAL", "COMPLETED"].includes(gameStatus);
     const liveState = final ? "" : game?.espnStatusText || game?.statusText || [game?.period ? `Q${game.period}` : "", game?.clock, game?.possession ? `${game.possession} ball` : ""].filter(Boolean).join(" · ");
@@ -3894,10 +3912,17 @@ function ensureWeekLiveRacePanel() {
   return chart;
 }
 function weekLiveRaceUsesArchive() { return document.getElementById("week-live-race-timeline")?.value === "live"; }
+function renderWeekLiveTimeOnTop(frame) {
+  const host = document.getElementById("week-live-race-leadership"), leaderBackdrop = document.getElementById("week-live-race-leader");
+  if (!host) return;
+  const leaders = [...frame.players].filter(player => Number(player.timeOnTop) > 0).sort((left, right) => Number(right.timeOnTop) - Number(left.timeOnTop) || left.name.localeCompare(right.name));
+  setRaceLeaderBackdrop(leaderBackdrop, leaders[0]?.name || "", weekLiveRaceChart);
+  host.innerHTML = leaders.length ? `<div class="live-race-leadership-head"><h4>Time on top</h4><p>${websiteRaceDuration(leaders.reduce((sum, player) => sum + Number(player.timeOnTop), 0))} of live play measured through this snapshot.</p></div><div class="live-leader-stats">${leaders.map(player => `<div class="live-leader-stat" style="--runner-color:${websiteRaceColor(player.name)}"><strong>${websiteEscapeHtml(player.name)}</strong><span>${websiteRaceDuration(player.timeOnTop)} on top during live play</span></div>`).join("")}</div>` : '<div class="live-race-leadership-head"><h4>Time on top</h4><p>Timing begins with the next live-game snapshot.</p></div>';
+}
 function configureWeekLiveRaceMetrics() {
   const select = document.getElementById("week-live-race-metric"), live = weekLiveRaceUsesArchive(), previous = select?.value;
   if (!select) return;
-  const options = live ? [["winProbability", "Win probability"], ["winPct", "Win percentage"], ["pathsToVictory", "Paths to victory"], ["gap", "Gap behind leader"]] : [["winPct", "Win percentage"], ["wins", "Total wins"], ["gap", "Gap behind leader"]];
+  const options = live ? [["winProbability", "Win probability"], ["winPct", "Win percentage"], ["pathsToVictory", "Paths to victory"], ["gap", "Gap behind leader"], ["timeOnTop", "Time on top"]] : [["winPct", "Win percentage"], ["wins", "Total wins"], ["gap", "Gap behind leader"]];
   select.innerHTML = options.map(([value, label]) => `<option value="${value}">${label}</option>`).join("");
   select.value = options.some(([value]) => value === previous) ? previous : options[0][0];
 }
@@ -3919,12 +3944,14 @@ function showWeekLiveRaceFrame(index) {
   weekLiveRaceChart.data.labels = visibleFrames.map(item => item.label);
   weekLiveRaceChart.data.datasets = players.map((player, paletteIndex) => { const focused = weekLiveRaceSelectedPlayer === player.name, dimmed = weekLiveRaceSelectedPlayer && !focused, color = dimmed ? websiteRaceColor(player.name, .18, paletteIndex) : websiteRaceColor(player.name, 1, paletteIndex); return { label: player.name, data: visibleFrames.map(item => item.players.find(candidate => player.playerId ? candidate.playerId === player.playerId : candidate.name === player.name)?.[metric] ?? null), borderColor: color, backgroundColor: dimmed ? websiteRaceColor(player.name, .04, paletteIndex) : websiteRaceColor(player.name, .2, paletteIndex), borderWidth: focused ? 4 : dimmed ? 1 : 2, pointRadius: dimmed ? 0 : focused ? 4 : 3, pointHoverRadius: 7, tension: .18, spanGaps: true }; });
   setHistoricalRaceScale(weekLiveRaceChart, metric, "week-live-race-scale");
-  weekLiveRaceChart.options.scales.y.title.text = metric === "winProbability" ? "Win probability" : metric === "winPct" ? weekLiveRaceUsesArchive() ? "Live win percentage" : "Cumulative win percentage" : metric === "pathsToVictory" ? "Paths to victory" : metric === "gap" ? weekLiveRaceUsesArchive() ? "Win-probability points behind leader" : "Cumulative wins behind leader" : "Cumulative wins including Best Bet wins";
-  weekLiveRaceChart.options.scales.y.ticks.callback = ["winPct", "winProbability"].includes(metric) ? value => `${value}%` : metric === "gap" ? value => value === 0 ? "Leader" : `${Math.abs(value)} back` : value => value;
+  weekLiveRaceChart.options.scales.y.title.text = metric === "winProbability" ? "Win probability" : metric === "winPct" ? weekLiveRaceUsesArchive() ? "Live win percentage" : "Cumulative win percentage" : metric === "pathsToVictory" ? "Paths to victory" : metric === "gap" ? weekLiveRaceUsesArchive() ? "Win-probability points behind leader" : "Cumulative wins behind leader" : metric === "timeOnTop" ? "Cumulative time on top" : "Cumulative wins including Best Bet wins";
+  weekLiveRaceChart.options.scales.y.ticks.callback = ["winPct", "winProbability"].includes(metric) ? value => `${value}%` : metric === "gap" ? value => value === 0 ? "Leader" : `${Math.abs(value)} back` : metric === "timeOnTop" ? value => websiteRaceDuration(value) : value => value;
   weekLiveRaceChart.update();
   document.getElementById("week-live-race-time").textContent = `${frame.label} · ${weekLiveRaceFrame + 1}/${weekLiveRaceFrames.length}`;
-  document.getElementById("week-live-race-headline").textContent = historicalRaceCheckpointHeadline(weekLiveRaceFrames, weekLiveRaceFrame, metric);
-  renderHistoricalRaceLeadership("week-live-race", weekLiveRaceFrames, weekLiveRaceFrame, metric, weekLiveRaceUsesArchive() ? "snapshot" : "game");
+  const leader = players[0];
+  document.getElementById("week-live-race-headline").textContent = metric === "timeOnTop" && leader ? `${leader.name} has spent ${websiteRaceDuration(leader.timeOnTop)} on top.` : historicalRaceCheckpointHeadline(weekLiveRaceFrames, weekLiveRaceFrame, metric);
+  if (metric === "timeOnTop") renderWeekLiveTimeOnTop(frame);
+  else renderHistoricalRaceLeadership("week-live-race", weekLiveRaceFrames, weekLiveRaceFrame, metric, weekLiveRaceUsesArchive() ? "snapshot" : "game");
 }
 function advanceWeekLiveRace() {
   if (!weekLiveRaceTimer) return;
@@ -3944,7 +3971,8 @@ async function renderWeekLiveRace() {
     try { snapshots = /^\d+$/.test(String(week)) ? await loadWeekLiveRaceArchive(season, week) : []; }
     catch (error) { if (renderToken === weekLiveRaceRenderToken) document.getElementById("week-live-race-time").textContent = "Archived live race could not load."; return; }
     if (renderToken !== weekLiveRaceRenderToken) return;
-    weekLiveRaceFrames = snapshots.map(snapshot => { const players = snapshot.players.map(player => ({ name: player.name, winProbability: Number(player.winProbability || 0), winPct: Number(player.winPercent || 0), pathsToVictory: Number(player.pathsToVictory || 0) })), leader = Math.max(0, ...players.map(player => player.winProbability)); return { label: new Date(snapshot.timestamp).toLocaleString([], { weekday: "short", hour: "numeric", minute: "2-digit" }), timestamp: snapshot.timestamp, gameState: snapshot.gameState || [], players: players.map(player => ({ ...player, gap: player.winProbability - leader })) }; });
+    const timeOnTop = new Map();
+    weekLiveRaceFrames = snapshots.map((snapshot, index) => { const previous = snapshots[index - 1]; if (previous && websiteRaceHasLiveGame(previous)) { const duration = new Date(snapshot.timestamp).getTime() - new Date(previous.timestamp).getTime(); const leader = [...previous.players].sort((left, right) => Number(right.winProbability || 0) - Number(left.winProbability || 0) || String(left.name).localeCompare(String(right.name)))[0]; if (leader && Number.isFinite(duration) && duration > 0) timeOnTop.set(leader.name, (timeOnTop.get(leader.name) || 0) + duration); } const players = snapshot.players.map(player => ({ name: player.name, winProbability: Number(player.winProbability || 0), winPct: Number(player.winPercent || 0), pathsToVictory: Number(player.pathsToVictory || 0), timeOnTop: timeOnTop.get(player.name) || 0 })), leader = Math.max(0, ...players.map(player => player.winProbability)); return { label: new Date(snapshot.timestamp).toLocaleString([], { weekday: "short", hour: "numeric", minute: "2-digit" }), timestamp: snapshot.timestamp, gameState: snapshot.gameState || [], players: players.map(player => ({ ...player, gap: player.winProbability - leader })) }; });
   } else {
     const playoffWeeks = new Set(["round 1", "round 2", "round 3", "super bowl"]), games = websiteGames.filter(game => game.season === season && (game.week === week || (week === "playoffs" && playoffWeeks.has(String(game.week).toLowerCase())))).sort((left, right) => Number(left.weekOrder || 0) - Number(right.weekOrder || 0) || Number(left.playoffGameNum || left.gameNum || 0) - Number(right.playoffGameNum || right.gameNum || 0));
     const rows = websiteWeeks.filter(row => row.season === season && row.week === week).sort((left, right) => Number(left.rank || 0) - Number(right.rank || 0)), picksByGame = websitePicksByGame(), totals = new Map(rows.map(row => [row.playerId, { playerId: row.playerId, name: row.name, wins: 0, losses: 0, decisions: 0, winPct: 0 }]));
@@ -3961,7 +3989,7 @@ async function renderWeekLiveRace() {
   if (weekLiveRaceChart) weekLiveRaceChart.destroy();
   weekLiveRaceChart = new Chart(canvas, { type: "line", data: { labels: [], datasets: [] }, options: { responsive: true, maintainAspectRatio: false, animation: { duration: 220 }, interaction: { mode: "nearest", intersect: false }, onClick: (event, elements) => { const name = elements[0] ? weekLiveRaceChart.data.datasets[elements[0].datasetIndex].label : ""; weekLiveRaceSelectedPlayer = weekLiveRaceSelectedPlayer === name ? "" : name; showWeekLiveRaceFrame(weekLiveRaceFrame); }, scales: { x: { ticks: { color: "#91a0ae", autoSkip: false }, grid: { color: "#2a3744" }, title: { display: true, text: "Game number", color: "#91a0ae" } }, y: { beginAtZero: true, max: 100, ticks: { color: "#91a0ae", callback: value => `${value}%` }, grid: { color: "#2a3744" }, title: { display: true, text: "Cumulative win percentage", color: "#91a0ae" } } }, plugins: { legend: { labels: { color: "#e8eef5", usePointStyle: true, pointStyle: "line" }, onClick: (event, item) => { weekLiveRaceSelectedPlayer = weekLiveRaceSelectedPlayer === item.text ? "" : item.text; showWeekLiveRaceFrame(weekLiveRaceFrame); } }, tooltip: { callbacks: { title: items => weekLiveRaceFrames[items[0]?.dataIndex]?.label || "", label: context => { const player = weekLiveRaceFrames[context.dataIndex]?.players.find(item => item.name === context.dataset.label); return player ? `${player.name}: ${player.winPct.toFixed(1)}% · ${player.wins}-${player.losses}` : ""; } } } } } });
   weekLiveRaceChart.options.scales.x.title.text = weekLiveRaceUsesArchive() ? "Live snapshot time" : "Game number";
-  weekLiveRaceChart.options.plugins.tooltip.callbacks.label = context => { const player = weekLiveRaceFrames[context.dataIndex]?.players.find(item => item.name === context.dataset.label), metric = document.getElementById("week-live-race-metric")?.value || "winPct"; if (!player) return ""; const value = metric === "winProbability" ? `${player.winProbability.toFixed(2)}%` : metric === "winPct" ? `${player.winPct.toFixed(1)}%` : metric === "pathsToVictory" ? Number(player.pathsToVictory).toLocaleString() : metric === "gap" ? player.gap === 0 ? "Leader" : `${Math.abs(player.gap).toFixed(2)} ${weekLiveRaceUsesArchive() ? "points" : "wins"} back` : `${player.wins} wins`; return weekLiveRaceUsesArchive() ? `${player.name}: ${value}` : `${player.name}: ${value} · ${player.wins}-${player.losses}`; };
+  weekLiveRaceChart.options.plugins.tooltip.callbacks.label = context => { const player = weekLiveRaceFrames[context.dataIndex]?.players.find(item => item.name === context.dataset.label), metric = document.getElementById("week-live-race-metric")?.value || "winPct"; if (!player) return ""; const value = metric === "winProbability" ? `${player.winProbability.toFixed(2)}%` : metric === "winPct" ? `${player.winPct.toFixed(1)}%` : metric === "pathsToVictory" ? Number(player.pathsToVictory).toLocaleString() : metric === "gap" ? player.gap === 0 ? "Leader" : `${Math.abs(player.gap).toFixed(2)} ${weekLiveRaceUsesArchive() ? "points" : "wins"} back` : metric === "timeOnTop" ? websiteRaceDuration(player.timeOnTop) : `${player.wins} wins`; return weekLiveRaceUsesArchive() ? `${player.name}: ${value}` : `${player.name}: ${value} · ${player.wins}-${player.losses}`; };
   const refreshWeekLiveRace = () => { stopWeekLiveRace(); showWeekLiveRaceFrame(weekLiveRaceFrame); };
   document.getElementById("week-live-race-metric").onchange = refreshWeekLiveRace;
   document.getElementById("week-live-race-field").onchange = refreshWeekLiveRace;
@@ -4995,7 +5023,8 @@ function initViews() {
   document.getElementById("weekly-rank-player").onchange = renderWeeklyRank;
   document.getElementById("weekly-rank-display").onchange = renderWeeklyRank;
   const requested = location.hash.slice(1);
-  showView(["enter-picks", "week-one", "picks-confirmation", "alltime", "season", "streaks", "weeks", "weekly-rank", "games", "players", "names", "teams", "faq"].includes(requested) ? requested : requestedStartupRoute);
+  const target = ["enter-picks", "week-one", "picks-confirmation", "alltime", "season", "streaks", "weeks", "weekly-rank", "games", "players", "names", "teams", "faq"].includes(requested) ? requested : requestedStartupRoute;
+  if (!document.getElementById(`view-${target}`)?.classList.contains("active")) showView(target);
 }
 async function init() {
   manifest = await (await fetch(`${DATA_DIR}/manifest.json`)).json();

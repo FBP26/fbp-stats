@@ -188,6 +188,19 @@ function initializeTeamsControls() {
     .map(value => String(value || "").toUpperCase()).filter(Boolean))].sort();
   if (!teamSelect.options.length) teams.forEach(team => teamSelect.add(new Option(team, team)));
   teamSelect.value = priorTeam || (teams.includes("ARI") ? "ARI" : teams[0] || "");
+  let picker = teamSelect.parentElement.querySelector(".teams-team-picker");
+  if (!picker) {
+    picker = document.createElement("details");
+    picker.className = "teams-team-picker";
+    picker.innerHTML = `<summary aria-label="Choose a team"></summary><div class="teams-team-menu" role="listbox">${teams.map(team => { const logoCode = WEBSITE_TEAM_LOGO_CODES[team.toLowerCase()] || team.toLowerCase(); return `<button class="teams-team-option" type="button" role="option" data-team="${websiteEscapeHtml(team)}" aria-selected="false"><img class="teams-team-logo" src="https://a.espncdn.com/i/teamlogos/nfl/500/scoreboard/${logoCode}.png" alt="" loading="lazy"><span class="teams-team-name">${websiteEscapeHtml(websiteNaturalTeamName(team))}</span><span class="teams-team-code">${websiteEscapeHtml(team)}</span></button>`; }).join("")}</div>`;
+    picker.querySelector("summary").onclick = event => { event.preventDefault(); event.stopPropagation(); picker.open = !picker.open; };
+    picker.querySelectorAll("[role=option]").forEach(option => option.onclick = event => { event.preventDefault(); event.stopPropagation(); teamSelect.value = option.dataset.team; teamSelect.dispatchEvent(new Event("change", { bubbles: true })); picker.open = false; });
+    teamSelect.after(picker);
+  }
+  const selectedTeam = teamSelect.value;
+  const selectedLogoCode = WEBSITE_TEAM_LOGO_CODES[selectedTeam.toLowerCase()] || selectedTeam.toLowerCase();
+  picker.querySelector("summary").innerHTML = `<img class="teams-team-logo" src="https://a.espncdn.com/i/teamlogos/nfl/500/scoreboard/${selectedLogoCode}.png" alt=""><span class="teams-team-name">${websiteEscapeHtml(websiteNaturalTeamName(selectedTeam))}</span><span class="teams-team-code">${websiteEscapeHtml(selectedTeam)}</span>`;
+  picker.querySelectorAll("[role=option]").forEach(option => option.setAttribute("aria-selected", String(option.dataset.team === selectedTeam)));
   [seasonSelect, teamSelect, document.getElementById("teams-metric")]
     .forEach(select => select.onchange = renderTeams);
 }
