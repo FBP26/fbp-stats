@@ -21,11 +21,16 @@
   :root { --bg: #0d1117; --panel: #171a1f; --panel-2: #20242a; --border: #3a3d42; --text: #f3f1e8; --muted: #aaa69b; --accent: #ffcf40; --accent-2: #e6a817; --positive: #39c982; --positive-bg: #123c2d; --danger: #ff6b6b; --danger-bg: #481f24; }
   * { box-sizing: border-box; }
   body { margin: 0; font-family: Georgia, "Times New Roman", serif; background: radial-gradient(circle at 85% 0%, #403514 0, transparent 34rem), var(--bg); color: var(--text); }
-  header { padding: 22px clamp(16px, 4vw, 52px); border-bottom: 1px solid var(--border); display: flex; align-items: center; flex-wrap: wrap; }
-  nav { display: flex; flex-wrap: wrap; gap: 6px; }
+  header { padding: 22px clamp(16px, 4vw, 52px); border-bottom: 1px solid var(--border); display: flex; align-items: center; gap: 8px; flex-wrap: wrap; }
+  nav { display: flex; flex: 1; flex-wrap: wrap; gap: 6px; }
   nav button, button, select { font: inherit; }
   nav button { background: transparent; color: var(--muted); border: 1px solid var(--border); border-radius: 5px; padding: 7px 11px; font-family: Arial, sans-serif; font-size: 12px; cursor: pointer; }
   nav button:hover, nav button.active { color: var(--bg); background: var(--accent); border-color: var(--accent); }
+  .app-refresh { display: inline-flex; align-items: center; gap: 5px; min-height: 32px; border: 1px solid var(--accent-2); border-radius: 5px; background: transparent; color: var(--accent); padding: 7px 10px; font: 600 12px Arial, sans-serif; cursor: pointer; }
+  .app-refresh:hover, .app-refresh:focus-visible { background: var(--accent); color: var(--bg); }
+  .app-refresh:disabled { cursor: wait; opacity: .72; }
+  .app-refresh.refreshing .app-refresh-icon { animation: app-refresh-spin .8s linear infinite; }
+  @keyframes app-refresh-spin { to { transform: rotate(360deg); } }
   main { max-width: 1500px; margin: 0 auto; padding: 28px clamp(16px, 4vw, 52px) 60px; }
   .eyebrow { color: var(--accent); font: 11px Arial, sans-serif; letter-spacing: 1.4px; text-transform: uppercase; }
   .intro { display: flex; justify-content: space-between; align-items: end; gap: 20px; margin-bottom: 22px; }
@@ -306,6 +311,8 @@
   #game-picks-table .tabulator-footer { display: none; }
   .install-help { display: none; }
   @media (max-width: 760px) {
+    header nav { flex-basis: 100%; }
+    .app-refresh { order: -1; margin-left: auto; }
     .install-help:not([hidden]) { display: grid; grid-template-columns: minmax(0, 1fr) auto auto; align-items: center; gap: 8px; padding: 10px 12px; border-bottom: 1px solid #ffcf4055; background: #20242a; font: 11px/1.35 Arial, sans-serif; }
     .install-help strong { display: block; margin-bottom: 2px; color: var(--accent); font-size: 12px; }
     .install-help span { color: var(--muted); }
@@ -415,7 +422,7 @@
   .scenario-chance { color: var(--accent-2); white-space: nowrap; }
   .analysis-note { margin: 0 0 10px; color: var(--muted); font: 11px Arial, sans-serif; }
   .pg-player { text-align: left !important; background: var(--panel-2); color: var(--text); min-width: 72px; font-weight: normal; }
-  .pg-week-name { width: 18ch; min-width: 14ch; max-width: 18ch; line-height: 1.25; overflow-wrap: anywhere; text-align: left !important; white-space: normal !important; }
+  .pg-week-name { width: 220px; min-width: 220px; max-width: 220px; line-height: 1.25; overflow-wrap: anywhere; text-align: left !important; white-space: normal !important; }
   .pg-game { background: #202c38; color: var(--muted); font-size: 10px; line-height: 1.4; }
   .pg-game small { color: #4a6070; }
   .pg-header-score { display: block; color: var(--text); font-size: 12px; line-height: 1.15; }
@@ -622,7 +629,7 @@
 </style>
 </head>
 <body>
-<header><nav id="nav"><button data-view="enter-picks">Enter Picks</button><button data-view="week-one">Current Week</button><button data-view="weeks">Weeks</button><button data-view="season">Seasons</button><button data-view="payout">Payout</button><button data-view="players">Players</button><button data-view="names">Names</button><button data-view="teams">Teams</button><button data-view="alltime">All Time</button><button data-view="streaks">Streaks</button><button data-view="games">Games</button><button data-view="faq">FAQ</button></nav></header>
+<header><nav id="nav"><button data-view="enter-picks">Enter Picks</button><button data-view="week-one">Current Week</button><button data-view="weeks">Weeks</button><button data-view="season">Seasons</button><button data-view="payout">Payout</button><button data-view="players">Players</button><button data-view="names">Names</button><button data-view="teams">Teams</button><button data-view="alltime">All Time</button><button data-view="streaks">Streaks</button><button data-view="games">Games</button><button data-view="faq">FAQ</button></nav><button id="website-app-refresh" class="app-refresh" type="button"><span class="app-refresh-icon" aria-hidden="true">↻</span><span class="app-refresh-label" aria-live="polite">Refresh</span></button></header>
 <aside id="website-install-help" class="install-help" hidden><div><strong>Add FBP to your Home Screen</strong><span id="website-install-copy"></span></div><button id="website-install-action" type="button" hidden>Install</button><button id="website-install-close" class="install-help-close" type="button" aria-label="Dismiss home-screen instructions">×</button></aside>
 <main>
   <section id="view-enter-picks" class="view">
@@ -632,7 +639,7 @@
   <section id="view-picks-confirmation" class="view"><section class="intro"><div><h2>Picks submitted</h2></div><p>Week 1 · 2026-2027</p></section><div class="panel website-confirmation"><p id="confirmation-lead" class="confirmation-lead">Your picks were submitted successfully.</p><div class="confirmation-grid"><section id="confirmation-identity" class="confirmation-block"><h3>Your pool history</h3><p>Finding your place in the archive...</p></section><section id="confirmation-picks" class="confirmation-block"><h3>Live outlook</h3><p>Comparing your card with the field...</p></section><section id="confirmation-history" class="confirmation-block"><h3>This card in your history</h3><p>Loading your historical picks...</p></section></div><button id="website-view-week-one" type="button">View Week 1</button></div></section>
   <section id="view-week-one" class="view active">
     <section class="intro"><div><h2>Week 1</h2></div><p>2026-2027 submissions and weekly standings.</p></section>
-    <div class="panel"><div id="week-one-status"><p class="website-instructions">Loading the active week...</p></div><div id="week-one-table" style="overflow-x:auto"></div><section id="week-one-live-race" class="live-race"></section><div id="week-one-recap"></div><div id="week-one-scenarios" class="weekly-subview"></div><div id="week-one-sankey" class="weekly-subview"></div><div id="week-one-paths" class="weekly-subview"></div></div>
+    <div class="panel"><div id="week-one-status"><p class="website-instructions">Loading the active week...</p></div><div id="week-one-table" style="overflow-x:auto"></div><p class="week-one-landscape-hint">Rotate to landscape for a better view</p><section id="week-one-live-race" class="live-race"></section><div id="week-one-recap"></div><div id="week-one-scenarios" class="weekly-subview"></div><div id="week-one-sankey" class="weekly-subview"></div><div id="week-one-paths" class="weekly-subview"></div></div>
   </section>
   <section id="view-alltime" class="view">
     <section class="intro"><div><h2>All Time</h2></div><p>Seventeen seasons of results in one place: the career leaders, every champion, and how the long-timers built their records.</p></section>
@@ -1354,7 +1361,6 @@ function renderWebsiteRace(data) {
   const waitingForUpdate = websiteRaceSnapshots.length < 2;
   const drama = websiteRaceGameDrama(data);
   host.innerHTML = `<div class="live-race-head"><div><h3>Live Weekly Race</h3><p>${waitingForUpdate ? "The opening frame is saved. Playback unlocks after the next changed live update." : "Desktop traces every player's rank from the start to the current checkpoint. Mobile follows the compact race ladder."}</p></div><div class="live-race-controls"><label>Race by<select id="website-race-metric"><option value="winProbability">Win probability</option><option value="winPercent">Win %</option><option value="pathsToVictory">Paths to victory</option></select></label><button id="website-race-previous" class="live-race-step" type="button" title="Previous frame" aria-label="Previous frame"${waitingForUpdate ? " disabled" : ""}>‹</button><button id="website-race-play" type="button"${waitingForUpdate ? " disabled" : ""}>${waitingForUpdate ? "Waiting for next update" : "Play race"}</button><button id="website-race-next" class="live-race-step" type="button" title="Next frame" aria-label="Next frame"${waitingForUpdate ? " disabled" : ""}>›</button><button id="website-race-restart" type="button">Restart</button><label>Speed<select id="website-race-speed"><option value="1400">0.75x</option><option value="900" selected>1x</option><option value="500">2x</option></select></label><div class="live-race-status"><output id="website-race-time" class="live-race-time" aria-live="polite"></output><output id="website-race-headline" class="live-race-headline" aria-live="polite"></output></div></div></div><div class="live-race-line-wrap"><canvas id="website-race-line-chart"></canvas></div><div id="website-race-track" class="live-race-track"><div id="website-race-leader" class="live-race-leader" aria-hidden="true"></div></div><section id="website-race-leadership" class="live-race-leadership"></section>${drama.length ? `<section class="live-game-drama"><h4>Game drama from saved checkpoints</h4><div class="live-game-drama-grid">${drama.map(([label, detail]) => `<div class="live-game-drama-item"><span>${label}</span><strong>${websiteEscapeHtml(detail)}</strong></div>`).join("")}</div></section>` : ""}`;
-  host.querySelector(".live-race-line-wrap")?.insertAdjacentHTML("beforebegin", '<p class="week-one-landscape-hint">Rotate to landscape for a better view</p>');
   ["website-race-previous", "website-race-next"].forEach(id => { const button = document.getElementById(id); if (button) button.dataset.nativeTooltip = "true"; });
   document.getElementById("website-race-metric").value = "winPercent";
   document.querySelector("#website-live-race .live-race-line-wrap")?.insertAdjacentHTML("afterbegin", '<div id="website-race-line-leader" class="live-race-leader" aria-hidden="true"></div>');
@@ -2918,6 +2924,38 @@ async function renderSelectedWebsiteWeek(activeWeekKnown = false, currentWeekReq
     websiteLiveRefreshTimer = setTimeout(renderSelectedWebsiteWeek, 60000);
   }
 }
+let websiteAppRefreshStatusTimer = null;
+async function refreshWebsiteApp() {
+  const button = document.getElementById("website-app-refresh");
+  const label = button?.querySelector(".app-refresh-label");
+  if (!button || !label || button.disabled) return;
+  clearTimeout(websiteAppRefreshStatusTimer);
+  button.disabled = true;
+  button.classList.add("refreshing");
+  label.textContent = "Refreshing";
+  try {
+    const activeView = document.querySelector(".view.active")?.id.replace(/^view-/, "") || location.hash.slice(1);
+    if (activeView === "week-one") {
+      const currentWeekRequest = fetchWebsiteCurrentWeek();
+      await Promise.all([loadActiveRegularWeek(true), renderWebsiteWeekOne(currentWeekRequest)]);
+    } else if (activeView === "enter-picks") {
+      await loadActiveRegularWeek(true);
+      await refreshWebsitePicksWeather();
+    } else {
+      location.reload();
+      return;
+    }
+    label.textContent = "Updated";
+  } catch (error) {
+    console.warn(`App refresh failed: ${error.message}`);
+    label.textContent = "Try again";
+  } finally {
+    button.disabled = false;
+    button.classList.remove("refreshing");
+    websiteAppRefreshStatusTimer = setTimeout(() => { label.textContent = "Refresh"; }, 1800);
+  }
+}
+document.getElementById("website-app-refresh")?.addEventListener("click", refreshWebsiteApp);
 document.addEventListener("click",event=>{const button=event.target.closest("#nav button[data-view]");if(!button)return;if(button.dataset.view==="enter-picks")setTimeout(()=>{renderWebsitePicksForm();resetWebsiteBestBet();},0);if(button.dataset.view==="week-one")setTimeout(renderSelectedWebsiteWeek,0);});
 document.getElementById("website-view-week-one")?.addEventListener("click",()=>{showView("week-one");renderSelectedWebsiteWeek();});
 let profileChart = null, profileMoneyChart = null, profilePlusMinusChart = null, profilePlacementChart = null, profileBestWeeksChart = null, profileRecentChart = null, profileBestBetChart = null, profileTeamChart = null, profileClubChart = null, profileBestGamesChart = null, profileSituationalChart = null, gamePicksTable = null, weekChart = null, weekTable = null, weekRaceChart = null, winnerContributionChart = null, weeklyRankChart = null, streakChart = null, streakTable = null, seasonTopChart = null, seasonTable = null, seasonRaceChart = null, seasonPlayerChart = null, seasonMoneyChart = null, seasonConsistencyChart = null, seasonBbChart = null, seasonTeamsChart = null, seasonContrarianChart = null, seasonTbChart = null, allTimeTopChart = null, allTimePlusMinusChart = null, allTimePlusMinusTrendChart = null, allTimeGamesChart = null, allTimeArcsChart = null, allTimeMoneyChart = null, allTimeTurnoutChart = null, allTimeStreakChart = null, allTimeTeamPicksChart = null, allTimeContrarianChart = null, allTimeSeasonWeeksChart = null, manifest = [], dashboard = [], tableData = {}, websiteWeeks = [], websiteAwards = [], websiteSeasons = [], websitePlayers = [], websiteRecords = [], websiteStreaks = [], websiteGames = [], websitePicks = [], websitePayouts = [];
