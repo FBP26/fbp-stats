@@ -8,9 +8,9 @@
 <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent" />
 <meta name="apple-mobile-web-app-title" content="FBP" />
 <title>FBP</title>
-<link rel="manifest" href="manifest.webmanifest?v=20260901" />
+<link rel="manifest" href="manifest.webmanifest?v=20260901-2" />
 <link rel="icon" href="icons/fbp-icon.svg" type="image/svg+xml" />
-<link rel="apple-touch-icon" sizes="180x180" href="icons/fbp-apple-touch.png?v=20260901" />
+<link rel="apple-touch-icon" sizes="180x180" href="icons/fbp-apple-touch.png?v=20260901-2" />
 <link href="https://unpkg.com/tabulator-tables@5.6.0/dist/css/tabulator.min.css" rel="stylesheet">
 <script src="https://cdn.jsdelivr.net/npm/chart.js@4.4.3/dist/chart.umd.min.js"></script>
 <script src="https://cdn.jsdelivr.net/npm/chartjs-chart-sankey@0.14.0/dist/chartjs-chart-sankey.min.js"></script>
@@ -520,9 +520,8 @@
   .live-race-controls button:disabled { cursor: default; opacity: .55; }
   .race-controls { display: grid; grid-template-columns: minmax(0, 1fr) auto; align-items: end; gap: 10px 18px; max-width: none !important; }
   #view-weeks .race-controls { grid-template-columns: minmax(0, 1fr) auto; }
-  .race-filter-group, .race-playback-group { display: flex; align-items: end; flex-wrap: wrap; gap: 8px; }
-  .race-controls:has(#week-live-race-play) .race-filter-group { flex-wrap: nowrap; }
-  .race-controls:has(#week-live-race-play) .race-playback-group { flex-wrap: nowrap; justify-self: end; }
+  .race-filter-group, .race-playback-group { display: flex; align-items: end; flex-wrap: nowrap; gap: 8px; }
+  .race-playback-group { justify-self: end; }
   .race-controls label { width: 138px; }
   .race-playback-group label { width: 94px; }
   #website-race-restart, #alltime-race-restart, #season-live-race-restart, #week-live-race-restart,
@@ -578,7 +577,7 @@
   @media (max-width: 620px) and (orientation: portrait) { .live-race-line-wrap { display: none; } .live-race-track { display: block; } .live-race-head { gap: 8px; margin-bottom: 8px; } .live-race-controls { display: grid; grid-template-columns: minmax(105px, 1fr) 32px 70px 32px; gap: 4px; width: 100%; } .live-race-controls label { width: auto; } .live-race-controls button { min-height: 32px; padding: 5px; } #website-race-restart { display: none; } .live-race-controls label:has(#website-race-speed) { grid-column: 1; } .live-race-status { grid-column: 2 / -1; max-width: 100%; } .live-race-time { min-width: 0; width: auto; padding: 7px 2px; text-align: right; } .live-race-headline { max-width: 100%; padding-right: 2px; } .live-racer { grid-template-columns: 28px 48px minmax(58px, 1fr) 52px; gap: 4px; padding-inline: 4px; } .live-racer-name, .live-racer-value, .live-racer-movement { font-size: 10px; } .live-race-leadership-head { align-items: start; flex-direction: column; gap: 3px; } .live-race-leadership-head p { text-align: left; } .live-leader-stats { grid-template-columns: repeat(2, minmax(0, 1fr)); } .live-game-drama-grid { grid-template-columns: 1fr; } }
   @media (orientation: landscape) and (max-height: 600px) { .live-race-line-wrap { height: 300px; } }
   @media (max-width: 850px) { .week-recap-grid { grid-template-columns: 1fr; } }
-  @media (max-width: 720px) { .race-controls, #view-weeks .race-controls { grid-template-columns: 1fr; } .race-filter-group { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); } .race-filter-group label { width: auto; } .race-playback-group { justify-content: start; } .race-controls:has(#week-live-race-play) .race-filter-group { flex-wrap: wrap; } .race-controls:has(#week-live-race-play) .race-playback-group { flex-wrap: wrap; justify-self: start; } .race-controls .live-race-status { grid-column: 1; } }
+  @media (max-width: 720px) { .race-controls, #view-weeks .race-controls { grid-template-columns: 1fr; } .race-filter-group { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); } .race-filter-group label { width: auto; } .race-playback-group { flex-wrap: wrap; justify-content: start; justify-self: start; } .race-controls .live-race-status { grid-column: 1; } }
   @media (max-width: 430px) { .race-controls { gap: 8px; } .race-filter-group, .race-playback-group { gap: 6px; } .race-controls .live-race-status { flex-direction: column; align-items: flex-start; gap: 4px; } .race-controls .live-race-time, .race-controls .live-race-headline { min-width: 0; max-width: 100%; padding-inline: 0; text-align: left; } }
   @media (max-width: 560px) {
     .chart-wrap:has(> #winner-contribution-chart) { height: 380px; min-height: 380px; }
@@ -3071,7 +3070,7 @@ function renderSeason(resetPlayer = false) {
   renderSeasonNotes(standings, weeks, progress);
   renderSeasonWeeksGrid(standings, weeks, playoffRows);
   if (seasonTable) seasonTable.destroy();
-  seasonTable = new Tabulator("#season-table", { data: standings.map((row, index) => ({ ...row, position: row.qualified ? row.seasonRank : "", winPctValue: row.winPct })), layout: "fitDataStretch", pagination: true, paginationSize: 50, columns: [{ title: "Rank", field: "position", sorter: "number" }, { title: "Player", field: "name", sorter: "string" }, { title: "Wins", field: "wins", sorter: "number" }, { title: "Losses", field: "losses", sorter: "number" }, { title: "Win %", field: "winPctValue", sorter: "number", formatter: cell => `${(Number(cell.getValue() || 0) * 100).toFixed(2)}%` }, { title: "Weeks", field: "weeks", sorter: "number" }, { title: "Weeks Won", field: "weeksWon", sorter: "number" }, { title: "Weeks Atop", field: "weeksLed", sorter: "number" }, { title: "Top 5", field: "top5Weeks", sorter: "number" }, { title: "Money", field: "money", sorter: "number", formatter: cell => "$" + Number(cell.getValue() || 0).toLocaleString() }], placeholder: "No results" });
+  seasonTable = new Tabulator("#season-table", { data: standings.map((row, index) => ({ ...row, position: row.qualified ? row.seasonRank : "", winPctValue: row.winPct })), layout: "fitDataStretch", columns: [{ title: "Rank", field: "position", sorter: "number" }, { title: "Player", field: "name", sorter: "string" }, { title: "Wins", field: "wins", sorter: "number" }, { title: "Losses", field: "losses", sorter: "number" }, { title: "Win %", field: "winPctValue", sorter: "number", formatter: cell => `${(Number(cell.getValue() || 0) * 100).toFixed(2)}%` }, { title: "Weeks", field: "weeks", sorter: "number" }, { title: "Weeks Won", field: "weeksWon", sorter: "number" }, { title: "Weeks Atop", field: "weeksLed", sorter: "number" }, { title: "Top 5", field: "top5Weeks", sorter: "number" }, { title: "Money", field: "money", sorter: "number", formatter: cell => "$" + Number(cell.getValue() || 0).toLocaleString() }], placeholder: "No results" });
   renderSeasonLiveRace();
   renderSeasonMoney(standings, weeks, progress);
   renderSeasonConsistency(standings, weeks);
@@ -4149,7 +4148,7 @@ function showSeasonLiveRaceFrame(index) {
   document.getElementById("season-live-race-time").textContent = `${frame.label} · ${seasonLiveRaceFrame + 1}/${seasonLiveRaceFrames.length}`;
   document.getElementById("season-live-race-headline").textContent = historicalRaceCheckpointHeadline(seasonLiveRaceFrames, seasonLiveRaceFrame, metric);
   setRaceFrameBadge("season-live-race", `${frame.label} · ${seasonLiveRaceFrame + 1}/${seasonLiveRaceFrames.length}`, historicalRaceCheckpointHeadline(seasonLiveRaceFrames, seasonLiveRaceFrame, metric));
-  positionHistoricalRaceBadge(seasonLiveRaceChart, 14);
+  positionHistoricalRaceBadge(seasonLiveRaceChart);
   const unit = document.getElementById("season-live-race-step")?.value === "week" ? "week" : "game";
   renderHistoricalRaceLeadership("season-live-race", seasonLiveRaceFrames, seasonLiveRaceFrame, metric, unit);
 }
