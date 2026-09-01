@@ -557,7 +557,9 @@
   .live-race-headline:empty { display: none; }
   .live-race-line-wrap { position: relative; height: 430px; border-block: 1px solid var(--border); background: #0f171e99; padding: 12px 8px 8px; }
   .live-race-line-wrap canvas { cursor: pointer; }
-  .week-one-landscape-hint { display: none; margin: 8px 0; color: var(--accent-2); font: bold 11px/1.35 Arial, sans-serif; }
+  .week-one-landscape-hint, .week-one-row-hint { margin: 8px 0; font: bold 11px/1.35 Arial, sans-serif; }
+  .week-one-landscape-hint { display: none; color: var(--accent-2); }
+  .week-one-row-hint { color: var(--muted); }
   .live-race-track { display: none; position: relative; height: 340px; overflow: hidden; border-block: 1px solid var(--border); background: linear-gradient(90deg, #0f171e 0 54px, transparent 54px); }
   .live-race-leader { position: absolute; inset: 20% 2% auto; overflow: hidden; color: #ffffff0d; font-family: Georgia, serif; font-size: var(--leader-size, clamp(58px, 13vw, 150px)); font-weight: bold; line-height: 1.25; letter-spacing: 0; text-align: center; text-overflow: ellipsis; white-space: nowrap; transform: translateY(-50%); transition: opacity 350ms ease; pointer-events: none; }
   .race-chart-wrap > .live-race-leader, .live-race-line-wrap > .live-race-leader { z-index: 0; }
@@ -637,7 +639,7 @@
   <section id="view-picks-confirmation" class="view"><section class="intro"><div><h2>Picks submitted</h2></div><p>Week 1 · 2026-2027</p></section><div class="panel website-confirmation"><p id="confirmation-lead" class="confirmation-lead">Your picks were submitted successfully.</p><div class="confirmation-grid"><section id="confirmation-identity" class="confirmation-block"><h3>Your pool history</h3><p>Finding your place in the archive...</p></section><section id="confirmation-picks" class="confirmation-block"><h3>Live outlook</h3><p>Comparing your card with the field...</p></section><section id="confirmation-history" class="confirmation-block"><h3>This card in your history</h3><p>Loading your historical picks...</p></section></div><button id="website-view-week-one" type="button">View Week 1</button></div></section>
   <section id="view-week-one" class="view active">
     <section class="intro"><div><h2>Week 1</h2></div><p>2026-2027 submissions and weekly standings.</p></section>
-    <div class="panel"><div id="week-one-status"><p class="website-instructions">Loading the active week...</p></div><div id="week-one-table" style="overflow-x:auto"></div><p class="week-one-landscape-hint">Rotate to landscape for a better view</p><section id="week-one-live-race" class="live-race"></section><div id="week-one-recap"></div><div id="week-one-scenarios" class="weekly-subview"></div><div id="week-one-sankey" class="weekly-subview"></div><div id="week-one-paths" class="weekly-subview"></div></div>
+    <div class="panel"><div id="week-one-status"><p class="website-instructions">Loading the active week...</p></div><div id="week-one-table" style="overflow-x:auto"></div><p class="week-one-landscape-hint">Rotate to landscape for a better view</p><p class="week-one-row-hint">Click or tap a name or row to highlight it while scrolling.</p><section id="week-one-live-race" class="live-race"></section><div id="week-one-recap"></div><div id="week-one-scenarios" class="weekly-subview"></div><div id="week-one-sankey" class="weekly-subview"></div><div id="week-one-paths" class="weekly-subview"></div></div>
   </section>
   <section id="view-alltime" class="view">
     <section class="intro"><div><h2>All Time</h2></div><p>Seventeen seasons of results in one place: the career leaders, every champion, and how the long-timers built their records.</p></section>
