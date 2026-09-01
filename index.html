@@ -21,15 +21,14 @@
   :root { --bg: #0d1117; --panel: #171a1f; --panel-2: #20242a; --border: #3a3d42; --text: #f3f1e8; --muted: #aaa69b; --accent: #ffcf40; --accent-2: #e6a817; --positive: #39c982; --positive-bg: #123c2d; --danger: #ff6b6b; --danger-bg: #481f24; }
   * { box-sizing: border-box; }
   body { margin: 0; font-family: Georgia, "Times New Roman", serif; background: radial-gradient(circle at 85% 0%, #403514 0, transparent 34rem), var(--bg); color: var(--text); }
-  header { padding: 22px clamp(16px, 4vw, 52px); border-bottom: 1px solid var(--border); display: flex; align-items: center; gap: 8px; flex-wrap: wrap; }
-  nav { display: flex; flex: 1; flex-wrap: wrap; gap: 6px; }
+  header { padding: 22px clamp(16px, 4vw, 52px); border-bottom: 1px solid var(--border); display: flex; align-items: center; flex-wrap: wrap; }
+  nav { display: flex; flex-wrap: wrap; gap: 6px; }
   nav button, button, select { font: inherit; }
   nav button { background: transparent; color: var(--muted); border: 1px solid var(--border); border-radius: 5px; padding: 7px 11px; font-family: Arial, sans-serif; font-size: 12px; cursor: pointer; }
   nav button:hover, nav button.active { color: var(--bg); background: var(--accent); border-color: var(--accent); }
-  .app-refresh { display: inline-flex; align-items: center; gap: 5px; min-height: 32px; border: 1px solid var(--accent-2); border-radius: 5px; background: transparent; color: var(--accent); padding: 7px 10px; font: 600 12px Arial, sans-serif; cursor: pointer; }
-  .app-refresh:hover, .app-refresh:focus-visible { background: var(--accent); color: var(--bg); }
-  .app-refresh:disabled { cursor: wait; opacity: .72; }
-  .app-refresh.refreshing .app-refresh-icon { animation: app-refresh-spin .8s linear infinite; }
+  .pull-refresh { position: fixed; z-index: 1200; top: 8px; left: 50%; display: inline-flex; align-items: center; gap: 7px; min-height: 34px; border: 1px solid var(--border); border-radius: 5px; background: #171a1ff2; box-shadow: 0 5px 18px #0008; color: var(--accent); padding: 7px 11px; font: 600 12px Arial, sans-serif; opacity: 0; pointer-events: none; transform: translate(-50%, -52px); transition: opacity .15s ease, transform .15s ease; }
+  .pull-refresh.visible { opacity: 1; }
+  .pull-refresh.refreshing .pull-refresh-icon { animation: app-refresh-spin .8s linear infinite; }
   @keyframes app-refresh-spin { to { transform: rotate(360deg); } }
   main { max-width: 1500px; margin: 0 auto; padding: 28px clamp(16px, 4vw, 52px) 60px; }
   .eyebrow { color: var(--accent); font: 11px Arial, sans-serif; letter-spacing: 1.4px; text-transform: uppercase; }
@@ -311,8 +310,6 @@
   #game-picks-table .tabulator-footer { display: none; }
   .install-help { display: none; }
   @media (max-width: 760px) {
-    header nav { flex-basis: 100%; }
-    .app-refresh { order: -1; margin-left: auto; }
     .install-help:not([hidden]) { display: grid; grid-template-columns: minmax(0, 1fr) auto auto; align-items: center; gap: 8px; padding: 10px 12px; border-bottom: 1px solid #ffcf4055; background: #20242a; font: 11px/1.35 Arial, sans-serif; }
     .install-help strong { display: block; margin-bottom: 2px; color: var(--accent); font-size: 12px; }
     .install-help span { color: var(--muted); }
@@ -629,7 +626,8 @@
 </style>
 </head>
 <body>
-<header><nav id="nav"><button data-view="enter-picks">Enter Picks</button><button data-view="week-one">Current Week</button><button data-view="weeks">Weeks</button><button data-view="season">Seasons</button><button data-view="payout">Payout</button><button data-view="players">Players</button><button data-view="names">Names</button><button data-view="teams">Teams</button><button data-view="alltime">All Time</button><button data-view="streaks">Streaks</button><button data-view="games">Games</button><button data-view="faq">FAQ</button></nav><button id="website-app-refresh" class="app-refresh" type="button"><span class="app-refresh-icon" aria-hidden="true">↻</span><span class="app-refresh-label" aria-live="polite">Refresh</span></button></header>
+<div id="website-pull-refresh" class="pull-refresh" role="status" aria-live="polite"><span class="pull-refresh-icon" aria-hidden="true">↻</span><span class="pull-refresh-label">Pull to refresh</span></div>
+<header><nav id="nav"><button data-view="enter-picks">Enter Picks</button><button data-view="week-one">Current Week</button><button data-view="weeks">Weeks</button><button data-view="season">Seasons</button><button data-view="payout">Payout</button><button data-view="players">Players</button><button data-view="names">Names</button><button data-view="teams">Teams</button><button data-view="alltime">All Time</button><button data-view="streaks">Streaks</button><button data-view="games">Games</button><button data-view="faq">FAQ</button></nav></header>
 <aside id="website-install-help" class="install-help" hidden><div><strong>Add FBP to your Home Screen</strong><span id="website-install-copy"></span></div><button id="website-install-action" type="button" hidden>Install</button><button id="website-install-close" class="install-help-close" type="button" aria-label="Dismiss home-screen instructions">×</button></aside>
 <main>
   <section id="view-enter-picks" class="view">
@@ -2924,15 +2922,28 @@ async function renderSelectedWebsiteWeek(activeWeekKnown = false, currentWeekReq
     websiteLiveRefreshTimer = setTimeout(renderSelectedWebsiteWeek, 60000);
   }
 }
-let websiteAppRefreshStatusTimer = null;
+const WEBSITE_PULL_REFRESH_THRESHOLD = 72;
+let websiteAppRefreshing = false, websitePullRefreshStatusTimer = null;
+function resetWebsitePullRefresh(delay = 0) {
+  const indicator = document.getElementById("website-pull-refresh");
+  if (!indicator) return;
+  clearTimeout(websitePullRefreshStatusTimer);
+  websitePullRefreshStatusTimer = setTimeout(() => {
+    indicator.classList.remove("visible", "refreshing");
+    indicator.style.transform = "";
+    indicator.querySelector(".pull-refresh-label").textContent = "Pull to refresh";
+  }, delay);
+}
 async function refreshWebsiteApp() {
-  const button = document.getElementById("website-app-refresh");
-  const label = button?.querySelector(".app-refresh-label");
-  if (!button || !label || button.disabled) return;
-  clearTimeout(websiteAppRefreshStatusTimer);
-  button.disabled = true;
-  button.classList.add("refreshing");
+  const indicator = document.getElementById("website-pull-refresh");
+  const label = indicator?.querySelector(".pull-refresh-label");
+  if (!indicator || !label || websiteAppRefreshing) return;
+  clearTimeout(websitePullRefreshStatusTimer);
+  websiteAppRefreshing = true;
+  indicator.classList.add("visible", "refreshing");
+  indicator.style.transform = "translate(-50%, 0)";
   label.textContent = "Refreshing";
+  let reloadRequested = false;
   try {
     const activeView = document.querySelector(".view.active")?.id.replace(/^view-/, "") || location.hash.slice(1);
     if (activeView === "week-one") {
@@ -2942,6 +2953,8 @@ async function refreshWebsiteApp() {
       await loadActiveRegularWeek(true);
       await refreshWebsitePicksWeather();
     } else {
+      reloadRequested = true;
+      await new Promise(resolve => setTimeout(resolve, 250));
       location.reload();
       return;
     }
@@ -2950,12 +2963,42 @@ async function refreshWebsiteApp() {
     console.warn(`App refresh failed: ${error.message}`);
     label.textContent = "Try again";
   } finally {
-    button.disabled = false;
-    button.classList.remove("refreshing");
-    websiteAppRefreshStatusTimer = setTimeout(() => { label.textContent = "Refresh"; }, 1800);
+    websiteAppRefreshing = false;
+    indicator.classList.remove("refreshing");
+    if (!reloadRequested) resetWebsitePullRefresh(1200);
   }
 }
-document.getElementById("website-app-refresh")?.addEventListener("click", refreshWebsiteApp);
+{
+  const indicator = document.getElementById("website-pull-refresh");
+  const label = indicator?.querySelector(".pull-refresh-label");
+  let tracking = false, startX = 0, startY = 0, distance = 0;
+  document.addEventListener("touchstart", event => {
+    if (!indicator || !label || websiteAppRefreshing || scrollY > 0 || event.touches.length !== 1) return;
+    tracking = true;
+    distance = 0;
+    startX = event.touches[0].clientX;
+    startY = event.touches[0].clientY;
+  }, { passive: true });
+  document.addEventListener("touchmove", event => {
+    if (!tracking || event.touches.length !== 1) return;
+    const deltaX = event.touches[0].clientX - startX;
+    const deltaY = event.touches[0].clientY - startY;
+    if (deltaY <= 0 || Math.abs(deltaX) >= deltaY) { tracking = false; resetWebsitePullRefresh(); return; }
+    distance = Math.min(110, deltaY * .65);
+    if (distance < 6) return;
+    event.preventDefault();
+    indicator.classList.add("visible");
+    indicator.style.transform = `translate(-50%, ${Math.min(0, -52 + distance)}px)`;
+    label.textContent = distance >= WEBSITE_PULL_REFRESH_THRESHOLD ? "Release to refresh" : "Pull to refresh";
+  }, { passive: false });
+  document.addEventListener("touchend", () => {
+    if (!tracking) return;
+    tracking = false;
+    if (distance >= WEBSITE_PULL_REFRESH_THRESHOLD) refreshWebsiteApp();
+    else resetWebsitePullRefresh();
+  }, { passive: true });
+  document.addEventListener("touchcancel", () => { tracking = false; resetWebsitePullRefresh(); }, { passive: true });
+}
 document.addEventListener("click",event=>{const button=event.target.closest("#nav button[data-view]");if(!button)return;if(button.dataset.view==="enter-picks")setTimeout(()=>{renderWebsitePicksForm();resetWebsiteBestBet();},0);if(button.dataset.view==="week-one")setTimeout(renderSelectedWebsiteWeek,0);});
 document.getElementById("website-view-week-one")?.addEventListener("click",()=>{showView("week-one");renderSelectedWebsiteWeek();});
 let profileChart = null, profileMoneyChart = null, profilePlusMinusChart = null, profilePlacementChart = null, profileBestWeeksChart = null, profileRecentChart = null, profileBestBetChart = null, profileTeamChart = null, profileClubChart = null, profileBestGamesChart = null, profileSituationalChart = null, gamePicksTable = null, weekChart = null, weekTable = null, weekRaceChart = null, winnerContributionChart = null, weeklyRankChart = null, streakChart = null, streakTable = null, seasonTopChart = null, seasonTable = null, seasonRaceChart = null, seasonPlayerChart = null, seasonMoneyChart = null, seasonConsistencyChart = null, seasonBbChart = null, seasonTeamsChart = null, seasonContrarianChart = null, seasonTbChart = null, allTimeTopChart = null, allTimePlusMinusChart = null, allTimePlusMinusTrendChart = null, allTimeGamesChart = null, allTimeArcsChart = null, allTimeMoneyChart = null, allTimeTurnoutChart = null, allTimeStreakChart = null, allTimeTeamPicksChart = null, allTimeContrarianChart = null, allTimeSeasonWeeksChart = null, manifest = [], dashboard = [], tableData = {}, websiteWeeks = [], websiteAwards = [], websiteSeasons = [], websitePlayers = [], websiteRecords = [], websiteStreaks = [], websiteGames = [], websitePicks = [], websitePayouts = [];
