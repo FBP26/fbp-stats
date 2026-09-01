@@ -2436,7 +2436,9 @@ async function loadConfirmationProbability(submission) {
     const leverageOpponent = leverage ? [leverage.game.favorite, leverage.game.underdog].map(team => String(team).toUpperCase()).find(team => team !== leverage.pick) : "";
     const leverageSpread = leverage ? Number(leverage.game.spread || 0) : 0;
     const leverageOpponentLine = leverage ? `${websiteNaturalTeamName(leverageOpponent)} ${leverageSpread ? `${leverageOpponent === String(leverage.game.favorite).toUpperCase() ? "-" : "+"}${leverageSpread}` : "PK"}` : "";
-    const leverageText = leverage ? `Your <strong>${websiteEscapeHtml(websiteNaturalTeamName(leverage.pick))}</strong> pick gives you the most separation from the current field. If it hits, you gain ground on ${leverage.opponents} ${leverage.opponents === 1 ? "entry" : "entries"} backing <strong>${websiteEscapeHtml(leverageOpponentLine)}</strong>.${leverage.bestBet ? " It is also your Best Bet, so it carries an extra point." : ""}` : "No pick separates you from the current field yet.";
+    const otherEntries = Math.max(1, field.length - 1);
+    const leveragePercent = leverage ? (leverage.opponents / otherEntries * 100).toFixed(1) : "0.0";
+    const leverageText = leverage ? `Your <strong>${websiteEscapeHtml(websiteNaturalTeamName(leverage.pick))}</strong> pick gives you the most separation from the current field. If it hits, you gain ground on <strong>${leveragePercent}%</strong> of the other entries (${leverage.opponents} of ${otherEntries}) backing <strong>${websiteEscapeHtml(leverageOpponentLine)}</strong>.${leverage.bestBet ? " It is also your Best Bet, so it carries an extra point." : ""}` : "No pick separates you from the current field yet.";
     host.innerHTML = [chanceText, pathsText, leverageText].map(text => `<p>${text}</p>`).join("");
   } catch (error) { host.innerHTML = `<p>The live field could not be calculated right now: ${websiteEscapeHtml(error.message)}</p>`; }
 }
