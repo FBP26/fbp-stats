@@ -761,7 +761,7 @@ async function initializeWebsiteAnalytics() {
   }
 }
 initializeWebsiteAnalytics();
-function showWebsiteConfirmation() { showView("picks-confirmation"); }
+function showWebsiteConfirmation() { showView("picks-confirmation"); window.scrollTo({ top: 0, behavior: "auto" }); }
 function resetWebsiteBestBet() { const bestBet = document.getElementById("website-best-bet"); if (!bestBet) return; if (!bestBet.options.length || bestBet.options[0].value !== "") bestBet.insertBefore(new Option("Choose a best bet", ""), bestBet.options[0] || null); bestBet.value = ""; updateWebsiteBestBetPicker(); }
 const WEBSITE_TEAM_NAMES = { ari:"arizona",atl:"atlanta",bal:"baltimore",buf:"buffalo",car:"carolina",chi:"chicago",cin:"cincinnati",cle:"cleveland",dal:"dallas",den:"denver",det:"detroit",gb:"green bay",hou:"houston",ind:"indianapolis",jax:"jacksonville",kc:"kansas city",lar:"la rams",lac:"la chargers",lv:"las vegas",mia:"miami",min:"minnesota",ne:"new england",no:"new orleans",nyg:"ny giants",nyj:"ny jets",phi:"philadelphia",pit:"pittsburgh",sea:"seattle",sf:"san francisco",tb:"tampa bay",ten:"tennessee",was:"washington" };
 const WEBSITE_FORM_TEAM_NAMES = { ari:"cardinals",atl:"falcons",bal:"ravens",buf:"bills",car:"panthers",chi:"bears",cin:"bengals",cle:"browns",dal:"cowboys",den:"broncos",det:"lions",gb:"packers",hou:"texans",ind:"colts",jax:"jaguars",kc:"chiefs",lar:"rams",lac:"chargers",lv:"raiders",mia:"dolphins",min:"vikings",ne:"patriots",no:"saints",nyg:"giants",nyj:"jets",phi:"eagles",pit:"steelers",sea:"seahawks",sf:"49ers",tb:"buccaneers",ten:"titans",was:"commanders" };
@@ -843,6 +843,7 @@ function renderWebsitePicksForm() { const host = document.getElementById("websit
 let websiteActiveGames = WEBSITE_WEEK_ONE_GAMES;
 let websiteLiveRefreshTimer = null, websiteSelectedWeekPlayer = "";
 let websitePicksWeatherRefreshTimer = null;
+let websitePicksWeatherRefreshPending = false;
 const WEBSITE_PICKS_WEATHER_REFRESH_MS = 4 * 60 * 60 * 1000;
 const WEBSITE_PICKS_WEATHER_CACHE_KEY = "fbpPicksWeatherRefresh";
 const WEBSITE_PATH_DISPLAY_LIMIT = 50;
@@ -2169,20 +2170,20 @@ async function loadWebsiteStagedGames(selection, forceRefresh = false) {
   })();
   return rawGames.map((game, index) => ({ ...game, id: game.gameId || `game-${index + 1}`, time: game.kickoffGroup || game.kickoff || `Game ${index + 1}` }));
 }
-function websiteGameContext(game, weatherPending = false) {
+function websiteGameContext(game) {
   const location = [game.venueCity, game.venueState].filter(Boolean).join(", ");
   const condition = String(game.weather || ""), normalizedCondition = condition.toLowerCase();
   const hasTemperature = game.temperature !== "" && game.temperature != null;
   const weatherIcon = game.indoor ? "🏟️" : /thunder|storm/.test(normalizedCondition) ? "⛈️" : /snow|flurr/.test(normalizedCondition) ? "❄️" : /rain|shower/.test(normalizedCondition) ? "🌧️" : /cloud|overcast/.test(normalizedCondition) ? "☁️" : /fog|mist/.test(normalizedCondition) ? "🌫️" : /wind/.test(normalizedCondition) ? "💨" : /sun|clear/.test(normalizedCondition) ? "☀️" : hasTemperature ? "🌡️" : "🌤️";
   const weather = [hasTemperature ? `${game.temperature}°` : "", condition].filter(Boolean).join(" ");
-  const weatherDetail = game.indoor ? "Indoor" : weather || (weatherPending ? "Forecast loading..." : "Weather unavailable");
+  const weatherDetail = game.indoor ? "Indoor" : weather || "Forecast pending";
   const details = [["venue", game.venueName || game.venue], ["location", location], ["weather", weatherDetail], ["broadcast", game.broadcast || game.tv]].filter(([, value]) => value);
   return details.length ? `<div class="website-game-context${websiteIsNeutralSite(game) ? " website-game-context-neutral" : ""}">${details.map(([type, value], index) => `<span class="website-context-${type}">${type === "weather" ? `<span class="website-weather-icon" aria-hidden="true">${weatherIcon}</span>` : ""}${websiteEscapeHtml(value)}${index < details.length - 1 ? " · " : ""}</span>`).join("")}</div>` : "";
 }
 function websiteMergeGameContext(previous, refreshed) {
   if (!previous) return { ...refreshed };
   const updated = { ...previous, ...refreshed };
-  ["weather", "temperature", "weatherSource", "weatherLink", "venueName", "venueCity", "venueState", "broadcast", "awayTeam", "homeTeam"].forEach(key => {
+  ["favorite", "underdog", "spread", "away", "home", "kickoff", "kickoffGroup", "weather", "temperature", "weatherSource", "weatherLink", "venueName", "venueCity", "venueState", "broadcast", "awayTeam", "homeTeam"].forEach(key => {
     if ((refreshed[key] === "" || refreshed[key] == null) && previous[key] !== "" && previous[key] != null) updated[key] = previous[key];
   });
   return updated;
@@ -2197,14 +2198,21 @@ function scheduleWebsitePicksWeatherRefresh(delay = WEBSITE_PICKS_WEATHER_REFRES
   clearTimeout(websitePicksWeatherRefreshTimer);
   websitePicksWeatherRefreshTimer = setTimeout(refreshWebsitePicksWeather, Math.max(1000, delay));
 }
+function queueWebsitePicksWeatherRefresh(selection) {
+  const lastWeatherRefresh = websiteWeatherRefreshState(selection);
+  const weatherAge = Date.now() - lastWeatherRefresh;
+  if (lastWeatherRefresh && weatherAge < WEBSITE_PICKS_WEATHER_REFRESH_MS) scheduleWebsitePicksWeatherRefresh(WEBSITE_PICKS_WEATHER_REFRESH_MS - weatherAge);
+  else refreshWebsitePicksWeather();
+}
 async function refreshWebsitePicksWeather() {
   clearTimeout(websitePicksWeatherRefreshTimer);
   websitePicksWeatherRefreshTimer = null;
   const host = document.getElementById("website-game-picks");
-  if (!host || !document.getElementById("view-enter-picks")?.classList.contains("active") || !websiteActiveGames.length) return;
+  if (!host || !document.getElementById("view-enter-picks")?.classList.contains("active") || !websiteActiveGames.length || websitePicksWeatherRefreshPending) return;
   const selection = websitePickSelection();
-  const configKey = `${selection.phase}-${selection.week}`;
+  const configKey = `${selection.phase}-${selection.season}-${selection.week}`;
   if (host.dataset.ready !== configKey) return;
+  websitePicksWeatherRefreshPending = true;
   try {
     const refreshedGames = await loadWebsiteStagedGames(selection, true);
     const rows = [...host.querySelectorAll(".website-game-row")];
@@ -2228,6 +2236,7 @@ async function refreshWebsitePicksWeather() {
   } catch (error) {
     console.warn(`Weather refresh unavailable: ${error.message}`);
   } finally {
+    websitePicksWeatherRefreshPending = false;
     scheduleWebsitePicksWeatherRefresh();
   }
 }
@@ -2240,8 +2249,8 @@ async function renderWebsitePicksForm() {
     try { await loadActiveRegularWeek(); } catch (error) { renderWebsiteGamesLoadError(host, error); return; }
   }
   const selection = websitePickSelection();
-  const configKey = `${selection.phase}-${selection.week}`;
-  if (host.dataset.ready === configKey) { refreshWebsitePicksWeather(); return; }
+  const configKey = `${selection.phase}-${selection.season}-${selection.week}`;
+  if (host.dataset.ready === configKey) { queueWebsitePicksWeatherRefresh(selection); return; }
   host.dataset.ready = configKey;
   host.innerHTML = '<p class="website-instructions">Loading games...</p>';
   document.getElementById("website-test-notice").classList.toggle("active", selection.testMode);
@@ -2253,7 +2262,7 @@ async function renderWebsitePicksForm() {
     const groups = [];
     websiteActiveGames.forEach((game, index) => { const previous = websiteActiveGames[index - 1]; if (!previous || previous.time !== game.time) groups.push({ time: game.time, games: [] }); groups[groups.length - 1].games.push({ game, index }); });
     const linesReady = websiteActiveGames.every(game => game.favorite && game.underdog && game.spread !== "" && game.spread != null);
-    host.innerHTML = groups.map(group => `<fieldset class="website-game-group"><legend>${group.time}</legend>${group.games.map(({ game, index }) => { const favorite = game.favorite || game.away; const underdog = game.favorite ? game.underdog : game.home; return `<div class="website-game-row"><div class="website-matchup"><label class="website-side"><input type="radio" name="game-${index + 1}" value="${favorite}" ${linesReady ? "required" : "disabled"}>${websiteTeamChoice(game, favorite)}</label><span class="website-spread">${linesReady ? game.spread : "Line pending"}</span><label class="website-side right">${websiteTeamChoice(game, underdog)}<input type="radio" name="game-${index + 1}" value="${underdog}" ${linesReady ? "required" : "disabled"}></label></div>${websiteGameContext(game, true)}</div>`; }).join("")}</fieldset>`).join("");
+    host.innerHTML = groups.map(group => `<fieldset class="website-game-group"><legend>${group.time}</legend>${group.games.map(({ game, index }) => { const favorite = game.favorite || game.away; const underdog = game.favorite ? game.underdog : game.home; return `<div class="website-game-row"><div class="website-matchup"><label class="website-side"><input type="radio" name="game-${index + 1}" value="${favorite}" ${linesReady ? "required" : "disabled"}>${websiteTeamChoice(game, favorite)}</label><span class="website-spread">${linesReady ? game.spread : "Line pending"}</span><label class="website-side right">${websiteTeamChoice(game, underdog)}<input type="radio" name="game-${index + 1}" value="${underdog}" ${linesReady ? "required" : "disabled"}></label></div>${websiteGameContext(game)}</div>`; }).join("")}</fieldset>`).join("");
     const bestBet = document.getElementById("website-best-bet");
     bestBet.innerHTML = '';
     bestBet.add(new Option(linesReady ? "Choose a best bet" : "Available when lines are posted", ""));
@@ -2263,9 +2272,7 @@ async function renderWebsitePicksForm() {
     bestBet.disabled = !linesReady;
     document.querySelector('#website-picks-form button[type="submit"]').disabled = !linesReady;
     document.getElementById("website-picks-status").textContent = linesReady ? "" : "Yahoo has not posted every spread yet. Matchups are available for review; picks open after the Tuesday refresh fills the lines.";
-    const lastWeatherRefresh = websiteWeatherRefreshState(selection), weatherAge = Date.now() - lastWeatherRefresh;
-    if (lastWeatherRefresh && weatherAge < WEBSITE_PICKS_WEATHER_REFRESH_MS) scheduleWebsitePicksWeatherRefresh(WEBSITE_PICKS_WEATHER_REFRESH_MS - weatherAge);
-    else refreshWebsitePicksWeather();
+    queueWebsitePicksWeatherRefresh(selection);
   } catch (error) {
     websiteActiveGames = [];
     renderWebsiteGamesLoadError(host, error);
@@ -2584,6 +2591,7 @@ async function renderWebsiteConfirmation(submission, result) {
 let websiteBestBetMismatchAttempts = 0;
 let websiteBestBetMismatchSignature = "";
 let websiteApprovedNewPlayerName = "";
+let websitePicksSubmissionPending = false;
 function websiteCanonicalPlayerSuggestion(value) {
   const entered = String(value || "").trim().replace(/\s+/g, " "), normalized = entered.toLowerCase();
   const names = [...new Set([...(websitePlayers || []).map(player => player.name), ...(tableData.overall || []).map(row => row.Name)].map(name => String(name || "").trim()).filter(Boolean))];
@@ -2600,7 +2608,13 @@ function websiteCanonicalPlayerSuggestion(value) {
 }
 async function preflightWebsiteIdentity(submission, status) {
   if (!WEBSITE_SUBMISSIONS_ENDPOINT) return true;
-  status.textContent = "Checking your name...";
+  const normalizedEnteredName = submission.name.trim().replace(/\s+/g, " ").toLowerCase();
+  const knownNames = [...(websitePlayers || []).map(player => player.name), ...(tableData.overall || []).map(row => row.Name)];
+  if (knownNames.some(name => String(name || "").trim().replace(/\s+/g, " ").toLowerCase() === normalizedEnteredName)) {
+    websiteApprovedNewPlayerName = "";
+    return true;
+  }
+  status.textContent = "Building your confirmation: checking your name...";
   const response = await fetch(WEBSITE_SUBMISSIONS_ENDPOINT, { method: "POST", headers: { "Content-Type": "text/plain;charset=utf-8" }, body: JSON.stringify({ action: "assess-player-identity", name: submission.name, weekName: submission.weekName }) });
   const result = await response.json();
   if (!response.ok || !result.ok) throw new Error(result.error || "Name check failed.");
@@ -2656,10 +2670,13 @@ function confirmWebsiteBestBetMismatch(submission, status) {
 async function findExistingWebsiteSubmission(submission) {
   if (!WEBSITE_SUBMISSIONS_ENDPOINT) return null;
   const selection = websitePickSelection(), separator = WEBSITE_SUBMISSIONS_ENDPOINT.includes("?") ? "&" : "?";
-  const action = selection.testMode ? `preseason-test&season=${selection.season}&week=${selection.week}` : "current-week";
+  const action = selection.testMode
+    ? `preseason-test&season=${selection.season}&week=${selection.week}`
+    : `existing-submission&season=${selection.season}&week=${selection.week}&name=${encodeURIComponent(submission.name)}`;
   const response = await fetch(`${WEBSITE_SUBMISSIONS_ENDPOINT}${separator}action=${action}`, { signal: AbortSignal.timeout(20000) });
   const data = await response.json();
   if (!response.ok || !data.ok) throw new Error(data.error || "Could not check your existing picks.");
+  if (!selection.testMode) return data.player || null;
   const normalizedName = String(submission.name || "").trim().toLowerCase();
   return (data.players || []).find(player => String(player.name || "").trim().toLowerCase() === normalizedName) || null;
 }
@@ -2681,17 +2698,29 @@ document.getElementById("website-picks-form").addEventListener("change", event =
   websiteBestBetMismatchAttempts = 0;
   websiteBestBetMismatchSignature = "";
 });
+document.getElementById("website-picks-form").addEventListener("invalid", event => {
+  const status = document.getElementById("website-picks-status");
+  status.textContent = event.target.matches('input[type="radio"]')
+    ? "Choose one team in every matchup before submitting."
+    : `Complete the ${event.target.closest("label")?.childNodes[0]?.textContent?.trim() || "required"} field before submitting.`;
+}, true);
 document.getElementById("website-picks-form").onsubmit = async event => {
   event.preventDefault();
   const form = event.currentTarget;
   const status = document.getElementById("website-picks-status");
+  const submitButton = form.querySelector('button[type="submit"]');
+  if (websitePicksSubmissionPending) return;
   if (!websiteActiveGames.length) { status.textContent = "Stage this week before submitting test picks."; return; }
   const selection = websitePickSelection();
   const submission = { mode: selection.testMode ? "test" : "production", season: selection.season, week: selection.week, phase: selection.phase, name: document.getElementById("website-picks-name").value, weekName: document.getElementById("website-week-name").value.trim(), picks: websiteActiveGames.map((game, index) => form.elements[`game-${index + 1}`].value), bestBet: document.getElementById("website-best-bet").value, tiebreaker: document.getElementById("website-tiebreaker").value };
+  websitePicksSubmissionPending = true;
+  submitButton.disabled = true;
+  const submitButtonLabel = submitButton.textContent;
+  submitButton.textContent = "Building confirmation...";
   try {
     if (!await preflightWebsiteIdentity(submission, status)) return;
     if (!confirmWebsiteBestBetMismatch(submission, status)) return;
-    status.textContent = "Checking for an existing entry...";
+    status.textContent = "Building your confirmation: checking for an existing entry...";
     const existing = await findExistingWebsiteSubmission(submission);
     const comparison = compareWebsiteSubmission(existing, submission);
     if (comparison.same) {
@@ -2707,7 +2736,7 @@ document.getElementById("website-picks-form").onsubmit = async event => {
       status.focus();
       return;
     }
-    status.textContent = selection.testMode ? "Submitting isolated test picks..." : "Submitting picks...";
+    status.textContent = selection.testMode ? "Saving test picks and building your confirmation..." : "Your picks are complete. Saving them and building your confirmation...";
     let result = { ok: true, identity: { status: "new", submittedName: submission.name.trim(), suggestedName: "" } };
     if (WEBSITE_SUBMISSIONS_ENDPOINT) { const response = await fetch(WEBSITE_SUBMISSIONS_ENDPOINT, { method: "POST", headers: { "Content-Type": "text/plain;charset=utf-8" }, body: JSON.stringify(submission) }); result = await response.json(); if (!response.ok || !result.ok) throw new Error(result.error || "Submission failed."); }
     const storageKey = selection.testMode ? `fbpPreseasonTest-${selection.week}` : "fbpWebsiteSubmissions";
@@ -2719,6 +2748,11 @@ document.getElementById("website-picks-form").onsubmit = async event => {
     form.reset(); resetWebsiteBestBet(); showWebsiteConfirmation();
     websiteBestBetMismatchAttempts = 0; websiteBestBetMismatchSignature = ""; websiteApprovedNewPlayerName = "";
   } catch (error) { status.textContent = `Could not submit picks: ${error.message}`; }
+  finally {
+    websitePicksSubmissionPending = false;
+    submitButton.disabled = false;
+    submitButton.textContent = submitButtonLabel;
+  }
 };
 function websiteWeekOneFallback() { const players = JSON.parse(localStorage.getItem("fbpWebsiteSubmissions") || "[]").map(row => ({ name: row.name, weekName: row.weekName, picks: row.picks, bestBet: row.bestBet, tiebreaker: row.tiebreaker, wins: "", losses: "", total: "", winPercent: "", winProbability: "", pathsToVictory: "" })); return { loading: !players.length, week: websiteRegularSelection.week, favorites: WEBSITE_WEEK_ONE_GAMES.map(game => game.favorite), favoriteScores: Array(16).fill(""), spreads: WEBSITE_WEEK_ONE_GAMES.map(game => game.spread), underdogScores: Array(16).fill(""), underdogs: WEBSITE_WEEK_ONE_GAMES.map(game => game.underdog), actualTiebreaker: "", games: WEBSITE_WEEK_ONE_GAMES, players }; }
 function websiteWeekOnePickClass(data, gameIndex, pick) { const game = (data.games || [])[gameIndex]; const status = websiteGameStatus(game); if (game && !["IN", "IN_PROGRESS", "LIVE", "POST", "FINAL", "COMPLETED"].includes(status)) return "pg-pick-pending"; const favoriteScore = Number(data.favoriteScores[gameIndex]); const underdogScore = Number(data.underdogScores[gameIndex]); if (data.favoriteScores[gameIndex] === "" || data.underdogScores[gameIndex] === "") return "pg-pick-pending"; const margin = favoriteScore - underdogScore - Number(data.spreads[gameIndex]); if (margin === 0) return "pg-pick-push"; const winner = margin > 0 ? data.favorites[gameIndex] : data.underdogs[gameIndex]; return pick === winner ? "pg-pick-win" : "pg-pick-loss"; }
