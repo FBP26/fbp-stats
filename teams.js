@@ -321,14 +321,9 @@ function setupTeamsSections() {
 
 function initializeTeamsControls() {
   setupTeamsSections();
-  const seasonSelect = document.getElementById("teams-season");
   const teamSelect = document.getElementById("teams-team");
   const priorTeam = teamSelect.value;
   const teamPickerName = team => ({ OAK: "Oakland", STL: "St Louis", SD: "San Diego" }[team] || websiteNaturalTeamName(team));
-  if (seasonSelect.options.length === 1) {
-    [...new Set(websiteGames.map(game => game.season))].sort().reverse()
-      .forEach(season => seasonSelect.add(new Option(season, season)));
-  }
   const teams = [...new Set(websiteGames.flatMap(game => [game.favorite, game.underdog])
     .map(value => String(value || "").toUpperCase()).filter(Boolean))].sort((left, right) => teamPickerName(left).localeCompare(teamPickerName(right)) || left.localeCompare(right));
   if (!teamSelect.options.length) teams.forEach(team => teamSelect.add(new Option(team, team)));
@@ -350,14 +345,14 @@ function initializeTeamsControls() {
     document.addEventListener("click", event => { if (!picker.contains(event.target)) picker.open = false; });
     picker.dataset.clickAwayReady = "true";
   }
-  [seasonSelect, teamSelect, document.getElementById("teams-metric")]
+  [teamSelect, document.getElementById("teams-metric")]
     .filter(Boolean).forEach(select => select.onchange = renderTeams);
 }
 
 function renderTeams() {
   if (!websiteGames.length || !websitePicks.length) return;
   initializeTeamsControls();
-  const season = document.getElementById("teams-season").value;
+  const season = "all";
   const selectedTeam = document.getElementById("teams-team").value;
   const rows = teamRowsForSeason(season);
   const selected = rows.find(row => row.team === selectedTeam) || emptyTeamStat(selectedTeam, season);
@@ -420,7 +415,7 @@ function renderTeams() {
   matchupMode.onchange = renderTeams;
   opponentSelect.onchange = renderTeams;
   document.getElementById("teams-consensus-title").textContent = `${selectedTeam}: ${mode === "worst" ? "Worst" : "Best"} ATS Matchups`;
-  document.getElementById("teams-consensus-note").textContent = opponents.length ? chosenOpponent === "all" ? `Specific opponents with at least three archived meetings, ordered from ${mode === "worst" ? "lowest to highest" : "highest to lowest"} cover rate. Choose an opponent to isolate its complete matchup history.` : `${selectedTeam}'s complete graded ATS history against ${opponentName(chosenOpponent)} in the selected seasons.` : `No graded matchup history is available for ${selectedTeam} in the selected seasons.`;
+  document.getElementById("teams-consensus-note").textContent = opponents.length ? chosenOpponent === "all" ? `Specific opponents with at least three archived meetings, ordered from ${mode === "worst" ? "lowest to highest" : "highest to lowest"} cover rate. Choose an opponent to isolate its complete matchup history.` : `${selectedTeam}'s complete graded ATS history against ${opponentName(chosenOpponent)}.` : `No graded matchup history is available for ${selectedTeam}.`;
   if (teamsConsensusChart) teamsConsensusChart.destroy();
   document.getElementById("teams-consensus-chart").parentElement.style.height = `${Math.max(335, opponents.length * 30 + 70)}px`;
   teamsConsensusChart = new Chart(document.getElementById("teams-consensus-chart"), {

@@ -3,11 +3,19 @@
 <head>
 <meta charset="UTF-8" />
 <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+<meta name="theme-color" content="#0d1117" />
+<meta name="apple-mobile-web-app-capable" content="yes" />
+<meta name="apple-mobile-web-app-status-bar-style" content="black-translucent" />
+<meta name="apple-mobile-web-app-title" content="FBP" />
 <title>FBP</title>
+<link rel="manifest" href="manifest.webmanifest" />
+<link rel="icon" href="icons/fbp-icon.svg" type="image/svg+xml" />
+<link rel="apple-touch-icon" href="icons/fbp-apple-touch.png" />
 <link href="https://unpkg.com/tabulator-tables@5.6.0/dist/css/tabulator.min.css" rel="stylesheet">
 <script src="https://cdn.jsdelivr.net/npm/chart.js@4.4.3/dist/chart.umd.min.js"></script>
 <script src="https://cdn.jsdelivr.net/npm/chartjs-chart-sankey@0.14.0/dist/chartjs-chart-sankey.min.js"></script>
 <script src="https://unpkg.com/tabulator-tables@5.6.0/dist/js/tabulator.min.js"></script>
+<script src="https://cdn.jsdelivr.net/npm/papaparse@5.4.1/papaparse.min.js"></script>
 <script src="historical-ui.js?v=20260826-9"></script>
 <style>
   :root { --bg: #0d1117; --panel: #171a1f; --panel-2: #20242a; --border: #3a3d42; --text: #f3f1e8; --muted: #aaa69b; --accent: #ffcf40; --accent-2: #e6a817; --positive: #39c982; --positive-bg: #123c2d; --danger: #ff6b6b; --danger-bg: #481f24; }
@@ -184,12 +192,15 @@
   .streak-game-spread { color: var(--accent-2); font: bold 11px Consolas, monospace; text-align: center; }
   .profile-section { margin-top: 14px; }
   .profile-section h3 { color: var(--accent); font: 11px Arial, sans-serif; letter-spacing: 1px; text-transform: uppercase; margin: 0 0 12px; }
-  .week-name-summary { display: grid; grid-template-columns: repeat(4, minmax(0, 1fr)); gap: 18px; padding: 4px 0 18px; border-bottom: 1px solid var(--border); }
+  .names-analysis { margin-top: 16px; }
+  .week-name-summary { display: grid; grid-template-columns: repeat(4, minmax(0, 1fr)); overflow: hidden; background: var(--panel); border: 1px solid var(--border); border-radius: 8px; }
+  .week-name-summary > div { min-width: 0; min-height: 96px; padding: 16px; border-left: 1px solid var(--border); }
+  .week-name-summary > div:first-child { border-left: 0; }
   .week-name-summary strong { display: block; color: var(--accent-2); font-size: 24px; font-weight: 500; overflow-wrap: anywhere; }
   .week-name-summary strong.compact { font-size: 18px; line-height: 1.25; }
-  .week-name-summary span { color: var(--muted); font: 11px Arial, sans-serif; text-transform: uppercase; }
-  .week-name-profile { display: grid; gap: 22px; max-width: 960px; margin: 20px 0 26px; }
-  .week-name-profile > section { padding-top: 16px; border-top: 1px solid var(--border); }
+  .week-name-summary span { display: block; margin-top: 7px; color: var(--muted); font: 11px/1.35 Arial, sans-serif; text-transform: uppercase; }
+  .week-name-profile { display: grid; grid-template-columns: 1fr; gap: 14px; margin: 14px 0; }
+  .week-name-profile > section:not(.name-dossier), #view-names .week-name-columns > section, #view-names .week-name-history { padding: 18px; background: var(--panel); border: 1px solid var(--border); border-radius: 8px; }
   .week-name-profile h4 { margin: 0 0 10px; color: var(--accent); font: 11px Arial, sans-serif; letter-spacing: 1px; text-transform: uppercase; }
   .week-name-profile p { margin: 0 0 10px; font: 15px/1.58 Georgia, serif; }
   .week-name-thread { display: grid; grid-template-columns: minmax(150px, 210px) minmax(0, 1fr); gap: 20px; padding: 11px 0; border-top: 1px solid #2a374466; }
@@ -202,6 +213,15 @@
   .week-name-fact:nth-child(-n+2) { border-top: 0; }
   .week-name-fact strong { display: block; margin-bottom: 4px; color: var(--accent-2); font: 600 14px Arial, sans-serif; }
   .week-name-fact p { margin: 0; }
+  .name-demographic-grid, .name-connection-grid { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 0 28px; }
+  .name-demographic-grid > div, .name-connection-grid > div { padding: 11px 0; border-top: 1px solid #2a374466; }
+  .name-demographic-grid > div:nth-child(-n+2), .name-connection-grid > div:nth-child(-n+2) { border-top: 0; }
+  .name-demographic-grid strong, .name-connection-grid strong { display: block; margin-bottom: 4px; color: var(--accent-2); font: 600 14px Arial, sans-serif; }
+  .name-demographic-grid p, .name-connection-grid p { margin: 0; }
+  .name-dossier-grid { display: grid; grid-template-columns: repeat(6, minmax(0, 1fr)); gap: 10px; }
+  .name-dossier-grid .week-name-fact { grid-column: span 2; min-height: 150px; padding: 15px; background: var(--panel); border: 1px solid var(--border); border-radius: 8px; }
+  .name-dossier-grid .week-name-fact:nth-child(4) { grid-column: 2 / span 2; }
+  .name-dossier-grid .week-name-fact:nth-child(5) { grid-column: 4 / span 2; }
   .week-name-portrait { padding-left: 16px; border-left: 3px solid var(--accent); }
   .week-name-columns { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 28px; }
   .week-name-columns.single { grid-template-columns: 1fr; }
@@ -209,7 +229,8 @@
   .week-name-list { display: grid; gap: 0; }
   .week-name-row { display: grid; grid-template-columns: minmax(0, 1fr) auto; gap: 14px; padding: 9px 0; border-top: 1px solid var(--border); font: 13px/1.35 Arial, sans-serif; }
   .week-name-row small { display: block; margin-top: 3px; color: var(--muted); }
-  .week-name-history { margin-top: 28px; overflow-x: auto; }
+  #view-names .week-name-columns { margin-bottom: 14px; }
+  .week-name-history { margin-top: 0; overflow-x: auto; }
   .week-name-history .name-history-name { min-width: 220px; max-width: 560px; white-space: normal; overflow-wrap: anywhere; text-align: left; color: var(--text); }
   .week-name-history tbody tr { cursor: pointer; }
   .week-name-history tbody tr:hover td { background: #293847; }
@@ -250,7 +271,6 @@
   .teams-rate-cell.negative .teams-rate-bar { background: #ff6b6b24; }
   .teams-rate-cell > span:last-child { position: relative; }
   .name-dossier { margin-top: 22px; padding-top: 18px; border-top: 1px solid var(--border); }
-  .name-dossier-grid { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 0 28px; }
   .name-dossier-grid p { margin: 0; }
   .subject-mix { display: flex; flex-wrap: wrap; gap: 7px; }
   .subject-mix span { padding: 6px 9px; border: 1px solid var(--border); background: var(--panel-2); color: var(--muted); font: 11px Arial, sans-serif; }
@@ -275,8 +295,23 @@
   .tabulator-row { background: var(--panel) !important; color: var(--text); border-color: var(--border); }
   .tabulator-row.tabulator-row-even { background: #121920 !important; }
   .tabulator-row:hover { background: #263b40 !important; }
+  .game-results { margin-top: 20px; border-top: 1px solid var(--border); }
+  .game-results-head { display: flex; align-items: baseline; justify-content: space-between; gap: 12px; padding: 15px 2px 10px; }
+  .game-results-head h3 { margin: 0; color: var(--text); font: 600 14px Arial, sans-serif; }
+  .game-results-head span { color: var(--muted); font: 11px Arial, sans-serif; }
+  #game-picks-table { border-block: 1px solid var(--border); }
+  #game-picks-table .tabulator-header { position: sticky; top: 0; z-index: 2; }
+  #game-picks-table .tabulator-footer { display: none; }
+  .install-help { display: none; }
+  @media (max-width: 760px) {
+    .install-help:not([hidden]) { display: grid; grid-template-columns: minmax(0, 1fr) auto auto; align-items: center; gap: 8px; padding: 10px 12px; border-bottom: 1px solid #ffcf4055; background: #20242a; font: 11px/1.35 Arial, sans-serif; }
+    .install-help strong { display: block; margin-bottom: 2px; color: var(--accent); font-size: 12px; }
+    .install-help span { color: var(--muted); }
+    .install-help button { min-height: 34px; border: 1px solid var(--accent); border-radius: 4px; background: transparent; color: var(--accent); padding: 6px 9px; font: 600 11px Arial, sans-serif; cursor: pointer; }
+    .install-help .install-help-close { width: 34px; padding: 0; border-color: var(--border); color: var(--muted); font-size: 18px; }
+  }
   #loading { color: var(--muted); font: 13px Arial, sans-serif; }
-  @media (max-width: 850px) { .workspace, .profile-grid, .profile-charts, .week-name-columns, .week-name-facts, .behavior-grid, .name-dossier-grid { grid-template-columns: 1fr; } .week-name-summary, .behavior-summary { grid-template-columns: repeat(2, minmax(0, 1fr)); } .week-name-thread { grid-template-columns: 1fr; gap: 5px; } .week-name-fact:nth-child(2) { border-top: 1px solid #2a374466; } .record-grid { grid-template-columns: repeat(2, 1fr); } .intro { display: block; } .intro p { margin-top: 14px; } }
+  @media (max-width: 850px) { .workspace, .profile-grid, .profile-charts, .week-name-profile, .week-name-columns, .week-name-facts, .behavior-grid, .name-demographic-grid, .name-connection-grid, .name-dossier-grid { grid-template-columns: 1fr; } .week-name-summary { grid-template-columns: 1fr; } .behavior-summary { grid-template-columns: repeat(2, minmax(0, 1fr)); } .week-name-summary > div { border-top: 1px solid var(--border); border-left: 0; } .week-name-summary > div:first-child { border-top: 0; } .name-dossier-grid .week-name-fact, .name-dossier-grid .week-name-fact:nth-child(4), .name-dossier-grid .week-name-fact:nth-child(5) { grid-column: auto; } .name-demographic-grid > div, .name-connection-grid > div, .name-demographic-grid > div:nth-child(2), .name-connection-grid > div:nth-child(2) { border-top: 1px solid #2a374466; } .name-demographic-grid > div:first-child, .name-connection-grid > div:first-child { border-top: 0; } .week-name-thread { grid-template-columns: 1fr; gap: 5px; } .week-name-fact:nth-child(2) { border-top: 1px solid #2a374466; } .record-grid { grid-template-columns: repeat(2, 1fr); } .intro { display: block; } .intro p { margin-top: 14px; } }
   @media (max-width: 560px) { main { padding: 18px 10px 44px; } .summary { grid-template-columns: repeat(2, 1fr); } .record-grid { grid-template-columns: 1fr; } .panel-head { align-items: start; flex-direction: column; } .explorer-controls, .path-controls { grid-template-columns: 1fr; } #view-games .explorer-controls, #view-weeks .explorer-controls { max-width: none; } #view-enter-picks .intro { margin-bottom: 12px; } #view-enter-picks .panel { padding: 8px; } #view-enter-picks .website-instructions { margin-bottom: 10px; font-size: 11px; line-height: 1.35; } #website-picks-form .website-identity-controls { grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 6px; } .website-notification-row { align-items: flex-start; flex-direction: column; gap: 5px; } .website-game-group legend { padding-top: 4px; } .website-game-row { padding: 1px 0 2px; } .website-matchup { grid-template-columns: minmax(0, 1fr) 36px minmax(0, 1fr); gap: 1px; } .website-side { min-height: 34px; padding: 2px 0; font-size: 11px; } .website-team-choice { grid-template-columns: 22px minmax(0, 1fr); grid-template-areas: "logo name" "logo record" "logo venue"; column-gap: 4px; padding: 3px; } .website-side.right .website-team-choice { grid-template-columns: minmax(0, 1fr) 22px; grid-template-areas: "name logo" "record logo" "venue logo"; } .website-team-logo { width: 22px; height: 22px; } .website-team-name { display: none; } .website-team-abbreviation, .website-team-record, .website-mobile-venue { display: block; } .website-team-record { overflow: hidden; font-size: 8px; line-height: 1; text-overflow: ellipsis; white-space: nowrap; } .website-side.right .website-team-record, .website-side.right .website-mobile-venue { text-align: right; } .website-context-venue { display: none; } .website-game-context-neutral .website-context-venue { display: inline; } .website-game-context { padding: 0 2px 1px; overflow: hidden; font-size: 8px; line-height: 1.1; text-overflow: ellipsis; white-space: nowrap; } .website-spread { width: 36px; min-height: 24px; font-size: 11px; } }
   .picks-grid { border-collapse: collapse; font: 11px Arial, sans-serif; }
   .picks-grid th, .picks-grid td { padding: 2px 5px; border: 1px solid var(--border); text-align: center; vertical-align: middle; white-space: nowrap; }
@@ -433,6 +468,26 @@
   .weekly-rank-sheet .rank-1 { background: #8a6d1f; color: #ffe9a8; font-weight: bold; }
   .weekly-rank-sheet .top-5 { background: #1e5c3a; color: #7ee2b8; }
   .weekly-rank-sheet .top-10 { background: #26405e; color: #a9c6ff; }
+  .payout-layout { display: grid; gap: 10px; }
+  .payout-layout > * { min-width: 0; }
+  .payout-table-wrap { max-width: 100%; overflow-x: auto; border: 1px solid var(--border); }
+  .payout-table { border-collapse: collapse; width: 100%; min-width: 920px; font: 11px Arial, sans-serif; }
+  .payout-table th, .payout-table td { border: 1px solid var(--border); padding: 5px 6px; text-align: center; white-space: nowrap; }
+  .payout-table th { background: #202c38; color: var(--muted); font-size: 10px; text-transform: uppercase; letter-spacing: .6px; }
+  .payout-table th:first-child, .payout-table td:first-child { position: sticky; left: 0; z-index: 1; text-align: left; background: var(--panel-2); color: var(--text); }
+  .payout-table thead th:first-child { z-index: 2; background: #202c38; }
+  table tbody tr.website-wide-row-selected td { background-image: linear-gradient(#54d6b22b, #54d6b22b); box-shadow: inset 0 2px #54d6b2, inset 0 -2px #54d6b2; }
+  table tbody tr.website-wide-row-selected td:first-child { box-shadow: inset 2px 2px #54d6b2, inset 0 -2px #54d6b2; }
+  table tbody tr.website-wide-row-selected td:last-child { box-shadow: inset -2px 2px #54d6b2, inset 0 -2px #54d6b2; }
+  .payout-cell-paid { background: #173d2b; color: #7ee2b8; font-weight: bold; }
+  .payout-cell-open { color: #52616f; background: #121820; }
+  .payout-balance { display: inline-block; min-width: 66px; padding: 3px 6px; border-radius: 4px; font-weight: bold; text-align: center; }
+  .payout-balance-owed { background: #572828; color: #ffb1b1; }
+  .payout-balance-credit { background: #173d2b; color: #7ee2b8; }
+  .payout-balance-even { background: #25313c; color: #aebbc7; }
+  .payout-balance[data-weekly-tooltip] { cursor: pointer; }
+  .payout-tooltip-list { display: grid; gap: 3px; margin-top: 6px; }
+  .payout-tooltip-list div { display: flex; justify-content: space-between; gap: 18px; }
   #view-weeks h3:has(+ #week-table), #view-weeks h3:has(+ #week-table-show-all), #week-table-show-all, #week-table, #week-table + .chart-divider { display: none; }
   .weekly-standings-tooltip { min-width: 210px; max-height: 300px; overflow-y: auto; text-align: left; }
   .weekly-standings-row { display: grid; grid-template-columns: 30px minmax(88px, 1fr) auto; gap: 7px; align-items: center; padding: 3px 5px !important; border-radius: 3px; color: var(--muted); }
@@ -488,6 +543,7 @@
   .race-chart-wrap > canvas, .live-race-line-wrap > canvas { position: relative; z-index: 1; }
   .race-frame-badge { position: absolute; z-index: 2; top: 14px; right: 18px; max-width: min(310px, 58%); padding: 7px 9px; border: 1px solid #ffcf4066; border-radius: 4px; background: #0d1117e8; color: var(--accent); font: bold 11px/1.3 Consolas, monospace; text-align: right; pointer-events: none; }
   #season-live-race-chart ~ .race-frame-badge { top: 8px; }
+  #week-live-race-chart ~ .race-frame-badge { top: -8px; }
   .race-frame-badge small { display: block; margin-top: 2px; color: var(--text); font: 10px/1.25 Arial, sans-serif; }
   .race-frame-badge.flash { animation: race-frame-flash 700ms ease-out; }
   @keyframes race-frame-flash { 0% { border-color: var(--accent); background: #4a3c10f2; transform: scale(1.03); } 100% { border-color: #ffcf4066; background: #0d1117e8; transform: scale(1); } }
@@ -551,7 +607,8 @@
 </style>
 </head>
 <body>
-<header><nav id="nav"><button data-view="enter-picks">Enter Picks</button><button data-view="week-one">Current Week</button><button data-view="weeks">Weeks</button><button data-view="season">Seasons</button><button data-view="players">Players</button><button data-view="names">Names</button><button data-view="teams">Teams</button><button data-view="alltime">All Time</button><button data-view="streaks">Streaks</button><button data-view="games">Games</button><button data-view="faq">FAQ</button></nav></header>
+<header><nav id="nav"><button data-view="enter-picks">Enter Picks</button><button data-view="week-one">Current Week</button><button data-view="weeks">Weeks</button><button data-view="season">Seasons</button><button data-view="payout">Payout</button><button data-view="players">Players</button><button data-view="names">Names</button><button data-view="teams">Teams</button><button data-view="alltime">All Time</button><button data-view="streaks">Streaks</button><button data-view="games">Games</button><button data-view="faq">FAQ</button></nav></header>
+<aside id="website-install-help" class="install-help" hidden><div><strong>Add FBP to your Home Screen</strong><span id="website-install-copy"></span></div><button id="website-install-action" type="button" hidden>Install</button><button id="website-install-close" class="install-help-close" type="button" aria-label="Dismiss home-screen instructions">×</button></aside>
 <main>
   <section id="view-enter-picks" class="view">
     <section class="intro"><div><h2>Enter Picks</h2></div><p>Week 1 · 2026-2027</p></section>
@@ -570,27 +627,32 @@
     <section class="intro"><div><h2>Seasons</h2></div><p>Every player's week-by-week run through a season, where they finished, and how the full field moved behind the leader.</p></section>
     <div class="panel"><div class="explorer-controls"><label>Season<select id="season-choice"></select></label></div><div id="season-summary" class="summary"></div><div class="chart-wrap wide-chart"><canvas id="season-top-chart"></canvas></div><div id="season-notes" class="record-grid" style="margin-top:18px"></div><h3 style="margin:28px 0 8px;color:var(--accent);font:11px Arial,sans-serif;letter-spacing:1px;text-transform:uppercase">Weeks</h3><div class="grid-legend"><span><i style="background:#8a6d1f"></i>Won the week</span><span><i style="background:#1e5c3a"></i>Top 5</span><span><i style="background:#26405e"></i>Top 10</span><span><i style="background:#151c24"></i>Outside top 10</span><span><i style="background:#1b2530"></i>Did not play</span><span style="color:#4a6070">Cell shows wins that week</span></div><div id="season-weeks-grid" style="overflow-x:auto;margin-bottom:4px"></div><h3 style="margin:28px 0 8px;color:var(--accent);font:11px Arial,sans-serif;letter-spacing:1px;text-transform:uppercase">Standings</h3><div id="season-table"></div><hr class="chart-divider"><div class="explorer-controls" style="margin-top:24px"><label>Race metric<select id="season-race-metric"><option value="pct">Win percentage</option><option value="wins">Total wins</option></select></label></div><div class="chart-wrap wide-chart race-chart-wrap"><canvas id="season-race-chart"></canvas></div><h3 style="margin:28px 0 8px;color:var(--accent);font:11px Arial,sans-serif;letter-spacing:1px;text-transform:uppercase">Money</h3><div class="chart-wrap wide-chart race-chart-wrap"><canvas id="season-money-chart"></canvas></div><h3 style="margin:28px 0 8px;color:var(--accent);font:11px Arial,sans-serif;letter-spacing:1px;text-transform:uppercase">Consistency</h3><div class="chart-wrap wide-chart"><canvas id="season-consistency-chart"></canvas></div><h3 style="margin:28px 0 8px;color:var(--accent);font:11px Arial,sans-serif;letter-spacing:1px;text-transform:uppercase">Head to head</h3><div class="grid-legend"><span>Weeks each player finished ahead of the other, top 8 only</span><span><i style="background:#8a6d1f"></i>Dominant</span><span><i style="background:#1e5c3a"></i>Winning</span><span><i style="background:#26405e"></i>Losing</span><span><i style="background:#151c24"></i>Dominated</span></div><div id="season-h2h" style="overflow-x:auto;margin-bottom:4px"></div><h3 style="margin:28px 0 8px;color:var(--accent);font:11px Arial,sans-serif;letter-spacing:1px;text-transform:uppercase">Best bet accuracy</h3><div class="chart-wrap wide-chart"><canvas id="season-bb-chart"></canvas></div><div class="grid-legend" style="margin-top:14px"><span><i style="background:#1e5c3a"></i>Best bet hit</span><span><i style="background:#6b1f1f"></i>Best bet missed</span><span><i style="background:#4a4a20"></i>Push (counts as a miss)</span><span><i style="background:#1b2530"></i>No best bet</span></div><div id="season-bb-grid" style="overflow-x:auto;margin-bottom:4px"></div><h3 style="margin:28px 0 8px;color:var(--accent);font:11px Arial,sans-serif;letter-spacing:1px;text-transform:uppercase">Tiebreakers</h3><div class="grid-legend"><span>The tiebreaker is net passing yards in the last game of the week · lower miss is better</span></div><div class="chart-wrap wide-chart race-chart-wrap"><canvas id="season-tb-chart"></canvas></div><div class="grid-legend" style="margin-top:14px"><span>Each week shows the guess and how many yards off it was</span><span><i style="background:#8a6d1f"></i>Exact</span><span><i style="background:#1e5c3a"></i>Within 10</span><span><i style="background:#26405e"></i>Within 50</span><span><i style="background:#151c24"></i>Further off</span></div><div id="season-tb-grid" style="overflow-x:auto;margin-bottom:4px"></div><h3 style="margin:28px 0 8px;color:var(--accent);font:11px Arial,sans-serif;letter-spacing:1px;text-transform:uppercase">Team picks</h3><div class="chart-wrap wide-chart"><canvas id="season-teams-chart"></canvas></div><h3 style="margin:28px 0 8px;color:var(--accent);font:11px Arial,sans-serif;letter-spacing:1px;text-transform:uppercase">Contrarian index</h3><div class="chart-wrap wide-chart"><canvas id="season-contrarian-chart"></canvas></div><div class="explorer-controls" style="margin-top:28px"><label>Player<select id="season-player"></select></label></div><h3 style="margin:24px 0 10px">Week by week</h3><div class="grid-legend"><span><i style="background:#d4af37"></i>Won the week</span><span><i style="background:#238b68"></i>Top 5</span><span><i style="background:#3f6fb5"></i>Top 10</span><span><i style="background:#4c5a68"></i>Outside top 10</span><span style="color:#4a6070">Bars are games won that week</span></div><div class="chart-wrap wide-chart race-chart-wrap" style="margin-top:12px"><canvas id="season-player-chart"></canvas></div></div>
   </section>
+  <section id="view-payout" class="view">
+    <section class="intro"><div><h2>Payout</h2></div><p>Weeks paid and current balances.</p></section>
+    <div class="payout-layout"><section><div class="panel-head"><h3 id="payout-current-title">Weeks paid</h3></div><div id="payout-weeks"></div></section><div class="explorer-controls"><label>Season<select id="payout-season"></select></label></div><section><div class="panel-head"><h3 id="payout-history-title">Weeks paid</h3></div><div id="payout-history-weeks"></div></section><p id="payout-source" class="analysis-note" hidden></p></div>
+  </section>
   <section id="view-streaks" class="view">
     <section class="intro"><div><h2>Streaks</h2></div><p>The longest runs in pool history: correct picks, cold spells, weekly wins, best bets, and rides on a single team.</p></section>
     <div class="panel"><div class="explorer-controls"><label>Streak<select id="streak-category"></select></label></div><div id="streak-summary" class="summary"></div><div class="chart-wrap wide-chart race-chart-wrap"><canvas id="streak-chart"></canvas></div><h3 style="margin:28px 0 8px;color:var(--accent);font:11px Arial,sans-serif;letter-spacing:1px;text-transform:uppercase">Every player</h3><div id="streak-table"></div></div>
   </section>
   <section id="view-games" class="view">
-    <section class="intro"><div><div class="eyebrow">Season → week → game</div><h2>Game Browser</h2></div><p>Drill from a season into a specific matchup, then inspect every player's pick, score, spread, and result.</p></section>
-    <div class="panel"><div class="explorer-controls"><label>Season<select id="game-season"></select></label><label>Week<select id="game-week"></select></label></div><label style="max-width:420px">Game<select id="game-choice"></select></label><div id="game-detail" class="profile-list" style="margin-top:16px"></div><div id="game-picks-table" style="margin-top:16px"></div></div>
+    <section class="intro"><div><div class="eyebrow">Season → week → game</div><h2>Games</h2></div><p>Drill from a season into a specific matchup, then inspect every player's pick, score, spread, and result.</p></section>
+    <div class="panel"><div class="explorer-controls"><label>Season<select id="game-season"></select></label><label>Week<select id="game-week"></select></label></div><label style="max-width:420px">Game<select id="game-choice"></select></label><div id="game-detail" class="profile-list" style="margin-top:16px"></div><section class="game-results"><div class="game-results-head"><h3>Player picks</h3><span id="game-picks-count"></span></div><div id="game-picks-table"></div></section></div>
   </section>
   <section id="view-faq" class="view">
     <section class="intro"><div><h2>FAQ</h2></div><p>Pool rules, pick entry, live probabilities, and how to get around the archive.</p></section>
     <div class="panel"><div class="faq-list">
-      <details open><summary>How do I make my picks?</summary><div class="faq-answer"><p>Open <strong>Enter Picks</strong>, choose one team in every matchup, select one Best Bet, enter a week name and tiebreaker, then submit. Favorites are on the left, underdogs are on the right, and the NFL-designated home team is capitalized even at a neutral site.</p><p>Spreads are normally posted Tuesday and are locked once posted. You can replace a submitted card by submitting again with the same player name; the newest card becomes active.</p></div></details>
+      <details open><summary>How do I make my picks?</summary><div class="faq-answer"><p>Open <strong>Enter Picks</strong>, choose one team in every matchup, select one Best Bet, enter a week name and tiebreaker, then submit the pick form. Favorites are on the left, underdogs are on the right, and the NFL-designated home team is capitalized even at a neutral site.</p><p>Spreads are normally posted Tuesday and are locked once posted. You can replace a submitted entry by submitting again with the same player name; the newest entry becomes active.</p></div></details>
       <details><summary>How does the point spread work?</summary><div class="faq-answer"><p>The spread handicaps the favorite. A favorite must win by <strong>more than</strong> the posted spread to cover. The underdog is correct if it wins outright or loses by fewer points than the spread.</p><p>If the favorite wins by exactly the spread, the game is a push. For example, with a 10-point favorite: a 30-14 score covers, 30-20 pushes, and 30-24 makes the underdog the correct pick.</p></div></details>
       <details><summary>What is the Best Bet?</summary><div class="faq-answer"><p>Your Best Bet is an extra result attached to the team you trust most. A correct Best Bet adds one win and an incorrect Best Bet adds one loss. Under the pool's existing rules, a Best Bet push also counts as one additional loss.</p></div></details>
       <details><summary>How does the weekly tiebreaker work?</summary><div class="faq-answer"><p>If players finish with the same number of wins, the closest guess to the combined net passing yards in the final game wins. Net passing yards include both teams' passing yards minus yards lost to sacks. Players equally close split the winnings.</p></div></details>
       <details><summary>When are picks due?</summary><div class="faq-answer"><p>Submit before the first game of the week to be eligible under the normal deadline. The submission time is recorded. A late entry after the Thursday game may still play, but takes a loss for that game under the existing pool rule.</p></div></details>
-      <details><summary>How do I read Current Week?</summary><div class="faq-answer"><p>The main grid shows every active card, live pick results, record, rank, tiebreak position, paths to victory, and estimated win probability. Pending games remain unresolved; live games use the current against-the-spread leader provisionally.</p><p>The race playback shows how positions changed at recorded checkpoints. Scenario views explain which remaining outcomes help each player. Probabilities are estimates, not betting odds, and become exact only when all outcomes and the tiebreak are settled.</p></div></details>
+      <details><summary>How do I read Current Week?</summary><div class="faq-answer"><p>The main grid shows every active entry, live pick results, record, rank, tiebreak position, paths to victory, and estimated win probability. Pending games remain unresolved; live games use the current against-the-spread leader provisionally.</p><p>The race playback shows how positions changed at recorded checkpoints. Scenario views explain which remaining outcomes help each player. Probabilities are estimates, not betting odds, and become exact only when all outcomes and the tiebreak are settled.</p></div></details>
       <details><summary>How do filters, charts, and tooltips work?</summary><div class="faq-answer"><p>Use the selectors above a chart or table to change season, player, team, metric, or lookback. Click or tap a chart point, bar, or interactive table value for the exact sample and record. Click or tap it again, click outside, use the close button, or press Escape to dismiss it.</p><p>Pay attention to sample sizes. A strong percentage over a few picks is descriptive, not proof of a lasting tendency. Tables can be sorted by selecting their column headings.</p></div></details>
-      <details><summary>What can I find in each history section?</summary><div class="faq-answer"><ul><li><strong>Weeks:</strong> every card, weekly standings, and pick-by-pick separation.</li><li><strong>Seasons:</strong> standings, weekly form, money, consistency, and the season race.</li><li><strong>Players:</strong> records, streaks, team habits, and situational ATS splits.</li><li><strong>Names:</strong> the complete week-name archive and recurring themes.</li><li><strong>Teams:</strong> pool support, ATS outcomes, opponents, Best Bets, venues, and player affinity.</li><li><strong>Games:</strong> one matchup with every archived pick and result.</li></ul></div></details>
+      <details><summary>What can I find in each history section?</summary><div class="faq-answer"><ul><li><strong>Weeks:</strong> every entry, weekly standings, and pick-by-pick separation.</li><li><strong>Seasons:</strong> standings, weekly form, money, consistency, and the season race.</li><li><strong>Players:</strong> records, streaks, team habits, and situational ATS splits.</li><li><strong>Names:</strong> the complete week-name archive and recurring themes.</li><li><strong>Teams:</strong> pool support, ATS outcomes, opponents, Best Bets, venues, and player affinity.</li><li><strong>Games:</strong> one matchup with every archived pick and result.</li></ul></div></details>
       <details><summary>How do the playoffs work?</summary><div class="faq-answer"><p>The playoff winner has the most wins across all four rounds. Round 1 has 6 games plus a Best Bet for 7 possible wins; Round 2 has 4 games plus a Best Bet for 5; Round 3 has 2 games plus a Best Bet for 3; and the Super Bowl pick is worth 2 wins. That is 13 games and 17 possible wins.</p><p>The Super Bowl's combined net passing yards break a tie. Starting in Round 2, picks remain hidden until every player who can still win has submitted for that round.</p></div></details>
       <details><summary>What notifications are available?</summary><div class="faq-answer"><p>The browser alert announces a newly opened regular-season week while FBP is open. Email preferences can cover a new slate, a move into first place, early and late game windows, Sunday and Monday night scenarios, and the final weekly result. An email address is inactive until its verification link is opened, and every message includes a one-click stop link.</p><p>Text alerts require a separate SMS provider and are not available yet. FBP does not save a phone number while text delivery is unavailable.</p></div></details>
+      <details><summary>How do I add FBP to my phone's Home Screen?</summary><div class="faq-answer"><p><strong>iPhone or iPad:</strong> open FBP in Safari, tap Share, then choose Add to Home Screen.</p><p><strong>Android:</strong> tap Install in the FBP prompt, or open Chrome's menu and choose Install app or Add to Home screen. Phone browsers require you to confirm installation; a link cannot add the icon automatically.</p></div></details>
       <details><summary>What visitor information is collected?</summary><div class="faq-answer"><p>When anonymous analytics are enabled, FBP records page views, pick starts, submissions, a random browser/session identifier, referring domain, device class, viewport, language, and time zone. It does not collect IP addresses, precise location, names, picks, or full referring URLs for analytics.</p><p>The analytics are stored privately for site maintenance and are not shown on a public leaderboard or visitor page.</p></div></details>
     </div></div>
   </section>
@@ -611,14 +673,15 @@
   <section id="view-names" class="view">
     <section class="intro"><div><div class="eyebrow">The person behind the entry</div><h2>Names</h2></div><p>Recurring subjects, likely references, writing habits, and playful guesses drawn from every saved week name.</p></section>
     <label style="max-width:280px">Player<select id="names-player"></select></label>
-    <div class="panel" style="margin-top:16px"><div id="names-week-name-analysis"><p class="analysis-note">Choose a player to open the name archive.</p></div></div>
+    <div id="names-week-name-analysis" class="names-analysis"><p class="analysis-note">Choose a player to open the name archive.</p></div>
   </section>
   <section id="view-teams" class="view">
     <section class="intro"><div><div class="eyebrow">League-wide pick behavior</div><h2>Teams</h2></div><p>See which NFL teams the pool picked or picked against, where confidence changed, and whether those choices beat the spread.</p></section>
-    <div class="panel"><div class="explorer-controls"><label>Season<select id="teams-season"><option value="all">All seasons</option></select></label><label>Team<select id="teams-team"></select></label><label>Leaderboard<select id="teams-metric"><option value="volume">Most picked</option><option value="ats">Best record when picked</option><option value="fade">Best record picking against</option><option value="bestbet">Best Bet hit rate</option></select></label></div><div id="teams-summary" class="summary"></div><div class="profile-charts"><div class="panel profile-chart"><div class="panel-head"><h3>Team Leaders</h3></div><div class="chart-wrap"><canvas id="teams-leader-chart"></canvas></div></div><div class="panel profile-chart"><div class="panel-head"><h3 id="teams-trend-title">Pool Pick Share vs ATS Cover Rate</h3></div><p id="teams-trend-note" class="analysis-note"></p><div class="chart-wrap"><canvas id="teams-trend-chart"></canvas></div></div><div class="panel profile-chart"><div class="panel-head"><h3 id="teams-consensus-title">Picking the Team vs Picking Against It</h3></div><p id="teams-consensus-note" class="analysis-note"></p><div class="chart-wrap"><canvas id="teams-consensus-chart"></canvas></div></div><div class="panel profile-chart"><div class="panel-head"><h3 id="teams-neutral-title">Neutral-Site Picks</h3></div><p id="teams-neutral-note" class="analysis-note"></p><div class="chart-wrap"><canvas id="teams-neutral-chart"></canvas></div></div></div><h3 style="margin:28px 0 8px;color:var(--accent);font:11px Arial,sans-serif;letter-spacing:1px;text-transform:uppercase">Team leaderboard</h3><div id="teams-leaderboard-table"></div><h3 style="margin:28px 0 8px;color:var(--accent);font:11px Arial,sans-serif;letter-spacing:1px;text-transform:uppercase">Best Bet records</h3><div id="teams-bestbet-table"></div><h3 id="teams-affinity-title" style="margin:28px 0 8px;color:var(--accent);font:11px Arial,sans-serif;letter-spacing:1px;text-transform:uppercase">Player affinity</h3><div id="teams-affinity-table"></div></div>
+    <div class="panel"><div class="explorer-controls"><label>Team<select id="teams-team"></select></label><label>Leaderboard<select id="teams-metric"><option value="volume">Most picked</option><option value="ats">Best record when picked</option><option value="fade">Best record picking against</option><option value="bestbet">Best Bet hit rate</option></select></label></div><div id="teams-summary" class="summary"></div><div class="profile-charts"><div class="panel profile-chart"><div class="panel-head"><h3>Team Leaders</h3></div><div class="chart-wrap"><canvas id="teams-leader-chart"></canvas></div></div><div class="panel profile-chart"><div class="panel-head"><h3 id="teams-trend-title">Pool Pick Share vs ATS Cover Rate</h3></div><p id="teams-trend-note" class="analysis-note"></p><div class="chart-wrap"><canvas id="teams-trend-chart"></canvas></div></div><div class="panel profile-chart"><div class="panel-head"><h3 id="teams-consensus-title">Picking the Team vs Picking Against It</h3></div><p id="teams-consensus-note" class="analysis-note"></p><div class="chart-wrap"><canvas id="teams-consensus-chart"></canvas></div></div><div class="panel profile-chart"><div class="panel-head"><h3 id="teams-neutral-title">Neutral-Site Picks</h3></div><p id="teams-neutral-note" class="analysis-note"></p><div class="chart-wrap"><canvas id="teams-neutral-chart"></canvas></div></div></div><h3 style="margin:28px 0 8px;color:var(--accent);font:11px Arial,sans-serif;letter-spacing:1px;text-transform:uppercase">Team leaderboard</h3><div id="teams-leaderboard-table"></div><h3 style="margin:28px 0 8px;color:var(--accent);font:11px Arial,sans-serif;letter-spacing:1px;text-transform:uppercase">Best Bet records</h3><div id="teams-bestbet-table"></div><h3 id="teams-affinity-title" style="margin:28px 0 8px;color:var(--accent);font:11px Arial,sans-serif;letter-spacing:1px;text-transform:uppercase">Player affinity</h3><div id="teams-affinity-table"></div></div>
   </section>
 </main>
 <script>
+document.getElementById("profile-best-bet-chart")?.closest(".profile-chart")?.before(document.getElementById("profile-team-chart")?.closest(".profile-chart"));
 const DATA_DIR = "./data";
 const WEBSITE_WEEK_HISTORY_VERSION = "20260825-week-names";
 const requestedStartupRoute = location.hash.slice(1) === "weekly-rank" ? "weeks" : location.hash.slice(1) || "week-one";
@@ -815,6 +878,7 @@ Chart.register({
   },
   afterEvent(chart, args) {
     if (args.event.type !== "click" || !chart.tooltip) return;
+    if (chart.canvas.id === "week-live-race-chart") return;
     let active = chart.tooltip.getActiveElements();
     if (!active.length && matchMedia("(max-width: 760px)").matches && args.event.native) {
       active = chart.getElementsAtEventForMode(args.event.native, "nearest", { intersect: false }, false);
@@ -833,7 +897,7 @@ function websiteProbabilityText(percent) {
   if (value > 0 && value < .01) return "0.01%";
   return `${value.toFixed(2)}%`;
 }
-const WEBSITE_RACE_TOP_COLORS = [[195, 88, 62], [28, 94, 58], [326, 78, 67], [55, 89, 60], [266, 83, 70], [145, 65, 52], [2, 84, 64], [220, 90, 68], [93, 65, 58], [174, 70, 48], [345, 84, 64], [42, 92, 58], [112, 62, 55], [238, 85, 70], [305, 72, 64], [16, 88, 61], [162, 72, 48], [205, 82, 62], [72, 74, 52], [282, 76, 68]];
+const WEBSITE_RACE_TOP_COLORS = [[195, 88, 62], [326, 78, 67], [55, 89, 60], [266, 83, 70], [2, 84, 64], [220, 90, 68], [145, 65, 52], [16, 88, 61], [282, 76, 68], [174, 70, 48], [93, 65, 58], [345, 84, 64], [42, 92, 58], [238, 85, 70], [112, 62, 55], [305, 72, 64], [205, 82, 62], [72, 74, 52], [162, 72, 48], [28, 94, 58]];
 let websiteRaceColorAssignments = new Map();
 function websiteRaceColor(name, alpha = 1, paletteIndex = -1) {
   if (websiteRaceColorAssignments.has(name)) paletteIndex = websiteRaceColorAssignments.get(name);
@@ -850,6 +914,11 @@ function websiteRaceColor(name, alpha = 1, paletteIndex = -1) {
   let hash = 0;
   String(name).split("").forEach(character => { hash = ((hash << 5) - hash + character.charCodeAt(0)) | 0; });
   return `hsl(${Math.abs(hash * 137.508) % 360} 76% 60% / ${alpha})`;
+}
+function assignWebsiteRaceColors(frames, metric) {
+  const leaders = [...new Set(frames.map(frame => [...frame.players].sort((left, right) => Number(right[metric] || 0) - Number(left[metric] || 0) || Number(right.wins || 0) - Number(left.wins || 0) || left.name.localeCompare(right.name))[0]?.name).filter(Boolean))];
+  const remaining = [...new Set(frames.flatMap(frame => frame.players.map(player => player.name)))].filter(name => !leaders.includes(name)).sort((left, right) => left.localeCompare(right));
+  websiteRaceColorAssignments = new Map([...leaders, ...remaining].map((name, index) => [name, index % WEBSITE_RACE_TOP_COLORS.length]));
 }
 function websiteRaceMetric() { return document.getElementById("website-race-metric")?.value || "winPercent"; }
 function websiteStoredRaceSnapshots(context) {
@@ -1268,7 +1337,7 @@ function renderWebsiteRace(data) {
   showWebsiteRaceFrame(wasPlaying ? Math.min(websiteRaceFrame, websiteRaceSnapshots.length - 1) : websiteRaceSnapshots.length - 1, false);
   renderWebsiteRaceLeadership();
   if (websiteRacePlaybackRequested) startWebsiteRace();
-  observeRaceAutoplay(host, `current-${context}`, () => { stopWebsiteRace(); websiteRacePassesRemaining = 2; websiteRacePlaybackRequested = true; showWebsiteRaceFrame(0, false); startWebsiteRace(); });
+  observeRaceAutoplay(host, `current-${context}`, () => { stopWebsiteRace(); websiteRacePassesRemaining = 1; websiteRacePlaybackRequested = true; showWebsiteRaceFrame(0, false); startWebsiteRace(); });
 }
 document.addEventListener("visibilitychange", () => {
   if (document.hidden) {
@@ -2010,7 +2079,7 @@ async function loadActiveRegularWeek(forceRefresh = false) {
   if (!forceRefresh && websiteActiveRegularWeekLoadedAt && Date.now() - websiteActiveRegularWeekLoadedAt < 5 * 60 * 1000) return websiteRegularSelection;
   if (!websiteActiveRegularWeekPromise) websiteActiveRegularWeekPromise = (async () => {
     const separator = WEBSITE_SUBMISSIONS_ENDPOINT.includes("?") ? "&" : "?";
-    const response = await fetch(`${WEBSITE_SUBMISSIONS_ENDPOINT}${separator}action=active-week`, { signal: AbortSignal.timeout(10000) });
+    const response = await fetch(`${WEBSITE_SUBMISSIONS_ENDPOINT}${separator}action=active-week&enrich=0`, { signal: AbortSignal.timeout(30000) });
     const data = await response.json();
     if (!response.ok || !data.ok) throw new Error(data.error || "Could not load the active regular-season week.");
     websiteRegularSelection = { season: Number(data.season) || 2026, week: Number(data.week) || 1, phase: "REGULAR_SEASON", staged: Boolean(data.staged) };
@@ -2029,7 +2098,7 @@ async function loadActiveRegularWeek(forceRefresh = false) {
   return websiteActiveRegularWeekPromise;
 }
 async function selectStagedPreseasonWeek() { if (!WEBSITE_SUBMISSIONS_ENDPOINT) return false; const regular = await loadActiveRegularWeek(); if (regular.staged) return false; const separator = WEBSITE_SUBMISSIONS_ENDPOINT.includes("?") ? "&" : "?"; for (const week of [4, 3, 2, 1]) { try { const response = await fetch(`${WEBSITE_SUBMISSIONS_ENDPOINT}${separator}action=preseason-test&season=2026&week=${week}`, { signal: AbortSignal.timeout(20000) }); const data = await response.json(); if (!response.ok || !data.ok || !(data.games || []).length) continue; websiteDiscoveredPreseasonData = data; websiteEntrySelection = { testMode: true, season: 2026, week, phase: "PRESEASON" }; updateWebsiteWeekLabels(websiteEntrySelection); document.getElementById("website-game-picks").dataset.ready = ""; return true; } catch (error) { console.warn(`Preseason Week ${week} discovery failed: ${error.message}`); } } return false; }
-async function loadWebsiteStagedGames(selection) {
+async function loadWebsiteStagedGames(selection, forceRefresh = false) {
   if (!WEBSITE_SUBMISSIONS_ENDPOINT) return selection.testMode ? [] : WEBSITE_WEEK_ONE_GAMES;
   const cacheKey = `${selection.phase}-${selection.season}-${selection.week}`;
   const discoveredGames = selection.testMode && websiteDiscoveredPreseasonData?.games;
@@ -2037,13 +2106,14 @@ async function loadWebsiteStagedGames(selection) {
   if (discoveredGames?.length) {
     websiteDiscoveredPreseasonData = null;
     websiteStagedGamesCache.set(cacheKey, { games: discoveredGames, storedAt: Date.now() });
-  } else if (cached && Date.now() - cached.storedAt < 5 * 60 * 1000) {
+  } else if (cached?.games?.length && !forceRefresh) {
     return cached.games.map((game, index) => ({ ...game, id: game.gameId || `game-${index + 1}`, time: game.kickoffGroup || game.kickoff || `Game ${index + 1}` }));
   }
   const rawGames = discoveredGames?.length ? discoveredGames : await (async () => {
     const separator = WEBSITE_SUBMISSIONS_ENDPOINT.includes("?") ? "&" : "?";
-    const url = `${WEBSITE_SUBMISSIONS_ENDPOINT}${separator}action=week-config&season=${selection.season}&week=${selection.week}&phase=${selection.phase}`;
-    const response = await fetch(url, { signal: AbortSignal.timeout(10000) });
+    const enrich = forceRefresh ? '&enrich=1' : '';
+    const url = `${WEBSITE_SUBMISSIONS_ENDPOINT}${separator}action=week-config&season=${selection.season}&week=${selection.week}&phase=${selection.phase}${enrich}`;
+    const response = await fetch(url, { signal: AbortSignal.timeout(30000) });
     const data = await response.json();
     if (!response.ok || !data.ok) throw new Error(data.error || "Could not load the staged games.");
     websiteStagedGamesCache.set(cacheKey, { games: data.games || [], storedAt: Date.now() });
@@ -2074,7 +2144,7 @@ async function refreshWebsitePicksWeather() {
   const configKey = `${selection.phase}-${selection.week}`;
   if (host.dataset.ready !== configKey) return;
   try {
-    const refreshedGames = await loadWebsiteStagedGames(selection);
+    const refreshedGames = await loadWebsiteStagedGames(selection, true);
     const rows = [...host.querySelectorAll(".website-game-row")];
     websiteActiveGames = websiteActiveGames.map((game, index) => {
       const gameId = game.gameId || game.id;
@@ -2099,13 +2169,13 @@ async function renderWebsitePicksForm() {
   const initialSelection = websitePickSelection();
   const initialCacheKey = `${initialSelection.phase}-${initialSelection.season}-${initialSelection.week}`;
   if (!initialSelection.testMode && !websiteStagedGamesCache.has(initialCacheKey)) {
-    try { await loadActiveRegularWeek(); } catch (error) { host.innerHTML = `<p class="website-instructions">${error.message}</p>`; return; }
+    try { await loadActiveRegularWeek(); } catch (error) { renderWebsiteGamesLoadError(host, error); return; }
   }
   const selection = websitePickSelection();
   const configKey = `${selection.phase}-${selection.week}`;
   if (host.dataset.ready === configKey) { refreshWebsitePicksWeather(); return; }
   host.dataset.ready = configKey;
-  host.innerHTML = '<p class="website-instructions">Loading staged games...</p>';
+  host.innerHTML = '<p class="website-instructions">Loading games...</p>';
   document.getElementById("website-test-notice").classList.toggle("active", selection.testMode);
   document.getElementById("website-week-name-label").textContent = `${selection.testMode ? "Preseason" : "Week"} ${selection.week} name`;
   try {
@@ -2128,8 +2198,15 @@ async function renderWebsitePicksForm() {
     scheduleWebsitePicksWeatherRefresh();
   } catch (error) {
     websiteActiveGames = [];
-    host.innerHTML = `<p class="website-instructions">${error.message}</p>`;
+    renderWebsiteGamesLoadError(host, error);
   }
+}
+function renderWebsiteGamesLoadError(host, error) {
+  host.dataset.ready = "";
+  const timedOut = error?.name === "TimeoutError" || /timed out/i.test(String(error?.message || ""));
+  const message = timedOut ? "Games are taking longer than expected to load." : String(error?.message || "Games could not load.");
+  host.innerHTML = `<p class="website-instructions">${websiteEscapeHtml(message)}</p><button type="button" class="secondary">Try again</button>`;
+  host.querySelector("button").onclick = () => renderWebsitePicksForm();
 }
 function confirmationMetrics(rows) {
   return `<div class="confirmation-metrics">${rows.map(([label, value]) => `<div class="confirmation-metric"><strong>${value?.html || websiteEscapeHtml(value)}</strong><span>${websiteEscapeHtml(label)}</span></div>`).join("")}</div>`;
@@ -2705,6 +2782,16 @@ function renderWebsiteWeekOneGridClean(data) {
     row.onkeydown = event => { if (event.key === "Enter" || event.key === " ") { event.preventDefault(); selectRow(row); } };
   });
 }
+document.addEventListener("click", event => {
+  const row = event.target.closest("tbody tr");
+  if (!row || row.closest("#week-one-table")) return;
+  let wrapper = row.parentElement;
+  while (wrapper && wrapper !== document.body && (wrapper.scrollWidth <= wrapper.clientWidth + 2 || !/(auto|scroll)/.test(getComputedStyle(wrapper).overflowX))) wrapper = wrapper.parentElement;
+  if (!wrapper || wrapper === document.body) return;
+  const selected = !row.classList.contains("website-wide-row-selected");
+  row.closest("tbody").querySelectorAll("tr.website-wide-row-selected").forEach(candidate => candidate.classList.remove("website-wide-row-selected"));
+  row.classList.toggle("website-wide-row-selected", selected);
+});
 function decorateWebsiteWeekOneHeadersLive(data) {
   const headers = [...document.querySelectorAll("#week-one-table th.pg-game")].slice(1, 17);
   headers.forEach((header, index) => {
@@ -2781,7 +2868,7 @@ async function renderSelectedWebsiteWeek(activeWeekKnown = false) {
 }
 document.addEventListener("click",event=>{const button=event.target.closest("#nav button[data-view]");if(!button)return;if(button.dataset.view==="enter-picks")setTimeout(()=>{renderWebsitePicksForm();resetWebsiteBestBet();},0);if(button.dataset.view==="week-one")setTimeout(renderSelectedWebsiteWeek,0);});
 document.getElementById("website-view-week-one")?.addEventListener("click",()=>{showView("week-one");renderSelectedWebsiteWeek();});
-let profileChart = null, profileMoneyChart = null, profilePlusMinusChart = null, profilePlacementChart = null, profileBestWeeksChart = null, profileRecentChart = null, profileBestBetChart = null, profileTeamChart = null, profileClubChart = null, profileBestGamesChart = null, profileSituationalChart = null, gamePicksTable = null, weekChart = null, weekTable = null, weekRaceChart = null, winnerContributionChart = null, weeklyRankChart = null, streakChart = null, streakTable = null, seasonTopChart = null, seasonTable = null, seasonRaceChart = null, seasonPlayerChart = null, seasonMoneyChart = null, seasonConsistencyChart = null, seasonBbChart = null, seasonTeamsChart = null, seasonContrarianChart = null, seasonTbChart = null, allTimeTopChart = null, allTimePlusMinusChart = null, allTimePlusMinusTrendChart = null, allTimeGamesChart = null, allTimeArcsChart = null, allTimeMoneyChart = null, allTimeTurnoutChart = null, allTimeStreakChart = null, allTimeTeamPicksChart = null, allTimeContrarianChart = null, allTimeSeasonWeeksChart = null, manifest = [], dashboard = [], tableData = {}, websiteWeeks = [], websiteAwards = [], websiteSeasons = [], websitePlayers = [], websiteRecords = [], websiteStreaks = [], websiteGames = [], websitePicks = [];
+let profileChart = null, profileMoneyChart = null, profilePlusMinusChart = null, profilePlacementChart = null, profileBestWeeksChart = null, profileRecentChart = null, profileBestBetChart = null, profileTeamChart = null, profileClubChart = null, profileBestGamesChart = null, profileSituationalChart = null, gamePicksTable = null, weekChart = null, weekTable = null, weekRaceChart = null, winnerContributionChart = null, weeklyRankChart = null, streakChart = null, streakTable = null, seasonTopChart = null, seasonTable = null, seasonRaceChart = null, seasonPlayerChart = null, seasonMoneyChart = null, seasonConsistencyChart = null, seasonBbChart = null, seasonTeamsChart = null, seasonContrarianChart = null, seasonTbChart = null, allTimeTopChart = null, allTimePlusMinusChart = null, allTimePlusMinusTrendChart = null, allTimeGamesChart = null, allTimeArcsChart = null, allTimeMoneyChart = null, allTimeTurnoutChart = null, allTimeStreakChart = null, allTimeTeamPicksChart = null, allTimeContrarianChart = null, allTimeSeasonWeeksChart = null, manifest = [], dashboard = [], tableData = {}, websiteWeeks = [], websiteAwards = [], websiteSeasons = [], websitePlayers = [], websiteRecords = [], websiteStreaks = [], websiteGames = [], websitePicks = [], websitePayouts = [];
 let allTimeAttendanceChart = null, allTimeRaceChart = null, allTimeRaceFrames = [], allTimeRaceFrame = 0, allTimeRaceTimer = null, allTimeRaceSelectedPlayer = "", allTimeRacePassesRemaining = 0;
 let seasonLiveRaceChart = null, seasonLiveRaceFrames = [], seasonLiveRaceFrame = 0, seasonLiveRaceTimer = null, seasonLiveRaceSelectedPlayer = "", seasonLiveRacePassesRemaining = 0;
 let weekLiveRaceChart = null, weekLiveRaceFrames = [], weekLiveRaceFrame = 0, weekLiveRaceTimer = null, weekLiveRaceSelectedPlayer = "", weekLiveRaceRenderToken = 0, weekLiveRacePassesRemaining = 0;
@@ -2886,8 +2973,9 @@ function renderProfileLegacy(name) {
   const playoffs = weekly.filter(row => row.Week === "playoffs");
   const player = websitePlayers.find(item => item.name === name);
   const playerId = player?.playerId;
-  const playerPicks = websitePicks.filter(row => row.playerId === playerId);
-  const gameById = new Map(websiteGames.map(game => [game.gameId, game]));
+  const archiveIndexes = buildWebsitePlayerArchiveIndexes();
+  const playerPicks = archiveIndexes.picksByPlayer.get(playerId) || [];
+  const gameById = archiveIndexes.gameById;
   const pickSeason = pick => gameById.get(pick.gameId)?.season || String(pick.gameId || "").split("|")[0] || "";
   const bestWeek = [...regular].sort((a, b) => Number(b.WinPct || 0) - Number(a.WinPct || 0) || Number(b.Wins || 0) - Number(a.Wins || 0) || Number(a.Rank || 99) - Number(b.Rank || 99))[0];
   const streaks = [["Win streak", "win_streak", "Win Streak"], ["Losing streak", "losing_streak", "Losing Streak"], ["Top 5 streak", "top5_streak", "Top 5 Streak"], ["Top 10 streak", "top10_streak", "Top 10 Streak"], ["Best bet hit streak", "best_bet_hit_streak", "Best Bet Hit Streak"]];
@@ -3439,7 +3527,7 @@ function renderAllTimeRace() {
   document.getElementById("alltime-race-next").onclick = () => { stopAllTimeRace(); showAllTimeRaceFrame(allTimeRaceFrame + 1); };
   document.getElementById("alltime-race-restart").onclick = () => { stopAllTimeRace(); showAllTimeRaceFrame(0); };
   showAllTimeRaceFrame(allTimeRaceFrames.length - 1);
-  observeRaceAutoplay(canvas.closest(".chart-wrap"), `alltime-${step}`, () => { stopAllTimeRace(); allTimeRacePassesRemaining = 2; showAllTimeRaceFrame(0); allTimeRaceTimer = setTimeout(advanceAllTimeRace, RACE_FRAME_DELAY); document.getElementById("alltime-race-play").textContent = "Pause"; });
+  observeRaceAutoplay(canvas.closest(".chart-wrap"), `alltime-${step}`, () => { stopAllTimeRace(); allTimeRacePassesRemaining = 1; showAllTimeRaceFrame(0); allTimeRaceTimer = setTimeout(advanceAllTimeRace, RACE_FRAME_DELAY); document.getElementById("alltime-race-play").textContent = "Pause"; });
 }
 function renderAllTime() {
   if (!websiteGames.length || !websitePicks.length) { loadDrilldown().then(renderAllTime); return; }
@@ -4076,14 +4164,12 @@ function renderSeasonLiveRace() {
   const totals = new Map();
   seasonLiveRaceFrames = [...groups].sort(([left], [right]) => left.localeCompare(right)).map(([, group]) => { group.games.forEach(game => (picksByGame.get(game.gameId) || []).forEach(pick => { const player = websitePlayers.find(item => item.playerId === pick.playerId), total = totals.get(pick.playerId) || { name: player?.name || pick.name || pick.playerId, wins: 0, losses: 0, decisions: 0, winPct: 0 }, win = Number(pick.resultWin || 0) + Number(pick.bestBetWin || 0), loss = Number(pick.resultLoss || 0) + Number(pick.bestBetLoss || 0) + Number(pick.bestBetPush || 0); total.wins += win; total.losses += loss; total.decisions += win + loss; total.winPct = total.decisions ? total.wins / total.decisions * 100 : 0; totals.set(pick.playerId, total); })); const players = [...totals.values()].map(player => ({ ...player })), leaderWins = Math.max(0, ...players.map(player => player.wins)); return { label: group.label, players: players.map(player => ({ ...player, gap: player.wins - leaderWins })) }; });
   const metric = document.getElementById("season-live-race-metric")?.value || "winPct";
-  const leaders = [...new Set(seasonLiveRaceFrames.map(frame => [...frame.players].sort((left, right) => Number(right[metric]) - Number(left[metric]) || right.wins - left.wins || left.name.localeCompare(right.name))[0]?.name).filter(Boolean))];
-  const remainingPlayers = [...new Set(seasonLiveRaceFrames.flatMap(frame => frame.players.map(player => player.name)))].filter(name => !leaders.includes(name)).sort((left, right) => left.localeCompare(right));
-  websiteRaceColorAssignments = new Map([...leaders, ...remainingPlayers].map((name, index) => [name, index % WEBSITE_RACE_TOP_COLORS.length]));
+  assignWebsiteRaceColors(seasonLiveRaceFrames, metric);
   if (seasonLiveRaceChart) seasonLiveRaceChart.destroy();
   seasonLiveRaceChart = new Chart(canvas, { type: "line", data: { labels: [], datasets: [] }, options: { responsive: true, maintainAspectRatio: false, animation: { duration: 220 }, interaction: { mode: "nearest", intersect: false }, onClick: event => { const hits = event.native ? seasonLiveRaceChart.getElementsAtEventForMode(event.native, "nearest", { intersect: true }, true) : []; if (!hits.length) { seasonLiveRaceSelectedPlayer = ""; showSeasonLiveRaceFrame(seasonLiveRaceFrame); seasonLiveRaceChart.setActiveElements([]); seasonLiveRaceChart.tooltip.setActiveElements([], { x: 0, y: 0 }); seasonLiveRaceChart.update("none"); return; } const name = seasonLiveRaceChart.data.datasets[hits[0].datasetIndex].label; seasonLiveRaceSelectedPlayer = seasonLiveRaceSelectedPlayer === name ? "" : name; showSeasonLiveRaceFrame(seasonLiveRaceFrame); }, scales: { x: { ticks: { color: "#91a0ae", maxRotation: 90, minRotation: 0, autoSkip: true, maxTicksLimit: 20 }, grid: { color: "#2a3744" }, title: { display: true, text: "Season progress", color: "#91a0ae" } }, y: { beginAtZero: true, max: 100, ticks: { color: "#91a0ae", callback: value => `${value}%` }, grid: { color: "#2a3744" }, title: { display: true, text: "Cumulative win percentage", color: "#91a0ae" } } }, plugins: { legend: { align: "start", labels: { color: "#e8eef5", usePointStyle: true, pointStyle: "line", boxWidth: 18, padding: 8, font: { size: 10 } }, onClick: (event, item) => { seasonLiveRaceSelectedPlayer = seasonLiveRaceSelectedPlayer === item.text ? "" : item.text; showSeasonLiveRaceFrame(seasonLiveRaceFrame); } }, tooltip: { mode: "nearest", intersect: true, callbacks: { label: context => { const player = seasonLiveRaceFrames[context.dataIndex]?.players.find(item => item.name === context.dataset.label); return player ? `${player.name}: ${player.winPct.toFixed(1)}% · ${player.wins}-${player.losses}` : ""; } } } } } });
   canvas.onclick = event => { const hits = seasonLiveRaceChart.getElementsAtEventForMode(event, "nearest", { intersect: true }, true); if (hits.length || !seasonLiveRaceSelectedPlayer) return; seasonLiveRaceSelectedPlayer = ""; showSeasonLiveRaceFrame(seasonLiveRaceFrame); seasonLiveRaceChart.setActiveElements([]); seasonLiveRaceChart.tooltip.setActiveElements([], { x: 0, y: 0 }); seasonLiveRaceChart.update("none"); };
   seasonLiveRaceChart.options.plugins.tooltip.callbacks.label = context => { const player = seasonLiveRaceFrames[context.dataIndex]?.players.find(item => item.name === context.dataset.label), metric = document.getElementById("season-live-race-metric")?.value || "winPct"; if (!player) return ""; const value = metric === "winPct" ? `${player.winPct.toFixed(1)}%` : metric === "gap" ? player.gap === 0 ? "Leader" : `${Math.abs(player.gap)} wins back` : `${player.wins} wins`; return `${player.name}: ${value} · ${player.wins}-${player.losses}`; };
-  const refreshSeasonLiveRace = () => { stopSeasonLiveRace(); showSeasonLiveRaceFrame(seasonLiveRaceFrame); };
+  const refreshSeasonLiveRace = () => { stopSeasonLiveRace(); assignWebsiteRaceColors(seasonLiveRaceFrames, document.getElementById("season-live-race-metric")?.value || "winPct"); showSeasonLiveRaceFrame(seasonLiveRaceFrame); };
   document.getElementById("season-live-race-metric").onchange = refreshSeasonLiveRace;
   document.getElementById("season-live-race-field").onchange = refreshSeasonLiveRace;
   document.getElementById("season-live-race-scale").onchange = refreshSeasonLiveRace;
@@ -4093,7 +4179,7 @@ function renderSeasonLiveRace() {
   document.getElementById("season-live-race-next").onclick = () => { stopSeasonLiveRace(); showSeasonLiveRaceFrame(seasonLiveRaceFrame + 1); };
   document.getElementById("season-live-race-restart").onclick = () => { stopSeasonLiveRace(); showSeasonLiveRaceFrame(0); };
   showSeasonLiveRaceFrame(seasonLiveRaceFrames.length - 1);
-  observeRaceAutoplay(canvas.closest(".chart-wrap"), `season-${season}-${step}`, () => { stopSeasonLiveRace(); seasonLiveRacePassesRemaining = 2; showSeasonLiveRaceFrame(0); seasonLiveRaceTimer = setTimeout(advanceSeasonLiveRace, RACE_FRAME_DELAY); document.getElementById("season-live-race-play").textContent = "Pause"; });
+  observeRaceAutoplay(canvas.closest(".chart-wrap"), `season-${season}-${step}`, () => { stopSeasonLiveRace(); seasonLiveRacePassesRemaining = 1; showSeasonLiveRaceFrame(0); seasonLiveRaceTimer = setTimeout(advanceSeasonLiveRace, RACE_FRAME_DELAY); document.getElementById("season-live-race-play").textContent = "Pause"; });
 }
 function stopWeekLiveRace() {
   if (weekLiveRaceTimer) clearTimeout(weekLiveRaceTimer);
@@ -4106,7 +4192,7 @@ function ensureWeekLiveRacePanel() {
   if (existing) return existing;
   const raceAnchor = document.getElementById("week-chart")?.closest(".chart-wrap");
   if (!raceAnchor) return null;
-  raceAnchor.insertAdjacentHTML("afterend", '<h3 style="margin:28px 0 8px;color:var(--accent);font:11px Arial,sans-serif;letter-spacing:1px;text-transform:uppercase">Full-field week race</h3><p class="analysis-note">Replay final game results or the archived five-minute live race. Best Bet results are included in game-result mode.</p><div class="explorer-controls race-controls"><div class="race-filter-group"><label>Timeline<select id="week-live-race-timeline"><option value="games">Game results</option><option value="live">Archived live snapshots</option></select></label><label>Race by<select id="week-live-race-metric"></select></label><label>Field<select id="week-live-race-field"><option value="top10">Top 10</option><option value="all">All players</option></select></label><label class="race-scale-label">Scale<select id="week-live-race-scale"><option value="standard">Standard 0–100%</option><option value="zoom">Zoom to field</option></select></label></div><div class="race-playback-group"><button id="week-live-race-play" type="button">Play race</button><button id="week-live-race-restart" type="button">Restart</button><label>Speed<select id="week-live-race-speed"><option value="900">0.75x</option><option value="550" selected>1x</option><option value="250">2x</option></select></label></div><div class="live-race-status"><output id="week-live-race-time" class="live-race-time" aria-live="polite">Loading race...</output><output id="week-live-race-headline" class="live-race-headline" aria-live="polite"></output></div></div><div class="chart-wrap wide-chart race-chart-wrap"><canvas id="week-live-race-chart"></canvas></div>');
+  raceAnchor.insertAdjacentHTML("afterend", '<h3 style="margin:28px 0 8px;color:var(--accent);font:11px Arial,sans-serif;letter-spacing:1px;text-transform:uppercase">Full-field week race</h3><p class="analysis-note">Replay final game results or the archived five-minute live race. Best Bet results are included in game-result mode.</p><div class="explorer-controls race-controls"><div class="race-filter-group"><label>Timeline<select id="week-live-race-timeline"><option value="games">Game results</option><option value="live">Archived live snapshots</option></select></label><label>Race by<select id="week-live-race-metric"></select></label><label>Field<select id="week-live-race-field"><option value="top10">Top 10</option><option value="all">All players</option></select></label><label class="race-scale-label">Scale<select id="week-live-race-scale"><option value="standard">Standard 0–100%</option><option value="zoom">Zoom to field</option></select></label></div><div class="race-playback-group"><button id="week-live-race-play" type="button">Play race</button><button id="week-live-race-restart" type="button">Restart</button><label>Speed<select id="week-live-race-speed"><option value="900">0.75x</option><option value="550" selected>1x</option><option value="250">2x</option></select></label></div><div class="live-race-status" hidden><output id="week-live-race-time" class="live-race-time" aria-live="polite">Loading race...</output><output id="week-live-race-headline" class="live-race-headline" aria-live="polite"></output></div></div><div class="chart-wrap wide-chart race-chart-wrap"><canvas id="week-live-race-chart"></canvas></div>');
   const chart = document.getElementById("week-live-race-chart"), wrap = chart.closest(".chart-wrap");
   document.getElementById("week-live-race-play")?.insertAdjacentHTML("beforebegin", '<button id="week-live-race-previous" class="live-race-step" type="button" title="Previous frame" aria-label="Previous frame">‹</button>');
   document.getElementById("week-live-race-play")?.insertAdjacentHTML("afterend", '<button id="week-live-race-next" class="live-race-step" type="button" title="Next frame" aria-label="Next frame">›</button>');
@@ -4115,6 +4201,13 @@ function ensureWeekLiveRacePanel() {
   return chart;
 }
 function weekLiveRaceUsesArchive() { return document.getElementById("week-live-race-timeline")?.value === "live"; }
+function clearWeekLiveRaceInteraction() {
+  weekLiveRaceSelectedPlayer = "";
+  if (!weekLiveRaceChart) return;
+  weekLiveRaceChart.setActiveElements([]);
+  weekLiveRaceChart.tooltip.setActiveElements([], { x: 0, y: 0 });
+  weekLiveRaceChart.update("none");
+}
 function renderWeekLiveTimeOnTop(frame) {
   const host = document.getElementById("week-live-race-leadership"), leaderBackdrop = document.getElementById("week-live-race-leader");
   if (!host) return;
@@ -4128,6 +4221,19 @@ function configureWeekLiveRaceMetrics() {
   const options = live ? [["winProbability", "Win probability"], ["winPct", "Win percentage"], ["pathsToVictory", "Paths to victory"], ["gap", "Gap behind leader"], ["timeOnTop", "Time on top"]] : [["winPct", "Win percentage"], ["wins", "Total wins"], ["gap", "Gap behind leader"]];
   select.innerHTML = options.map(([value, label]) => `<option value="${value}">${label}</option>`).join("");
   select.value = options.some(([value]) => value === previous) ? previous : live ? "winProbability" : "wins";
+}
+function weekLiveFirstPlaceHeadline(frames, frameIndex, metric) {
+  const order = frame => [...(frame?.players || [])].sort((left, right) => Number(right[metric]) - Number(left[metric]) || Number(right.wins || 0) - Number(left.wins || 0) || left.name.localeCompare(right.name));
+  const current = order(frames[frameIndex]), previous = order(frames[frameIndex - 1]);
+  if (!current.length) return "";
+  const leader = current[0], leaderValue = Number(leader[metric] || 0), tied = current.filter(player => Number(player[metric] || 0) === leaderValue);
+  if (tied.length > 1) return `${tied.slice(0, 3).map(player => player.name).join(tied.length > 2 ? ", " : " and ")}${tied.length > 3 ? ` and ${tied.length - 3} more` : ""} share first.`;
+  const runnerUp = current[1], previousLeader = previous[0], difference = runnerUp ? leaderValue - Number(runnerUp[metric] || 0) : 0;
+  const gap = metric === "pathsToVictory" ? `${Math.round(difference).toLocaleString()} paths` : ["winPct", "winProbability"].includes(metric) ? `${difference.toFixed(1)} points` : metric === "timeOnTop" ? websiteRaceDuration(difference) : `${difference.toFixed(difference % 1 ? 1 : 0)} win${difference === 1 ? "" : "s"}`;
+  const chase = runnerUp ? `${runnerUp.name} is ${gap} back.` : "No one else is ranked at this checkpoint.";
+  if (!previousLeader) return `${leader.name} opens in first. ${chase}`;
+  if (previousLeader.name !== leader.name) return `${leader.name} takes first from ${previousLeader.name}. ${chase}`;
+  return `${leader.name} holds first. ${chase}`;
 }
 async function loadWeekLiveRaceArchive(season, week) {
   const key = `${season}-${week}`;
@@ -4145,15 +4251,17 @@ function showWeekLiveRaceFrame(index) {
   const players = [...frame.players].sort((left, right) => Number(right[metric]) - Number(left[metric]) || right.wins - left.wins || left.name.localeCompare(right.name)).slice(0, fieldLimit);
   if (weekLiveRaceSelectedPlayer && !players.some(player => player.name === weekLiveRaceSelectedPlayer)) weekLiveRaceSelectedPlayer = "";
   weekLiveRaceChart.data.labels = visibleFrames.map(item => item.label);
-  weekLiveRaceChart.data.datasets = players.map((player, paletteIndex) => { const focused = weekLiveRaceSelectedPlayer === player.name, dimmed = weekLiveRaceSelectedPlayer && !focused, color = dimmed ? websiteRaceColor(player.name, .18, paletteIndex) : websiteRaceColor(player.name, 1, paletteIndex), data = visibleFrames.map(item => item.players.find(candidate => player.playerId ? candidate.playerId === player.playerId : candidate.name === player.name)?.[metric] ?? null); return { label: player.name, data, borderColor: color, backgroundColor: dimmed ? websiteRaceColor(player.name, .04, paletteIndex) : websiteRaceColor(player.name, .2, paletteIndex), borderWidth: focused ? 4 : dimmed ? 1 : 2, pointRadius: dimmed ? 0 : focused ? 4 : 3, pointStyle: context => racePointStyle(context, data), pointRotation: context => racePointRotation(context, data), pointHoverRadius: 7, tension: .18, spanGaps: true }; });
+  weekLiveRaceChart.data.datasets = players.map((player, paletteIndex) => { const focused = weekLiveRaceSelectedPlayer === player.name, dimmed = weekLiveRaceSelectedPlayer && !focused, color = dimmed ? websiteRaceColor(player.name, .18, paletteIndex) : websiteRaceColor(player.name, 1, paletteIndex), data = visibleFrames.map(item => item.players.find(candidate => player.playerId ? candidate.playerId === player.playerId : candidate.name === player.name)?.[metric] ?? null); return { label: player.name, data, borderColor: color, backgroundColor: dimmed ? websiteRaceColor(player.name, .04, paletteIndex) : websiteRaceColor(player.name, .2, paletteIndex), borderWidth: focused ? 4 : dimmed ? 1 : 2, pointRadius: dimmed ? 0 : focused ? 4 : 3, pointHitRadius: 10, pointStyle: context => racePointStyle(context, data), pointRotation: context => racePointRotation(context, data), pointHoverRadius: 7, tension: .18, spanGaps: true }; });
   setHistoricalRaceScale(weekLiveRaceChart, metric, "week-live-race-scale");
   weekLiveRaceChart.options.scales.y.title.text = metric === "winProbability" ? "Win probability" : metric === "winPct" ? weekLiveRaceUsesArchive() ? "Live win percentage" : "Cumulative win percentage" : metric === "pathsToVictory" ? "Paths to victory" : metric === "gap" ? weekLiveRaceUsesArchive() ? "Win-probability points behind leader" : "Cumulative wins behind leader" : metric === "timeOnTop" ? "Cumulative time on top" : "Cumulative wins including Best Bet wins";
   weekLiveRaceChart.options.scales.y.ticks.callback = ["winPct", "winProbability"].includes(metric) ? value => `${value}%` : metric === "gap" ? value => value === 0 ? "Leader" : `${Math.abs(value)} back` : metric === "timeOnTop" ? value => websiteRaceDuration(value) : value => value;
   weekLiveRaceChart.update();
   document.getElementById("week-live-race-time").textContent = `${frame.label} · ${weekLiveRaceFrame + 1}/${weekLiveRaceFrames.length}`;
   const leader = players[0];
-  document.getElementById("week-live-race-headline").textContent = metric === "timeOnTop" && leader ? `${leader.name} has spent ${websiteRaceDuration(leader.timeOnTop)} on top.` : historicalRaceCheckpointHeadline(weekLiveRaceFrames, weekLiveRaceFrame, metric);
+  document.getElementById("week-live-race-headline").textContent = weekLiveFirstPlaceHeadline(weekLiveRaceFrames, weekLiveRaceFrame, metric);
   setRaceFrameBadge("week-live-race", `${frame.label} · ${weekLiveRaceFrame + 1}/${weekLiveRaceFrames.length}`, document.getElementById("week-live-race-headline").textContent);
+  const frameBadge = weekLiveRaceChart.canvas.parentElement.querySelector(".race-frame-badge");
+  if (frameBadge) frameBadge.style.top = `${Math.max(6, weekLiveRaceChart.chartArea.top - frameBadge.offsetHeight - 6)}px`;
   if (metric === "timeOnTop") renderWeekLiveTimeOnTop(frame);
   else renderHistoricalRaceLeadership("week-live-race", weekLiveRaceFrames, weekLiveRaceFrame, metric, weekLiveRaceUsesArchive() ? "snapshot" : "game");
 }
@@ -4193,11 +4301,71 @@ async function renderWeekLiveRace() {
     document.getElementById("week-live-race-leadership").innerHTML = "";
     return;
   }
+  assignWebsiteRaceColors(weekLiveRaceFrames, document.getElementById("week-live-race-metric")?.value || "winPct");
   if (weekLiveRaceChart) weekLiveRaceChart.destroy();
-  weekLiveRaceChart = new Chart(canvas, { type: "line", data: { labels: [], datasets: [] }, options: { responsive: true, maintainAspectRatio: false, animation: { duration: 220 }, interaction: { mode: "nearest", intersect: false }, onClick: (event, elements) => { const name = elements[0] ? weekLiveRaceChart.data.datasets[elements[0].datasetIndex].label : ""; weekLiveRaceSelectedPlayer = weekLiveRaceSelectedPlayer === name ? "" : name; showWeekLiveRaceFrame(weekLiveRaceFrame); }, scales: { x: { ticks: { color: "#91a0ae", autoSkip: false }, grid: { color: "#2a3744" }, title: { display: true, text: "Game number", color: "#91a0ae" } }, y: { beginAtZero: true, max: 100, ticks: { color: "#91a0ae", callback: value => `${value}%` }, grid: { color: "#2a3744" }, title: { display: true, text: "Cumulative win percentage", color: "#91a0ae" } } }, plugins: { legend: { labels: { color: "#e8eef5", usePointStyle: true, pointStyle: "line" }, onClick: (event, item) => { weekLiveRaceSelectedPlayer = weekLiveRaceSelectedPlayer === item.text ? "" : item.text; showWeekLiveRaceFrame(weekLiveRaceFrame); } }, tooltip: { callbacks: { title: items => weekLiveRaceFrames[items[0]?.dataIndex]?.label || "", label: context => { const player = weekLiveRaceFrames[context.dataIndex]?.players.find(item => item.name === context.dataset.label); return player ? `${player.name}: ${player.winPct.toFixed(1)}% · ${player.wins}-${player.losses}` : ""; } } } } } });
+
+  weekLiveRaceChart = new Chart(canvas, {
+    type: "line",
+    data: { labels: [], datasets: [] },
+    options: {
+      responsive: true,
+      maintainAspectRatio: false,
+      animation: { duration: 220 },
+      layout: { padding: { top: 42 } },
+      interaction: { mode: "nearest", intersect: true },
+      onClick: event => {
+        const hits = event.native ? weekLiveRaceChart.getElementsAtEventForMode(event.native, "nearest", { intersect: true }, true) : [];
+        if (!hits.length) {
+          clearWeekLiveRaceInteraction();
+          showWeekLiveRaceFrame(weekLiveRaceFrame);
+          return;
+        }
+        const name = weekLiveRaceChart.data.datasets[hits[0].datasetIndex].label;
+        const dataIndex = hits[0].index;
+        if (weekLiveRaceSelectedPlayer === name) {
+          clearWeekLiveRaceInteraction();
+          showWeekLiveRaceFrame(weekLiveRaceFrame);
+          return;
+        }
+        weekLiveRaceSelectedPlayer = name;
+        showWeekLiveRaceFrame(weekLiveRaceFrame);
+        const datasetIndex = weekLiveRaceChart.data.datasets.findIndex(dataset => dataset.label === name);
+        const active = [{ datasetIndex, index: dataIndex }];
+        weekLiveRaceChart.setActiveElements(active);
+        weekLiveRaceChart.tooltip.setActiveElements(active, { x: event.x, y: event.y });
+        weekLiveRaceChart.update("none");
+      },
+      scales: {
+        x: { ticks: { color: "#91a0ae", autoSkip: false }, grid: { color: "#2a3744" }, title: { display: true, text: "Game number", color: "#91a0ae" } },
+        y: { beginAtZero: true, max: 100, ticks: { color: "#91a0ae", callback: value => `${value}%` }, grid: { color: "#2a3744" }, title: { display: true, text: "Cumulative win percentage", color: "#91a0ae" } }
+      },
+      plugins: {
+        legend: {
+          align: "start",
+          labels: { color: "#e8eef5", usePointStyle: true, pointStyle: "line", boxWidth: 14, padding: 8, font: { size: 10 } },
+          onClick: (event, item) => {
+            weekLiveRaceSelectedPlayer = weekLiveRaceSelectedPlayer === item.text ? "" : item.text;
+            showWeekLiveRaceFrame(weekLiveRaceFrame);
+          }
+        },
+        tooltip: {
+          mode: "nearest",
+          intersect: true,
+          displayColors: false,
+          callbacks: {
+            title: items => weekLiveRaceFrames[items[0]?.dataIndex]?.label || "",
+            label: context => {
+              const player = weekLiveRaceFrames[context.dataIndex]?.players.find(item => item.name === context.dataset.label);
+              return player ? `${player.name}: ${player.winPct.toFixed(1)}% · ${player.wins}-${player.losses}` : "";
+            }
+          }
+        }
+      }
+    }
+  });
   weekLiveRaceChart.options.scales.x.title.text = weekLiveRaceUsesArchive() ? "Live snapshot time" : "Game number";
   weekLiveRaceChart.options.plugins.tooltip.callbacks.label = context => { const player = weekLiveRaceFrames[context.dataIndex]?.players.find(item => item.name === context.dataset.label), metric = document.getElementById("week-live-race-metric")?.value || "winPct"; if (!player) return ""; const value = metric === "winProbability" ? `${player.winProbability.toFixed(2)}%` : metric === "winPct" ? `${player.winPct.toFixed(1)}%` : metric === "pathsToVictory" ? Number(player.pathsToVictory).toLocaleString() : metric === "gap" ? player.gap === 0 ? "Leader" : `${Math.abs(player.gap).toFixed(2)} ${weekLiveRaceUsesArchive() ? "points" : "wins"} back` : metric === "timeOnTop" ? websiteRaceDuration(player.timeOnTop) : `${player.wins} wins`; return weekLiveRaceUsesArchive() ? `${player.name}: ${value}` : `${player.name}: ${value} · ${player.wins}-${player.losses}`; };
-  const refreshWeekLiveRace = () => { stopWeekLiveRace(); showWeekLiveRaceFrame(weekLiveRaceFrame); };
+  const refreshWeekLiveRace = () => { stopWeekLiveRace(); assignWebsiteRaceColors(weekLiveRaceFrames, document.getElementById("week-live-race-metric")?.value || "winPct"); showWeekLiveRaceFrame(weekLiveRaceFrame); };
   document.getElementById("week-live-race-metric").onchange = refreshWeekLiveRace;
   document.getElementById("week-live-race-field").onchange = refreshWeekLiveRace;
   document.getElementById("week-live-race-scale").onchange = refreshWeekLiveRace;
@@ -4207,7 +4375,7 @@ async function renderWeekLiveRace() {
   document.getElementById("week-live-race-next").onclick = () => { stopWeekLiveRace(); showWeekLiveRaceFrame(weekLiveRaceFrame + 1); };
   document.getElementById("week-live-race-restart").onclick = () => { stopWeekLiveRace(); showWeekLiveRaceFrame(0); };
   showWeekLiveRaceFrame(weekLiveRaceFrames.length - 1);
-  observeRaceAutoplay(canvas.closest(".chart-wrap"), `week-${season}-${week}-${weekLiveRaceUsesArchive() ? "live" : "games"}`, () => { stopWeekLiveRace(); weekLiveRacePassesRemaining = 2; showWeekLiveRaceFrame(0); weekLiveRaceTimer = setTimeout(advanceWeekLiveRace, RACE_FRAME_DELAY); document.getElementById("week-live-race-play").textContent = "Pause"; });
+  observeRaceAutoplay(canvas.closest(".chart-wrap"), `week-${season}-${week}-${weekLiveRaceUsesArchive() ? "live" : "games"}`, () => { stopWeekLiveRace(); weekLiveRacePassesRemaining = 1; showWeekLiveRaceFrame(0); weekLiveRaceTimer = setTimeout(advanceWeekLiveRace, RACE_FRAME_DELAY); document.getElementById("week-live-race-play").textContent = "Pause"; });
 }
 function renderSeasonPlayer(standings, weeks) {
   const playerId = document.getElementById("season-player").value;
@@ -4240,7 +4408,14 @@ function renderWeekRace() { if (!websitePicks.length) return; const season = doc
 let websiteDrilldownPromise = null, websitePlayerArchiveIndexes = null;
 function buildWebsitePlayerArchiveIndexes() {
   if (websitePlayerArchiveIndexes) return websitePlayerArchiveIndexes;
-  const gameById = new Map(websiteGames.map(game => [game.gameId, game])), picksByPlayer = new Map(), picksByGame = new Map(), populationRows = new Map();
+  const gameById = new Map(websiteGames.map(game => [game.gameId, game])), gamesByWeek = new Map(), weeksByPeriod = new Map(), picksByPlayer = new Map(), picksByGame = new Map(), populationRows = new Map();
+  const addToMap = (map, key, value) => { const values = map.get(key) || []; values.push(value); map.set(key, values); };
+  websiteGames.forEach(game => {
+    const week = String(game.week || "").toLowerCase();
+    addToMap(gamesByWeek, `${game.season}|${week}`, game);
+    if (["round 1", "round 2", "round 3", "super bowl"].includes(week)) addToMap(gamesByWeek, `${game.season}|playoffs`, game);
+  });
+  websiteWeeks.forEach(row => addToMap(weeksByPeriod, `${row.season}|${String(row.week).toLowerCase()}|${String(row.competition || "regular").toLowerCase()}`, row));
   websitePicks.forEach(pick => {
     const playerPicks = picksByPlayer.get(pick.playerId) || [];
     playerPicks.push(pick);
@@ -4256,7 +4431,7 @@ function buildWebsitePlayerArchiveIndexes() {
     if (String(pick.bestBet || "").toUpperCase() === String(pick.pick || "").toUpperCase() && (Number(pick.bestBetWin || 0) || Number(pick.bestBetLoss || 0) || Number(pick.bestBetPush || 0))) { item.bestBets += 1; item.bestBetWins += Number(pick.bestBetWin || 0); item.bestBetLosses += Number(pick.bestBetLoss || 0); }
     populationRows.set(pick.playerId, item);
   });
-  websitePlayerArchiveIndexes = { gameById, picksByPlayer, picksByGame, populationRows };
+  websitePlayerArchiveIndexes = { gameById, gamesByWeek, weeksByPeriod, picksByPlayer, picksByGame, populationRows };
   return websitePlayerArchiveIndexes;
 }
 async function loadDrilldown() {
@@ -4467,6 +4642,13 @@ function renderGame() { const game = websiteGames.find(item => item.gameId === d
 const renderGameWithoutWeatherIcon = renderGame;
 renderGame = function renderGameWithWeatherIcon() {
   renderGameWithoutWeatherIcon();
+  if (gamePicksTable) {
+    gamePicksTable.on("tableBuilt", () => {
+      const pickCount = gamePicksTable.getDataCount();
+      document.getElementById("game-picks-count").textContent = `${pickCount.toLocaleString()} ${pickCount === 1 ? "entry" : "entries"}`;
+      gamePicksTable.setPageSize(Math.max(pickCount, 1));
+    });
+  }
   const game = websiteGames.find(item => item.gameId === document.getElementById("game-choice").value);
   const conditions = [...document.querySelectorAll("#game-detail > div")].find(row => row.querySelector("span")?.textContent === "Conditions")?.querySelector("strong");
   if (!game || !conditions) return;
@@ -4489,15 +4671,16 @@ function normalizeWeeklyTooltipRow(row, overrides = {}) {
   return { season: row?.season ?? row?.Season ?? "", week: row?.week ?? row?.Week ?? "", playerId: row?.playerId ?? row?.PlayerId ?? "", name: row?.name ?? row?.Name ?? "", wins: Number(row?.displayWins ?? row?.Wins ?? 0), losses: Number(row?.displayLosses ?? row?.Losses ?? 0), pushes: Number(row?.displayPushes ?? row?.Pushes ?? 0), rank: Number(row?.rank ?? row?.Rank ?? 0), competition: String(row?.competition ?? row?.Competition ?? "regular").toLowerCase(), ...overrides };
 }
 function weeklyResultsTooltipHtml(sourceRow, overrides = {}) {
-  const row = normalizeWeeklyTooltipRow(sourceRow, overrides), playoffWeeks = new Set(["round 1", "round 2", "round 3", "super bowl"]), week = String(row.week).toLowerCase(), allPlayoffs = week === "playoffs";
-  const games = websiteGames.filter(game => game.season === row.season && (allPlayoffs ? playoffWeeks.has(String(game.week).toLowerCase()) : String(game.week).toLowerCase() === week)).sort((a, b) => Number(a.playoffGameNum || a.gameNum || 0) - Number(b.playoffGameNum || b.gameNum || 0));
-  const picks = games.map(game => ({ game, pick: websitePicks.find(item => item.gameId === game.gameId && (row.playerId !== "" ? item.playerId === row.playerId : item.name === row.name)) })).filter(item => item.pick?.pick);
+  const row = normalizeWeeklyTooltipRow(sourceRow, overrides), week = String(row.week).toLowerCase(), indexes = buildWebsitePlayerArchiveIndexes();
+  const games = [...(indexes.gamesByWeek.get(`${row.season}|${week}`) || [])].sort((a, b) => Number(a.playoffGameNum || a.gameNum || 0) - Number(b.playoffGameNum || b.gameNum || 0));
+  const findPick = gameId => (indexes.picksByGame.get(gameId) || []).find(item => row.playerId !== "" ? item.playerId === row.playerId : item.name === row.name);
+  const picks = games.map(game => ({ game, pick: findPick(game.gameId) })).filter(item => item.pick?.pick);
   const details = picks.map(({ game, pick }) => profileGameResultHtml(game, pick.pick, Number(pick.resultWin || 0) ? "win" : Number(pick.resultLoss || 0) ? "loss" : "push")).join("");
   const bestBet = picks.find(({ pick }) => Number(pick.bestBetWin || 0) || Number(pick.bestBetLoss || 0) || Number(pick.bestBetPush || 0));
   const bestBetResult = bestBet ? Number(bestBet.pick.bestBetWin || 0) ? "win" : Number(bestBet.pick.bestBetLoss || 0) ? "loss" : "push" : "";
   const record = `${row.wins}-${row.losses}${row.pushes ? `-${row.pushes}` : ""}`, rank = row.rank ? ` · #${row.rank}` : "", bestBetHtml = bestBet ? `<div class="tooltip-meta-start"><span class="neutral">Best Bet: </span><span class="${bestBetResult}">${websiteEscapeHtml(bestBet.pick.bestBet || bestBet.pick.pick)}</span></div>` : "";
-  const competitors = websiteWeeks.filter(item => item.season === row.season && String(item.week).toLowerCase() === week && String(item.competition || "regular") === row.competition), scores = new Map(competitors.map(item => [item.playerId, 0]));
-  const raceSteps = games.map((game, index) => { competitors.forEach(item => { const pick = websitePicks.find(candidate => candidate.gameId === game.gameId && candidate.playerId === item.playerId); scores.set(item.playerId, (scores.get(item.playerId) || 0) + Number(pick?.resultWin || 0) + Number(pick?.bestBetWin || 0)); }); const playerScore = scores.get(row.playerId) || 0, place = 1 + [...scores.values()].filter(score => score > playerScore).length, tied = [...scores.values()].filter(score => score === playerScore).length > 1, placeClass = place === 1 ? "rank-1" : place <= 5 ? "top-5" : place <= 10 ? "top-10" : ""; return `<span class="weekly-race-step ${placeClass}" title="After Game ${index + 1}: ${playerScore} points">G${index + 1} ${tied ? "T" : ""}#${place}</span>`; }).join("");
+  const competitors = indexes.weeksByPeriod.get(`${row.season}|${week}|${row.competition}`) || [], scores = new Map(competitors.map(item => [item.playerId, 0]));
+  const raceSteps = games.map((game, index) => { const gamePicks = indexes.picksByGame.get(game.gameId) || []; competitors.forEach(item => { const pick = gamePicks.find(candidate => candidate.playerId === item.playerId); scores.set(item.playerId, (scores.get(item.playerId) || 0) + Number(pick?.resultWin || 0) + Number(pick?.bestBetWin || 0)); }); const playerScore = scores.get(row.playerId) || 0, place = 1 + [...scores.values()].filter(score => score > playerScore).length, tied = [...scores.values()].filter(score => score === playerScore).length > 1, placeClass = place === 1 ? "rank-1" : place <= 5 ? "top-5" : place <= 10 ? "top-10" : ""; return `<span class="weekly-race-step ${placeClass}" title="After Game ${index + 1}: ${playerScore} points">G${index + 1} ${tied ? "T" : ""}#${place}</span>`; }).join("");
   const raceHtml = raceSteps ? `<div class="tooltip-meta-start"><span class="neutral">Game-by-game race · rank by points</span></div><div class="weekly-race-path">${raceSteps}</div>` : "";
   return `<strong>${websiteEscapeHtml(row.name)} · ${websiteEscapeHtml(row.season)} ${websiteEscapeHtml(weeklyRankWeekLabel(row.week))} · ${record}${rank}</strong>${details || '<div><span class="neutral">No game details recorded</span></div>'}${bestBetHtml}${raceHtml}`;
 }
@@ -4662,6 +4845,7 @@ function websiteWeekNameGrammar(rows) {
   });
   return counts;
 }
+const WEBSITE_CLOSEST_PICKS_MINIMUM = 100;
 function websiteWeekNameProfileInsights(rows, name) {
   const text = row => String(row.weekName || "");
   const normalizedName = String(name || "").trim().toLowerCase();
@@ -4749,14 +4933,14 @@ function websiteWeekNameProfileInsights(rows, name) {
   const allegiance = [...teamChoices.values()].filter(item => item.opportunities >= 20).map(item => ({ ...item, share: item.picks / item.opportunities })).sort((left, right) => right.share - left.share || right.picks - left.picks)[0];
   const allegiancePlaces = { ARI:"Phoenix",ATL:"Atlanta",BAL:"Baltimore",BUF:"western New York",CAR:"Charlotte",CHI:"Chicago",CIN:"Cincinnati",CLE:"northeast Ohio",DAL:"north Texas",DEN:"Denver",DET:"Detroit",GB:"Wisconsin",HOU:"Houston",IND:"Indianapolis",JAX:"Jacksonville",KC:"Kansas City",LAC:"Los Angeles",LAR:"Los Angeles",LV:"Las Vegas",MIA:"South Florida",MIN:"the Twin Cities",NE:"New England",NO:"New Orleans",NYG:"northern New Jersey",NYJ:"northern New Jersey",PHI:"the Philadelphia suburbs",PIT:"western Pennsylvania",SEA:"Seattle",SF:"the Bay Area",TB:"Tampa Bay",TEN:"Nashville",WAS:"the Washington, D.C. suburbs" };
   const allegiancePlace = allegiancePlaces[allegiance?.team], allegianceTeam = allegiance ? websiteNaturalTeamName(allegiance.team.toLowerCase()) : "";
-  const allegianceEvidence = allegiance && allegiance.share >= .7 ? `${allegianceTeam} was picked in ${allegiance.picks} of ${allegiance.opportunities} appearances (${(allegiance.share * 100).toFixed(1)}%), a genuine allegiance signal.` : allegiance ? `${allegianceTeam} is the strongest pick lean, but ${allegiance.picks} of ${allegiance.opportunities} appearances is not strong enough to treat as hometown proof.` : "The pick archive does not supply a stable team allegiance.";
-  const background = normalizedName === "jim" ? `Best guess: Jim has a direct Mahwah connection. ${allegianceEvidence} The perfect Steelers loyalty reads as inherited or chosen fandom rather than evidence of a current address.` : allegiancePlace && allegiance.share >= .9 ? `Best roots or hometown connection: ${allegiancePlace}. ${allegianceEvidence}${primaryLocation && !primaryLocation.read.toLowerCase().includes(allegiancePlace.toLowerCase()) ? ` Separately, ${primaryLocation.count} week names mention ${primaryLocation.place}, but that does not establish a current address.` : ""}` : primaryLocation ? `Best regional connection: ${primaryLocation.place}. ${primaryLocation.count} names mention that region, though the archive does not establish where ${name} currently lives. ${allegianceEvidence}` : allegiancePlace && allegiance.share >= .7 ? `Best roots or hometown connection: ${allegiancePlace}. ${allegianceEvidence}` : `The archive does not provide enough direct evidence for a current-location guess. ${allegianceEvidence}`;
+  const allegianceEvidence = allegiance && allegiance.share >= .7 ? `${allegianceTeam} was picked in ${allegiance.picks} of ${allegiance.opportunities} appearances (${(allegiance.share * 100).toFixed(1)}%), a genuine allegiance signal.` : allegiance ? `${allegianceTeam} is the strongest pick lean at ${allegiance.picks} of ${allegiance.opportunities} appearances.` : "No team dominates the pick history.";
+  const background = normalizedName === "jim" ? `Best current-location guess: Mahwah, New Jersey. ${allegianceEvidence} The perfect Steelers loyalty reads as inherited or chosen fandom.` : allegiancePlace && allegiance.share >= .9 ? `Best roots or hometown guess: ${allegiancePlace}. ${allegianceEvidence}${primaryLocation && !primaryLocation.read.toLowerCase().includes(allegiancePlace.toLowerCase()) ? ` A secondary connection is ${primaryLocation.place}, mentioned in ${primaryLocation.count} week names.` : ""}` : primaryLocation ? `Best current-location guess: ${primaryLocation.place}. ${primaryLocation.count} names mention that region. ${allegianceEvidence}` : allegiancePlace && allegiance.share >= .7 ? `Best roots or hometown guess: ${allegiancePlace}. ${allegianceEvidence}` : `Best current-location guess: the northeastern United States. ${allegianceEvidence}`;
   const seasons = new Set(rows.map(row => row.season)).size;
   const eraReferences = rows.filter(row => /fleetwood mac|prince|billy joel|springsteen|beatles|journey|queen\b|star wars|seinfeld|simpsons|full house|ace ventura|godfather|rocky|top gun|no whamm|the longest yard|rug brought the room together|loser baby/i.test(text(row))).length;
-  const familyTypes = [["mother", /\b(my mom|my mother|mother's|mom's)\b/i], ["father", /\b(my dad|my father|father's|dad's)\b/i], ["wife or partner", /\b(my wife|my husband|my partner|wife's|husband's)\b/i], ["daughter", /\b(my daughter|daughter's)\b/i], ["son", /\b(my son|son's)\b/i], ["grandparent", /\b(my grandma|my grandpa|grandmother|grandfather)\b/i]].map(([label, pattern]) => ({ label, pattern, entries: rows.filter(row => pattern.test(text(row))) })).filter(item => item.entries.length).sort((left, right) => right.entries.length - left.entries.length);
+  const familyTypes = [["husband or male partner", /\b(my husband|husband's)\b/i], ["wife or female partner", /\b(my wife|wife's)\b/i], ["partner", /\b(my partner|partner's)\b/i], ["mother", /\b(my mom|my mother|mother's|mom's)\b/i], ["father", /\b(my dad|my father|father's|dad's)\b/i], ["daughter", /\b(my daughter|daughter's)\b/i], ["son", /\b(my son|son's)\b/i], ["grandparent", /\b(my grandma|my grandpa|grandmother|grandfather)\b/i]].map(([label, pattern]) => ({ label, pattern, entries: rows.filter(row => pattern.test(text(row))) })).filter(item => item.entries.length).sort((left, right) => right.entries.length - left.entries.length);
   const birthYear = normalizedName === "jim" ? 1982 : seasons >= 14 ? eraReferences >= 2 ? 1980 : 1985 : seasons >= 8 ? 1988 : 1992;
   const topFamily = familyTypes[0], lifeStage = topFamily ? ` The clearest family clue is a ${topFamily.label}, appearing in ${topFamily.entries.length} ${topFamily.entries.length === 1 ? "name" : "names"}; ${quote(text(topFamily.entries[0]))} is the most direct example.` : seasons >= 14 ? ` The ${seasons}-season run says more about a durable adult friend group than the names reveal about household structure.` : "";
-  const age = normalizedName === "jim" ? `Best birth-year guess: ${birthYear}. The densest nostalgia is material someone born in the early 1980s would have absorbed in adolescence: Jim Carrey, Adam Sandler, Chris Farley, Will Ferrell, sports comedies, and 1990s-through-2000s music.${lifeStage}` : `Best birth-year guess: ${birthYear}.${eraReferences ? ` The archive contains ${eraReferences} era-marking music, movie, or television references.` : ""}${lifeStage}`;
+  const age = normalizedName === "jim" ? `Best birth-year guess: ${birthYear}. The densest nostalgia is material someone born in the early 1980s would have absorbed in adolescence: Jim Carrey, Adam Sandler, Chris Farley, Will Ferrell, sports comedies, and 1990s-through-2000s music.` : `Best birth-year guess: ${birthYear}.${eraReferences ? ` The archive contains ${eraReferences} era-marking music, movie, or television references.` : ""}`;
   const priorityThread = threads[0], priorityExamples = priorityThread ? examplesFor(priorityThread.entries).slice(0, 2) : [];
   const evidence = priorityExamples.length ? ` Names such as ${priorityExamples.join(" and ")} are the clearest evidence.` : "";
   const newYorkSubjects = [["Giants", /\b(big blue|giants)\b/i], ["Mets", /\bmets\b/i], ["Jets", /\bjets\b/i], ["Yankees", /\byankees\b/i], ["Knicks", /\bknicks\b/i], ["Rangers", /\brangers\b/i], ["Islanders", /\bislanders\b/i]].map(([team, pattern]) => ({ team, pattern, count: rows.filter(row => pattern.test(text(row))).length })).sort((left, right) => right.count - left.count);
@@ -4766,7 +4950,7 @@ function websiteWeekNameProfileInsights(rows, name) {
   const newYorkPriority = newYorkSubject?.count ? rivalSubject ? `${name} seems to care most about keeping the ${rivalSubject.team}-${newYorkSubject.team} rivalry alive; the New York team matters because it gives the primary allegiance a familiar opponent.${evidence}` : newYorkNegative >= Math.max(2, newYorkSubject.count * .35) ? `${name} seems to care most about keeping the ${newYorkSubject.team} rivalry alive as a recurring foil: a team worth reacting to even when the reaction is annoyance, mockery, or satisfaction at seeing them lose.${evidence}` : `${name} seems to care most about keeping ${newYorkSubject.team} allegiance visible as part of a durable regional identity, not merely mentioning New York sports when they happen to be winning.${evidence}` : `${name} seems to care most about keeping New York sports woven into the group's shared language.${evidence}`;
   const priorities = normalizedName === "jim" ? `Jim seems to care most about keeping the group's shared cultural memory alive. The names repeatedly pull a half-forgotten movie line, comedy bit, lyric, local reference, or old sports grievance back into circulation; the payoff is somebody else recognizing it without an explanation.` : priorityThread?.key === "new-york" ? newYorkPriority : priorityThread?.key === "medicine" ? `${name} seems to care most about mastery of the work itself, then turning that specialized world into dry material the group can recognize as unmistakably theirs.${evidence}` : priorityThread?.key === "products" ? `${name} seems to care most about sustaining a very specific running bit: noticing the exact mundane object everyone else would ignore and making friends wonder why it was chosen.${evidence}` : priorityThread?.key === "personal" ? `${name} seems to care most about marking the life shared with family and close friends, using the pool to preserve celebrations, trips, and ordinary days that mattered.${evidence}` : priorityThread?.key === "quotes" ? `${name} seems to care most about shared recognition: the small social payoff when somebody catches a line without having it explained.${evidence}` : priorityThread?.key === "food" ? `${name} seems to care most about the social occasion around the games: where people gathered, what they ate or drank, and the story attached to it.${evidence}` : priorityThread?.key === "sports" ? `${name} seems to care most about making fandom part of the friendship, using team loyalties as both sincere rooting interest and material for the room.${evidence}` : priorityThread?.key === "topical" ? `${name} seems to care most about keeping the pool connected to the immediate moment, turning the week's news into a shared timestamp.${evidence}` : distinctPct >= 90 ? `${name} seems to care most about bringing something new to the room almost every week rather than protecting one fixed persona. The ${distinct} different names across ${rows.length} entries are the strongest evidence.` : `${name} seems to care most about continuity with the people in the pool: recurring names and private references matter because the same room remembers them.`;
   const writing = averageWords >= 8 ? `Talkative and performative: ${name} writes miniature monologues, usually as if speaking directly to the room.` : averageWords <= 3 ? `Compact and allusive: ${name} prefers short titles, callbacks, and private references that trust the room to keep up.` : questions > rows.length * .15 ? `Conversational and teasing: ${name} often frames the name as a question or a line tossed to the room.` : exclamations > rows.length * .15 ? `Punchy and animated: ${name} favors short declarations, exclamations, and lines meant to land immediately.` : distinctPct < 60 ? `Repetitive by design: ${name} builds a recognizable persona by returning to familiar names and bits.` : `Eclectic and reference-driven: ${name} changes subjects often but usually chooses a phrase with a joke, memory, or story behind it.`;
-  const style = strongest === "medicine" && threads[0].entries.length >= rows.length * .12 ? "Clinical" : strongest === "products" && threads[0].entries.length >= 10 ? "Catalog-like" : averageWords >= 8 || questions > rows.length * .15 ? "Talkative" : strongest === "new-york" ? "New York" : strongest === "quotes" ? "Referential" : distinctPct < 60 ? "Repetitive" : distinctPct >= 90 ? "Restless" : "Eclectic";
+  const style = strongest === "medicine" && threads[0].entries.length >= rows.length * .12 ? "Clinical" : strongest === "products" && threads[0].entries.length >= 10 ? "Catalog-like" : strongest === "new-york" ? "New York loyalist" : strongest === "quotes" ? quoteRate >= .35 ? "Callback artist" : "Referential" : strongest === "personal" ? exclamations > rows.length * .12 ? "Celebration marker" : averageWords >= 5 ? "Personal storyteller" : "Personal shorthand" : strongest === "sports" ? exclamations > rows.length * .12 ? "Game-day spark" : averageWords >= 5 ? "Sideline commentator" : "Team loyalist" : strongest === "topical" ? "Topical" : strongest === "food" ? "Social diarist" : averageWords >= 8 ? "Storyteller" : questions > rows.length * .15 ? "Question-asker" : exclamations > rows.length * .15 ? "Animated" : distinctPct < 60 ? "Running bit" : commonWords.length >= 5 ? "Motif-driven" : averageWords <= 1.5 ? "One-word" : averageWords <= 2.3 ? "Minimalist" : averageWords <= 3 ? "Cryptic" : "Free-ranging";
   const subjects = [
     ["NFL and other sports", /\b(nfl|football|baseball|basketball|hockey|golf|soccer|super bowl|playoffs?|giants|jets|dolphins?|bills?|eagles?|cowboys?|braves?|mets|yankees)\b/i],
     ["Food and drink", /\b(beer|wine|whiskey|bourbon|vodka|cocktail|pizza|restaurant|dinner|lunch|breakfast|coffee|taco|wings?|burger|turkey|prosecco)\b/i],
@@ -4798,11 +4982,12 @@ function websiteWeekNameProfileInsights(rows, name) {
   const movieFallbacks = strongest === "sports" || strongest === "new-york" ? [["Moneyball", "sports, argument, and loyalty matter more here than a conventional underdog speech"], ["Major League", "the archive treats fandom as both sincere allegiance and a source of jokes"], ["Remember the Titans", "team ritual and a long-running group are the strongest themes"], ["The Replacements", "weekly competition is handled with a loose, comic spirit"]] : strongest === "personal" ? [["The Family Man", "the archive repeatedly measures time through people and occasions"], ["About Time", "ordinary days and family milestones carry unusual weight"], ["Planes, Trains and Automobiles", "travel, frustration, and affection fit the personal storytelling"], ["Chef", "shared meals and relationships matter more than spectacle"]] : strongest === "medicine" ? [["The Fugitive", "precision under pressure fits the clinical, dry voice"], ["Awakenings", "the technical vocabulary coexists with a humane streak"], ["The Martian", "competence and deadpan problem-solving lead the personality read"], ["Groundhog Day", "repetition becomes both a system and a joke"]] : strongest === "products" ? [["Napoleon Dynamite", "oddly specific objects are allowed to become the entire joke"], ["Best in Show", "the humor rewards exact detail and total commitment"], ["A Serious Man", "ordinary things acquire elaborate and funny significance"], ["The Truman Show", "mundane details are repeatedly reframed as something stranger"]] : quoteRate >= .25 ? [["The Big Lebowski", "its lines reward exactly the kind of shared recognition this archive enjoys"], ["Airplane!", "the jokes work best when somebody immediately returns the next line"], ["Ghostbusters", "it is endlessly quotable without requiring a formal setup"], ["Ferris Bueller's Day Off", "the voice is knowing, audience-aware, and lightly rebellious"]] : [["Groundhog Day", "weekly repetition keeps producing small variations"], ["The Breakfast Club", "the enduring group dynamic matters more than any one persona"], ["Ocean's Eleven", "the tone is social, confident, and built around a familiar crew"], ["The Princess Bride", "a compact phrase can carry years of shared context"]];
   const fallbackMovie = movieFallbacks[(nameSeed + distinct * 7 + Math.round(averageChars) * 11 + quoteCount * 13) % movieFallbacks.length];
   const movieGuess = normalizedName === "jim" ? "Favorite-movie guess: Caddyshack. Golf is one of the archive's clearest real interests, while Chubbs, sports-comedy dialogue, and the constant quotation habit make an endlessly reusable golf comedy the strongest fit; this remains a guess rather than a direct statement." : directlyNamedMovie ? `Favorite-movie guess: “${directlyNamedMovie.title}.” ${directlyNamedMovie.count} ${directlyNamedMovie.count === 1 ? "week name contains" : "week names contain"} a detectable title or line, including “${exampleFor(directlyNamedMovie.pattern)}”; that is stronger evidence than genre alone.` : `Favorite-movie guess: “${fallbackMovie[0]},” because ${fallbackMovie[1]}. No title is stated directly, so this is a personality match rather than a claim of fact.`;
-  const foods = [["pizza", /pizza/i], ["chicken wings", /wings?|buffalo chicken/i], ["burgers", /burger/i], ["tacos", /tacos?/i], ["steak", /steak/i], ["barbecue", /bbq|barbecue|ribs/i], ["seafood", /lobster|shrimp|crab|seafood/i], ["ice cream", /ice cream|fudge ripple/i]].map(([label, pattern]) => ({ label, pattern, count: countPattern(pattern) })).sort((left, right) => right.count - left.count);
+  const foods = [["apple pie", /\bapple pie\b/i], ["apples", /\bapples?\b/i], ["blueberries", /\bblueberr(?:y|ies)\b/i], ["pizza", /\bpizza\b/i], ["chicken wings", /\b(?:chicken|buffalo) wings?\b|\bwings?\b/i], ["burgers", /\bburgers?\b/i], ["tacos", /\btacos?\b/i], ["steak", /\bsteak\b/i], ["barbecue", /\b(?:bbq|barbecue|ribs?)\b/i], ["seafood", /\b(?:lobster|shrimp|crab|seafood)\b/i], ["ice cream", /\b(?:ice cream|fudge ripple)\b/i]].map(([label, pattern]) => ({ label, pattern, count: countPattern(pattern) })).sort((left, right) => right.count - left.count);
   const drinks = [["beer", /beer|ale|lager|sam adams|ic light/i], ["bourbon", /bourbon/i], ["wine", /wine|prosecco/i], ["coffee", /coffee/i], ["margaritas", /margarita/i]].map(([label, pattern]) => ({ label, pattern, count: countPattern(pattern) })).sort((left, right) => right.count - left.count);
-  const favoriteFood = foods[0]?.count ? foods[0].label : choose(["pizza", "chicken wings", "cheeseburgers", "tacos", "barbecue"]), favoriteDrink = drinks[0]?.count ? drinks[0].label : choose(["an IPA", "bourbon", "red wine", "a light lager", "coffee"]);
-  const foodEvidence = foods[0]?.count ? `There ${foods[0].count === 1 ? "is" : "are"} ${foods[0].count} ${foods[0].label} ${foods[0].count === 1 ? "reference" : "references"}` : `${favoriteFood} is a low-confidence guess`, drinkEvidence = drinks[0]?.count ? `there ${drinks[0].count === 1 ? "is" : "are"} ${drinks[0].count} ${drinks[0].label} ${drinks[0].count === 1 ? "reference" : "references"}` : `${favoriteDrink} is a low-confidence guess`;
-  const foodGuess = normalizedName === "jim" ? "Favorite food and drink guess: pizza and IC Light Mango. “Pizza Orgy” supplies the food; “ic light mango > sam adams,” “Quality Beers,” and Disaronno make beer the recurring drink preference." : `Favorite food and drink guess: ${favoriteFood} and ${favoriteDrink}. ${foodEvidence}; ${drinkEvidence}.`;
+  const favoriteFood = foods[0]?.count ? foods[0] : null, favoriteDrink = drinks[0]?.count ? drinks[0] : null;
+  const inferredMeal = strongest === "new-york" ? "a New York-style pizza" : strongest === "sports" ? "game-day barbecue" : strongest === "personal" ? "a long family-style dinner" : strongest === "medicine" ? "a genuinely good late-night sandwich" : strongest === "products" ? "the meticulously researched best burger in town" : allegianceTeam ? `a local game-day meal before watching the ${allegianceTeam}` : "a relaxed dinner with the regular group";
+  const inferredDrink = strongest === "personal" ? "wine shared over dinner" : strongest === "medicine" ? "strong coffee" : strongest === "sports" || strongest === "new-york" || allegianceTeam ? "a local beer on game day" : "coffee while catching up with friends";
+  const foodGuess = normalizedName === "jim" ? "Favorite food and drink guess: pizza and IC Light Mango. “Pizza Orgy” supplies the food; “ic light mango > sam adams,” “Quality Beers,” and Disaronno make beer the recurring drink preference." : favoriteFood && favoriteDrink ? `Best food and drink clues: ${favoriteFood.label} and ${favoriteDrink.label}. ${favoriteFood.count} ${favoriteFood.count === 1 ? "name points" : "names point"} to ${favoriteFood.label}; ${favoriteDrink.count} ${favoriteDrink.count === 1 ? "points" : "point"} to ${favoriteDrink.label}.` : favoriteFood ? `Best food clue: ${favoriteFood.label}. ${favoriteFood.count} ${favoriteFood.count === 1 ? "name points" : "names point"} there. Drink guess: ${inferredDrink}, based on the ${threads[0]?.label.toLowerCase() || "social"} pattern rather than a direct mention.` : favoriteDrink ? `Best drink clue: ${favoriteDrink.label}. ${favoriteDrink.count} ${favoriteDrink.count === 1 ? "name points" : "names point"} there. Food guess: ${inferredMeal}, based on the broader profile rather than a direct mention.` : `Food and drink guess: ${inferredMeal} with ${inferredDrink}. Neither is stated directly; the guess comes from the ${threads[0]?.label.toLowerCase() || "long-running group"} pattern${allegianceTeam ? ` and the ${allegianceTeam} pick lean` : ""}.`;
   const weekendOptions = [[/\b(golfing|played golf|playing golf|tee time|birdie|hole in one|golf course|december golf)\b/i, "playing golf"], [/\b(concert|live music|festival|band practice)\b/i, "going to a concert or building the playlist for one"], [/\b(beach|ocean|shore)\b/i, "heading to the shore"], [/\b(casino|poker|roulette|sports book)\b/i, "a casino or poker night"], [/\b(trip|vacation|flight|hotel)\b/i, "planning a short trip"], [/\b(restaurant|dinner|bar|pizza|beer|wine)\b/i, "trying a restaurant or meeting friends for drinks"], [/\b(my house|house project|yard|landscap|patio|home repair)\b/i, "working on the house or yard"]].map(([pattern, activity]) => ({ pattern, activity, count: countPattern(pattern) })).sort((left, right) => right.count - left.count);
   const weekend = weekendOptions[0]?.count ? weekendOptions[0] : { activity: allegianceTeam ? `watching the ${allegianceTeam}` : "watching football with the pool group", count: 0 };
   const weekendGuess = normalizedName === "jim" ? "Weekend guess: golf or a Steelers game with longtime friends, followed by pizza and beer and a steady exchange of movie quotes. December golf, Chubbs, birdie gods, and the 293-for-293 Steelers history all point the same way." : `Weekend guess: ${weekend.activity}.${weekend.count ? ` That theme appears ${weekend.count} ${weekend.count === 1 ? "time" : "times"}; “${exampleFor(weekend.pattern)}” is the clearest example.` : ` The pick allegiance is the strongest available clue.`}`;
@@ -4815,11 +5000,9 @@ function websiteWeekNameProfileInsights(rows, name) {
   else if (distinctPct >= 90) perfectMate = `${choose(["Perfect mate: curious, adaptable, and amused by changing plans.", "Best match: somebody comfortable with novelty who will suggest the unexpected restaurant, trip, or Sunday plan.", "Compatibility pick: an independent person who enjoys variety and does not need every week to follow the same script.", "Ideal counterpart: the person who can turn a wrong exit into the day's best story.", "Romantic scouting report: spontaneous, self-directed, and unlikely to order the same thing every time.", "Best chemistry bet: someone who brings a new idea without treating every weekend like an audition."])} With ${distinctPct.toFixed(1)}% of names unique, this profile looks better matched with novelty than rigid routine.`;
   else perfectMate = `${choose(["Perfect mate: patient, playful, and comfortable inside a long-running friend group.", "Best match: someone who appreciates old callbacks while bringing a distinct personality of their own.", "Compatibility pick: a steady person who understands that repetition can be tradition rather than inertia.", "Ideal counterpart: someone who can join an old group without trying to rewrite all its history.", "Romantic scouting report: loyal, dryly funny, and willing to hear the origin story one more time.", "Best chemistry bet: a person with steady habits, a few excellent quirks, and no fear of an ancient inside joke."])} Familiar material is part of the social glue here.`;
   const directAddressCount = rows.filter(row => /\b(you|your|we|us|guys|everyone|anyone|who)\b/i.test(text(row))).length;
-  const firstPersonCount = rows.filter(row => /\b(i|i'm|i've|i'll|me|my|mine)\b/i.test(text(row))).length;
   const toneOptions = strongest === "medicine" ? ["precise, dry, and quietly mischievous", "composed, exacting, and fond of technical deadpan", "observant and understated, with expertise used as comic material"] : strongest === "products" ? ["curious, absurdist, and delighted by needless specificity", "deadpan and detail-obsessed, with an eye for overlooked objects", "playfully meticulous and willing to commit to an odd premise"] : strongest === "quotes" ? ["nostalgic, quick-witted, and socially referential", "playful and recognition-driven, with confidence in the room's memory", "warmly ironic, culturally omnivorous, and committed to the callback"] : strongest === "personal" ? ["warm, attentive, and comfortable making ordinary life part of the conversation", "sentimental without becoming solemn, with a strong calendar for people", "open, occasion-minded, and grounded in the people around them"] : strongest === "sports" || strongest === "new-york" ? ["loyal, competitive, and happiest when allegiance produces banter", "spirited and tribal in the friendly sense, with a long memory for rivals", "game-day animated, tradition-minded, and ready with a grievance"] : distinctPct >= 90 ? ["restless, inventive, and resistant to repeating the obvious", "curious and unpredictable, with a preference for a fresh angle", "varied, improvisational, and more interested in surprise than consistency"] : ["understated, allusive, and comfortable leaving context unstated", "steady and dryly playful, with affection for recurring bits", "low-key, associative, and tuned to the group's shared history"];
-  const toneSignals = [[distinctPct, `${distinctPct.toFixed(1)}% of names are distinct`], [questions / rows.length * 100, `${questions} are questions`], [exclamations / rows.length * 100, `${exclamations} use exclamation points`], [firstPersonCount / rows.length * 100, `${firstPersonCount} use first person`], [directAddressCount / rows.length * 100, `${directAddressCount} address the room`]].sort((left, right) => right[0] - left[0]).slice(0, 2).map(item => item[1]).join("; ");
-  const tone = `Best personality read: ${toneOptions[(nameSeed + distinct + questions * 3 + exclamations * 5) % toneOptions.length]}. The measurable voice clues are that ${toneSignals}.`;
-  const groupRole = questions > rows.length * .12 && directAddressCount >= 2 ? `Group-chat role: the conversation starter. ${questions} names ask questions and ${directAddressCount} directly address the room; ${name} is not merely reacting, but handing other people something to answer.` : strongest === "personal" ? `Group-chat role: the correspondent. Family, trips, milestones, and real-life updates recur, so ${name} is likely the person who keeps the chat connected to what is happening off the field.` : strongest === "sports" || strongest === "new-york" ? `Group-chat role: the color commentator. The archive repeatedly turns teams, rivals, and game-day moments into material for everyone else, mixing sincere rooting with a running commentary aimed at the room.` : quoteRate >= .35 ? `Group-chat role: the callback specialist. ${quoteCount} quote-like names recycle lines the group is expected to recognize, which is less about broadcasting excitement than maintaining a shared comic language.` : averageWords >= 8 ? `Group-chat role: the storyteller. At ${averageWords.toFixed(1)} words per name, ${name} tends to provide the setup, side detail, and punch line instead of dropping a bare reaction.` : distinctPct < 60 ? `Group-chat role: keeper of the running bit. Repetition is deliberate here; ${name} talks to the group's memory and trusts that an old reference gets better with mileage.` : strongest === "topical" ? `Group-chat role: the news desk with editorial privileges. The names keep dragging the immediate week's story into the room, usually with enough spin to invite a response.` : `Group-chat role: the curveball. With ${distinctPct.toFixed(1)}% distinct names and no single conversational format dominating, ${name} is most likely to introduce the subject nobody else saw coming.`;
+  const tone = `Best personality read: ${toneOptions[(nameSeed + distinct + questions * 3 + exclamations * 5) % toneOptions.length]}.`;
+  const groupRole = questions > rows.length * .12 && directAddressCount >= 2 ? `Group-chat role: the conversation starter. ${questions} names ask questions and ${directAddressCount} directly address the room; ${name} regularly hands other people something to answer.` : directAddressCount >= Math.max(3, rows.length * .1) ? `Group-chat role: the room-reader. ${directAddressCount} names speak directly to other people, suggesting ${name} writes for the group's reaction rather than treating the entry as a private label.` : strongest === "personal" ? `Group-chat role: the correspondent. Family, trips, milestones, and real-life updates recur, so ${name} likely keeps the chat connected to what is happening off the field.` : strongest === "sports" || strongest === "new-york" ? `Group-chat role: the color commentator. Teams, rivals, and game-day moments become running commentary for everyone else.` : quoteRate >= .35 ? `Group-chat role: the callback specialist. ${quoteCount} quote-like names maintain a shared comic language the group is expected to recognize.` : averageWords >= 8 ? `Group-chat role: the storyteller. At ${averageWords.toFixed(1)} words per name, ${name} tends to provide the setup and punch line instead of a bare reaction.` : distinctPct < 60 ? `Group-chat role: keeper of the running bit. Familiar names and callbacks ask the group to remember the history behind them.` : strongest === "topical" ? `Group-chat role: the news desk with editorial privileges. The immediate week's story repeatedly gets pulled into the room.` : exclamations > rows.length * .12 ? `Group-chat role: the energy boost. ${exclamations} entries use exclamation points, making quick reactions and enthusiasm the clearest conversational contribution.` : `Group-chat role: the quiet wildcard. The entries are mostly statements rather than questions or direct addresses, so ${name} contributes by dropping an unexpected subject and letting the room decide where it goes.`;
   const getaway = normalizedName === "jim" ? "Ideal getaway: a golf weekend with longtime friends in a place that also has one excellent dinner and a Steelers bar within reach. The archive's golf, food, drink, and group-humor clues make companionship more important than the destination." : travel?.count ? `Ideal getaway: ${/beach|ocean|shore/i.test(exampleFor(travel.pattern)) ? "a rented place near the water with friends" : "a city weekend built around food, a game, and one story-worthy detour"}. Travel or place names appear ${travel.count} ${travel.count === 1 ? "time" : "times"}, including “${exampleFor(travel.pattern)}.”` : weekend.activity.includes("golf") ? "Ideal getaway: a golf weekend where the tee time matters, but the dinner and stories afterward matter more." : allegianceTeam ? `Ideal getaway: an away-game weekend to see the ${allegianceTeam}, with enough time around the game to make the trip feel bigger than the scoreboard.` : `Ideal getaway: ${choose(["a long weekend in a walkable city with one excellent dinner booked", "a low-planning beach rental with the regular group", "a cabin weekend with games, drinks, and unreliable cell service", "a short road trip organized around a concert or sporting event"])}. This is a temperament guess, not a recurring destination in the archive.`;
   const giftChoices = strongest === "quotes" ? ["a custom trivia night built from the movies and lines they keep quoting", "a restored poster or prop replica from the reference they use most", "a small projector and an irresponsibly curated movie marathon"] : strongest === "personal" ? ["a photo book assembled from the trips and ordinary milestones nobody else remembered to collect", "a fully planned dinner with the people who keep appearing in the stories", "a surprise day that recreates one favorite family outing"] : strongest === "sports" || strongest === "new-york" ? [`a vintage ${allegianceTeam || "team"} program from a season that matters to them`, `a road-game weekend for the ${allegianceTeam || "team"}, with the hotel and dinner already solved`, "a framed, authenticated artifact from one specific game they still bring up"] : strongest === "products" ? ["the absurdly specific premium version of an everyday object they have definitely researched", "a discontinued model from the product category they keep turning into a bit", "a beautifully overengineered tool they would never justify buying"] : food?.count ? ["a chef's-table reservation with every logistical detail handled", `a tasting built around ${favoriteFood} and ${favoriteDrink}`, "a private cooking lesson for the dish they mention most"] : favoriteArtist || music?.count ? [`a first pressing or deluxe box set tied to ${favoriteArtist?.artist || songGuess[1]}`, `a framed handwritten-lyric facsimile for “${favoriteArtist?.song || songGuess[0]}”`, "a record-store afternoon with a deliberately unreasonable spending limit"] : allegianceTeam ? [`a road-game weekend for the ${allegianceTeam}`, `a vintage ${allegianceTeam} jacket from the right era`, "a game-day setup upgrade they would use every week"] : distinctPct >= 90 ? ["a mystery day with three sealed stops and no itinerary revealed in advance", "a class in something they have never tried, followed by dinner somewhere equally new", "a weekend bag packed for a destination disclosed at the airport"] : ["a restored artifact from the group's longest-running joke", "a useful daily upgrade engraved with a reference only the group understands", "a private dinner where each guest arrives with one old story"];
   const bestGift = normalizedName === "jim" ? "Best gift: a fully planned golf weekend with the old group, including the tee time, one excellent dinner, and a custom scorecard full of the archive's best movie lines. It turns the strongest clues into a new shared story instead of another piece of memorabilia." : `Best gift: ${giftChoices[nameSeed % giftChoices.length]}. ${strongest ? `The recurring ${threads[0].label.toLowerCase()} pattern makes that more personal than a generic event ticket.` : "The changing subjects suggest that the story attached to the gift matters as much as the object."}`;
@@ -4827,8 +5010,49 @@ function websiteWeekNameProfileInsights(rows, name) {
   const unnecessaryExpertise = strongest === "products" ? "Unnecessary expertise: identifying the exact model number of an object nobody else knew had model numbers." : strongest === "sports" || strongest === "new-york" ? "Unnecessary expertise: remembering the score, grievance, and officiating detail from a game everyone else had released emotionally." : strongest === "quotes" ? "Unnecessary expertise: naming the movie from six ordinary words and then correcting the delivery." : strongest === "medicine" ? "Unnecessary expertise: translating a serious technical term into a joke before anyone has finished looking it up." : averageWords >= 8 ? "Unnecessary expertise: turning a two-minute anecdote into a seven-minute story that somehow earns the extra five." : "Unnecessary expertise: knowing exactly which old group reference will derail the conversation most efficiently.";
   const currentLocation = background;
   const prioritiesDisplay = priorities.replace(/\b1 different names across 1 entries are\b/g, "1 different name across 1 entry is");
-  const dossier = `<div class="name-dossier"><h4>Playful guesses, with receipts</h4><div class="name-dossier-grid"><div class="week-name-fact"><strong>Regional connection</strong><p>${websiteEscapeHtml(currentLocation)}</p></div><div class="week-name-fact"><strong>Occupation</strong><p>${websiteEscapeHtml(jobGuess)}</p></div><div class="week-name-fact"><strong>Favorite food or drink</strong><p>${websiteEscapeHtml(foodGuess)}</p></div><div class="week-name-fact"><strong>Likely weekend</strong><p>${websiteEscapeHtml(weekendGuess)}</p></div><div class="week-name-fact"><strong>Group-chat role</strong><p>${websiteEscapeHtml(groupRole)}</p></div></div></div>`;
-  return { style, html: `<div class="week-name-profile"><section><h4>Best guess at the person</h4><div class="week-name-portrait"><p><strong>Age and life stage:</strong> ${websiteEscapeHtml(age)}</p><p><strong>Cares most about:</strong> ${websiteEscapeHtml(prioritiesDisplay)}</p><p><strong>Writing style:</strong> ${websiteEscapeHtml(writing)}</p><p><strong>Tone and personality:</strong> ${websiteEscapeHtml(tone)}</p></div>${dossier}</section><section><h4>By the numbers</h4><div class="week-name-facts">${factsHtml}</div></section></div>` };
+  const femaleNames = new Set(["barb", "bo jane", "bojane", "brianna", "christine", "elizabeth", "faranoosh", "hannah banana", "helen", "jen", "jenn", "mary ann", "mommy & riley", "nikki", "sara", "shaina", "sherry", "tiffany"]), maleNames = new Set(["aaron", "andrew", "blake", "blake gordon", "bo", "buster", "chris d", "chris g", "christian", "dan", "david", "gary", "jason k", "jeff", "jim", "jon campbell", "ken t", "kevin", "mark g", "mark lynch", "mike h", "mike r", "miles", "nick c", "nils", "rob lee", "ron", "russell", "rusty", "sean", "thomas", "todd", "travis", "tyler mcbride", "will"]);
+  const sexCategory = femaleNames.has(normalizedName) ? "female" : "male";
+  const sexGuess = normalizedName === "rj" ? "Best sex/gender guess: male. RJ is more commonly used as a masculine initial nickname; NBA player RJ Barrett is a familiar example." : femaleNames.has(normalizedName) ? `Best sex/gender guess: female, based on the conventional use of the first name ${name}.` : maleNames.has(normalizedName) ? `Best sex/gender guess: male, based on the conventional use of the first name ${name}.` : `Best sex/gender guess: male. The pool's mostly masculine first-name roster breaks the tie for the alias “${name}.”`;
+  const incomeBase = work?.count >= 4 ? 185000 : financeCount >= 3 ? 130000 : techCount >= 3 ? 140000 : travel?.count >= 3 ? 110000 : seasons >= 12 ? 95000 : 75000, incomeGuess = incomeBase + (nameSeed % 5 - 2) * 5000;
+  const socioeconomic = work?.count >= 4 ? `Best socioeconomic guess: upper-middle income, with annual income around $${incomeGuess.toLocaleString()}. The specialized medical vocabulary behind ${work.count} names points toward a high-income clinical profession.` : financeCount >= 3 || techCount >= 3 ? `Best socioeconomic guess: middle to upper-middle income, with annual income around $${incomeGuess.toLocaleString()}. The ${financeCount >= techCount ? "finance and property" : "technology and systems"} language points toward established professional work.` : travel?.count >= 3 ? `Best socioeconomic guess: comfortable middle income, with annual income around $${incomeGuess.toLocaleString()}. ${travel.count} travel or place references and a durable social calendar suggest comfortable discretionary income.` : seasons >= 12 ? `Best socioeconomic guess: middle income, with annual income around $${incomeGuess.toLocaleString()}. The ${seasons}-season social archive and stable long-running participation drive the estimate.` : `Best socioeconomic guess: middle income, with annual income around $${incomeGuess.toLocaleString()}. The estimate uses the occupation read and the activity pattern in the week names.`;
+  const jobCategory = normalizedName === "jim" || techCount >= 3 ? "technology" : work?.count >= 4 ? "medicine" : financeCount >= 3 ? "finance" : educationCount >= 3 ? "education" : tradeCount >= 3 ? "trades" : productThread?.entries.length >= 8 ? "retail" : averageWords >= 8 ? "communications" : questions > rows.length * .12 ? "sales" : "operations";
+  const groupRoleCategory = questions > rows.length * .12 && directAddressCount >= 2 ? "conversation starter" : directAddressCount >= Math.max(3, rows.length * .1) ? "room reader" : strongest === "personal" ? "correspondent" : strongest === "sports" || strongest === "new-york" ? "color commentator" : quoteRate >= .35 ? "callback specialist" : averageWords >= 8 ? "storyteller" : distinctPct < 60 ? "running-bit keeper" : strongest === "topical" ? "news desk" : exclamations > rows.length * .12 ? "energy boost" : "quiet wildcard";
+  const currentPlayer = websitePlayers.find(player => player.name === name), currentPickRows = currentPlayer ? (buildWebsitePlayerArchiveIndexes().picksByPlayer.get(currentPlayer.playerId) || []) : [], currentPickMap = new Map(currentPickRows.map(pick => [pick.gameId, String(pick.pick || "").toUpperCase()]));
+  const mentionPattern = playerName => new RegExp(`(^|[^A-Za-z0-9])${String(playerName).replace(/[.*+?^${}()|[\]\\]/g, "\\$&")}(?=$|[^A-Za-z0-9])`);
+  const mentionedPlayers = websitePlayers.filter(player => player.name !== name && String(player.name).trim().length >= 3).map(player => ({ name: player.name, count: rows.filter(row => mentionPattern(player.name).test(text(row))).length })).filter(player => player.count >= 1).sort((left, right) => right.count - left.count || left.name.localeCompare(right.name));
+  const comparisons = websitePlayers.filter(player => player.name !== name).map(player => {
+    const candidateRows = populationGroups.get(player.playerId) || populationGroups.get(String(player.name).trim().toLowerCase()) || [];
+    if (!candidateRows.length) return null;
+    const candidateWords = candidateRows.reduce((total, row) => total + (text(row).match(/\S+/g) || []).length, 0) / candidateRows.length, candidateDistinct = new Set(candidateRows.map(row => text(row).toLowerCase())).size / candidateRows.length;
+    const candidateCount = pattern => candidateRows.filter(row => pattern.test(text(row))).length, candidateSeasons = new Set(candidateRows.map(row => row.season)).size, candidateEraReferences = candidateCount(/fleetwood mac|prince|billy joel|springsteen|beatles|journey|queen\b|star wars|seinfeld|simpsons|full house|ace ventura|godfather|rocky|top gun|no whamm|the longest yard|rug brought the room together|loser baby/i), candidateBirthYear = candidateSeasons >= 14 ? candidateEraReferences >= 2 ? 1980 : 1985 : candidateSeasons >= 8 ? 1988 : 1992;
+    const candidateWork = candidateCount(/\b(work|job|office|surgery|surgeon|doctor|hospital|patient|procedure|operation|artery|aorta|cardiac|clinic|on call)\b/i), candidateFinance = candidateCount(/\b(account|accounting|investment|credit|bank|money|tax|mortgage|condo|finance)\b/i), candidateTech = candidateCount(/\b(phone|computer|internet|website|app|software|data|refresh|setup|set up|system|process)\b/i), candidateEducation = candidateCount(/\b(school|teacher|student|class|college|lesson|principal)\b/i), candidateTrade = candidateCount(/\b(build|landscap|contractor|roof|floor|electric|plumb|repair|tools?)\b/i), candidateTravel = candidateCount(/\b(vacation|trip|flight|airport|beach|hotel|new york|richmond|indiana|atlanta|boston|chicago|philadelphia|pittsburgh|minnesota)\b/i);
+    const candidateNameSeed = [...String(player.name)].reduce((total, character) => (total * 31 + character.charCodeAt(0)) >>> 0, 7), candidateIncomeBase = candidateWork >= 4 ? 185000 : candidateFinance >= 3 ? 130000 : candidateTech >= 3 ? 140000 : candidateTravel >= 3 ? 110000 : candidateSeasons >= 12 ? 95000 : 75000, candidateIncome = candidateIncomeBase + (candidateNameSeed % 5 - 2) * 5000;
+    const candidateJob = candidateTech >= 3 ? "technology" : candidateWork >= 4 ? "medicine" : candidateFinance >= 3 ? "finance" : candidateEducation >= 3 ? "education" : candidateTrade >= 3 ? "trades" : candidateWords >= 8 ? "communications" : "operations";
+    const candidateStrongest = rules.map(rule => ({ key: rule.key, count: candidateRows.filter(rule.test).length, score: rule.bonus + Math.min(candidateRows.filter(rule.test).length, 40), minimum: rule.minimum || 2 })).filter(item => item.count >= item.minimum).sort((left, right) => right.score - left.score)[0]?.key || "";
+    const candidateLocation = locationRules.map(rule => ({ place: rule.place, count: candidateCount(rule.pattern) })).filter(item => item.count >= 2).sort((left, right) => right.count - left.count)[0]?.place || "";
+    const candidateFood = foods.map(item => ({ label: item.label, count: candidateCount(item.pattern) })).sort((left, right) => right.count - left.count)[0], candidateWeekend = weekendOptions.map(item => ({ activity: item.activity, count: candidateCount(item.pattern) })).sort((left, right) => right.count - left.count)[0];
+    const wordsFor = profileRows => { const counts = new Map(); profileRows.forEach(row => (text(row).toLowerCase().match(/[a-z][a-z'’-]*/g) || []).forEach(raw => { const word = raw.replace(/[’']/g, ""); if (word.length >= 4 && !stopWords.has(word)) counts.set(word, (counts.get(word) || 0) + 1); })); return new Set([...counts].sort((left, right) => right[1] - left[1]).slice(0, 12).map(item => item[0])); };
+    const lettersFor = profileRows => { const counts = Array(26).fill(0); profileRows.forEach(row => [...text(row).toLowerCase()].forEach(character => { const index = character.charCodeAt(0) - 97; if (index >= 0 && index < 26) counts[index] += 1; })); return counts; };
+    const cosine = (left, right) => { const dot = left.reduce((total, value, index) => total + value * right[index], 0), leftSize = Math.sqrt(left.reduce((total, value) => total + value * value, 0)), rightSize = Math.sqrt(right.reduce((total, value) => total + value * value, 0)); return leftSize && rightSize ? dot / (leftSize * rightSize) : 0; };
+    const currentTopWords = new Set([...wordCounts].sort((left, right) => right[1] - left[1]).slice(0, 12).map(item => item[0])), candidateTopWords = wordsFor(candidateRows), sharedWordList = [...currentTopWords].filter(word => candidateTopWords.has(word)), sharedWords = sharedWordList.length;
+    const candidateQuestionRate = candidateRows.filter(row => /\?/.test(text(row))).length / candidateRows.length, candidateExclamationRate = candidateRows.filter(row => /!/.test(text(row))).length / candidateRows.length, candidateDirectRate = candidateRows.filter(row => /\b(you|your|we|us|guys|everyone|anyone|who)\b/i.test(text(row))).length, candidateQuoteRate = candidateRows.filter(row => quoteLike(text(row))).length / candidateRows.length, punctuationSimilarity = 1 - Math.min(1, Math.abs(candidateQuestionRate - questions / rows.length) + Math.abs(candidateExclamationRate - exclamations / rows.length));
+    const candidateRole = candidateQuestionRate > .12 && candidateDirectRate >= 2 ? "conversation starter" : candidateDirectRate >= Math.max(3, candidateRows.length * .1) ? "room reader" : candidateStrongest === "personal" ? "correspondent" : candidateStrongest === "sports" || candidateStrongest === "new-york" ? "color commentator" : candidateQuoteRate >= .35 ? "callback specialist" : candidateWords >= 8 ? "storyteller" : candidateDistinct < .6 ? "running-bit keeper" : candidateStrongest === "topical" ? "news desk" : candidateExclamationRate > .12 ? "energy boost" : "quiet wildcard";
+    const candidateSex = femaleNames.has(String(player.name).trim().toLowerCase()) ? "female" : "male", traitChecks = [[candidateSex === sexCategory, `both guessed ${sexCategory}`], [Math.abs(candidateBirthYear - birthYear) <= 5, `birth-year guesses within ${Math.abs(candidateBirthYear - birthYear)} years`], [Math.abs(candidateIncome - incomeGuess) <= 20000, `income guesses within $${Math.abs(candidateIncome - incomeGuess).toLocaleString()}`], [primaryLocation?.place && candidateLocation === primaryLocation.place, `${primaryLocation?.place} regional signal`], [candidateJob === jobCategory, `${jobCategory} occupation guess`], [candidateStrongest && candidateStrongest === strongest, `${threads[0]?.label.toLowerCase()} as the leading subject`], [favoriteFood && candidateFood?.count && candidateFood.label === favoriteFood.label, `${favoriteFood?.label} food clue`], [candidateWeekend?.count && candidateWeekend.activity === weekend.activity, `${weekend.activity} weekend guess`], [candidateRole === groupRoleCategory, `${groupRoleCategory} group-chat role`]], traitMatches = traitChecks.filter(item => item[0]).map(item => item[1]);
+    let shared = 0, agreed = 0;
+    (buildWebsitePlayerArchiveIndexes().picksByPlayer.get(player.playerId) || []).forEach(pick => { const currentPick = currentPickMap.get(pick.gameId); if (!currentPick) return; shared += 1; if (currentPick === String(pick.pick || "").toUpperCase()) agreed += 1; });
+    const pickAgreement = shared ? agreed / shared : 0, writingSimilarity = Math.max(0, 1 - Math.abs(candidateWords - averageWords) / 10), distinctSimilarity = Math.max(0, 1 - Math.abs(candidateDistinct - distinctPct / 100)), letterSimilarity = cosine(lettersFor(rows), lettersFor(candidateRows)), vocabularySimilarity = sharedWords / Math.max(1, Math.min(currentTopWords.size, candidateTopWords.size)), textScore = writingSimilarity * .3 + distinctSimilarity * .2 + punctuationSimilarity * .2 + letterSimilarity * .2 + vocabularySimilarity * .1, traitScore = traitMatches.length / traitChecks.length;
+    return { name: player.name, sample: candidateRows.length, shared, pickAgreement, candidateWords, candidateDistinct, sharedWords, sharedWordList, traitMatches, nameScore: textScore * .7 + traitScore * .3 };
+  }).filter(Boolean);
+  const pickMatch = [...comparisons].filter(comparison => comparison.shared >= WEBSITE_CLOSEST_PICKS_MINIMUM).sort((left, right) => right.pickAgreement - left.pickAgreement || right.shared - left.shared)[0], nameMatch = [...comparisons].filter(comparison => comparison.sample >= 5).sort((left, right) => right.nameScore - left.nameScore || right.sample - left.sample)[0], mention = mentionedPlayers[0], connectionMatch = [...comparisons].sort((left, right) => ((right.shared >= WEBSITE_CLOSEST_PICKS_MINIMUM ? right.pickAgreement : 0) * .55 + right.nameScore * .45) - ((left.shared >= WEBSITE_CLOSEST_PICKS_MINIMUM ? left.pickAgreement : 0) * .55 + left.nameScore * .45) || right.shared - left.shared)[0];
+  const relationshipRead = mention ? `Best direct connection guess: ${mention.name}. ${mention.count} ${mention.count === 1 ? "week name contains" : "week names contain"} the name.` : connectionMatch?.shared >= WEBSITE_CLOSEST_PICKS_MINIMUM ? `Best connection guess: ${connectionMatch.name}. They match ${name}'s picks in ${(connectionMatch.pickAgreement * 100).toFixed(1)}% of ${connectionMatch.shared.toLocaleString()} shared games and are also one of the closest week-name-style matches.` : connectionMatch ? `Best connection guess: ${connectionMatch.name}. Their week-name archives have the closest overall mix of writing style and profile clues${connectionMatch.traitMatches.length ? `, including ${connectionMatch.traitMatches.slice(0, 3).join(", ")}` : ""}.` : `Best connection guess: ${name} joined through the pool's long-running core group.`;
+  const pickSimilarityRead = pickMatch ? `${pickMatch.name}. They made the same selection in ${(pickMatch.pickAgreement * 100).toFixed(1)}% of ${pickMatch.shared.toLocaleString()} shared games, the highest agreement among players with at least ${WEBSITE_CLOSEST_PICKS_MINIMUM} shared picks.` : `No other player has the minimum ${WEBSITE_CLOSEST_PICKS_MINIMUM} shared picks needed for a match.`;
+  const nameSimilarityRead = nameMatch ? `${nameMatch.name}. Their names average ${nameMatch.candidateWords.toFixed(1)} words versus ${averageWords.toFixed(1)} here, are ${(nameMatch.candidateDistinct * 100).toFixed(1)}% distinct versus ${distinctPct.toFixed(1)}%, and ${nameMatch.sharedWords ? `share ${nameMatch.sharedWords} recurring ${nameMatch.sharedWords === 1 ? "word" : "words"}: ${nameMatch.sharedWordList.map(word => `“${word}”`).join(", ")}` : "have no top recurring words in common"}. Shared profile guesses: ${nameMatch.traitMatches.slice(0, 5).join("; ") || "the closest overall demographic and playful-guess pattern"}. Question, exclamation, and letter-frequency patterns break close ties.` : "Not enough week-name history to compare.";
+  const familyRead = topFamily ? `The clearest family clue is a ${topFamily.label}, appearing in ${topFamily.entries.length} ${topFamily.entries.length === 1 ? "name" : "names"}; ${quote(text(topFamily.entries[0]))} is the most direct example.` : strongest === "personal" ? `Best family-life guess: close family ties matter, based on the recurring ${priorityThread?.label.toLowerCase() || "personal-life"} names, but no relationship is stated directly.` : `Best family-life guess: an established adult household and long-running friend group. The evidence is the ${seasons}-season pool history rather than a named relative.`;
+  const demographics = `<section><h4>Quick demographic guess</h4><div class="name-demographic-grid"><div><strong>Age</strong><p>${websiteEscapeHtml(age)}</p></div><div><strong>Family clue</strong><p>${websiteEscapeHtml(familyRead)}</p></div><div><strong>Sex or gender</strong><p>${websiteEscapeHtml(sexGuess)}</p></div><div><strong>Location</strong><p>${websiteEscapeHtml(currentLocation)}</p></div><div><strong>Socioeconomic status</strong><p>${websiteEscapeHtml(socioeconomic)}</p></div></div></section>`;
+  const writingSection = `<section><h4>Writing style and personality</h4><div class="week-name-portrait"><p><strong>Writing style:</strong> ${websiteEscapeHtml(writing)}</p><p><strong>Tone and personality:</strong> ${websiteEscapeHtml(tone)}</p><p><strong>Cares most about:</strong> ${websiteEscapeHtml(prioritiesDisplay)}</p></div></section>`;
+  const connections = `<section><h4>Pool connections</h4><div class="name-connection-grid"><div><strong>Related to or mentions most</strong><p>${websiteEscapeHtml(relationshipRead)}</p></div><div><strong>Closest picks</strong><p>${websiteEscapeHtml(pickSimilarityRead)}</p></div><div><strong>Closest week-name style</strong><p>${websiteEscapeHtml(nameSimilarityRead)}</p></div></div></section>`;
+  const dossier = `<section class="name-dossier"><h4>Playful guesses, with receipts</h4><div class="name-dossier-grid"><div class="week-name-fact"><strong>Occupation</strong><p>${websiteEscapeHtml(jobGuess)}</p></div><div class="week-name-fact"><strong>Favorite food or drink</strong><p>${websiteEscapeHtml(foodGuess)}</p></div><div class="week-name-fact"><strong>Likely weekend</strong><p>${websiteEscapeHtml(weekendGuess)}</p></div><div class="week-name-fact"><strong>Group-chat role</strong><p>${websiteEscapeHtml(groupRole)}</p></div></div></section>`;
+  return { style, html: `<div class="week-name-profile">${demographics}${writingSection}<section><h4>By the numbers</h4><div class="week-name-facts">${factsHtml}</div></section>${connections}${dossier}</div>` };
 }
 function renderProfileWeekNames(name, playerId, hostId = "names-week-name-analysis") {
   const host = document.getElementById(hostId);
@@ -4856,7 +5080,7 @@ function renderProfileWeekNames(name, playerId, hostId = "names-week-name-analys
   const notableNames = ordered.filter(item => item.uses > 1 || item.wins.length > 1).sort((left, right) => right.wins.length - left.wins.length || right.uses - left.uses || left.display.localeCompare(right.display)).slice(0, 10);
   const historyId = `${hostId}-history`;
   [...weeklyRankHoverRows.keys()].filter(key => key.startsWith(`${historyId}|`)).forEach(key => weeklyRankHoverRows.delete(key));
-  const notableHtml = notableNames.map((item, index) => `<div class="week-name-row"><div><strong>${websiteEscapeHtml(item.display)}</strong><small>${websiteEscapeHtml(websiteWeekNameMeaning(item.display, item.theme, index))}</small></div><span>${item.uses} ${item.uses === 1 ? "use" : "uses"}${item.wins.length ? ` · ${item.wins.length} ${item.wins.length === 1 ? "win" : "wins"}` : ""}</span></div>`).join("");
+  const notableHtml = notableNames.map(item => `<div class="week-name-row"><strong>${websiteEscapeHtml(item.display)}</strong><span>${item.uses} ${item.uses === 1 ? "use" : "uses"}${item.wins.length ? ` · ${item.wins.length} ${item.wins.length === 1 ? "win" : "wins"}` : ""}</span></div>`).join("");
   const notableSection = notableNames.length ? `<section><h4>Notable names</h4><div class="week-name-list">${notableHtml}</div></section>` : "";
   const historySection = `<section id="${historyId}" class="week-name-history"><h4>All-time week names</h4><div class="explorer-controls"><label>Search week names<input type="search" data-name-history-search placeholder="Search names"></label></div><p class="analysis-note">Every saved week name. Sort any column; click Rank for that week's standings or another cell for picks and Best Bet.</p><div data-name-history-table></div></section>`;
   host.innerHTML = `<div class="week-name-summary"><div>${metricValue(rows.length)}<span>Named weeks</span></div><div>${metricValue(names.size)}<span>Different names</span></div><div>${metricValue(repeatValue)}<span>${websiteEscapeHtml(repeatMetric[1])}</span></div><div>${metricValue(profile.style)}<span>Week-name style</span></div></div>${profile.html}${notableSection ? `<div class="week-name-columns single">${notableSection}</div>` : ""}${historySection}`;
@@ -4877,6 +5101,83 @@ function renderSelectedNameProfile() {
   const name = document.getElementById("names-player")?.value || "";
   const playerId = websitePlayers.find(player => player.name === name)?.playerId;
   renderProfileWeekNames(name, playerId);
+}
+function payoutBalance(value) {
+  const raw = String(value || "").trim(), numeric = Number(raw.replace(/[^0-9.-]/g, "")) || 0;
+  if (!raw || raw.toLowerCase() === "even" || numeric === 0) return { type: "even", amount: 0, label: "Even" };
+  return raw.startsWith("+") ? { type: "credit", amount: Math.abs(numeric), label: `$${Math.abs(numeric).toLocaleString()} credit` } : { type: "owed", amount: Math.abs(numeric), label: `$${Math.abs(numeric).toLocaleString()} owed` };
+}
+function payoutCell(value) {
+  return String(value || "").trim() ? { className: "payout-cell-paid", label: "✓" } : { className: "payout-cell-open", label: "—" };
+}
+function parsePayoutSheetRows(values) {
+  const rows = values.map(row => [...row, ...Array(21).fill("")].slice(0, 21).map(value => String(value || "").trim())), starts = rows.map((row, index) => /^20\d{2}$/.test(row[0]) ? index : -1).filter(index => index >= 0);
+  return starts.map((start, position) => {
+    const block = rows.slice(start, starts[position + 1] ?? rows.length), totalIndex = block.findIndex(row => row[0].toLowerCase() === "total"), championIndex = block.findIndex(row => /champion/i.test(row[0]));
+    if (block[1]?.[0].toLowerCase() !== "week" || totalIndex < 0) return null;
+    const playerEnd = championIndex >= 0 ? championIndex : totalIndex, year = Number(block[0][0]);
+    return { season: `${year}-${year + 1}`, year, periods: block[1].slice(1, 20), playoffEntry: block[2]?.[19] || "$20", players: block.slice(3, playerEnd).filter(row => row[0]).map(row => ({ name: row[0], weeks: row.slice(1, 20), balance: row[20] })) };
+  }).filter(Boolean).sort((left, right) => right.year - left.year);
+}
+let payoutSheetLoadPromise = null;
+function loadPayoutSheet(forceRefresh = false) {
+  if (forceRefresh) payoutSheetLoadPromise = null;
+  if (!payoutSheetLoadPromise) {
+    const url = `https://docs.google.com/spreadsheets/d/19LkATudJU7W7bsnBBNy7iCI68P3Nhbt10XIJ5Q7HRCA/export?format=csv&gid=2&_=${Date.now()}`;
+    payoutSheetLoadPromise = fetch(url).then(response => { if (!response.ok) throw new Error(`Payout sheet returned ${response.status}`); return response.text(); }).then(csv => { if (!globalThis.Papa) throw new Error("Payout sheet parser did not load"); const parsed = Papa.parse(csv, { skipEmptyLines: false }); if (parsed.errors.length) throw new Error(parsed.errors[0].message); const seasons = parsePayoutSheetRows(parsed.data); if (!seasons.length) throw new Error("Payout sheet contained no seasons"); return seasons; });
+  }
+  return payoutSheetLoadPromise;
+}
+function payoutUnpaidTooltip(playerName, balance) {
+  let remaining = balance.amount;
+  const unpaid = [];
+  for (const season of websitePayouts) {
+    const player = season.players.find(item => String(item.name).trim().toLowerCase() === String(playerName).trim().toLowerCase());
+    if (!player) continue;
+    for (let index = season.periods.length - 1; index >= 0 && remaining > 0; index -= 1) {
+      const period = season.periods[index];
+      if (!period || String(player.weeks[index] || "").trim()) continue;
+      const isPlayoffs = period.toLowerCase() === "playoffs", fee = isPlayoffs ? Number(String(season.playoffEntry || "$20").replace(/[^0-9.]/g, "")) || 20 : 10, applied = Math.min(fee, remaining);
+      unpaid.push({ label: `${season.season} ${isPlayoffs ? "Playoffs" : `Week ${period}`}`, amount: applied });
+      remaining -= applied;
+    }
+    if (remaining <= 0) break;
+  }
+  const rows = unpaid.map(item => `<div><span>${websiteEscapeHtml(item.label)}</span><strong>$${item.amount.toLocaleString()}</strong></div>`).join("");
+  const remainder = remaining > 0 ? `<div><span>Older unmapped balance</span><strong>$${remaining.toLocaleString()}</strong></div>` : "";
+  return `<strong>${websiteEscapeHtml(playerName)} · ${websiteEscapeHtml(balance.label)}</strong><div>Most recent unpaid entries:</div><div class="payout-tooltip-list">${rows}${remainder}</div>`;
+}
+function payoutWeeksTable(season) {
+  const activePeriods = season.periods.map((period, index) => ({ period, index })).filter(item => item.period);
+  const periodHeaders = activePeriods.map(item => `<th>${item.period === "Playoffs" ? "PO" : `W${websiteEscapeHtml(item.period)}`}</th>`).join("");
+  return `<div class="payout-table-wrap"><table class="payout-table"><thead><tr><th>Player</th>${periodHeaders}<th>Balance</th></tr></thead><tbody>${season.players.map(player => { const balance = payoutBalance(player.balance), tooltip = balance.type === "owed" ? payoutUnpaidTooltip(player.name, balance) : ""; return `<tr><td>${websiteEscapeHtml(player.name)}</td>${activePeriods.map(item => { const cell = payoutCell(player.weeks[item.index]); return `<td class="${cell.className}">${cell.label}</td>`; }).join("")}<td><span class="payout-balance payout-balance-${balance.type}"${tooltip ? ` data-weekly-tooltip="${websiteEscapeHtml(tooltip)}"` : ""}>${websiteEscapeHtml(balance.label)}</span></td></tr>`; }).join("")}</tbody></table></div>`;
+}
+async function renderPayout(refreshSheet = false) {
+  const select = document.getElementById("payout-season");
+  const source = document.getElementById("payout-source");
+  if (!select) return;
+  try {
+    websitePayouts = await loadPayoutSheet(refreshSheet);
+    source.textContent = "";
+    source.hidden = true;
+  } catch (error) {
+    source.textContent = "Showing the latest saved payout-sheet copy.";
+    source.hidden = false;
+  }
+  if (!websitePayouts.length) { source.textContent = "Payout data is temporarily unavailable."; source.hidden = false; return; }
+  const previous = select.value;
+  if (select.options.length !== websitePayouts.length || ![...select.options].every((option, index) => option.value === websitePayouts[index].season)) {
+    select.innerHTML = "";
+    websitePayouts.forEach(season => select.add(new Option(season.season, season.season)));
+    if (websitePayouts.some(season => season.season === previous)) select.value = previous;
+    else select.value = websitePayouts[1]?.season || websitePayouts[0].season;
+  }
+  const currentSeason = websitePayouts[0], historySeason = websitePayouts.find(item => item.season === select.value) || websitePayouts[1] || currentSeason;
+  select.value = historySeason.season;
+  document.getElementById("payout-current-title").textContent = `${currentSeason.season} Weeks paid`;
+  document.getElementById("payout-weeks").innerHTML = payoutWeeksTable(currentSeason);
+  document.getElementById("payout-history-title").textContent = `${historySeason.season} Weeks paid`;
+  document.getElementById("payout-history-weeks").innerHTML = payoutWeeksTable(historySeason);
 }
 function renderPlayerBestGames(name) {
   const player = websitePlayers.find(item => item.name === name), indexes = buildWebsitePlayerArchiveIndexes(), gameById = indexes.gameById;
@@ -5287,6 +5588,7 @@ function initViews() {
     if (["games", "weeks", "season", "names"].includes(btn.dataset.view)) await loadDrilldown();
     if (btn.dataset.view === "weeks") { renderWeek(); renderWeekLiveRace(); renderWinnerContributions(true); setTimeout(() => { orientWeekChart(); addGamePushMarkers(); }, 0); }
     if (btn.dataset.view === "season") renderSeasonLiveRace();
+    if (btn.dataset.view === "payout") renderPayout(true);
     if (btn.dataset.view === "weekly-rank") renderWeeklyRankView();
     if (btn.dataset.view === "names") renderSelectedNameProfile();
   });
@@ -5296,6 +5598,7 @@ function initViews() {
     if (!websitePicks.length) loadDrilldown().then(() => { if (document.getElementById("profile-player").value === selectedName) renderProfile(selectedName); });
   };
   document.getElementById("names-player").onchange = renderSelectedNameProfile;
+  document.getElementById("payout-season").onchange = renderPayout;
   document.getElementById("season-choice").onchange = () => renderSeason(true);
   document.getElementById("season-player").onchange = () => { const season = document.getElementById("season-choice").value; renderSeasonPlayer(seasonStandings(season), seasonWeekList(season)); };
   document.getElementById("streak-category").onchange = renderStreaks;
@@ -5307,7 +5610,7 @@ function initViews() {
   document.getElementById("weekly-rank-player").onchange = renderWeeklyRank;
   document.getElementById("weekly-rank-display").onchange = renderWeeklyRank;
   const requested = location.hash.slice(1);
-  const target = ["enter-picks", "week-one", "picks-confirmation", "alltime", "season", "streaks", "weeks", "weekly-rank", "games", "players", "names", "teams", "faq"].includes(requested) ? requested : requestedStartupRoute;
+  const target = ["enter-picks", "week-one", "picks-confirmation", "alltime", "season", "payout", "streaks", "weeks", "weekly-rank", "games", "players", "names", "teams", "faq"].includes(requested) ? requested : requestedStartupRoute;
   if (!document.getElementById(`view-${target}`)?.classList.contains("active")) showView(target);
 }
 async function init() {
@@ -5315,6 +5618,7 @@ async function init() {
   for (const entry of manifest) tableData[entry.key] = await (await fetch(`${DATA_DIR}/${entry.key}.json`)).json();
   [websitePlayers, websiteSeasons, websiteWeeks, websiteAwards, websiteRecords, websiteStreaks] = await Promise.all(["players.json", "seasons.json", "player_weeks.json", "awards.json", "records.json", "streaks.json"].map(async file => await (await fetch(`${DATA_DIR}/${file}${file === "player_weeks.json" ? `?v=${WEBSITE_WEEK_HISTORY_VERSION}` : ""}`)).json()));
   dashboard = await (await fetch(`${DATA_DIR}/dashboard.json`)).json();
+  websitePayouts = (await (await fetch(`${DATA_DIR}/payouts.json`)).json()).seasons || [];
   const players = [...new Set(dashboard.map(row => row.Name))].sort(), profileSelect = document.getElementById("profile-player"), namesSelect = document.getElementById("names-player");
   const notificationPlayers = document.getElementById("notification-player-options");
   players.forEach(name => { profileSelect.add(new Option(name, name)); namesSelect.add(new Option(name, name)); notificationPlayers.append(new Option(name)); });
@@ -5326,6 +5630,7 @@ async function init() {
   renderProfile(profileSelect.value);
   if (location.hash === "#players" && !websitePicks.length) loadDrilldown().then(() => { if (document.getElementById("view-players").classList.contains("active")) renderProfile(profileSelect.value); });
   if (location.hash === "#names") renderSelectedNameProfile();
+  if (location.hash === "#payout") renderPayout(true);
   populateStreakCategories();
   populateWeeklyRankPlayers();
   renderAllTime();
@@ -5537,7 +5842,7 @@ function renderWinnerContributions(resetPlayer = false) {
 function addGamePushMarkers() { const chart = Chart.getChart("winner-contribution-chart"); if (!chart) return; const season = document.getElementById("week-season").value, week = document.getElementById("week-choice").value, playoffWeeks = ["round 1", "round 2", "round 3", "super bowl"]; const games = websiteGames.filter(game => game.season === season && (game.week === week || (week === "playoffs" && playoffWeeks.includes(game.week)))).sort((a, b) => Number(a.playoffGameNum || a.gameNum) - Number(b.playoffGameNum || b.gameNum)); const playerId = document.getElementById("contribution-player").value; const pushes = games.map(game => { const pick = websitePicks.find(row => row.gameId === game.gameId && row.playerId === playerId); return pick?.resultPush ? 0.25 : 0; }); chart.data.datasets = chart.data.datasets.filter(dataset => dataset.label !== "Game push"); chart.data.datasets.push({ label: "Game push", data: pushes, backgroundColor: "#9aa4af", borderColor: "#9aa4af", borderWidth: 1, stack: "outcome" }); chart.update(); }
 document.addEventListener("change", event => { if (event.target.id === "week-season" || event.target.id === "week-choice" || event.target.id === "contribution-player") { setTimeout(orientWeekChart, 0); renderWinnerContributions(event.target.id !== "contribution-player"); setTimeout(addGamePushMarkers, 0); } });
 function applyHistoricalLabels() {
-  const headingLabels = new Map([["Hall of fame", "Career Records"], ["Games played", "Games"], ["Consistency", "Week-to-Week Swing"], ["Game Browser", "Matchup Browser"], ["Pick by pick", "Game-by-Game Contribution"], ["Weekly Rank", "Weekly Finishes"], ["Performance and streak runs", "Streaks and Form"], ["Cumulative money won", "Cumulative Money"], ["Plus/minus over time", "Plus/Minus History"]]);
+  const headingLabels = new Map([["Hall of fame", "Career Records"], ["Games played", "Games"], ["Consistency", "Week-to-Week Swing"], ["Pick by pick", "Game-by-Game Contribution"], ["Weekly Rank", "Weekly Finishes"], ["Performance and streak runs", "Streaks and Form"], ["Cumulative money won", "Cumulative Money"], ["Plus/minus over time", "Plus/Minus History"]]);
   document.querySelectorAll("h2,h3").forEach(heading => { if (headingLabels.has(heading.textContent.trim())) heading.textContent = headingLabels.get(heading.textContent.trim()); });
   [["season-race-metric", "Rank by"], ["contribution-player", "Player"], ["profile-recent-view", "Streak type"], ["profile-recent-lookback", "Time period"]].forEach(([id, text]) => { const label = document.getElementById(id)?.parentElement; if (label?.firstChild) label.firstChild.textContent = text; });
   const optionLabels = new Map([["correct", "Correct Picks"], ["wrong", "Missed Picks"], ["best_bet_hit", "Best-Bet Hits"], ["best_bet_miss", "Best-Bet Misses"]]);
@@ -5548,9 +5853,9 @@ function applyHistoricalLabels() {
 applyHistoricalLabels();
 document.getElementById("notification-preferences-form")?.addEventListener("submit", saveNotificationPreferences);
 initializeNotificationPreferences();
-init().then(async () => { applyHistoricalLabels(); populateWeekSeasons(); populateSeasonChoices(); if (location.hash === "#weeks") { await loadDrilldown(); renderWinnerContributions(true); renderPicksGrid(); setTimeout(() => { orientWeekChart(); addGamePushMarkers(); }, 0); } const profileSelect = document.getElementById("profile-player"); if ([...profileSelect.options].some(option => option.value === "Thomas")) { profileSelect.value = "Thomas"; renderProfile("Thomas"); } if (websiteLastWeekData) renderWebsiteWeekRecap(websiteLastWeekData); });
+init().then(async () => { applyHistoricalLabels(); populateWeekSeasons(); populateSeasonChoices(); if (location.hash === "#weeks") { await loadDrilldown(); renderWinnerContributions(true); renderPicksGrid(); setTimeout(() => { orientWeekChart(); addGamePushMarkers(); }, 0); } if (websiteLastWeekData) renderWebsiteWeekRecap(websiteLastWeekData); });
 </script>
-<script src="teams.js?v=20260831-3"></script>
+<script src="teams.js?v=20260901-1"></script>
 <script>
 const initialRoute = location.hash.slice(1);
 const startupRoute = initialRoute || "week-one";
@@ -5605,6 +5910,35 @@ if (startupRoute === "week-one") {
   if (startupRoute === "week-one") await (preseasonActive ? renderSelectedWebsiteWeek(true) : renderSelectedWebsiteWeek(activeWeekKnown));
   startupRoutePending = false;
 })();
+  if ("serviceWorker" in navigator) {
+    window.addEventListener("load", () => navigator.serviceWorker.register("service-worker.js").catch(error => console.warn(`App install support failed: ${error.message}`)));
+  }
+  {
+    const installHelp = document.getElementById("website-install-help"), installCopy = document.getElementById("website-install-copy"), installAction = document.getElementById("website-install-action");
+    const standalone = matchMedia("(display-mode: standalone)").matches || navigator.standalone === true;
+    const isAppleMobile = /iPhone|iPad|iPod/i.test(navigator.userAgent) || navigator.platform === "MacIntel" && navigator.maxTouchPoints > 1;
+    const mobileViewport = matchMedia("(max-width: 760px)");
+    let deferredInstallPrompt = null;
+    const hideInstallHelp = () => { installHelp.hidden = true; };
+    const showInstallHelp = copy => { if (!standalone && mobileViewport.matches) { installCopy.textContent = copy; installHelp.hidden = false; } };
+    document.getElementById("website-install-close").onclick = hideInstallHelp;
+    if (isAppleMobile) showInstallHelp("In Safari, tap Share, then Add to Home Screen.");
+    window.addEventListener("beforeinstallprompt", event => {
+      event.preventDefault();
+      deferredInstallPrompt = event;
+      installAction.hidden = false;
+      showInstallHelp("Install the app for quick access from your phone.");
+    });
+    installAction.onclick = async () => {
+      if (!deferredInstallPrompt) return;
+      await deferredInstallPrompt.prompt();
+      const choice = await deferredInstallPrompt.userChoice;
+      if (choice.outcome === "accepted") hideInstallHelp();
+      deferredInstallPrompt = null;
+      installAction.hidden = true;
+    };
+    window.addEventListener("appinstalled", hideInstallHelp);
+  }
 </script>
 </body>
 </html>

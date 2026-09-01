@@ -1,0 +1,6 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 512 512">
+  <rect width="512" height="512" fill="#0d1117"/>
+  <path d="M102 112h308v288H102z" fill="#171a1f" stroke="#ffcf40" stroke-width="14"/>
+  <text x="256" y="306" fill="#f3f1e8" font-family="Georgia,serif" font-size="148" font-weight="700" text-anchor="middle">FBP</text>
+  <path d="M134 338h244" stroke="#ffcf40" stroke-width="10"/>
+</svg>
