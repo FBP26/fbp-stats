@@ -480,7 +480,13 @@
   table tbody tr.website-wide-row-selected td:first-child { box-shadow: inset 2px 2px #54d6b2, inset 0 -2px #54d6b2; }
   table tbody tr.website-wide-row-selected td:last-child { box-shadow: inset -2px 2px #54d6b2, inset 0 -2px #54d6b2; }
   .payout-cell-paid { background: #173d2b; color: #7ee2b8; font-weight: bold; }
+  .payout-cell-owed { background: #572828; color: #ffb1b1; font-weight: bold; }
+  .payout-cell-win { background: #5a4617; color: #ffe08a; font-weight: bold; }
+  .payout-cell-even { background: #25313c; color: #c6d0da; font-weight: bold; }
   .payout-cell-open { color: #52616f; background: #121820; }
+  .payout-key { display: flex; flex-wrap: wrap; gap: 6px 16px; margin: 0; color: var(--muted); font-size: 12px; }
+  .payout-key span { display: inline-flex; align-items: center; gap: 6px; }
+  .payout-key b { padding: 3px 6px; border-radius: 3px; }
   .payout-balance { display: inline-block; min-width: 66px; padding: 3px 6px; border-radius: 4px; font-weight: bold; text-align: center; }
   .payout-balance-owed { background: #572828; color: #ffb1b1; }
   .payout-balance-credit { background: #173d2b; color: #7ee2b8; }
@@ -628,8 +634,8 @@
     <div class="panel"><div class="explorer-controls"><label>Season<select id="season-choice"></select></label></div><div id="season-summary" class="summary"></div><div class="chart-wrap wide-chart"><canvas id="season-top-chart"></canvas></div><div id="season-notes" class="record-grid" style="margin-top:18px"></div><h3 style="margin:28px 0 8px;color:var(--accent);font:11px Arial,sans-serif;letter-spacing:1px;text-transform:uppercase">Weeks</h3><div class="grid-legend"><span><i style="background:#8a6d1f"></i>Won the week</span><span><i style="background:#1e5c3a"></i>Top 5</span><span><i style="background:#26405e"></i>Top 10</span><span><i style="background:#151c24"></i>Outside top 10</span><span><i style="background:#1b2530"></i>Did not play</span><span style="color:#4a6070">Cell shows wins that week</span></div><div id="season-weeks-grid" style="overflow-x:auto;margin-bottom:4px"></div><h3 style="margin:28px 0 8px;color:var(--accent);font:11px Arial,sans-serif;letter-spacing:1px;text-transform:uppercase">Standings</h3><div id="season-table"></div><hr class="chart-divider"><div class="explorer-controls" style="margin-top:24px"><label>Race metric<select id="season-race-metric"><option value="pct">Win percentage</option><option value="wins">Total wins</option></select></label></div><div class="chart-wrap wide-chart race-chart-wrap"><canvas id="season-race-chart"></canvas></div><h3 style="margin:28px 0 8px;color:var(--accent);font:11px Arial,sans-serif;letter-spacing:1px;text-transform:uppercase">Money</h3><div class="chart-wrap wide-chart race-chart-wrap"><canvas id="season-money-chart"></canvas></div><h3 style="margin:28px 0 8px;color:var(--accent);font:11px Arial,sans-serif;letter-spacing:1px;text-transform:uppercase">Consistency</h3><div class="chart-wrap wide-chart"><canvas id="season-consistency-chart"></canvas></div><h3 style="margin:28px 0 8px;color:var(--accent);font:11px Arial,sans-serif;letter-spacing:1px;text-transform:uppercase">Head to head</h3><div class="grid-legend"><span>Weeks each player finished ahead of the other, top 8 only</span><span><i style="background:#8a6d1f"></i>Dominant</span><span><i style="background:#1e5c3a"></i>Winning</span><span><i style="background:#26405e"></i>Losing</span><span><i style="background:#151c24"></i>Dominated</span></div><div id="season-h2h" style="overflow-x:auto;margin-bottom:4px"></div><h3 style="margin:28px 0 8px;color:var(--accent);font:11px Arial,sans-serif;letter-spacing:1px;text-transform:uppercase">Best bet accuracy</h3><div class="chart-wrap wide-chart"><canvas id="season-bb-chart"></canvas></div><div class="grid-legend" style="margin-top:14px"><span><i style="background:#1e5c3a"></i>Best bet hit</span><span><i style="background:#6b1f1f"></i>Best bet missed</span><span><i style="background:#4a4a20"></i>Push (counts as a miss)</span><span><i style="background:#1b2530"></i>No best bet</span></div><div id="season-bb-grid" style="overflow-x:auto;margin-bottom:4px"></div><h3 style="margin:28px 0 8px;color:var(--accent);font:11px Arial,sans-serif;letter-spacing:1px;text-transform:uppercase">Tiebreakers</h3><div class="grid-legend"><span>The tiebreaker is net passing yards in the last game of the week · lower miss is better</span></div><div class="chart-wrap wide-chart race-chart-wrap"><canvas id="season-tb-chart"></canvas></div><div class="grid-legend" style="margin-top:14px"><span>Each week shows the guess and how many yards off it was</span><span><i style="background:#8a6d1f"></i>Exact</span><span><i style="background:#1e5c3a"></i>Within 10</span><span><i style="background:#26405e"></i>Within 50</span><span><i style="background:#151c24"></i>Further off</span></div><div id="season-tb-grid" style="overflow-x:auto;margin-bottom:4px"></div><h3 style="margin:28px 0 8px;color:var(--accent);font:11px Arial,sans-serif;letter-spacing:1px;text-transform:uppercase">Team picks</h3><div class="chart-wrap wide-chart"><canvas id="season-teams-chart"></canvas></div><h3 style="margin:28px 0 8px;color:var(--accent);font:11px Arial,sans-serif;letter-spacing:1px;text-transform:uppercase">Contrarian index</h3><div class="chart-wrap wide-chart"><canvas id="season-contrarian-chart"></canvas></div><div class="explorer-controls" style="margin-top:28px"><label>Player<select id="season-player"></select></label></div><h3 style="margin:24px 0 10px">Week by week</h3><div class="grid-legend"><span><i style="background:#d4af37"></i>Won the week</span><span><i style="background:#238b68"></i>Top 5</span><span><i style="background:#3f6fb5"></i>Top 10</span><span><i style="background:#4c5a68"></i>Outside top 10</span><span style="color:#4a6070">Bars are games won that week</span></div><div class="chart-wrap wide-chart race-chart-wrap" style="margin-top:12px"><canvas id="season-player-chart"></canvas></div></div>
   </section>
   <section id="view-payout" class="view">
-    <section class="intro"><div><h2>Payout</h2></div><p>Weeks paid and current balances.</p></section>
-    <div class="payout-layout"><section><div class="panel-head"><h3 id="payout-current-title">Weeks paid</h3></div><div id="payout-weeks"></div></section><div class="explorer-controls"><label>Season<select id="payout-season"></select></label></div><section><div class="panel-head"><h3 id="payout-history-title">Weeks paid</h3></div><div id="payout-history-weeks"></div></section><p id="payout-source" class="analysis-note" hidden></p></div>
+    <section class="intro"><div><h2>Payout</h2></div><p>Weeks played, payment status, and current balances.</p></section>
+    <div class="payout-layout"><p class="payout-key"><span><b class="payout-cell-paid">Paid</b> week covered or prepaid</span><span><b class="payout-cell-owed">$10</b> played on credit</span><span><b class="payout-cell-win">Win</b> weekly winner</span><span><b class="payout-cell-open">—</b> open or did not play</span><span><b class="payout-balance-even">Even</b> nothing owed as of the current week</span><span><b class="payout-balance-credit">+$ surplus</b> current season and playoffs covered; extra owed to player</span></p><section><div class="panel-head"><h3 id="payout-current-title">Weekly status</h3></div><div id="payout-weeks"></div></section><section><div class="panel-head"><h3 id="payout-history-title">Weekly status</h3></div><div class="explorer-controls"><select id="payout-season" aria-label="Payout season"></select></div><div id="payout-history-weeks"></div></section><p id="payout-source" class="analysis-note" hidden></p></div>
   </section>
   <section id="view-streaks" class="view">
     <section class="intro"><div><h2>Streaks</h2></div><p>The longest runs in pool history: correct picks, cold spells, weekly wins, best bets, and rides on a single team.</p></section>
@@ -652,7 +658,7 @@
       <details><summary>What can I find in each history section?</summary><div class="faq-answer"><ul><li><strong>Weeks:</strong> every entry, weekly standings, and pick-by-pick separation.</li><li><strong>Seasons:</strong> standings, weekly form, money, consistency, and the season race.</li><li><strong>Players:</strong> records, streaks, team habits, and situational ATS splits.</li><li><strong>Names:</strong> the complete week-name archive and recurring themes.</li><li><strong>Teams:</strong> pool support, ATS outcomes, opponents, Best Bets, venues, and player affinity.</li><li><strong>Games:</strong> one matchup with every archived pick and result.</li></ul></div></details>
       <details><summary>How do the playoffs work?</summary><div class="faq-answer"><p>The playoff winner has the most wins across all four rounds. Round 1 has 6 games plus a Best Bet for 7 possible wins; Round 2 has 4 games plus a Best Bet for 5; Round 3 has 2 games plus a Best Bet for 3; and the Super Bowl pick is worth 2 wins. That is 13 games and 17 possible wins.</p><p>The Super Bowl's combined net passing yards break a tie. Starting in Round 2, picks remain hidden until every player who can still win has submitted for that round.</p></div></details>
       <details><summary>What notifications are available?</summary><div class="faq-answer"><p>The browser alert announces a newly opened regular-season week while FBP is open. Email preferences can cover a new slate, a move into first place, early and late game windows, Sunday and Monday night scenarios, and the final weekly result. An email address is inactive until its verification link is opened, and every message includes a one-click stop link.</p><p>Text alerts require a separate SMS provider and are not available yet. FBP does not save a phone number while text delivery is unavailable.</p></div></details>
-      <details><summary>How do I add FBP to my phone's Home Screen?</summary><div class="faq-answer"><p><strong>iPhone or iPad:</strong> open FBP in Safari, tap Share, then choose Add to Home Screen.</p><p><strong>Android:</strong> tap Install in the FBP prompt, or open Chrome's menu and choose Install app or Add to Home screen. Phone browsers require you to confirm installation; a link cannot add the icon automatically.</p></div></details>
+      <details><summary>How do I add FBP to my phone's Home Screen?</summary><div class="faq-answer"><p><strong>iPhone or iPad:</strong> press and hold the URL, tap Share, scroll to Add to Home Screen, then tap Add.</p><p><strong>Android:</strong> tap Install and confirm. If Install is not shown, open Chrome's menu and tap Add to Home screen.</p></div></details>
       <details><summary>What visitor information is collected?</summary><div class="faq-answer"><p>When anonymous analytics are enabled, FBP records page views, pick starts, submissions, a random browser/session identifier, referring domain, device class, viewport, language, and time zone. It does not collect IP addresses, precise location, names, picks, or full referring URLs for analytics.</p><p>The analytics are stored privately for site maintenance and are not shown on a public leaderboard or visitor page.</p></div></details>
     </div></div>
   </section>
@@ -684,7 +690,11 @@
 document.getElementById("profile-best-bet-chart")?.closest(".profile-chart")?.before(document.getElementById("profile-team-chart")?.closest(".profile-chart"));
 const DATA_DIR = "./data";
 const WEBSITE_WEEK_HISTORY_VERSION = "20260825-week-names";
-const requestedStartupRoute = location.hash.slice(1) === "weekly-rank" ? "weeks" : location.hash.slice(1) || "week-one";
+const websiteRoutes = ["enter-picks", "week-one", "picks-confirmation", "alltime", "season", "payout", "streaks", "weeks", "weekly-rank", "games", "players", "names", "teams", "faq"];
+const standaloneAppLaunch = matchMedia("(display-mode: standalone)").matches || navigator.standalone === true;
+const savedStartupRoute = localStorage.getItem("fbpLastView");
+const requestedRoute = standaloneAppLaunch && websiteRoutes.includes(savedStartupRoute) ? savedStartupRoute : location.hash.slice(1);
+const requestedStartupRoute = requestedRoute === "weekly-rank" ? "weeks" : websiteRoutes.includes(requestedRoute) ? requestedRoute : "week-one";
 if (location.hash === "#weekly-rank") history.replaceState(null, "", "#weeks");
 let startupRoutePending = true;
 const WEBSITE_SUBMISSIONS_ENDPOINT = "https://script.google.com/macros/s/AKfycbxZUgJm6LstCEomhmrlJYa_nH7tsmxC_4UZwYdroIZbs-PeI6KdPqUZtsF9fZvr_YuNWQ/exec";
@@ -742,6 +752,7 @@ const WEBSITE_FORM_TEAM_NAMES = { ari:"cardinals",atl:"falcons",bal:"ravens",buf
 const WEBSITE_TEAM_DIVISIONS = { ari:"NFC West",atl:"NFC South",bal:"AFC North",buf:"AFC East",car:"NFC South",chi:"NFC North",cin:"AFC North",cle:"AFC North",dal:"NFC East",den:"AFC West",det:"NFC North",gb:"NFC North",hou:"AFC South",ind:"AFC South",jax:"AFC South",kc:"AFC West",lar:"NFC West",lac:"AFC West",lv:"AFC West",mia:"AFC East",min:"NFC North",ne:"AFC East",no:"NFC South",nyg:"NFC East",nyj:"AFC East",phi:"NFC East",pit:"AFC North",sea:"NFC West",sf:"NFC West",tb:"NFC South",ten:"AFC South",was:"NFC East" };
 const WEBSITE_TEAM_TIME_ZONES = { ari:"Mountain",atl:"Eastern",bal:"Eastern",buf:"Eastern",car:"Eastern",chi:"Central",cin:"Eastern",cle:"Eastern",dal:"Central",den:"Mountain",det:"Eastern",gb:"Central",hou:"Central",ind:"Eastern",jax:"Eastern",kc:"Central",lar:"Pacific",lac:"Pacific",lv:"Pacific",mia:"Eastern",min:"Central",ne:"Eastern",no:"Central",nyg:"Eastern",nyj:"Eastern",phi:"Eastern",pit:"Eastern",sea:"Pacific",sf:"Pacific",tb:"Eastern",ten:"Central",was:"Eastern" };
 const WEBSITE_TEAM_LOGO_CODES = { was:"wsh" };
+function websiteTeamLogoUrl(team) { const code = WEBSITE_TEAM_LOGO_CODES[String(team).toLowerCase()] || String(team).toLowerCase(); return `https://a.espncdn.com/combiner/i?img=/i/teamlogos/nfl/500/scoreboard/${code}.png&w=80&h=80&scale=crop&cquality=60&location=origin`; }
 function websiteTeamName(abbreviation) { const name = WEBSITE_TEAM_NAMES[abbreviation.toLowerCase()] || abbreviation; return abbreviation === abbreviation.toUpperCase() ? name.toUpperCase() : name; }
 function websiteFormTeamName(abbreviation) { const name = WEBSITE_FORM_TEAM_NAMES[abbreviation.toLowerCase()] || abbreviation; return abbreviation === abbreviation.toUpperCase() ? name.toUpperCase() : name; }
 function websiteNaturalTeamName(abbreviation) { return websiteFormTeamName(String(abbreviation || "").toLowerCase()).replace(/\b[a-z]/g, letter => letter.toUpperCase()); }
@@ -763,8 +774,7 @@ function websiteBestBetTeam(team) {
   const game = websiteActiveGames.find(item => [item.favorite, item.underdog].some(value => String(value).toLowerCase() === String(team).toLowerCase())) || {};
   const isAway = game.away ? String(game.away).toLowerCase() === String(team).toLowerCase() : team !== String(team).toUpperCase();
   const metadata = isAway ? game.awayTeam : game.homeTeam;
-  const logoCode = WEBSITE_TEAM_LOGO_CODES[String(team).toLowerCase()] || String(team).toLowerCase();
-  return { team, name: metadata?.name || websiteNaturalTeamName(team), logo: metadata?.logo || `https://a.espncdn.com/i/teamlogos/nfl/500/scoreboard/${logoCode}.png` };
+  return { team, name: metadata?.name || websiteNaturalTeamName(team), logo: websiteTeamLogoUrl(team) };
 }
 function updateWebsiteBestBetPicker() {
   const bestBet = document.getElementById("website-best-bet"), picker = document.querySelector(".website-best-bet-picker");
@@ -808,8 +818,7 @@ function websiteTeamChoice(game, abbreviation) {
   const metadata = isAway ? game.awayTeam : game.homeTeam;
   const name = metadata?.name || websiteFormTeamName(abbreviation);
   const displayName = abbreviation === abbreviation.toUpperCase() ? String(name).toUpperCase() : String(name).toLowerCase();
-  const logoCode = WEBSITE_TEAM_LOGO_CODES[String(abbreviation).toLowerCase()] || String(abbreviation).toLowerCase();
-  const logo = metadata?.logo || `https://a.espncdn.com/i/teamlogos/nfl/500/scoreboard/${logoCode}.png`;
+  const logo = websiteTeamLogoUrl(abbreviation);
   const homeMarker = isHome ? '<span class="website-home-marker">at </span>' : "";
   return `<span class="website-team-choice"><img class="website-team-logo" src="${websiteEscapeHtml(logo)}" alt="" loading="lazy"><span class="website-team-name">${homeMarker}${websiteEscapeHtml(displayName)}</span><span class="website-team-abbreviation">${homeMarker}${websiteEscapeHtml(abbreviation)}</span><span class="website-team-record">${websiteEscapeHtml(metadata?.record || "0-0")}</span></span>`;
 }
@@ -818,7 +827,8 @@ function renderWebsitePicksForm() { const host = document.getElementById("websit
 let websiteActiveGames = WEBSITE_WEEK_ONE_GAMES;
 let websiteLiveRefreshTimer = null, websiteSelectedWeekPlayer = "";
 let websitePicksWeatherRefreshTimer = null;
-const WEBSITE_PICKS_WEATHER_REFRESH_MS = 5 * 60 * 1000;
+const WEBSITE_PICKS_WEATHER_REFRESH_MS = 4 * 60 * 60 * 1000;
+const WEBSITE_PICKS_WEATHER_CACHE_KEY = "fbpPicksWeatherRefresh";
 const WEBSITE_PATH_DISPLAY_LIMIT = 50;
 const WEBSITE_SIMULATION_LIMIT = 4096;
 const WEBSITE_EXACT_CALCULATION_LIMIT = 250000;
@@ -875,26 +885,44 @@ function showMobileChartTooltip(chart) {
   element.style.display = "block";
   element.onclick = event => { event.stopPropagation(); element.style.display = "none"; chart.setActiveElements([]); chart.tooltip.setActiveElements([], { x: 0, y: 0 }); chart.update("none"); };
 }
+function hideIntentionalChartTooltips(exceptCanvas = null) {
+  Object.values(Chart.instances || {}).forEach(chart => {
+    if (chart.canvas === exceptCanvas || !chart.tooltip?.getActiveElements().length) return;
+    chart.setActiveElements([]);
+    chart.tooltip.setActiveElements([], { x: 0, y: 0 });
+    chart.update("none");
+  });
+  if (!exceptCanvas) document.getElementById("mobile-chart-tooltip")?.style.setProperty("display", "none");
+}
 Chart.register({
   id: "websiteIntentionalTouchTooltips",
   beforeInit(chart) {
     chart.options.events = ["click"];
   },
+  beforeEvent(chart, args) {
+    if (args.event.type !== "click" || !chart.tooltip?.opacity) { chart.$clickedTooltip = false; return; }
+    chart.$clickedTooltip = args.event.x >= chart.tooltip.x && args.event.x <= chart.tooltip.x + chart.tooltip.width && args.event.y >= chart.tooltip.y && args.event.y <= chart.tooltip.y + chart.tooltip.height;
+  },
   afterEvent(chart, args) {
     if (args.event.type !== "click" || !chart.tooltip) return;
     if (chart.canvas.id === "week-live-race-chart") return;
-    let active = chart.tooltip.getActiveElements();
-    if (!active.length && matchMedia("(max-width: 760px)").matches && args.event.native) {
-      active = chart.getElementsAtEventForMode(args.event.native, "nearest", { intersect: false }, false);
-      if (active.length) {
-        chart.setActiveElements(active);
-        chart.tooltip.setActiveElements(active, { x: args.event.x, y: args.event.y });
-        args.changed = true;
-      }
+    const mobile = matchMedia("(max-width: 760px)").matches;
+    const clickedTooltip = chart.$clickedTooltip;
+    chart.$clickedTooltip = false;
+    const active = !clickedTooltip && args.event.native ? chart.getElementsAtEventForMode(args.event.native, "nearest", { intersect: !mobile }, false) : [];
+    if (!active.length) {
+      chart.setActiveElements([]);
+      chart.tooltip.setActiveElements([], { x: 0, y: 0 });
+      args.changed = true;
+    } else if (mobile) {
+      chart.setActiveElements(active);
+      chart.tooltip.setActiveElements(active, { x: args.event.x, y: args.event.y });
+      args.changed = true;
     }
     requestAnimationFrame(() => showMobileChartTooltip(chart));
   }
 });
+document.addEventListener("click", event => hideIntentionalChartTooltips(event.target.closest?.("canvas") || null));
 function websiteProbabilityText(percent) {
   const value = Number(percent);
   if (!Number.isFinite(value)) return "";
@@ -2090,9 +2118,9 @@ async function loadActiveRegularWeek(forceRefresh = false) {
     if (websiteRegularSelection.staged) {
       websiteEntrySelection = { testMode: false, ...websiteRegularSelection };
       if (data.games?.length) {
-        const storedAt = Date.now();
-        websiteStagedGamesCache.set(`REGULAR_SEASON-${websiteRegularSelection.season}-${websiteRegularSelection.week}`, { games: data.games, storedAt });
-        try { localStorage.setItem(WEBSITE_ACTIVE_SLATE_CACHE_KEY, JSON.stringify({ selection: websiteRegularSelection, games: data.games, storedAt })); } catch (error) { console.warn(`Active slate could not be saved: ${error.message}`); }
+        const storedAt = Date.now(), cacheKey = `REGULAR_SEASON-${websiteRegularSelection.season}-${websiteRegularSelection.week}`, previousGames = websiteStagedGamesCache.get(cacheKey)?.games || [], games = data.games.map(game => websiteMergeGameContext(previousGames.find(previous => previous.gameId === game.gameId || (previous.favorite === game.favorite && previous.underdog === game.underdog)), game));
+        websiteStagedGamesCache.set(cacheKey, { games, storedAt });
+        try { localStorage.setItem(WEBSITE_ACTIVE_SLATE_CACHE_KEY, JSON.stringify({ selection: websiteRegularSelection, games, storedAt })); } catch (error) { console.warn(`Active slate could not be saved: ${error.message}`); }
       }
     }
     websiteActiveRegularWeekLoadedAt = Date.now();
@@ -2125,19 +2153,33 @@ async function loadWebsiteStagedGames(selection, forceRefresh = false) {
   })();
   return rawGames.map((game, index) => ({ ...game, id: game.gameId || `game-${index + 1}`, time: game.kickoffGroup || game.kickoff || `Game ${index + 1}` }));
 }
-function websiteGameContext(game) {
+function websiteGameContext(game, weatherPending = false) {
   const location = [game.venueCity, game.venueState].filter(Boolean).join(", ");
   const condition = String(game.weather || ""), normalizedCondition = condition.toLowerCase();
   const hasTemperature = game.temperature !== "" && game.temperature != null;
   const weatherIcon = game.indoor ? "🏟️" : /thunder|storm/.test(normalizedCondition) ? "⛈️" : /snow|flurr/.test(normalizedCondition) ? "❄️" : /rain|shower/.test(normalizedCondition) ? "🌧️" : /cloud|overcast/.test(normalizedCondition) ? "☁️" : /fog|mist/.test(normalizedCondition) ? "🌫️" : /wind/.test(normalizedCondition) ? "💨" : /sun|clear/.test(normalizedCondition) ? "☀️" : hasTemperature ? "🌡️" : "🌤️";
   const weather = [hasTemperature ? `${game.temperature}°` : "", condition].filter(Boolean).join(" ");
-  const weatherDetail = game.indoor ? "Indoor" : weather || "Weather unavailable";
+  const weatherDetail = game.indoor ? "Indoor" : weather || (weatherPending ? "Forecast loading..." : "Weather unavailable");
   const details = [["venue", game.venueName || game.venue], ["location", location], ["weather", weatherDetail], ["broadcast", game.broadcast || game.tv]].filter(([, value]) => value);
   return details.length ? `<div class="website-game-context${websiteIsNeutralSite(game) ? " website-game-context-neutral" : ""}">${details.map(([type, value], index) => `<span class="website-context-${type}">${type === "weather" ? `<span class="website-weather-icon" aria-hidden="true">${weatherIcon}</span>` : ""}${websiteEscapeHtml(value)}${index < details.length - 1 ? " · " : ""}</span>`).join("")}</div>` : "";
 }
-function scheduleWebsitePicksWeatherRefresh() {
+function websiteMergeGameContext(previous, refreshed) {
+  if (!previous) return { ...refreshed };
+  const updated = { ...previous, ...refreshed };
+  ["weather", "temperature", "weatherSource", "weatherLink", "venueName", "venueCity", "venueState", "broadcast", "awayTeam", "homeTeam"].forEach(key => {
+    if ((refreshed[key] === "" || refreshed[key] == null) && previous[key] !== "" && previous[key] != null) updated[key] = previous[key];
+  });
+  return updated;
+}
+function websiteWeatherRefreshState(selection) {
+  try {
+    const saved = JSON.parse(localStorage.getItem(WEBSITE_PICKS_WEATHER_CACHE_KEY) || "null");
+    return saved?.key === `${selection.phase}-${selection.season}-${selection.week}` ? Number(saved.at) || 0 : 0;
+  } catch (error) { return 0; }
+}
+function scheduleWebsitePicksWeatherRefresh(delay = WEBSITE_PICKS_WEATHER_REFRESH_MS) {
   clearTimeout(websitePicksWeatherRefreshTimer);
-  websitePicksWeatherRefreshTimer = setTimeout(refreshWebsitePicksWeather, WEBSITE_PICKS_WEATHER_REFRESH_MS);
+  websitePicksWeatherRefreshTimer = setTimeout(refreshWebsitePicksWeather, Math.max(1000, delay));
 }
 async function refreshWebsitePicksWeather() {
   clearTimeout(websitePicksWeatherRefreshTimer);
@@ -2154,13 +2196,19 @@ async function refreshWebsitePicksWeather() {
       const gameId = game.gameId || game.id;
       const refreshed = refreshedGames.find(candidate => (gameId && (candidate.gameId || candidate.id) === gameId) || (candidate.favorite === game.favorite && candidate.underdog === game.underdog));
       if (!refreshed) return game;
-      const updated = { ...game, ...refreshed };
+      const updated = websiteMergeGameContext(game, refreshed);
       const context = rows[index]?.querySelector(".website-game-context");
       const contextHtml = websiteGameContext(updated);
       if (context) context.outerHTML = contextHtml;
       else if (contextHtml) rows[index]?.insertAdjacentHTML("beforeend", contextHtml);
       return updated;
     });
+    const storedAt = Date.now(), cacheKey = `${selection.phase}-${selection.season}-${selection.week}`;
+    websiteStagedGamesCache.set(cacheKey, { games: websiteActiveGames, storedAt });
+    try {
+      localStorage.setItem(WEBSITE_PICKS_WEATHER_CACHE_KEY, JSON.stringify({ key: cacheKey, at: storedAt }));
+      if (!selection.testMode) localStorage.setItem(WEBSITE_ACTIVE_SLATE_CACHE_KEY, JSON.stringify({ selection, games: websiteActiveGames, storedAt }));
+    } catch (error) { console.warn(`Enriched slate could not be saved: ${error.message}`); }
   } catch (error) {
     console.warn(`Weather refresh unavailable: ${error.message}`);
   } finally {
@@ -2189,7 +2237,7 @@ async function renderWebsitePicksForm() {
     const groups = [];
     websiteActiveGames.forEach((game, index) => { const previous = websiteActiveGames[index - 1]; if (!previous || previous.time !== game.time) groups.push({ time: game.time, games: [] }); groups[groups.length - 1].games.push({ game, index }); });
     const linesReady = websiteActiveGames.every(game => game.favorite && game.underdog && game.spread !== "" && game.spread != null);
-    host.innerHTML = groups.map(group => `<fieldset class="website-game-group"><legend>${group.time}</legend>${group.games.map(({ game, index }) => { const favorite = game.favorite || game.away; const underdog = game.favorite ? game.underdog : game.home; return `<div class="website-game-row"><div class="website-matchup"><label class="website-side"><input type="radio" name="game-${index + 1}" value="${favorite}" ${linesReady ? "required" : "disabled"}>${websiteTeamChoice(game, favorite)}</label><span class="website-spread">${linesReady ? game.spread : "Line pending"}</span><label class="website-side right">${websiteTeamChoice(game, underdog)}<input type="radio" name="game-${index + 1}" value="${underdog}" ${linesReady ? "required" : "disabled"}></label></div>${websiteGameContext(game)}</div>`; }).join("")}</fieldset>`).join("");
+    host.innerHTML = groups.map(group => `<fieldset class="website-game-group"><legend>${group.time}</legend>${group.games.map(({ game, index }) => { const favorite = game.favorite || game.away; const underdog = game.favorite ? game.underdog : game.home; return `<div class="website-game-row"><div class="website-matchup"><label class="website-side"><input type="radio" name="game-${index + 1}" value="${favorite}" ${linesReady ? "required" : "disabled"}>${websiteTeamChoice(game, favorite)}</label><span class="website-spread">${linesReady ? game.spread : "Line pending"}</span><label class="website-side right">${websiteTeamChoice(game, underdog)}<input type="radio" name="game-${index + 1}" value="${underdog}" ${linesReady ? "required" : "disabled"}></label></div>${websiteGameContext(game, true)}</div>`; }).join("")}</fieldset>`).join("");
     const bestBet = document.getElementById("website-best-bet");
     bestBet.innerHTML = '';
     bestBet.add(new Option(linesReady ? "Choose a best bet" : "Available when lines are posted", ""));
@@ -2199,7 +2247,9 @@ async function renderWebsitePicksForm() {
     bestBet.disabled = !linesReady;
     document.querySelector('#website-picks-form button[type="submit"]').disabled = !linesReady;
     document.getElementById("website-picks-status").textContent = linesReady ? "" : "Yahoo has not posted every spread yet. Matchups are available for review; picks open after the Tuesday refresh fills the lines.";
-    scheduleWebsitePicksWeatherRefresh();
+    const lastWeatherRefresh = websiteWeatherRefreshState(selection), weatherAge = Date.now() - lastWeatherRefresh;
+    if (lastWeatherRefresh && weatherAge < WEBSITE_PICKS_WEATHER_REFRESH_MS) scheduleWebsitePicksWeatherRefresh(WEBSITE_PICKS_WEATHER_REFRESH_MS - weatherAge);
+    else refreshWebsitePicksWeather();
   } catch (error) {
     websiteActiveGames = [];
     renderWebsiteGamesLoadError(host, error);
@@ -2964,7 +3014,7 @@ function percentFormatter(cell) { const v = cell.getValue(); if (v === "" || v =
 function isMoneyColumn(name) { return /money|won\s*\$|streak.*money/i.test(name) && !/won during|weeks during/i.test(name); }
 function isPercentColumn(name) { return /^%$|win\s*%|%\s*won/i.test(name); }
 function buildColumns(columns, rows) { return columns.map(col => { const sample = rows.find(r => r[col] !== "" && r[col] != null); const value = sample && sample[col]; const numeric = value !== undefined && value !== "" && !isNaN(parseFloat(String(value).replace(/[$,%]/g, ""))); const def = { title: col, field: col, headerFilter: true, headerFilterPlaceholder: "filter...", sorter: numeric ? "number" : "string" }; if (isMoneyColumn(col)) def.formatter = moneyFormatter; else if (isPercentColumn(col)) def.formatter = percentFormatter; return def; }); }
-function showView(view) { if (view === "alltime" && startupRoutePending) return; if (view !== "season") stopSeasonLiveRace(); if (view !== "weeks") stopWeekLiveRace(); document.querySelectorAll(".view").forEach(section => section.classList.toggle("active", section.id === `view-${view}`)); document.querySelectorAll("#nav button[data-view]").forEach(btn => btn.classList.toggle("active", btn.dataset.view === view)); history.replaceState(null, "", `#${view}`); websiteTrackEvent("page_view", view); }
+function showView(view) { if (view === "alltime" && startupRoutePending) return; if (view !== "season") stopSeasonLiveRace(); if (view !== "weeks") stopWeekLiveRace(); document.querySelectorAll(".view").forEach(section => section.classList.toggle("active", section.id === `view-${view}`)); document.querySelectorAll("#nav button[data-view]").forEach(btn => btn.classList.toggle("active", btn.dataset.view === view)); history.replaceState(null, "", `#${view}`); if (websiteRoutes.includes(view) && view !== "picks-confirmation") localStorage.setItem("fbpLastView", view); websiteTrackEvent("page_view", view); }
 function renderProfile(name) { const overall = (tableData.overall || []).find(row => row.Name === name); const money = (tableData.money_won || []).find(row => row.Name === name); const weekly = dashboard.filter(row => row.Name === name); document.getElementById("profile-name").textContent = name || "Choose a player"; if (!overall) { document.getElementById("profile-stats").innerHTML = ""; return; } const stats = [["Wins", overall.Wins], ["Losses", overall.Losses], ["Win percentage", (Number(overall["%"] || 0) * 100).toFixed(2) + "%"], ["Plus/minus", overall["Plus/Minus"]], ["Total money won", "$" + Number(money?.["Total Money Won"] || 0).toLocaleString()], ["Weeks won", money?.["Weeks Won"] || 0]]; document.getElementById("profile-stats").innerHTML = stats.map(([label, value]) => `<div><span>${label}</span><strong>${value}</strong></div>`).join(""); const seasons = [...new Set(weekly.map(row => row.Season))].sort(); if (profileChart) profileChart.destroy(); profileChart = new Chart(document.getElementById("profile-history-chart"), { type: "line", data: { labels: seasons, datasets: [{ label: "Wins", data: seasons.map(season => weekly.filter(row => row.Season === season).reduce((sum, row) => sum + Number(row.Wins || 0), 0)), borderColor: colors[0], backgroundColor: colors[0] + "55", tension: .25 }, { label: "Average rank", data: seasons.map(season => { const rows = weekly.filter(row => row.Season === season); return rows.reduce((sum, row) => sum + Number(row.Rank || 0), 0) / rows.length; }), borderColor: colors[1], backgroundColor: colors[1] + "55", tension: .25, yAxisID: "rank" }] }, options: { responsive: true, maintainAspectRatio: false, scales: { x: { ticks: { color: "#91a0ae" }, grid: { color: "#2a3744" } }, y: { beginAtZero: true, ticks: { color: "#91a0ae" }, grid: { color: "#2a3744" } }, rank: { position: "right", reverse: true, ticks: { color: "#91a0ae" }, grid: { drawOnChartArea: false } } }, plugins: { legend: { labels: { color: "#e8eef5" } } } } }); }
 function renderProfileLegacy(name) {
   const overall = (tableData.overall || []).find(row => row.Name === name);
@@ -3450,7 +3500,7 @@ function stopAllTimeRace() {
 }
 function showAllTimeRaceFrame(index) {
   if (!allTimeRaceChart || !allTimeRaceFrames.length) return;
-  const metric = document.getElementById("alltime-race-metric")?.value || "winPct", eligible = player => metric !== "winPct" || player.weeksPlayed >= 100;
+  const metric = document.getElementById("alltime-race-metric")?.value || "wins", eligible = player => metric !== "winPct" || player.weeksPlayed >= 100;
   const firstVisibleFrame = metric === "winPct" ? Math.max(0, allTimeRaceFrames.findIndex(item => item.players.some(eligible))) : 0;
   const visibleFrameCount = allTimeRaceFrames.length - firstVisibleFrame;
   allTimeRaceFrame = firstVisibleFrame + ((index - firstVisibleFrame) % visibleFrameCount + visibleFrameCount) % visibleFrameCount;
@@ -3459,7 +3509,8 @@ function showAllTimeRaceFrame(index) {
   const players = [...field].sort((left, right) => Number(right[metric]) - Number(left[metric]) || right.wins - left.wins || left.name.localeCompare(right.name)).slice(0, fieldLimit);
   if (allTimeRaceSelectedPlayer && !players.some(player => player.name === allTimeRaceSelectedPlayer)) allTimeRaceSelectedPlayer = "";
   allTimeRaceChart.data.labels = visibleFrames.map(item => item.label);
-  allTimeRaceChart.data.datasets = players.map((player, paletteIndex) => { const focused = allTimeRaceSelectedPlayer === player.name, dimmed = allTimeRaceSelectedPlayer && !focused, color = dimmed ? websiteRaceColor(player.name, .18, paletteIndex) : websiteRaceColor(player.name, 1, paletteIndex), data = visibleFrames.map(item => { const value = item.players.find(candidate => candidate.name === player.name); return value && eligible(value) ? value[metric] : null; }); return { label: player.name, data, borderColor: color, backgroundColor: dimmed ? websiteRaceColor(player.name, .04, paletteIndex) : websiteRaceColor(player.name, .2, paletteIndex), borderWidth: focused ? 4 : dimmed ? 1 : 2, pointRadius: 0, pointHitRadius: 10, pointHoverRadius: 4, tension: .18, spanGaps: true }; });
+  allTimeRaceChart.data.datasets = players.map(player => { const focused = allTimeRaceSelectedPlayer === player.name, dimmed = allTimeRaceSelectedPlayer && !focused, color = dimmed ? websiteRaceColor(player.name, .18) : websiteRaceColor(player.name), data = visibleFrames.map(item => { const value = item.players.find(candidate => candidate.name === player.name); return value && eligible(value) ? value[metric] : null; }); return { label: player.name, data, borderColor: color, backgroundColor: websiteRaceColor(player.name, dimmed ? .04 : .2), borderWidth: focused ? 4 : dimmed ? 1 : 2, pointRadius: 0, pointHitRadius: 10, pointHoverRadius: 4, tension: .18, spanGaps: true }; });
+  allTimeRaceChart.data.datasets.forEach((dataset, datasetIndex) => allTimeRaceChart.setDatasetVisibility(datasetIndex, true));
   allTimeRaceChart.options.scales.y.title.text = metric === "wins" ? "Cumulative total wins including Best Bets" : metric === "winPct" ? "Cumulative win % · minimum 100 weeks played" : "Cumulative wins minus losses";
   setHistoricalRaceScale(allTimeRaceChart, metric, "alltime-race-scale");
   allTimeRaceChart.options.scales.y.ticks.callback = metric === "winPct" ? value => `${value}%` : value => value;
@@ -3506,7 +3557,7 @@ function renderAllTimeRace() {
   const wrap = canvas.closest(".chart-wrap");
   if (!document.getElementById("alltime-race-leader")) wrap.insertAdjacentHTML("afterbegin", '<div id="alltime-race-leader" class="live-race-leader" aria-hidden="true"></div>');
   if (!document.getElementById("alltime-race-leadership")) wrap.insertAdjacentHTML("afterend", '<section id="alltime-race-leadership" class="live-race-leadership"></section>');
-  if (!stepSelect.dataset.ready) { stepSelect.value = "week"; metricSelect.value = "wins"; document.getElementById("alltime-race-scale").value = "zoom"; stepSelect.dataset.ready = "true"; }
+  if (!stepSelect.dataset.ready) { stepSelect.value = "week"; metricSelect.value = "wins"; document.getElementById("alltime-race-field").value = "top10"; document.getElementById("alltime-race-scale").value = "zoom"; stepSelect.dataset.ready = "true"; }
   const step = stepSelect.value || "season", gameById = new Map(websiteGames.map(game => [game.gameId, game])), groups = new Map();
   websitePicks.forEach(pick => {
     const game = gameById.get(pick.gameId);
@@ -5110,10 +5161,15 @@ function renderSelectedNameProfile() {
 function payoutBalance(value) {
   const raw = String(value || "").trim(), numeric = Number(raw.replace(/[^0-9.-]/g, "")) || 0;
   if (!raw || raw.toLowerCase() === "even" || numeric === 0) return { type: "even", amount: 0, label: "Even" };
-  return raw.startsWith("+") ? { type: "credit", amount: Math.abs(numeric), label: `$${Math.abs(numeric).toLocaleString()} credit` } : { type: "owed", amount: Math.abs(numeric), label: `$${Math.abs(numeric).toLocaleString()} owed` };
+  return raw.startsWith("+") ? { type: "credit", amount: Math.abs(numeric), label: `+$${Math.abs(numeric).toLocaleString()} surplus` } : { type: "owed", amount: Math.abs(numeric), label: `$${Math.abs(numeric).toLocaleString()} owed` };
 }
 function payoutCell(value) {
-  return String(value || "").trim() ? { className: "payout-cell-paid", label: "✓" } : { className: "payout-cell-open", label: "—" };
+  const raw = String(value || "").trim(), normalized = raw.toLowerCase(), numeric = Number(raw.replace(/[^0-9.-]/g, ""));
+  if (!raw) return { type: "open", amount: 0, className: "payout-cell-open", label: "—" };
+  if (normalized === "win" || normalized === "tie") return { type: "win", amount: 0, className: "payout-cell-win", label: normalized === "tie" ? "Tie" : "Win" };
+  if (normalized === "even") return { type: "even", amount: 0, className: "payout-cell-even", label: "Even" };
+  if (!normalized.startsWith("paid") && Number.isFinite(numeric) && numeric > 0) return { type: "owed", amount: numeric, className: "payout-cell-owed", label: `$${numeric.toLocaleString()}` };
+  return { type: "paid", amount: 0, className: "payout-cell-paid", label: normalized === "paid" ? "Paid" : websiteEscapeHtml(raw.replace(/^paid\s*/i, "Paid $")) };
 }
 function parsePayoutSheetRows(values) {
   const rows = values.map(row => [...row, ...Array(21).fill("")].slice(0, 21).map(value => String(value || "").trim())), starts = rows.map((row, index) => /^20\d{2}$/.test(row[0]) ? index : -1).filter(index => index >= 0);
@@ -5141,8 +5197,9 @@ function payoutUnpaidTooltip(playerName, balance) {
     if (!player) continue;
     for (let index = season.periods.length - 1; index >= 0 && remaining > 0; index -= 1) {
       const period = season.periods[index];
-      if (!period || String(player.weeks[index] || "").trim()) continue;
-      const isPlayoffs = period.toLowerCase() === "playoffs", fee = isPlayoffs ? Number(String(season.playoffEntry || "$20").replace(/[^0-9.]/g, "")) || 20 : 10, applied = Math.min(fee, remaining);
+      const cell = payoutCell(player.weeks[index]);
+      if (!period || cell.type !== "owed") continue;
+      const isPlayoffs = period.toLowerCase() === "playoffs", applied = Math.min(cell.amount, remaining);
       unpaid.push({ label: `${season.season} ${isPlayoffs ? "Playoffs" : `Week ${period}`}`, amount: applied });
       remaining -= applied;
     }
@@ -5150,12 +5207,13 @@ function payoutUnpaidTooltip(playerName, balance) {
   }
   const rows = unpaid.map(item => `<div><span>${websiteEscapeHtml(item.label)}</span><strong>$${item.amount.toLocaleString()}</strong></div>`).join("");
   const remainder = remaining > 0 ? `<div><span>Older unmapped balance</span><strong>$${remaining.toLocaleString()}</strong></div>` : "";
-  return `<strong>${websiteEscapeHtml(playerName)} · ${websiteEscapeHtml(balance.label)}</strong><div>Most recent unpaid entries:</div><div class="payout-tooltip-list">${rows}${remainder}</div>`;
+  return `<strong>${websiteEscapeHtml(playerName)} · ${websiteEscapeHtml(balance.label)}</strong><div>Amounts marked owed in the sheet:</div><div class="payout-tooltip-list">${rows}${remainder}</div>`;
 }
-function payoutWeeksTable(season) {
+function payoutWeeksTable(season, hideInactive = false) {
   const activePeriods = season.periods.map((period, index) => ({ period, index })).filter(item => item.period);
   const periodHeaders = activePeriods.map(item => `<th>${item.period === "Playoffs" ? "PO" : `W${websiteEscapeHtml(item.period)}`}</th>`).join("");
-  return `<div class="payout-table-wrap"><table class="payout-table"><thead><tr><th>Player</th>${periodHeaders}<th>Balance</th></tr></thead><tbody>${season.players.map(player => { const balance = payoutBalance(player.balance), tooltip = balance.type === "owed" ? payoutUnpaidTooltip(player.name, balance) : ""; return `<tr><td>${websiteEscapeHtml(player.name)}</td>${activePeriods.map(item => { const cell = payoutCell(player.weeks[item.index]); return `<td class="${cell.className}">${cell.label}</td>`; }).join("")}<td><span class="payout-balance payout-balance-${balance.type}"${tooltip ? ` data-weekly-tooltip="${websiteEscapeHtml(tooltip)}"` : ""}>${websiteEscapeHtml(balance.label)}</span></td></tr>`; }).join("")}</tbody></table></div>`;
+  const players = hideInactive ? season.players.filter(player => activePeriods.some(item => String(player.weeks[item.index] || "").trim())) : season.players;
+  return `<div class="payout-table-wrap"><table class="payout-table"><thead><tr><th>Player</th>${periodHeaders}<th>Balance</th></tr></thead><tbody>${players.map(player => { const balance = payoutBalance(player.balance), tooltip = balance.type === "owed" ? payoutUnpaidTooltip(player.name, balance) : ""; return `<tr><td>${websiteEscapeHtml(player.name)}</td>${activePeriods.map(item => { const cell = payoutCell(player.weeks[item.index]); return `<td class="${cell.className}">${cell.label}</td>`; }).join("")}<td><span class="payout-balance payout-balance-${balance.type}"${tooltip ? ` data-weekly-tooltip="${websiteEscapeHtml(tooltip)}"` : ""}>${websiteEscapeHtml(balance.label)}</span></td></tr>`; }).join("")}</tbody></table></div>`;
 }
 async function renderPayout(refreshSheet = false) {
   const select = document.getElementById("payout-season");
@@ -5179,10 +5237,10 @@ async function renderPayout(refreshSheet = false) {
   }
   const currentSeason = websitePayouts[0], historySeason = websitePayouts.find(item => item.season === select.value) || websitePayouts[1] || currentSeason;
   select.value = historySeason.season;
-  document.getElementById("payout-current-title").textContent = `${currentSeason.season} Weeks paid`;
+  document.getElementById("payout-current-title").textContent = `${currentSeason.season} Weekly status`;
   document.getElementById("payout-weeks").innerHTML = payoutWeeksTable(currentSeason);
-  document.getElementById("payout-history-title").textContent = `${historySeason.season} Weeks paid`;
-  document.getElementById("payout-history-weeks").innerHTML = payoutWeeksTable(historySeason);
+  document.getElementById("payout-history-title").textContent = `${historySeason.season} Weekly status`;
+  document.getElementById("payout-history-weeks").innerHTML = payoutWeeksTable(historySeason, true);
 }
 function renderPlayerBestGames(name) {
   const player = websitePlayers.find(item => item.name === name), indexes = buildWebsitePlayerArchiveIndexes(), gameById = indexes.gameById;
@@ -5615,7 +5673,7 @@ function initViews() {
   document.getElementById("weekly-rank-player").onchange = renderWeeklyRank;
   document.getElementById("weekly-rank-display").onchange = renderWeeklyRank;
   const requested = location.hash.slice(1);
-  const target = ["enter-picks", "week-one", "picks-confirmation", "alltime", "season", "payout", "streaks", "weeks", "weekly-rank", "games", "players", "names", "teams", "faq"].includes(requested) ? requested : requestedStartupRoute;
+  const target = websiteRoutes.includes(requested) ? requested : requestedStartupRoute;
   if (!document.getElementById(`view-${target}`)?.classList.contains("active")) showView(target);
 }
 async function init() {
@@ -5863,8 +5921,8 @@ init().then(async () => { applyHistoricalLabels(); populateWeekSeasons(); popula
 <script src="teams.js?v=20260901-1"></script>
 <script>
 const initialRoute = location.hash.slice(1);
-const startupRoute = initialRoute || "week-one";
-if (!initialRoute) history.replaceState(null, "", "#week-one");
+const startupRoute = requestedStartupRoute;
+if (initialRoute !== startupRoute) history.replaceState(null, "", `#${startupRoute}`);
 const entryForm = document.getElementById("website-picks-form");
 const notificationRow = document.querySelector("#view-enter-picks .website-notification-row");
 const notificationSettings = document.querySelector("#view-enter-picks .notification-settings");
@@ -5922,17 +5980,19 @@ if (startupRoute === "week-one") {
     const installHelp = document.getElementById("website-install-help"), installCopy = document.getElementById("website-install-copy"), installAction = document.getElementById("website-install-action");
     const standalone = matchMedia("(display-mode: standalone)").matches || navigator.standalone === true;
     const isAppleMobile = /iPhone|iPad|iPod/i.test(navigator.userAgent) || navigator.platform === "MacIntel" && navigator.maxTouchPoints > 1;
+    const isAndroid = /Android/i.test(navigator.userAgent);
     const mobileViewport = matchMedia("(max-width: 760px)");
     let deferredInstallPrompt = null;
     const hideInstallHelp = () => { installHelp.hidden = true; };
     const showInstallHelp = copy => { if (!standalone && mobileViewport.matches) { installCopy.textContent = copy; installHelp.hidden = false; } };
     document.getElementById("website-install-close").onclick = hideInstallHelp;
-    if (isAppleMobile) showInstallHelp("In Safari, tap Share, then Add to Home Screen.");
+    if (isAppleMobile) showInstallHelp("Press and hold the URL, tap Share, scroll to Add to Home Screen, then tap Add.");
+    else if (isAndroid) showInstallHelp("Open Chrome’s menu, tap Add to Home screen, then Install.");
     window.addEventListener("beforeinstallprompt", event => {
       event.preventDefault();
       deferredInstallPrompt = event;
       installAction.hidden = false;
-      showInstallHelp("Install the app for quick access from your phone.");
+      showInstallHelp("Tap Install, then confirm.");
     });
     installAction.onclick = async () => {
       if (!deferredInstallPrompt) return;
