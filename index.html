@@ -2112,11 +2112,11 @@ const WEBSITE_ACTIVE_SLATE_CACHE_KEY = "fbpActiveSlate";
 try {
   const cachedSlate = JSON.parse(localStorage.getItem(WEBSITE_ACTIVE_SLATE_CACHE_KEY) || "null");
   const cachedSelection = cachedSlate?.selection;
-  if (location.hash === "#enter-picks" && cachedSelection?.staged && Array.isArray(cachedSlate.games) && cachedSlate.games.length && Date.now() - Number(cachedSlate.storedAt) < 24 * 60 * 60 * 1000) {
+  if (location.hash === "#enter-picks" && cachedSelection?.staged && Array.isArray(cachedSlate.games) && cachedSlate.games.length) {
     websiteRegularSelection = { season: Number(cachedSelection.season), week: Number(cachedSelection.week), phase: "REGULAR_SEASON", staged: true };
     websiteEntrySelection = { testMode: false, ...websiteRegularSelection };
     websiteStagedGamesCache.set(`REGULAR_SEASON-${websiteRegularSelection.season}-${websiteRegularSelection.week}`, { games: cachedSlate.games, storedAt: Date.now() });
-    websiteActiveRegularWeekLoadedAt = Date.now();
+    websiteActiveRegularWeekLoadedAt = 0;
   }
 } catch (error) { console.warn(`Saved active slate unavailable: ${error.message}`); }
 function notificationPlayerValidation(value) {
@@ -2235,7 +2235,7 @@ async function loadActiveRegularWeek(forceRefresh = false) {
     if (websiteRegularSelection.staged) {
       websiteEntrySelection = { testMode: false, ...websiteRegularSelection };
       if (data.games?.length) {
-        const storedAt = Date.now(), cacheKey = `REGULAR_SEASON-${websiteRegularSelection.season}-${websiteRegularSelection.week}`, previousGames = websiteStagedGamesCache.get(cacheKey)?.games || [], games = data.games.map(game => websiteMergeGameContext(previousGames.find(previous => previous.gameId === game.gameId || (previous.favorite === game.favorite && previous.underdog === game.underdog)), game));
+        const storedAt = Date.now(), cacheKey = `REGULAR_SEASON-${websiteRegularSelection.season}-${websiteRegularSelection.week}`, previousGames = websiteStagedGamesCache.get(cacheKey)?.games || [], games = data.games.map(game => websiteMergeGameContext(previousGames.find(previous => websiteGamesMatch(previous, game)), game));
         websiteStagedGamesCache.set(cacheKey, { games, storedAt });
         try { localStorage.setItem(WEBSITE_ACTIVE_SLATE_CACHE_KEY, JSON.stringify({ selection: websiteRegularSelection, games, storedAt })); } catch (error) { console.warn(`Active slate could not be saved: ${error.message}`); }
       }
@@ -2262,7 +2262,7 @@ async function loadWebsiteStagedGames(selection, forceRefresh = false) {
     const separator = WEBSITE_SUBMISSIONS_ENDPOINT.includes("?") ? "&" : "?";
     const enrich = forceRefresh ? '&enrich=1' : '';
     const url = `${WEBSITE_SUBMISSIONS_ENDPOINT}${separator}action=week-config&season=${selection.season}&week=${selection.week}&phase=${selection.phase}${enrich}`;
-    const response = await fetch(url, { signal: AbortSignal.timeout(30000) });
+    const response = await fetch(url, { signal: AbortSignal.timeout(forceRefresh ? 60000 : 30000) });
     const data = await response.json();
     if (!response.ok || !data.ok) throw new Error(data.error || "Could not load the staged games.");
     websiteStagedGamesCache.set(cacheKey, { games: data.games || [], storedAt: Date.now() });
@@ -2276,9 +2276,15 @@ function websiteGameContext(game) {
   const hasTemperature = game.temperature !== "" && game.temperature != null;
   const weatherIcon = game.indoor ? "🏟️" : /thunder|storm/.test(normalizedCondition) ? "⛈️" : /snow|flurr/.test(normalizedCondition) ? "❄️" : /rain|shower/.test(normalizedCondition) ? "🌧️" : /cloud|overcast/.test(normalizedCondition) ? "☁️" : /fog|mist/.test(normalizedCondition) ? "🌫️" : /wind/.test(normalizedCondition) ? "💨" : /sun|clear/.test(normalizedCondition) ? "☀️" : hasTemperature ? "🌡️" : "🌤️";
   const weather = [hasTemperature ? `${game.temperature}°` : "", condition].filter(Boolean).join(" ");
-  const weatherDetail = game.indoor ? "Indoor" : weather || "Forecast pending";
+  const weatherDetail = game.indoor ? "Indoor" : weather;
   const details = [["venue", game.venueName || game.venue], ["location", location], ["weather", weatherDetail], ["broadcast", game.broadcast || game.tv]].filter(([, value]) => value);
   return details.length ? `<div class="website-game-context${websiteIsNeutralSite(game) ? " website-game-context-neutral" : ""}">${details.map(([type, value], index) => `<span class="website-context-${type}">${type === "weather" ? `<span class="website-weather-icon" aria-hidden="true">${weatherIcon}</span>` : ""}${websiteEscapeHtml(value)}${index < details.length - 1 ? " · " : ""}</span>`).join("")}</div>` : "";
+}
+function websiteGamesMatch(left, right) {
+  const leftId = left?.gameId || left?.id, rightId = right?.gameId || right?.id;
+  if (leftId && rightId && leftId === rightId) return true;
+  const normalize = value => String(value || "").trim().toUpperCase();
+  return normalize(left?.favorite) === normalize(right?.favorite) && normalize(left?.underdog) === normalize(right?.underdog);
 }
 function websiteMergeGameContext(previous, refreshed) {
   if (!previous) return { ...refreshed };
@@ -2318,7 +2324,7 @@ async function refreshWebsitePicksWeather() {
     const rows = [...host.querySelectorAll(".website-game-row")];
     websiteActiveGames = websiteActiveGames.map((game, index) => {
       const gameId = game.gameId || game.id;
-      const refreshed = refreshedGames.find(candidate => (gameId && (candidate.gameId || candidate.id) === gameId) || (candidate.favorite === game.favorite && candidate.underdog === game.underdog));
+      const refreshed = refreshedGames.find(candidate => websiteGamesMatch(game, candidate));
       if (!refreshed) return game;
       const updated = websiteMergeGameContext(game, refreshed);
       const context = rows[index]?.querySelector(".website-game-context");
@@ -6151,15 +6157,21 @@ if (entryForm && notificationSettings) entryForm.insertAdjacentElement("afterend
 if (entryForm && notificationRow) entryForm.insertAdjacentElement("afterend", notificationRow);
 const picksReadyNote = document.querySelector('#notification-preferences-form input[name="picksReady"] + span small');
 if (picksReadyNote) picksReadyNote.textContent = "All point spreads are posted.";
+const picksName = document.getElementById("website-picks-name");
+const weekName = document.getElementById("website-week-name");
+if (picksName) picksName.maxLength = 20;
+if (weekName) weekName.maxLength = 255;
 const tiebreaker = document.getElementById("website-tiebreaker");
 if (tiebreaker) {
+  tiebreaker.step = "0.001";
   tiebreaker.removeAttribute("aria-label");
   tiebreaker.removeAttribute("data-weekly-tooltip");
   const note = tiebreaker.parentElement.querySelector("small");
   if (note) note.textContent = "Net passing yards include yards lost to sacks.";
   const validateTiebreaker = () => {
     const value = tiebreaker.valueAsNumber;
-    tiebreaker.setCustomValidity(tiebreaker.value && (value < WEBSITE_TIEBREAK_MIN || value > WEBSITE_TIEBREAK_MAX) ? "Enter a value from -100 to 1200." : "");
+    const hasTooManyDecimals = tiebreaker.value && !/^-?(?:\d+|\d*\.\d{1,3})$/.test(tiebreaker.value);
+    tiebreaker.setCustomValidity(hasTooManyDecimals ? "Use no more than 3 decimal places." : tiebreaker.value && (value < WEBSITE_TIEBREAK_MIN || value > WEBSITE_TIEBREAK_MAX) ? "Enter a value from -100 to 1200." : "");
   };
   tiebreaker.addEventListener("input", validateTiebreaker);
   tiebreaker.addEventListener("change", validateTiebreaker);
