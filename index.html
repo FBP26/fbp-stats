@@ -132,11 +132,16 @@
   .website-best-bet-picker[open] > summary { border-color: var(--accent); }
   .website-best-bet-menu { position: absolute; z-index: 20; top: calc(100% + 4px); left: 0; width: min(280px, 80vw); max-height: 290px; overflow-y: auto; border: 1px solid var(--border); border-radius: 5px; padding: 4px; background: var(--panel); box-shadow: 0 10px 28px #0009; }
   .website-best-bet-option { display: grid; grid-template-columns: 30px minmax(0, 1fr) auto; align-items: center; gap: 8px; width: 100%; min-height: 38px; border: 0; border-radius: 3px; padding: 4px 7px; background: transparent; color: var(--text); text-align: left; cursor: pointer; }
-  .website-best-bet-option:hover, .website-best-bet-option[aria-selected="true"] { background: #3b3315; }
+  .website-best-bet-option:hover, .website-best-bet-option[aria-selected="true"], .website-best-bet-option.keyboard-active { background: #3b3315; }
   .website-best-bet-logo { width: 28px; height: 28px; object-fit: contain; }
   .website-best-bet-name { overflow: hidden; font: 12px Arial, sans-serif; text-overflow: ellipsis; white-space: nowrap; }
   .website-best-bet-code { display: none; color: var(--text); font: bold 11px Arial, sans-serif; }
   .website-best-bet-picker.selected > summary .website-best-bet-code, .website-best-bet-option[aria-selected="true"] .website-best-bet-code { color: var(--accent); }
+  .website-name-field { position: relative; }
+  .website-name-menu { position: absolute; z-index: 25; top: calc(100% + 3px); left: 0; width: 100%; max-height: 230px; overflow-y: auto; border: 1px solid var(--border); border-radius: 5px; padding: 4px; background: var(--panel); box-shadow: 0 10px 28px #0009; text-transform: none; letter-spacing: 0; }
+  .website-name-menu[hidden] { display: none; }
+  .website-name-option { display: block; width: 100%; min-height: 34px; border: 0; border-radius: 3px; padding: 7px 9px; background: transparent; color: var(--text); font: 12px Arial, sans-serif; text-align: left; cursor: pointer; }
+  .website-name-option:hover, .website-name-option.keyboard-active { background: #3b3315; color: var(--accent); }
   .teams-team-picker { position: relative; margin-top: 5px; text-transform: none; letter-spacing: 0; }
   .teams-team-picker > summary { display: flex; align-items: center; gap: 8px; min-height: 38px; padding: 6px 10px; border: 1px solid var(--border); border-radius: 5px; background: var(--panel-2); color: var(--text); cursor: pointer; list-style: none; }
   .teams-team-picker > summary::-webkit-details-marker { display: none; }
@@ -761,6 +766,7 @@ async function initializeWebsiteAnalytics() {
   }
 }
 initializeWebsiteAnalytics();
+initializeWebsiteNameAutocomplete();
 function showWebsiteConfirmation() { showView("picks-confirmation"); window.scrollTo({ top: 0, behavior: "auto" }); }
 function resetWebsiteBestBet() { const bestBet = document.getElementById("website-best-bet"); if (!bestBet) return; if (!bestBet.options.length || bestBet.options[0].value !== "") bestBet.insertBefore(new Option("Choose a best bet", ""), bestBet.options[0] || null); bestBet.value = ""; updateWebsiteBestBetPicker(); }
 const WEBSITE_TEAM_NAMES = { ari:"arizona",atl:"atlanta",bal:"baltimore",buf:"buffalo",car:"carolina",chi:"chicago",cin:"cincinnati",cle:"cleveland",dal:"dallas",den:"denver",det:"detroit",gb:"green bay",hou:"houston",ind:"indianapolis",jax:"jacksonville",kc:"kansas city",lar:"la rams",lac:"la chargers",lv:"las vegas",mia:"miami",min:"minnesota",ne:"new england",no:"new orleans",nyg:"ny giants",nyj:"ny jets",phi:"philadelphia",pit:"pittsburgh",sea:"seattle",sf:"san francisco",tb:"tampa bay",ten:"tennessee",was:"washington" };
@@ -773,6 +779,53 @@ function websiteTeamName(abbreviation) { const name = WEBSITE_TEAM_NAMES[abbrevi
 function websiteFormTeamName(abbreviation) { const name = WEBSITE_FORM_TEAM_NAMES[abbreviation.toLowerCase()] || abbreviation; return abbreviation === abbreviation.toUpperCase() ? name.toUpperCase() : name; }
 function websiteNaturalTeamName(abbreviation) { return websiteFormTeamName(String(abbreviation || "").toLowerCase()).replace(/\b[a-z]/g, letter => letter.toUpperCase()); }
 function websiteEscapeHtml(value) { return String(value).replace(/[&<>"']/g, character => ({ "&": "&amp;", "<": "&lt;", ">": "&gt;", '"': "&quot;", "'": "&#39;" })[character]); }
+function initializeWebsiteNameAutocomplete() {
+  const input = document.getElementById("website-picks-name"), field = input?.closest("label");
+  if (!input || !field || field.querySelector(".website-name-menu")) return;
+  field.classList.add("website-name-field");
+  input.autocomplete = "off";
+  input.setAttribute("role", "combobox");
+  input.setAttribute("aria-autocomplete", "list");
+  input.setAttribute("aria-expanded", "false");
+  input.setAttribute("aria-controls", "website-name-menu");
+  const menu = document.createElement("div");
+  menu.id = "website-name-menu";
+  menu.className = "website-name-menu";
+  menu.setAttribute("role", "listbox");
+  menu.hidden = true;
+  field.append(menu);
+  let activeIndex = -1;
+  const names = () => [...new Set([...(websitePlayers || []).map(player => player.name), ...(tableData.overall || []).map(row => row.Name)].map(name => String(name || "").trim()).filter(Boolean))].sort((left, right) => left.localeCompare(right));
+  const options = () => [...menu.querySelectorAll(".website-name-option")];
+  const setActive = index => {
+    const items = options();
+    activeIndex = items.length ? (index + items.length) % items.length : -1;
+    items.forEach((item, itemIndex) => item.classList.toggle("keyboard-active", itemIndex === activeIndex));
+    const active = items[activeIndex];
+    input.setAttribute("aria-activedescendant", active?.id || "");
+    active?.scrollIntoView({ block: "nearest" });
+  };
+  const close = () => { menu.hidden = true; activeIndex = -1; input.setAttribute("aria-expanded", "false"); input.removeAttribute("aria-activedescendant"); };
+  const choose = option => { if (!option) return false; input.value = option.dataset.name; input.dispatchEvent(new Event("input", { bubbles: true })); close(); return true; };
+  const render = () => {
+    const query = input.value.trim().toLowerCase();
+    const matches = query ? names().filter(name => name.toLowerCase().startsWith(query)).slice(0, 10) : [];
+    menu.innerHTML = matches.map((name, index) => `<button id="website-name-option-${index}" class="website-name-option" type="button" role="option" data-name="${websiteEscapeHtml(name)}">${websiteEscapeHtml(name)}</button>`).join("");
+    menu.hidden = !matches.length || matches.some(name => name.toLowerCase() === query);
+    input.setAttribute("aria-expanded", String(!menu.hidden));
+    activeIndex = -1;
+    options().forEach(option => option.onmousedown = event => { event.preventDefault(); choose(option); });
+  };
+  input.addEventListener("input", render);
+  input.addEventListener("keydown", event => {
+    const items = options();
+    if (["ArrowDown", "ArrowUp"].includes(event.key) && !menu.hidden && items.length) { event.preventDefault(); setActive(activeIndex + (event.key === "ArrowDown" ? 1 : -1)); return; }
+    if (["Enter", "Tab", "ArrowRight"].includes(event.key) && !menu.hidden && items.length && (activeIndex >= 0 || event.key !== "ArrowRight" || input.selectionStart === input.value.length)) {
+      if (choose(items[activeIndex >= 0 ? activeIndex : 0]) && event.key !== "Tab") event.preventDefault();
+    } else if (event.key === "Escape") close();
+  });
+  input.addEventListener("blur", () => setTimeout(close, 0));
+}
 function websiteConvertNativeTooltips(root = document) {
   const elements = [...(root.matches?.("[title]") ? [root] : []), ...(root.querySelectorAll?.("[title]") || [])];
   elements.forEach(element => {
@@ -822,10 +875,57 @@ function renderWebsiteBestBetPicker(teams, enabled) {
   sortOptions();
   mediaQuery.addEventListener("change", sortOptions);
   picker.hidden = !enabled;
-  picker.querySelector("summary").onclick = event => { event.preventDefault(); event.stopPropagation(); picker.open = !picker.open; };
-  picker.querySelectorAll("[role=option]").forEach(option => option.onclick = event => { event.preventDefault(); event.stopPropagation(); bestBet.value = option.dataset.team; bestBet.dispatchEvent(new Event("change", { bubbles: true })); picker.open = false; updateWebsiteBestBetPicker(); });
+  const summary = picker.querySelector("summary"), pickerOptions = () => [...picker.querySelectorAll("[role=option]")];
+  let activeIndex = -1, typeBuffer = "", typeTimer = null;
+  summary.setAttribute("role", "combobox");
+  summary.setAttribute("aria-controls", "website-best-bet-menu");
+  summary.setAttribute("aria-expanded", "false");
+  menu.id = "website-best-bet-menu";
+  const setActive = index => {
+    const items = pickerOptions();
+    activeIndex = items.length ? (index + items.length) % items.length : -1;
+    items.forEach((option, optionIndex) => option.classList.toggle("keyboard-active", optionIndex === activeIndex));
+    const active = items[activeIndex];
+    summary.setAttribute("aria-activedescendant", active?.id || "");
+    active?.scrollIntoView({ block: "nearest" });
+  };
+  const open = () => { picker.open = true; summary.setAttribute("aria-expanded", "true"); const selectedIndex = pickerOptions().findIndex(option => option.dataset.team === bestBet.value); setActive(selectedIndex >= 0 ? selectedIndex : 0); };
+  const close = () => { picker.open = false; summary.setAttribute("aria-expanded", "false"); summary.removeAttribute("aria-activedescendant"); pickerOptions().forEach(option => option.classList.remove("keyboard-active")); activeIndex = -1; };
+  const choose = option => { if (!option) return; bestBet.value = option.dataset.team; bestBet.dispatchEvent(new Event("change", { bubbles: true })); updateWebsiteBestBetPicker(); close(); };
+  pickerOptions().forEach((option, index) => { option.id = `website-best-bet-option-${index}`; option.onclick = event => { event.preventDefault(); event.stopPropagation(); choose(option); }; });
+  summary.onclick = event => { event.preventDefault(); event.stopPropagation(); picker.open ? close() : open(); };
+  summary.onkeydown = event => {
+    const items = pickerOptions();
+    if (["ArrowDown", "ArrowUp"].includes(event.key)) { event.preventDefault(); if (!picker.open) open(); else setActive(activeIndex + (event.key === "ArrowDown" ? 1 : -1)); return; }
+    if (["Enter", " ", "Tab"].includes(event.key)) {
+      if (!picker.open) { if (event.key !== "Tab") { event.preventDefault(); open(); } }
+      else { choose(items[activeIndex >= 0 ? activeIndex : 0]); if (event.key !== "Tab") event.preventDefault(); }
+      return;
+    }
+    if (event.key === "Escape") { event.preventDefault(); close(); return; }
+    if (event.key.length === 1 && /[a-z0-9]/i.test(event.key)) {
+      event.preventDefault(); clearTimeout(typeTimer); typeBuffer += event.key.toLowerCase(); typeTimer = setTimeout(() => { typeBuffer = ""; }, 700);
+      if (!picker.open) open();
+      const matchIndex = items.findIndex(option => option.dataset.team.toLowerCase().startsWith(typeBuffer) || option.querySelector(".website-best-bet-name").textContent.toLowerCase().startsWith(typeBuffer));
+      if (matchIndex >= 0) setActive(matchIndex);
+    }
+  };
   field.appendChild(picker);
   updateWebsiteBestBetPicker();
+}
+function initializeWebsiteGamePickKeyboard(host) {
+  host.onkeydown = event => {
+    const current = event.target.closest('input[type="radio"][name^="game-"]');
+    if (!current || !["ArrowLeft", "ArrowRight", "ArrowUp", "ArrowDown"].includes(event.key)) return;
+    const rows = [...host.querySelectorAll(".website-game-row")], rowIndex = rows.findIndex(row => row.contains(current));
+    const currentOptions = [...rows[rowIndex].querySelectorAll('input[type="radio"]:not(:disabled)')], sideIndex = currentOptions.indexOf(current);
+    const targetRowIndex = event.key === "ArrowUp" ? rowIndex - 1 : event.key === "ArrowDown" ? rowIndex + 1 : rowIndex;
+    const targetSideIndex = event.key === "ArrowLeft" ? 0 : event.key === "ArrowRight" ? currentOptions.length - 1 : sideIndex;
+    const target = rows[targetRowIndex]?.querySelectorAll('input[type="radio"]:not(:disabled)')[targetSideIndex];
+    event.preventDefault();
+    if (!target || target === current) return;
+    target.checked = true; target.dispatchEvent(new Event("change", { bubbles: true })); target.focus();
+  };
 }
 function websiteIsNeutralSite(game) { return [game.neutralSite, game.neutral, game.isNeutral].some(value => value === true || String(value).toLowerCase() === "true"); }
 function websiteTeamChoice(game, abbreviation) {
@@ -2263,6 +2363,7 @@ async function renderWebsitePicksForm() {
     websiteActiveGames.forEach((game, index) => { const previous = websiteActiveGames[index - 1]; if (!previous || previous.time !== game.time) groups.push({ time: game.time, games: [] }); groups[groups.length - 1].games.push({ game, index }); });
     const linesReady = websiteActiveGames.every(game => game.favorite && game.underdog && game.spread !== "" && game.spread != null);
     host.innerHTML = groups.map(group => `<fieldset class="website-game-group"><legend>${group.time}</legend>${group.games.map(({ game, index }) => { const favorite = game.favorite || game.away; const underdog = game.favorite ? game.underdog : game.home; return `<div class="website-game-row"><div class="website-matchup"><label class="website-side"><input type="radio" name="game-${index + 1}" value="${favorite}" ${linesReady ? "required" : "disabled"}>${websiteTeamChoice(game, favorite)}</label><span class="website-spread">${linesReady ? game.spread : "Line pending"}</span><label class="website-side right">${websiteTeamChoice(game, underdog)}<input type="radio" name="game-${index + 1}" value="${underdog}" ${linesReady ? "required" : "disabled"}></label></div>${websiteGameContext(game)}</div>`; }).join("")}</fieldset>`).join("");
+    initializeWebsiteGamePickKeyboard(host);
     const bestBet = document.getElementById("website-best-bet");
     bestBet.innerHTML = '';
     bestBet.add(new Option(linesReady ? "Choose a best bet" : "Available when lines are posted", ""));
@@ -6037,7 +6138,7 @@ document.getElementById("notification-preferences-form")?.addEventListener("subm
 initializeNotificationPreferences();
 init().then(async () => { applyHistoricalLabels(); populateWeekSeasons(); populateSeasonChoices(); if (location.hash === "#weeks") { await loadDrilldown(); renderWinnerContributions(true); renderPicksGrid(); setTimeout(() => { orientWeekChart(); addGamePushMarkers(); }, 0); } if (websiteLastWeekData) renderWebsiteWeekRecap(websiteLastWeekData); });
 </script>
-<script src="teams.js?v=20260901-1"></script>
+<script src="teams.js?v=20260901-2"></script>
 <script>
 const initialRoute = location.hash.slice(1);
 const startupRoute = requestedStartupRoute;

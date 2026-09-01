@@ -295,7 +295,7 @@ function setupTeamsSections() {
   globalSection.innerHTML = '<h3 class="teams-section-title">All-Team Comparison</h3><div class="profile-charts" id="teams-global-charts"></div>';
   const selectedSection = document.createElement("section");
   selectedSection.id = "teams-selected-section";
-  selectedSection.innerHTML = '<hr class="chart-divider"><h3 class="teams-section-title" id="teams-selected-title">Selected Team</h3><div id="teams-selected-summary"></div><div class="profile-charts" id="teams-selected-charts"></div>';
+  selectedSection.innerHTML = '<h3 class="teams-section-title" id="teams-selected-title" style="margin-top:0">Selected Team</h3><div id="teams-selected-summary"></div><div class="profile-charts" id="teams-selected-charts"></div>';
   charts.before(selectedSection);
   const sharedControls = panel.querySelector(":scope > .explorer-controls");
   const teamLabel = document.getElementById("teams-team")?.closest("label"), metricLabel = document.getElementById("teams-metric")?.closest("label");
