@@ -330,7 +330,7 @@
   #week-one-table .picks-grid tbody tr:nth-child(even) td { background-image: linear-gradient(#ffffff05, #ffffff05); }
   #week-one-table .picks-grid tbody tr:hover td { background-image: linear-gradient(#54d6b212, #54d6b212); }
   #week-one-table .picks-grid tbody tr.website-row-selected td { background-image: linear-gradient(#54d6b22b, #54d6b22b); box-shadow: inset 0 2px #54d6b2, inset 0 -2px #54d6b2; }
-  #week-one-table .picks-grid .pg-player { position: sticky; left: 0; z-index: 2; }
+  #week-one-table .picks-grid .pg-player { position: sticky; left: 0; z-index: 2; width: 48px; min-width: 48px; max-width: 48px; overflow: hidden; text-overflow: ellipsis; }
   #week-one-table .picks-grid thead .pg-player { z-index: 3; }
   #week-one-table .picks-grid tbody tr:focus-visible { outline: 2px solid var(--accent); outline-offset: -2px; }
   .weekly-pick-win, .weekly-bb-win { color: var(--positive); font-weight: bold; }
@@ -2112,7 +2112,7 @@ const WEBSITE_ACTIVE_SLATE_CACHE_KEY = "fbpActiveSlate";
 try {
   const cachedSlate = JSON.parse(localStorage.getItem(WEBSITE_ACTIVE_SLATE_CACHE_KEY) || "null");
   const cachedSelection = cachedSlate?.selection;
-  if (location.hash === "#enter-picks" && cachedSelection?.staged && Array.isArray(cachedSlate.games) && cachedSlate.games.length) {
+  if (requestedRoute === "enter-picks" && cachedSelection?.staged && Array.isArray(cachedSlate.games) && cachedSlate.games.length) {
     websiteRegularSelection = { season: Number(cachedSelection.season), week: Number(cachedSelection.week), phase: "REGULAR_SEASON", staged: true };
     websiteEntrySelection = { testMode: false, ...websiteRegularSelection };
     websiteStagedGamesCache.set(`REGULAR_SEASON-${websiteRegularSelection.season}-${websiteRegularSelection.week}`, { games: cachedSlate.games, storedAt: Date.now() });
@@ -2265,8 +2265,9 @@ async function loadWebsiteStagedGames(selection, forceRefresh = false) {
     const response = await fetch(url, { signal: AbortSignal.timeout(forceRefresh ? 60000 : 30000) });
     const data = await response.json();
     if (!response.ok || !data.ok) throw new Error(data.error || "Could not load the staged games.");
-    websiteStagedGamesCache.set(cacheKey, { games: data.games || [], storedAt: Date.now() });
-    return data.games || [];
+    const games = (data.games || []).map(game => websiteMergeGameContext(cached?.games?.find(previous => websiteGamesMatch(previous, game)), game));
+    websiteStagedGamesCache.set(cacheKey, { games, storedAt: Date.now() });
+    return games;
   })();
   return rawGames.map((game, index) => ({ ...game, id: game.gameId || `game-${index + 1}`, time: game.kickoffGroup || game.kickoff || `Game ${index + 1}` }));
 }
@@ -2923,6 +2924,13 @@ async function fetchWebsiteCurrentWeek() {
   if (!response.ok || !data.ok) throw new Error(data.error || "Could not load the current week.");
   return data;
 }
+async function fetchWebsiteCurrentWeekRace(season, week) {
+  const separator = WEBSITE_SUBMISSIONS_ENDPOINT.includes("?") ? "&" : "?";
+  const response = await fetch(`${WEBSITE_SUBMISSIONS_ENDPOINT}${separator}action=current-week-race&season=${season}&week=${week}`, { signal: AbortSignal.timeout(20000) });
+  const data = await response.json();
+  if (!response.ok || !data.ok) throw new Error(data.error || "Could not load the current week race.");
+  return data.raceSnapshots || [];
+}
 async function renderWebsiteWeekOne(currentWeekRequest = null) {
   const weekTable = document.getElementById("week-one-table");
   const hasExistingBoard = Boolean(document.querySelector("#week-one-table .picks-grid"));
@@ -2933,14 +2941,23 @@ async function renderWebsiteWeekOne(currentWeekRequest = null) {
     const data = await (currentWeekRequest || fetchWebsiteCurrentWeek());
     websiteRegularSelection = { season: Number(data.season) || 2026, week: Number(data.week) || 1, phase: "REGULAR_SEASON", staged: Boolean((data.games || []).length) };
     updateWebsiteWeekLabels(websiteRegularSelection);
+    const raceRequest = fetchWebsiteCurrentWeekRace(websiteRegularSelection.season, websiteRegularSelection.week).catch(error => { console.warn(error.message); return []; });
     if (!/^\d+(?:\.\d+)?$/.test(String(data.actualTiebreaker || ""))) data.actualTiebreaker = "";
+    renderWebsiteWeekOneGrid(data, "Week X");
+    decorateWebsiteWeekOneHeaders(data);
+    await new Promise(resolve => requestAnimationFrame(() => requestAnimationFrame(resolve)));
     websitePreparePlayers(data);
     renderWebsiteWeekOneGrid(data, "Week X");
-    renderWebsiteRace(data);
     decorateWebsiteWeekOneHeaders(data);
+    renderWebsiteRace(data);
     renderWebsiteWeekRecap(data);
     renderWebsitePaths(data);
     renderWebsiteSankey(data);
+    raceRequest.then(raceSnapshots => {
+      if (!raceSnapshots.length || websiteRegularSelection.season !== Number(data.season) || websiteRegularSelection.week !== Number(data.week)) return;
+      data.raceSnapshots = raceSnapshots;
+      renderWebsiteRace(data);
+    });
     if (document.getElementById("view-week-one")?.classList.contains("active")) websiteLiveRefreshTimer = setTimeout(() => renderSelectedWebsiteWeek(true), 60000);
   } catch (error) {
     const table = document.getElementById("week-one-table"), hasCachedContent = table?.dataset.instantWeek === "true";
