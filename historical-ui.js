@@ -262,40 +262,6 @@ function setupProfileBestWeeksViews() {
   tablePanel.dataset.positioned = "true";
 }
 
-function setupSplitPageViews() {
-  const configurations = [
-    { view: "alltime", choices: [["career", "Career leaders"], ["trends", "Historical trends"], ["teams", "Teams"], ["records", "Record book"]], groups: { career: ["alltime-summary", "alltime-champions", "alltime-top-chart", "alltime-plus-minus-chart", "alltime-money-chart"], trends: ["alltime-race-chart", "alltime-seasons-grid", "alltime-attendance-chart"], teams: ["alltime-pick-charts"], records: ["alltime-cards"] } },
-    { view: "season", choices: [["race", "Standings and race"], ["analysis", "Season analysis"]], groups: { race: ["season-summary", "season-top-chart", "season-notes", "season-weeks-grid", "season-race-chart", "season-money-chart"], analysis: ["season-consistency-chart", "season-h2h", "season-bb-chart", "season-bb-grid", "season-tb-chart", "season-tb-grid", "season-teams-chart", "season-contrarian-chart", "season-player-chart"] } },
-    { view: "players", choices: [["career", "Career performance"], ["picking", "Picking behavior"]], groups: { career: ["profile-stats", "profile-extra-stats", "profile-weekly-wins-detail", "profile-history-chart", "profile-best-weeks-chart", "profile-money-chart", "profile-plus-minus-chart", "profile-finish-chart", "profile-weekly-rank-sheet"], picking: ["profile-recent-chart", "profile-best-bet-chart", "profile-team-chart", "profile-pick-behavior", "profile-best-games-chart"] } }
-  ];
-  const blockFor = element => element?.tagName === "CANVAS" ? element.closest(".panel, .chart-wrap") : element;
-  configurations.forEach(config => {
-    const view = document.getElementById(`view-${config.view}`);
-    if (!view) return;
-    let select = document.getElementById(`${config.view}-section-view`);
-    if (!select) {
-      const controls = document.createElement("div");
-      controls.className = "explorer-controls section-view-control";
-      controls.innerHTML = `<label>View<select id="${config.view}-section-view"><option value="complete">Complete page</option>${config.choices.map(([value, label]) => `<option value="${value}">${label}</option>`).join("")}</select></label>`;
-      view.querySelector(".intro")?.after(controls);
-      select = controls.querySelector("select");
-    }
-    const apply = () => {
-      const selected = select.value;
-      Object.entries(config.groups).forEach(([group, ids]) => ids.forEach(id => {
-        const block = blockFor(document.getElementById(id));
-        if (!block) return;
-        const hidden = selected !== "complete" && selected !== group;
-        block.classList.toggle("section-view-hidden", hidden);
-        if (block.previousElementSibling?.tagName === "H3") block.previousElementSibling.classList.toggle("section-view-hidden", hidden);
-      }));
-      requestAnimationFrame(() => view.querySelectorAll("canvas").forEach(canvas => { if (canvas.offsetParent) Chart.getChart(canvas)?.resize(); }));
-    };
-    select.onchange = apply;
-    apply();
-  });
-}
-
 function setupAttendanceFilter() {
   const canvas = document.getElementById("alltime-attendance-chart");
   const wrap = canvas?.closest(".chart-wrap");
@@ -381,7 +347,6 @@ document.addEventListener("DOMContentLoaded", () => {
   document.head.append(style);
   setupProfileCareerTrends();
   setupProfileBestWeeksViews();
-  setupSplitPageViews();
   setupAllTimeCareerLeaders();
   setupAllTimePlusMinusViews();
   setupSeasonCombinedViews();
@@ -391,5 +356,5 @@ document.addEventListener("DOMContentLoaded", () => {
   setupProfileSidebarHovers();
   const allTimeView = document.getElementById("view-alltime");
   if (allTimeView) new MutationObserver(() => { setupAttendanceFilter(); setupAllTimePlusMinusViews(); }).observe(allTimeView, { childList: true, subtree: true });
-  new MutationObserver(() => { setupSeasonCombinedViews(); setupTableShowAllControls(); setupAllTimeHoverTargets(); setupProfileSidebarHovers(); setupSplitPageViews(); }).observe(document.body, { childList: true, subtree: true });
+  new MutationObserver(() => { setupSeasonCombinedViews(); setupTableShowAllControls(); setupAllTimeHoverTargets(); setupProfileSidebarHovers(); }).observe(document.body, { childList: true, subtree: true });
 });
