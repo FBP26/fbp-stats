@@ -329,7 +329,8 @@
   #week-one-table .picks-grid tbody tr:nth-child(even) td { background-image: linear-gradient(#ffffff05, #ffffff05); }
   #week-one-table .picks-grid tbody tr:hover td { background-image: linear-gradient(#54d6b212, #54d6b212); }
   #week-one-table .picks-grid tbody tr.website-row-selected td { background-image: linear-gradient(#54d6b22b, #54d6b22b); box-shadow: inset 0 2px #54d6b2, inset 0 -2px #54d6b2; }
-  #week-one-table .picks-grid .pg-player { position: sticky; left: 0; z-index: 2; width: 32px; min-width: 32px; max-width: 32px; overflow: hidden; text-overflow: ellipsis; }
+  #week-one-table .picks-grid .pg-player { position: sticky; left: 0; z-index: 2; width: 96px; min-width: 96px; max-width: 96px; overflow: hidden; text-overflow: ellipsis; }
+  #week-one-table .picks-grid .pg-week-name { width: 147px; min-width: 147px; max-width: 147px; }
   #week-one-table .picks-grid thead .pg-player { z-index: 3; }
   #week-one-table .picks-grid tbody tr:focus-visible { outline: 2px solid var(--accent); outline-offset: -2px; }
   .weekly-pick-win, .weekly-bb-win { color: var(--positive); font-weight: bold; }
@@ -369,7 +370,7 @@
   .weekly-game-tooltip .tooltip-meta-start, .profile-chart-tooltip.compact-game-tooltip .tooltip-meta-start { margin-top: 5px; padding-top: 5px; border-top: 1px solid #52606d; }
   .distribution-tooltip { min-width: 270px; }
   .distribution-tooltip .tooltip-season-header { margin-top: 6px; padding-top: 6px; color: var(--accent-2); border-top: 1px solid #52606d; font-weight: bold; text-align: left; }
-  .distribution-tooltip .tooltip-week-row { display: grid; grid-template-columns: minmax(72px, 1fr) 38px 64px; gap: 12px; border-top: 0; font-family: Consolas, monospace; text-align: right; }
+  .distribution-tooltip .tooltip-week-row { display: grid; grid-template-columns: minmax(64px, 1fr) 30px 56px; gap: 5px; border-top: 0; font-family: Consolas, monospace; text-align: right; }
   .distribution-tooltip .tooltip-week-row span:first-child { text-align: left; }
   .season-long-tooltip { width: min(390px, calc(100vw - 16px)); }
   .season-long-tooltip .season-tooltip-head { display: grid; grid-template-columns: minmax(72px, 1fr) 34px 66px 48px 34px 54px; gap: 7px; padding: 3px 5px 5px; color: var(--muted); font: 9px Arial, sans-serif; text-align: right; text-transform: uppercase; }
@@ -391,7 +392,7 @@
   .profile-chart-tooltip .streak-game-grid { grid-template-columns: repeat(2, minmax(140px, 1fr)); gap: 3px; }
   .profile-chart-tooltip .streak-game-card { padding: 3px 5px; }
   .profile-chart-tooltip .streak-game-period { font-size: 10px; }
-  .profile-chart-tooltip .tooltip-week-row { display: grid; grid-template-columns: minmax(72px, 1fr) 38px 64px; gap: 12px; text-align: right; }
+  .profile-chart-tooltip .tooltip-week-row { display: grid; grid-template-columns: minmax(64px, 1fr) 30px 56px; gap: 5px; text-align: right; }
   .profile-chart-tooltip .tooltip-week-row span:first-child { text-align: left; }
   .weekly-win-record { cursor: pointer; text-decoration: underline dotted #54d6b299; text-underline-offset: 3px; }
   @media (max-width: 520px) { .profile-chart-tooltip { max-width: calc(100vw - 12px); max-height: calc(100dvh - 12px); padding: 5px 6px; font-size: 10px; line-height: 1.15; } .profile-chart-tooltip .streak-game-grid { grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 2px; } .profile-chart-tooltip .streak-game-card { padding: 2px 3px; } .profile-chart-tooltip .streak-game-period { margin-bottom: 2px; font-size: 8px; } .profile-chart-tooltip .streak-game-matchup { grid-template-columns: minmax(0, 1fr) 30px minmax(0, 1fr); gap: 2px; } }
@@ -861,6 +862,7 @@ function renderWebsiteBestBetPicker(teams, enabled) {
   field.classList.add("website-best-bet-field");
   const previousPicker = field.querySelector(".website-best-bet-picker");
   previousPicker?.bestBetMediaQuery?.removeEventListener("change", previousPicker.bestBetSortOptions);
+  if (previousPicker?.bestBetOutsideHandler) document.removeEventListener("click", previousPicker.bestBetOutsideHandler);
   previousPicker?.remove();
   const picker = document.createElement("details");
   picker.className = "website-best-bet-picker";
@@ -912,6 +914,8 @@ function renderWebsiteBestBetPicker(teams, enabled) {
       if (matchIndex >= 0) setActive(matchIndex);
     }
   };
+  picker.bestBetOutsideHandler = event => { if (!picker.contains(event.target)) close(); };
+  document.addEventListener("click", picker.bestBetOutsideHandler);
   field.appendChild(picker);
   updateWebsiteBestBetPicker();
 }
@@ -1002,11 +1006,12 @@ function showMobileChartTooltip(chart) {
   element.className = "profile-chart-tooltip mobile-chart-tooltip";
   element.innerHTML = `${title ? `<strong>${title}</strong>` : ""}${lines.map(line => `<div>${websiteEscapeHtml(line)}</div>`).join("")}`;
   element.style.display = "block";
-  element.onclick = event => { event.stopPropagation(); element.style.display = "none"; chart.setActiveElements([]); chart.tooltip.setActiveElements([], { x: 0, y: 0 }); chart.update("none"); };
+  element.onclick = event => { event.stopPropagation(); element.style.display = "none"; chart.$pinnedTooltipKey = ""; chart.setActiveElements([]); chart.tooltip.setActiveElements([], { x: 0, y: 0 }); chart.update("none"); };
 }
 function hideIntentionalChartTooltips(exceptCanvas = null) {
   Object.values(Chart.instances || {}).forEach(chart => {
     if (chart.canvas === exceptCanvas || !chart.tooltip?.getActiveElements().length) return;
+    chart.$pinnedTooltipKey = "";
     chart.setActiveElements([]);
     chart.tooltip.setActiveElements([], { x: 0, y: 0 });
     chart.update("none");
@@ -1029,14 +1034,20 @@ Chart.register({
     const clickedTooltip = chart.$clickedTooltip;
     chart.$clickedTooltip = false;
     const active = !clickedTooltip && args.event.native ? chart.getElementsAtEventForMode(args.event.native, "nearest", { intersect: !mobile }, false) : [];
-    if (!active.length) {
+    const activeKey = active.length ? `${active[0].datasetIndex}:${active[0].index}` : "";
+    const toggledOff = activeKey && activeKey === chart.$pinnedTooltipKey;
+    if (!active.length || toggledOff) {
+      chart.$pinnedTooltipKey = "";
       chart.setActiveElements([]);
       chart.tooltip.setActiveElements([], { x: 0, y: 0 });
       args.changed = true;
-    } else if (mobile) {
-      chart.setActiveElements(active);
-      chart.tooltip.setActiveElements(active, { x: args.event.x, y: args.event.y });
-      args.changed = true;
+    } else {
+      chart.$pinnedTooltipKey = activeKey;
+      if (mobile) {
+        chart.setActiveElements(active);
+        chart.tooltip.setActiveElements(active, { x: args.event.x, y: args.event.y });
+        args.changed = true;
+      }
     }
     requestAnimationFrame(() => showMobileChartTooltip(chart));
   }
@@ -1068,8 +1079,10 @@ function websiteRaceColor(name, alpha = 1, paletteIndex = -1) {
 }
 function assignWebsiteRaceColors(frames, metric) {
   const leaders = [...new Set(frames.map(frame => [...frame.players].sort((left, right) => Number(right[metric] || 0) - Number(left[metric] || 0) || Number(right.wins || 0) - Number(left.wins || 0) || left.name.localeCompare(right.name))[0]?.name).filter(Boolean))];
-  const remaining = [...new Set(frames.flatMap(frame => frame.players.map(player => player.name)))].filter(name => !leaders.includes(name)).sort((left, right) => left.localeCompare(right));
-  websiteRaceColorAssignments = new Map([...leaders, ...remaining].map((name, index) => [name, index % WEBSITE_RACE_TOP_COLORS.length]));
+  const currentTop = [...(frames.at(-1)?.players || [])].sort((left, right) => Number(right[metric] || 0) - Number(left[metric] || 0) || Number(right.wins || 0) - Number(left.wins || 0) || left.name.localeCompare(right.name)).map(player => player.name);
+  const priority = [...new Set([...currentTop, ...leaders])];
+  const remaining = [...new Set(frames.flatMap(frame => frame.players.map(player => player.name)))].filter(name => !priority.includes(name)).sort((left, right) => left.localeCompare(right));
+  websiteRaceColorAssignments = new Map([...priority, ...remaining].map((name, index) => [name, index % WEBSITE_RACE_TOP_COLORS.length]));
 }
 function websiteRaceMetric() { return document.getElementById("website-race-metric")?.value || "winPercent"; }
 function websiteStoredRaceSnapshots(context) {
@@ -1171,7 +1184,8 @@ function renderHistoricalRaceLeadership(prefix, frames, frameIndex, metric, unit
   const totals = new Map(), reigns = [];
   checkpoints.forEach(checkpoint => { totals.set(checkpoint.name, (totals.get(checkpoint.name) || 0) + 1); const latest = reigns.at(-1); if (latest?.name === checkpoint.name && latest.lastIndex === checkpoint.index - 1) { latest.count += 1; latest.lastIndex = checkpoint.index; } else reigns.push({ ...checkpoint, count: 1, lastIndex: checkpoint.index }); });
   const plural = count => `${count} ${unit}${count === 1 ? "" : "s"}`, leaders = [...totals].map(([name, count]) => ({ name, count })).sort((left, right) => right.count - left.count || left.name.localeCompare(right.name)), longest = [...reigns].sort((left, right) => right.count - left.count)[0], leadChanges = checkpoints.slice(1).filter((checkpoint, index) => checkpoint.name !== checkpoints[index].name).length, measured = checkpoints.length;
-  host.innerHTML = `<div class="live-race-leadership-head"><h4>Time in 1st</h4><p>${leadChanges} lead change${leadChanges === 1 ? "" : "s"} · ${plural(measured)} measured · Longest: ${websiteEscapeHtml(longest.name)} ${plural(longest.count)}</p></div><div class="live-leader-trail" aria-label="Time in 1st across measured ${unit} checkpoints">${reigns.map(reign => `<span class="live-leader-segment" style="--runner-color:${websiteRaceColor(reign.name)};flex:${reign.count / measured}" title="${websiteEscapeHtml(reign.name)} · ${plural(reign.count)} in 1st">${reign.count / measured >= .09 ? websiteEscapeHtml(reign.name) : ""}</span>`).join("")}</div><div class="live-leader-stats">${leaders.map(leader => `<div class="live-leader-stat" style="--runner-color:${websiteRaceColor(leader.name)}"><strong>${websiteEscapeHtml(leader.name)}</strong><span>${plural(leader.count)} in 1st</span></div>`).join("")}</div>`;
+  const reignTooltip = reign => `<strong>${websiteEscapeHtml(reign.name)} · ${plural(reign.count)} in 1st</strong>${frames.slice(reign.index, reign.lastIndex + 1).map(frame => { const ranked = [...frame.players].filter(eligible).sort((left, right) => Number(right[metric]) - Number(left[metric]) || Number(right.wins || 0) - Number(left.wins || 0) || left.name.localeCompare(right.name)); const rank = ranked.findIndex(player => player.name === reign.name) + 1; return `<div>${websiteEscapeHtml(frame.label)} · Rank #${rank}</div>`; }).join("")}`;
+  host.innerHTML = `<div class="live-race-leadership-head"><h4>Time in 1st</h4><p>${leadChanges} lead change${leadChanges === 1 ? "" : "s"} · ${plural(measured)} measured · Longest: ${websiteEscapeHtml(longest.name)} ${plural(longest.count)}</p></div><div class="live-leader-trail" aria-label="Time in 1st across measured ${unit} checkpoints">${reigns.map(reign => `<span class="live-leader-segment" style="--runner-color:${websiteRaceColor(reign.name)};flex:${reign.count / measured}" data-weekly-tooltip="${websiteEscapeHtml(reignTooltip(reign))}">${reign.count / measured >= .09 ? websiteEscapeHtml(reign.name) : ""}</span>`).join("")}</div><div class="live-leader-stats">${leaders.map(leader => `<div class="live-leader-stat" style="--runner-color:${websiteRaceColor(leader.name)}"><strong>${websiteEscapeHtml(leader.name)}</strong><span>${plural(leader.count)} in 1st</span></div>`).join("")}</div>`;
 }
 function historicalRaceCheckpointHeadline(frames, frameIndex, metric, eligible = () => true) {
   const order = frame => [...(frame?.players || [])].filter(eligible).sort((left, right) => Number(right[metric]) - Number(left[metric]) || Number(right.wins || 0) - Number(left.wins || 0) || left.name.localeCompare(right.name));
@@ -3775,7 +3789,8 @@ function renderAllTimeRace() {
   if (!websiteGames.length || !websitePicks.length) return;
   stopAllTimeRace();
   const topChart = document.getElementById("alltime-top-chart"), panel = topChart?.closest(".panel");
-  if (!document.getElementById("alltime-race-chart") && panel) topChart.closest(".chart-wrap").insertAdjacentHTML("afterend", '<hr class="chart-divider"><h3 style="margin:28px 0 8px;color:var(--accent);font:11px Arial,sans-serif;letter-spacing:1px;text-transform:uppercase">All-Time Race</h3><div class="explorer-controls race-controls"><label>Race by<select id="alltime-race-metric"><option value="wins">Total wins</option><option value="winPct">Win % (100+ picks)</option><option value="plusMinus">Plus/minus</option></select></label><label>Advance by<select id="alltime-race-step"><option value="game">Every game</option><option value="week">Every week</option></select></label><button id="alltime-race-play" type="button">Play race</button><button id="alltime-race-restart" type="button">Restart</button><div class="live-race-status" hidden><output id="alltime-race-time" class="live-race-time"></output><output id="alltime-race-headline" class="live-race-headline" aria-live="polite"></output></div></div><div class="chart-wrap wide-chart race-chart-wrap"><canvas id="alltime-race-chart"></canvas></div>');
+  const careerLeaderTail = document.getElementById("alltime-plus-minus-chart")?.closest(".chart-wrap") || topChart?.closest(".chart-wrap");
+  if (!document.getElementById("alltime-race-chart") && panel) careerLeaderTail.insertAdjacentHTML("afterend", '<hr class="chart-divider"><h3 style="margin:28px 0 8px;color:var(--accent);font:11px Arial,sans-serif;letter-spacing:1px;text-transform:uppercase">All-Time Race</h3><div class="explorer-controls race-controls"><label>Race by<select id="alltime-race-metric"><option value="wins">Total wins</option><option value="winPct">Win % (100+ picks)</option><option value="plusMinus">Plus/minus</option></select></label><label>Advance by<select id="alltime-race-step"><option value="game">Every game</option><option value="week">Every week</option></select></label><button id="alltime-race-play" type="button">Play race</button><button id="alltime-race-restart" type="button">Restart</button><div class="live-race-status" hidden><output id="alltime-race-time" class="live-race-time"></output><output id="alltime-race-headline" class="live-race-headline" aria-live="polite"></output></div></div><div class="chart-wrap wide-chart race-chart-wrap"><canvas id="alltime-race-chart"></canvas></div>');
   const canvas = document.getElementById("alltime-race-chart"), metricSelect = document.getElementById("alltime-race-metric"), stepSelect = document.getElementById("alltime-race-step");
   if (!canvas || !metricSelect || !stepSelect) return;
   metricSelect.querySelector('[value="winPct"]').textContent = "Win % (100+ weeks)";
@@ -3812,9 +3827,10 @@ function renderAllTimeRace() {
     group.picks.forEach(pick => { const player = websitePlayers.find(item => item.playerId === pick.playerId), game = gameById.get(pick.gameId), total = totals.get(pick.playerId) || { name: player?.name || pick.name || pick.playerId, wins: 0, losses: 0, decisions: 0, plusMinus: 0, winPct: 0, weeksPlayed: 0, weekKeys: new Set() }; const win = Number(pick.resultWin || 0) + Number(pick.bestBetWin || 0), loss = Number(pick.resultLoss || 0) + Number(pick.bestBetLoss || 0) + Number(pick.bestBetPush || 0), week = /^\d+$/.test(String(game?.week)) ? game.week : "playoffs"; total.wins += win; total.losses += loss; total.decisions += win + loss; total.plusMinus += win - loss; total.weekKeys.add(`${game?.season}|${week}`); total.weeksPlayed = total.weekKeys.size; total.winPct = total.decisions ? total.wins / total.decisions * 100 : 0; totals.set(pick.playerId, total); });
     return { label: group.label, players: [...totals.values()].map(({ weekKeys, ...player }) => ({ ...player })) };
   });
+  assignWebsiteRaceColors(allTimeRaceFrames, metricSelect.value || "wins");
   if (allTimeRaceChart) allTimeRaceChart.destroy();
   allTimeRaceChart = new Chart(canvas, { type: "line", data: { labels: [], datasets: [] }, options: { responsive: true, maintainAspectRatio: false, animation: { duration: 220 }, layout: { padding: { top: 42 } }, interaction: { mode: "nearest", intersect: false }, onClick: (event, elements) => { const name = elements[0] ? allTimeRaceChart.data.datasets[elements[0].datasetIndex].label : ""; allTimeRaceSelectedPlayer = allTimeRaceSelectedPlayer === name ? "" : name; showAllTimeRaceFrame(allTimeRaceFrame); }, scales: { x: { ticks: { color: "#91a0ae", autoSkip: true, maxTicksLimit: 20, maxRotation: 90 }, grid: { color: "#2a3744" }, title: { display: true, text: "Archive progress", color: "#91a0ae" } }, y: { beginAtZero: true, max: 100, ticks: { color: "#91a0ae", callback: value => `${value}%` }, grid: { color: "#2a3744" }, title: { display: true, text: "Cumulative win % · minimum 100 weeks played", color: "#91a0ae" } } }, plugins: { legend: { labels: { color: "#e8eef5", usePointStyle: true, pointStyle: "line" }, onClick: (event, item) => { allTimeRaceSelectedPlayer = allTimeRaceSelectedPlayer === item.text ? "" : item.text; showAllTimeRaceFrame(allTimeRaceFrame); } }, tooltip: { callbacks: { label: context => { const player = allTimeRaceFrames[context.dataIndex]?.players.find(item => item.name === context.dataset.label); return player ? `${player.name}: ${player.winPct.toFixed(1)}% · ${player.wins}-${player.losses} · ${player.weeksPlayed} weeks` : ""; } } } } } });
-  const refreshAllTimeRace = () => { stopAllTimeRace(); showAllTimeRaceFrame(allTimeRaceFrame); };
+  const refreshAllTimeRace = () => { stopAllTimeRace(); assignWebsiteRaceColors(allTimeRaceFrames, document.getElementById("alltime-race-metric")?.value || "wins"); showAllTimeRaceFrame(allTimeRaceFrame); };
   document.getElementById("alltime-race-metric").onchange = refreshAllTimeRace;
   document.getElementById("alltime-race-field").onchange = refreshAllTimeRace;
   document.getElementById("alltime-race-scale").onchange = refreshAllTimeRace;
@@ -6146,6 +6162,8 @@ function renderWinnerContributions(resetPlayer = false) {
 function addGamePushMarkers() { const chart = Chart.getChart("winner-contribution-chart"); if (!chart) return; const season = document.getElementById("week-season").value, week = document.getElementById("week-choice").value, playoffWeeks = ["round 1", "round 2", "round 3", "super bowl"]; const games = websiteGames.filter(game => game.season === season && (game.week === week || (week === "playoffs" && playoffWeeks.includes(game.week)))).sort((a, b) => Number(a.playoffGameNum || a.gameNum) - Number(b.playoffGameNum || b.gameNum)); const playerId = document.getElementById("contribution-player").value; const pushes = games.map(game => { const pick = websitePicks.find(row => row.gameId === game.gameId && row.playerId === playerId); return pick?.resultPush ? 0.25 : 0; }); chart.data.datasets = chart.data.datasets.filter(dataset => dataset.label !== "Game push"); chart.data.datasets.push({ label: "Game push", data: pushes, backgroundColor: "#9aa4af", borderColor: "#9aa4af", borderWidth: 1, stack: "outcome" }); chart.update(); }
 document.addEventListener("change", event => { if (event.target.id === "week-season" || event.target.id === "week-choice" || event.target.id === "contribution-player") { setTimeout(orientWeekChart, 0); renderWinnerContributions(event.target.id !== "contribution-player"); setTimeout(addGamePushMarkers, 0); } });
 function applyHistoricalLabels() {
+  const picksInstructions = document.querySelector("#view-enter-picks .website-instructions");
+  if (picksInstructions) picksInstructions.innerHTML = picksInstructions.innerHTML.replace("Spreads post Tuesday and", "Spreads post Tuesdays and");
   const headingLabels = new Map([["Hall of fame", "Career Records"], ["Games played", "Games"], ["Consistency", "Week-to-Week Swing"], ["Pick by pick", "Game-by-Game Contribution"], ["Weekly Rank", "Weekly Finishes"], ["Performance and streak runs", "Streaks and Form"], ["Cumulative money won", "Cumulative Money"], ["Plus/minus over time", "Plus/Minus History"]]);
   document.querySelectorAll("h2,h3").forEach(heading => { if (headingLabels.has(heading.textContent.trim())) heading.textContent = headingLabels.get(heading.textContent.trim()); });
   const confirmationHistoryHeading = document.querySelector("#confirmation-history h3");

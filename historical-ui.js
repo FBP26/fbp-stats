@@ -112,8 +112,12 @@ function historicalSeasonSummaryHtml(name, season = "") {
 
 function setupAllTimeHoverTargets() {
   document.querySelectorAll("#alltime-champions tbody tr").forEach(row => {
-    const season = row.cells[0]?.textContent.trim(), name = row.cells[1]?.textContent.trim();
-    if (season && name) row.dataset.weeklyTooltip = historicalSeasonSummaryHtml(name, season);
+    const season = row.cells[0]?.textContent.trim(), fieldCell = row.cells[row.cells.length - 1];
+    row.removeAttribute("data-weekly-tooltip");
+    [row.cells[0], row.cells[1], row.cells[4]].forEach(cell => { cell?.removeAttribute("title"); cell?.removeAttribute("data-weekly-tooltip"); });
+    if (!season || !fieldCell) return;
+    const players = [...new Map(websiteWeeks.filter(item => item.season === season && item.competition === "regular" && item.seasonRank != null).map(item => [item.playerId, item])).values()].sort((left, right) => Number(left.seasonRank) - Number(right.seasonRank) || left.name.localeCompare(right.name));
+    fieldCell.dataset.weeklyTooltip = `<strong>${websiteEscapeHtml(season)} · ${players.length} players</strong>${players.map(player => `<div>#${websiteEscapeHtml(player.seasonRank)} · ${websiteEscapeHtml(player.name)}</div>`).join("")}`;
   });
   const seasons = websiteSeasons.map(item => item.seasonId);
   document.querySelectorAll("#alltime-seasons-grid tbody tr").forEach(row => {
@@ -182,11 +186,12 @@ function setupAllTimeCareerLeaders() {
   controls.style.cssText = "grid-template-columns:minmax(220px,320px);margin:18px 0 12px";
   controls.innerHTML = '<label>Career leaders<select id="alltime-career-metric"><option value="alltime-top-chart">Win percentage</option><option value="alltime-plus-minus-chart">Plus/Minus</option></select></label>';
   top.before(controls);
+  top.after(plus);
   plus.hidden = true;
   document.getElementById("alltime-career-metric").onchange = event => {
     top.hidden = event.target.value !== "alltime-top-chart";
     plus.hidden = event.target.value !== "alltime-plus-minus-chart";
-    Chart.getChart(event.target.value)?.resize();
+    requestAnimationFrame(() => Chart.getChart(event.target.value)?.resize());
   };
 }
 
