@@ -3026,7 +3026,7 @@ async function renderSelectedWebsiteWeek(activeWeekKnown = false, currentWeekReq
   const selection = websitePickSelection();
   if (!selection.testMode) {
     const table = document.getElementById("week-one-table");
-    if (!document.querySelector("#week-one-table .picks-grid") && table?.dataset.instantWeek !== "true") {
+    if (!WEBSITE_SUBMISSIONS_ENDPOINT && !document.querySelector("#week-one-table .picks-grid") && table?.dataset.instantWeek !== "true") {
       const fallback = websiteWeekOneFallback();
       renderWebsiteWeekOneGrid(fallback, "Cached Week 1");
       table.dataset.instantWeek = "true";
@@ -6178,7 +6178,7 @@ if (tiebreaker) {
 }
 updateWebsiteWeekLabels(websiteEntrySelection);
 showView(startupRoute);
-if (startupRoute === "week-one") {
+if (startupRoute === "week-one" && !WEBSITE_SUBMISSIONS_ENDPOINT) {
   const fallback = websiteWeekOneFallback();
   renderWebsiteWeekOneGrid(fallback, "Cached Week 1");
   document.getElementById("week-one-table").dataset.instantWeek = "true";
