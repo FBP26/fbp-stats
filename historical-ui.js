@@ -164,6 +164,7 @@ function setupProfileCareerTrends() {
   const wraps = [historyCanvas, moneyCanvas].map(canvas => canvas.closest(".chart-wrap"));
   const plusPanel = plusCanvas.closest(".panel");
   plusPanel.querySelector("h3").textContent = "Plus/Minus History";
+  plusPanel.classList.add("profile-plus-minus-panel");
   finishCanvas.closest(".panel").after(plusPanel);
   const panel = document.createElement("div");
   panel.id = "profile-career-trends";
@@ -206,7 +207,7 @@ function setupAttendanceFilter() {
   const controls = document.createElement("div");
   controls.className = "explorer-controls";
   controls.style.cssText = "grid-template-columns:minmax(190px,280px);margin:12px 0";
-  controls.innerHTML = '<label>Minimum games<select id="attendance-min-games"><option value="0">All players</option><option value="100">100+ games</option><option value="250">250+ games</option><option value="500">500+ games</option></select></label>';
+  controls.innerHTML = '<label>Minimum games<select id="attendance-min-games"><option value="0">All players</option><option value="100" selected>100+ games</option><option value="250">250+ games</option><option value="500">500+ games</option></select></label>';
   wrap.before(controls);
   const applyFilter = () => {
     const chart = Chart.getChart("alltime-attendance-chart");
@@ -223,9 +224,14 @@ function setupAttendanceFilter() {
     chart.data.datasets.forEach((dataset, datasetIndex) => {
       dataset.data = chart.$fullAttendanceData.datasets[datasetIndex].filter(point => eligiblePlayers.has(point.y));
     });
-    chart.update();
+    const height = Math.max(260, chart.data.labels.length * 24 + 90);
+    wrap.style.height = `${height}px`;
+    canvas.closest(".attendance-chart-inner").style.height = `${height}px`;
+    chart.resize();
+    chart.update("none");
   };
   document.getElementById("attendance-min-games").onchange = applyFilter;
+  applyFilter();
 }
 
 const paginatedTableSizes = {
