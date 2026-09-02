@@ -286,13 +286,10 @@ function renderTeamBehavior(selectedTeam, season) {
 function setupTeamsSections() {
   const panel = document.querySelector("#view-teams > .panel");
   const charts = panel?.querySelector(".profile-charts");
-  if (!panel || !charts || document.getElementById("teams-global-section")) return;
+  if (!panel || !charts || document.getElementById("teams-selected-section")) return;
   const chartPanels = [...charts.children];
   const headings = [...panel.querySelectorAll(":scope > h3")];
   const headingFor = text => headings.find(heading => heading.textContent.trim() === text);
-  const globalSection = document.createElement("section");
-  globalSection.id = "teams-global-section";
-  globalSection.innerHTML = '<h3 class="teams-section-title">All-Team Comparison</h3><div class="profile-charts" id="teams-global-charts"></div>';
   const selectedSection = document.createElement("section");
   selectedSection.id = "teams-selected-section";
   selectedSection.innerHTML = '<h3 class="teams-section-title" id="teams-selected-title" style="margin-top:0">Selected Team</h3><div id="teams-selected-summary"></div><div class="profile-charts" id="teams-selected-charts"></div>';
@@ -311,7 +308,8 @@ function setupTeamsSections() {
   chartPanels[3]?.remove();
   selectedSection.querySelector("#teams-selected-charts").append(...chartPanels.slice(1, 3));
   const comparisonHeading = headingFor("Team leaderboard"), comparisonHost = document.getElementById("teams-leaderboard-table"), bestBetHeading = headingFor("Best Bet records"), bestBetHost = document.getElementById("teams-bestbet-table");
-  if (comparisonHeading && comparisonHost) { comparisonHeading.remove(); globalSection.querySelector("#teams-global-charts").replaceWith(comparisonHost); panel.append(globalSection); }
+  comparisonHeading?.remove();
+  comparisonHost?.remove();
   bestBetHeading?.remove();
   bestBetHost?.remove();
   const affinityHeading = document.getElementById("teams-affinity-title");
@@ -424,17 +422,6 @@ function renderTeams() {
     plugins: [teamsBarValueLabels],
     options: { indexAxis: "y", responsive: true, maintainAspectRatio: false, scales: { x: { beginAtZero: true, max: 100, ticks: { color: "#91a0ae", callback: value => value + "%" }, grid: { color: context => context.tick.value === 50 ? "#b8c4cf" : "#2a3744", lineWidth: context => context.tick.value === 50 ? 2 : 1 } }, y: { ticks: { display: false }, grid: { display: false } } }, plugins: { legend: { display: false }, tooltip: { enabled: false, external: context => profileChartTooltip(context, index => { const row = opponents[index]; return `<strong>${websiteEscapeHtml(`${selectedTeam} vs ${row.opponent} · ${record(row.wins, row.losses, row.pushes)} · ${pct(row.rate)}`)}</strong>${[...row.meetings].sort((left, right) => String(right.game.gameDate || "").localeCompare(String(left.game.gameDate || ""))).map(meeting => `<div>${weeklyGameTooltipHtml(meeting.game, meeting.win ? "win" : meeting.loss ? "loss" : "push", selectedTeam)}</div>`).join("")}`; }, true) } } }
   });
-
-  const tableRows = [...rows].sort((left, right) => right.picks - left.picks).map(row => ({
-    team: row.team, picks: row.picks, record: record(row.wins, row.losses, row.pushes), pickPct: row.pickRate,
-    fades: row.fades, fadeRecord: record(row.fadeWins, row.fadeLosses, row.fadePushes), fadePct: row.fadeRate,
-    bestBets: row.bestBets, bestBetRecord: record(row.bestBetWins, row.bestBetLosses, row.bestBetPushes), bestBetPct: row.bestBetRate
-  }));
-  renderSortableTeamsSheet(document.getElementById("teams-leaderboard-table"), tableRows, [
-    { key: "team", label: "Team", value: row => row.team }, { key: "picks", label: "Picked", value: row => row.picks }, { key: "pickPct", label: "Pick ATS", value: row => row.pickPct, html: row => teamsRateCell(row.pickPct, `${row.record} · ${pct(row.pickPct)}`) },
-    { key: "fades", label: "Against", value: row => row.fades }, { key: "fadePct", label: "Against ATS", value: row => row.fadePct, html: row => teamsRateCell(row.fadePct, `${row.fadeRecord} · ${pct(row.fadePct)}`) },
-    { key: "bestBets", label: "Best Bets", value: row => row.bestBets }, { key: "bestBetPct", label: "BB ATS", value: row => row.bestBetPct, html: row => teamsRateCell(row.bestBetPct, `${row.bestBetRecord} · ${pct(row.bestBetPct)}`) }
-  ], "picks");
 
   const affinity = new Map();
   websitePicks.forEach(pick => {

@@ -16,7 +16,7 @@
 <script src="https://cdn.jsdelivr.net/npm/chartjs-chart-sankey@0.14.0/dist/chartjs-chart-sankey.min.js"></script>
 <script src="https://unpkg.com/tabulator-tables@5.6.0/dist/js/tabulator.min.js"></script>
 <script src="https://cdn.jsdelivr.net/npm/papaparse@5.4.1/papaparse.min.js"></script>
-<script src="historical-ui.js?v=20260826-9"></script>
+<script src="historical-ui.js?v=20260902-1"></script>
 <style>
   :root { --bg: #0d1117; --panel: #171a1f; --panel-2: #20242a; --border: #3a3d42; --text: #f3f1e8; --muted: #aaa69b; --accent: #ffcf40; --accent-2: #e6a817; --positive: #39c982; --positive-bg: #123c2d; --danger: #ff6b6b; --danger-bg: #481f24; }
   * { box-sizing: border-box; }
@@ -4376,18 +4376,18 @@ function renderSeasonBestBetGrid(standings, weeks) {
     const misses = results.length - wins;
     return { playerId, name: player.name, cells: player.cells, wins, misses, total: results.length, rate: results.length ? wins / results.length : 0 };
   }).filter(row => row.total > 0).sort((a, b) => b.rate - a.rate || b.wins - a.wins || String(a.name).localeCompare(String(b.name)));
-  let html = '<table class="picks-grid"><thead><tr><th class="pg-sum-hdr">#</th><th class="pg-player">Player</th>';
+  let html = '<table class="picks-grid"><thead><tr><th class="pg-sum-hdr">#</th><th class="pg-player">Player</th><th class="pg-sum-hdr pg-w">W</th><th class="pg-sum-hdr pg-l">L</th><th class="pg-sum-hdr">Total</th><th class="pg-sum-hdr">Win%</th>';
   columns.forEach(week => { html += `<th class="pg-game">${shortLabel[week] || `W${week}`}</th>`; });
-  html += '<th class="pg-sum-hdr pg-w">W</th><th class="pg-sum-hdr pg-l">L</th><th class="pg-sum-hdr">Total</th><th class="pg-sum-hdr">Win%</th></tr></thead><tbody>';
+  html += '</tr></thead><tbody>';
   rows.forEach((row, index) => {
-    html += `<tr><td class="pg-sum-cell">${index + 1}</td><td class="pg-player">${row.name}</td>`;
+    html += `<tr><td class="pg-sum-cell">${index + 1}</td><td class="pg-player">${row.name}</td><td class="pg-sum-cell pg-w">${row.wins}</td><td class="pg-sum-cell pg-l">${row.misses}</td><td class="pg-sum-cell">${row.total}</td><td class="pg-sum-cell">${(row.rate * 100).toFixed(1)}%</td>`;
     columns.forEach(week => {
       const cell = row.cells[week];
       if (!cell || !cell.team) { html += '<td class="pg-pick-none"></td>'; return; }
       const cls = cell.result === "win" ? "pg-pick-win" : cell.result === "loss" ? "pg-pick-loss" : cell.result === "push" ? "pg-pick-push" : "pg-pick-pending";
       html += `<td class="${cls}" title="${shortLabel[week] || `Week ${week}`}: ${cell.team} ${cell.result === "none" ? "pending" : cell.result}">${cell.team}</td>`;
     });
-    html += `<td class="pg-sum-cell pg-w">${row.wins}</td><td class="pg-sum-cell pg-l">${row.misses}</td><td class="pg-sum-cell">${row.total}</td><td class="pg-sum-cell">${(row.rate * 100).toFixed(1)}%</td></tr>`;
+    html += '</tr>';
   });
   html += '</tbody></table>';
   element.innerHTML = html;
@@ -6242,7 +6242,7 @@ document.getElementById("notification-preferences-form")?.addEventListener("subm
 initializeNotificationPreferences();
 init().then(async () => { applyHistoricalLabels(); populateWeekSeasons(); populateSeasonChoices(); if (location.hash === "#weeks") { await loadDrilldown(); renderWinnerContributions(true); renderPicksGrid(); setTimeout(() => { orientWeekChart(); addGamePushMarkers(); }, 0); } if (websiteLastWeekData) renderWebsiteWeekRecap(websiteLastWeekData); });
 </script>
-<script src="teams.js?v=20260901-2"></script>
+<script src="teams.js?v=20260902-1"></script>
 <script>
 const WEBSITE_PERSISTED_FILTER_IDS = new Set([
   "season-choice", "payout-season", "streak-category", "game-season", "game-week", "game-choice",
