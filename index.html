@@ -965,6 +965,13 @@ let websiteContenderDetailMode = "simple";
 let websiteSankeyChart = null;
 let websiteRaceSnapshots = [], websiteRaceContext = "", websiteRaceAutoplayContext = "", websiteRaceFrame = 0, websiteRaceTimer = null, websiteRaceRows = new Map(), websiteRacePlaybackRequested = false, websiteRaceLineChart = null, websiteRaceSelectedPlayer = "", websiteRacePassesRemaining = 0;
 const RACE_FRAME_DELAY = 1400;
+function historicalRacePlayback(scope, unit, frameCount, baselineFrameCount) {
+  const durationMultiplier = scope === "alltime" ? unit === "season" ? 1 : unit === "week" ? 2 : 3 : scope === "season" ? unit === "week" ? 1 : 2 : unit === "game" ? 1 : 2;
+  const targetDuration = Math.max(1, baselineFrameCount - 1) * RACE_FRAME_DELAY * durationMultiplier;
+  const transitions = Math.max(1, frameCount - 1), minimumDelay = 100;
+  const step = Math.max(1, Math.ceil(transitions / Math.max(1, Math.floor(targetDuration / minimumDelay))));
+  return { delay: Math.round(targetDuration / Math.ceil(transitions / step)), step, targetDuration };
+}
 const raceAutoplayContexts = new Set();
 function setRaceFrameBadge(prefix, label, headline = "") {
   const canvas = document.getElementById(`${prefix}-chart`), wrap = canvas?.closest(".chart-wrap, .live-race-line-wrap");
@@ -3178,9 +3185,9 @@ async function refreshWebsiteApp() {
 document.addEventListener("click",event=>{const button=event.target.closest("#nav button[data-view]");if(!button)return;if(button.dataset.view==="enter-picks")setTimeout(()=>{renderWebsitePicksForm();resetWebsiteBestBet();},0);if(button.dataset.view==="week-one")setTimeout(renderSelectedWebsiteWeek,0);});
 document.getElementById("website-view-week-one")?.addEventListener("click",()=>{showView("week-one");renderSelectedWebsiteWeek();});
 let profileChart = null, profileMoneyChart = null, profilePlusMinusChart = null, profilePlacementChart = null, profileBestWeeksChart = null, profileRecentChart = null, profileBestBetChart = null, profileTeamChart = null, profileClubChart = null, profileBestGamesChart = null, profileSituationalChart = null, gamePicksTable = null, weekChart = null, weekTable = null, weekRaceChart = null, winnerContributionChart = null, weeklyRankChart = null, streakChart = null, streakTable = null, seasonTopChart = null, seasonTable = null, seasonRaceChart = null, seasonPlayerChart = null, seasonMoneyChart = null, seasonConsistencyChart = null, seasonBbChart = null, seasonTeamsChart = null, seasonContrarianChart = null, seasonTbChart = null, allTimeTopChart = null, allTimePlusMinusChart = null, allTimePlusMinusTrendChart = null, allTimeGamesChart = null, allTimeArcsChart = null, allTimeMoneyChart = null, allTimeTurnoutChart = null, allTimeStreakChart = null, allTimeTeamPicksChart = null, allTimeContrarianChart = null, allTimeSeasonWeeksChart = null, manifest = [], dashboard = [], tableData = {}, websiteWeeks = [], websiteAwards = [], websiteSeasons = [], websitePlayers = [], websiteRecords = [], websiteStreaks = [], websiteGames = [], websitePicks = [], websitePayouts = [];
-let allTimeAttendanceChart = null, allTimeRaceChart = null, allTimeRaceFrames = [], allTimeRaceFrame = 0, allTimeRaceTimer = null, allTimeRaceSelectedPlayer = "", allTimeRacePassesRemaining = 0;
-let seasonLiveRaceChart = null, seasonLiveRaceFrames = [], seasonLiveRaceFrame = 0, seasonLiveRaceTimer = null, seasonLiveRaceSelectedPlayer = "", seasonLiveRacePassesRemaining = 0;
-let weekLiveRaceChart = null, weekLiveRaceFrames = [], weekLiveRaceFrame = 0, weekLiveRaceTimer = null, weekLiveRaceSelectedPlayer = "", weekLiveRaceRenderToken = 0, weekLiveRacePassesRemaining = 0;
+let allTimeAttendanceChart = null, allTimeRaceChart = null, allTimeRaceFrames = [], allTimeRaceFrame = 0, allTimeRaceTimer = null, allTimeRaceSelectedPlayer = "", allTimeRacePassesRemaining = 0, allTimeRacePlayback = { delay: RACE_FRAME_DELAY, step: 1 };
+let seasonLiveRaceChart = null, seasonLiveRaceFrames = [], seasonLiveRaceFrame = 0, seasonLiveRaceTimer = null, seasonLiveRaceSelectedPlayer = "", seasonLiveRacePassesRemaining = 0, seasonLiveRacePlayback = { delay: RACE_FRAME_DELAY, step: 1 };
+let weekLiveRaceChart = null, weekLiveRaceFrames = [], weekLiveRaceFrame = 0, weekLiveRaceTimer = null, weekLiveRaceSelectedPlayer = "", weekLiveRaceRenderToken = 0, weekLiveRacePassesRemaining = 0, weekLiveRacePlayback = { delay: RACE_FRAME_DELAY, step: 1 };
 const weekLiveRaceArchiveCache = new Map();
 let websitePicksByGameCache = null, websitePicksByGameCacheSource = null;
 function websitePicksByGame() {
@@ -3782,8 +3789,8 @@ function advanceAllTimeRace() {
   if (allTimeRaceFrame >= allTimeRaceFrames.length - 1) {
     if (allTimeRacePassesRemaining > 1) { allTimeRacePassesRemaining -= 1; showAllTimeRaceFrame(0); }
     else { stopAllTimeRace(); return; }
-  } else showAllTimeRaceFrame(allTimeRaceFrame + 1);
-  allTimeRaceTimer = setTimeout(advanceAllTimeRace, RACE_FRAME_DELAY);
+  } else showAllTimeRaceFrame(Math.min(allTimeRaceFrames.length - 1, allTimeRaceFrame + allTimeRacePlayback.step));
+  allTimeRaceTimer = setTimeout(advanceAllTimeRace, allTimeRacePlayback.delay);
 }
 function renderAllTimeRace() {
   if (!websiteGames.length || !websitePicks.length) return;
@@ -3827,20 +3834,22 @@ function renderAllTimeRace() {
     group.picks.forEach(pick => { const player = websitePlayers.find(item => item.playerId === pick.playerId), game = gameById.get(pick.gameId), total = totals.get(pick.playerId) || { name: player?.name || pick.name || pick.playerId, wins: 0, losses: 0, decisions: 0, plusMinus: 0, winPct: 0, weeksPlayed: 0, weekKeys: new Set() }; const win = Number(pick.resultWin || 0) + Number(pick.bestBetWin || 0), loss = Number(pick.resultLoss || 0) + Number(pick.bestBetLoss || 0) + Number(pick.bestBetPush || 0), week = /^\d+$/.test(String(game?.week)) ? game.week : "playoffs"; total.wins += win; total.losses += loss; total.decisions += win + loss; total.plusMinus += win - loss; total.weekKeys.add(`${game?.season}|${week}`); total.weeksPlayed = total.weekKeys.size; total.winPct = total.decisions ? total.wins / total.decisions * 100 : 0; totals.set(pick.playerId, total); });
     return { label: group.label, players: [...totals.values()].map(({ weekKeys, ...player }) => ({ ...player })) };
   });
+  const baselineFrameCount = new Set(websitePicks.map(pick => gameById.get(pick.gameId)?.season).filter(Boolean)).size;
+  allTimeRacePlayback = historicalRacePlayback("alltime", step, allTimeRaceFrames.length, baselineFrameCount);
   assignWebsiteRaceColors(allTimeRaceFrames, metricSelect.value || "wins");
   if (allTimeRaceChart) allTimeRaceChart.destroy();
-  allTimeRaceChart = new Chart(canvas, { type: "line", data: { labels: [], datasets: [] }, options: { responsive: true, maintainAspectRatio: false, animation: { duration: 220 }, layout: { padding: { top: 42 } }, interaction: { mode: "nearest", intersect: false }, onClick: (event, elements) => { const name = elements[0] ? allTimeRaceChart.data.datasets[elements[0].datasetIndex].label : ""; allTimeRaceSelectedPlayer = allTimeRaceSelectedPlayer === name ? "" : name; showAllTimeRaceFrame(allTimeRaceFrame); }, scales: { x: { ticks: { color: "#91a0ae", autoSkip: true, maxTicksLimit: 20, maxRotation: 90 }, grid: { color: "#2a3744" }, title: { display: true, text: "Archive progress", color: "#91a0ae" } }, y: { beginAtZero: true, max: 100, ticks: { color: "#91a0ae", callback: value => `${value}%` }, grid: { color: "#2a3744" }, title: { display: true, text: "Cumulative win % · minimum 100 weeks played", color: "#91a0ae" } } }, plugins: { legend: { labels: { color: "#e8eef5", usePointStyle: true, pointStyle: "line" }, onClick: (event, item) => { allTimeRaceSelectedPlayer = allTimeRaceSelectedPlayer === item.text ? "" : item.text; showAllTimeRaceFrame(allTimeRaceFrame); } }, tooltip: { callbacks: { label: context => { const player = allTimeRaceFrames[context.dataIndex]?.players.find(item => item.name === context.dataset.label); return player ? `${player.name}: ${player.winPct.toFixed(1)}% · ${player.wins}-${player.losses} · ${player.weeksPlayed} weeks` : ""; } } } } } });
+  allTimeRaceChart = new Chart(canvas, { type: "line", data: { labels: [], datasets: [] }, options: { responsive: true, maintainAspectRatio: false, animation: { duration: Math.min(220, allTimeRacePlayback.delay * .6) }, layout: { padding: { top: 42 } }, interaction: { mode: "nearest", intersect: false }, onClick: (event, elements) => { const name = elements[0] ? allTimeRaceChart.data.datasets[elements[0].datasetIndex].label : ""; allTimeRaceSelectedPlayer = allTimeRaceSelectedPlayer === name ? "" : name; showAllTimeRaceFrame(allTimeRaceFrame); }, scales: { x: { ticks: { color: "#91a0ae", autoSkip: true, maxTicksLimit: 20, maxRotation: 90 }, grid: { color: "#2a3744" }, title: { display: true, text: "Archive progress", color: "#91a0ae" } }, y: { beginAtZero: true, max: 100, ticks: { color: "#91a0ae", callback: value => `${value}%` }, grid: { color: "#2a3744" }, title: { display: true, text: "Cumulative win % · minimum 100 weeks played", color: "#91a0ae" } } }, plugins: { legend: { labels: { color: "#e8eef5", usePointStyle: true, pointStyle: "line" }, onClick: (event, item) => { allTimeRaceSelectedPlayer = allTimeRaceSelectedPlayer === item.text ? "" : item.text; showAllTimeRaceFrame(allTimeRaceFrame); } }, tooltip: { callbacks: { label: context => { const player = allTimeRaceFrames[context.dataIndex]?.players.find(item => item.name === context.dataset.label); return player ? `${player.name}: ${player.winPct.toFixed(1)}% · ${player.wins}-${player.losses} · ${player.weeksPlayed} weeks` : ""; } } } } } });
   const refreshAllTimeRace = () => { stopAllTimeRace(); assignWebsiteRaceColors(allTimeRaceFrames, document.getElementById("alltime-race-metric")?.value || "wins"); showAllTimeRaceFrame(allTimeRaceFrame); };
   document.getElementById("alltime-race-metric").onchange = refreshAllTimeRace;
   document.getElementById("alltime-race-field").onchange = refreshAllTimeRace;
   document.getElementById("alltime-race-scale").onchange = refreshAllTimeRace;
   document.getElementById("alltime-race-step").onchange = () => { document.getElementById("alltime-race-scale").value = stepSelect.value === "game" ? "standard" : "zoom"; renderAllTimeRace(); };
   document.getElementById("alltime-race-previous").onclick = () => { stopAllTimeRace(); showAllTimeRaceFrame(allTimeRaceFrame - 1); };
-  document.getElementById("alltime-race-play").onclick = event => { if (allTimeRaceTimer) { stopAllTimeRace(); return; } if (allTimeRaceFrame >= allTimeRaceFrames.length - 1) showAllTimeRaceFrame(0); allTimeRacePassesRemaining = 1; event.currentTarget.textContent = "Pause"; allTimeRaceTimer = setTimeout(advanceAllTimeRace, RACE_FRAME_DELAY); };
+  document.getElementById("alltime-race-play").onclick = event => { if (allTimeRaceTimer) { stopAllTimeRace(); return; } if (allTimeRaceFrame >= allTimeRaceFrames.length - 1) showAllTimeRaceFrame(0); allTimeRacePassesRemaining = 1; event.currentTarget.textContent = "Pause"; allTimeRaceTimer = setTimeout(advanceAllTimeRace, allTimeRacePlayback.delay); };
   document.getElementById("alltime-race-next").onclick = () => { stopAllTimeRace(); showAllTimeRaceFrame(allTimeRaceFrame + 1); };
   document.getElementById("alltime-race-restart").onclick = () => { stopAllTimeRace(); showAllTimeRaceFrame(0); };
   showAllTimeRaceFrame(allTimeRaceFrames.length - 1);
-  observeRaceAutoplay(canvas.closest(".chart-wrap"), `alltime-${step}`, () => { stopAllTimeRace(); allTimeRacePassesRemaining = 1; showAllTimeRaceFrame(0); allTimeRaceTimer = setTimeout(advanceAllTimeRace, RACE_FRAME_DELAY); document.getElementById("alltime-race-play").textContent = "Pause"; });
+  observeRaceAutoplay(canvas.closest(".chart-wrap"), `alltime-${step}`, () => { stopAllTimeRace(); allTimeRacePassesRemaining = 1; showAllTimeRaceFrame(0); allTimeRaceTimer = setTimeout(advanceAllTimeRace, allTimeRacePlayback.delay); document.getElementById("alltime-race-play").textContent = "Pause"; });
 }
 function renderAllTime() {
   if (!websiteGames.length || !websitePicks.length) { loadDrilldown().then(renderAllTime); return; }
@@ -4476,8 +4485,8 @@ function advanceSeasonLiveRace() {
   if (seasonLiveRaceFrame >= seasonLiveRaceFrames.length - 1) {
     if (seasonLiveRacePassesRemaining > 1) { seasonLiveRacePassesRemaining -= 1; showSeasonLiveRaceFrame(0); }
     else { stopSeasonLiveRace(); return; }
-  } else showSeasonLiveRaceFrame(seasonLiveRaceFrame + 1);
-  seasonLiveRaceTimer = setTimeout(advanceSeasonLiveRace, RACE_FRAME_DELAY);
+  } else showSeasonLiveRaceFrame(Math.min(seasonLiveRaceFrames.length - 1, seasonLiveRaceFrame + seasonLiveRacePlayback.step));
+  seasonLiveRaceTimer = setTimeout(advanceSeasonLiveRace, seasonLiveRacePlayback.delay);
 }
 function renderSeasonLiveRace() {
   const canvas = ensureSeasonLiveRacePanel(), season = document.getElementById("season-choice")?.value;
@@ -4488,10 +4497,11 @@ function renderSeasonLiveRace() {
   games.forEach(game => { const week = Number(game.weekOrder || game.week || 0), key = step === "week" ? String(week).padStart(2, "0") : `${String(week).padStart(2, "0")}|${String(game.gameNum || 0).padStart(2, "0")}|${game.gameId}`, group = groups.get(key) || { label: step === "week" ? `Week ${game.week}` : `Week ${game.week} · Game ${game.gameNum}`, games: [] }; group.games.push(game); groups.set(key, group); });
   const totals = new Map();
   seasonLiveRaceFrames = [...groups].sort(([left], [right]) => left.localeCompare(right)).map(([, group]) => { group.games.forEach(game => (picksByGame.get(game.gameId) || []).forEach(pick => { const player = websitePlayers.find(item => item.playerId === pick.playerId), total = totals.get(pick.playerId) || { name: player?.name || pick.name || pick.playerId, wins: 0, losses: 0, decisions: 0, winPct: 0 }, win = Number(pick.resultWin || 0) + Number(pick.bestBetWin || 0), loss = Number(pick.resultLoss || 0) + Number(pick.bestBetLoss || 0) + Number(pick.bestBetPush || 0); total.wins += win; total.losses += loss; total.decisions += win + loss; total.winPct = total.decisions ? total.wins / total.decisions * 100 : 0; totals.set(pick.playerId, total); })); const players = [...totals.values()].map(player => ({ ...player })), leaderWins = Math.max(0, ...players.map(player => player.wins)); return { label: group.label, players: players.map(player => ({ ...player, gap: player.wins - leaderWins })) }; });
+  seasonLiveRacePlayback = historicalRacePlayback("season", step, seasonLiveRaceFrames.length, new Set(games.map(game => game.week)).size);
   const metric = document.getElementById("season-live-race-metric")?.value || "winPct";
   assignWebsiteRaceColors(seasonLiveRaceFrames, metric);
   if (seasonLiveRaceChart) seasonLiveRaceChart.destroy();
-  seasonLiveRaceChart = new Chart(canvas, { type: "line", data: { labels: [], datasets: [] }, options: { responsive: true, maintainAspectRatio: false, animation: { duration: 220 }, layout: { padding: { top: 42 } }, interaction: { mode: "nearest", intersect: false }, onClick: event => { const hits = event.native ? seasonLiveRaceChart.getElementsAtEventForMode(event.native, "nearest", { intersect: true }, true) : []; if (!hits.length) { seasonLiveRaceSelectedPlayer = ""; showSeasonLiveRaceFrame(seasonLiveRaceFrame); seasonLiveRaceChart.setActiveElements([]); seasonLiveRaceChart.tooltip.setActiveElements([], { x: 0, y: 0 }); seasonLiveRaceChart.update("none"); return; } const name = seasonLiveRaceChart.data.datasets[hits[0].datasetIndex].label; seasonLiveRaceSelectedPlayer = seasonLiveRaceSelectedPlayer === name ? "" : name; showSeasonLiveRaceFrame(seasonLiveRaceFrame); }, scales: { x: { ticks: { color: "#91a0ae", maxRotation: 90, minRotation: 0, autoSkip: true, maxTicksLimit: 20 }, grid: { color: "#2a3744" }, title: { display: true, text: "Season progress", color: "#91a0ae" } }, y: { beginAtZero: true, max: 100, ticks: { color: "#91a0ae", callback: value => `${value}%` }, grid: { color: "#2a3744" }, title: { display: true, text: "Cumulative win percentage", color: "#91a0ae" } } }, plugins: { legend: { align: "start", labels: { color: "#e8eef5", usePointStyle: true, pointStyle: "line", boxWidth: 18, padding: 8, font: { size: 10 } }, onClick: (event, item) => { seasonLiveRaceSelectedPlayer = seasonLiveRaceSelectedPlayer === item.text ? "" : item.text; showSeasonLiveRaceFrame(seasonLiveRaceFrame); } }, tooltip: { mode: "nearest", intersect: true, callbacks: { label: context => { const player = seasonLiveRaceFrames[context.dataIndex]?.players.find(item => item.name === context.dataset.label); return player ? `${player.name}: ${player.winPct.toFixed(1)}% · ${player.wins}-${player.losses}` : ""; } } } } } });
+  seasonLiveRaceChart = new Chart(canvas, { type: "line", data: { labels: [], datasets: [] }, options: { responsive: true, maintainAspectRatio: false, animation: { duration: Math.min(220, seasonLiveRacePlayback.delay * .6) }, layout: { padding: { top: 42 } }, interaction: { mode: "nearest", intersect: false }, onClick: event => { const hits = event.native ? seasonLiveRaceChart.getElementsAtEventForMode(event.native, "nearest", { intersect: true }, true) : []; if (!hits.length) { seasonLiveRaceSelectedPlayer = ""; showSeasonLiveRaceFrame(seasonLiveRaceFrame); seasonLiveRaceChart.setActiveElements([]); seasonLiveRaceChart.tooltip.setActiveElements([], { x: 0, y: 0 }); seasonLiveRaceChart.update("none"); return; } const name = seasonLiveRaceChart.data.datasets[hits[0].datasetIndex].label; seasonLiveRaceSelectedPlayer = seasonLiveRaceSelectedPlayer === name ? "" : name; showSeasonLiveRaceFrame(seasonLiveRaceFrame); }, scales: { x: { ticks: { color: "#91a0ae", maxRotation: 90, minRotation: 0, autoSkip: true, maxTicksLimit: 20 }, grid: { color: "#2a3744" }, title: { display: true, text: "Season progress", color: "#91a0ae" } }, y: { beginAtZero: true, max: 100, ticks: { color: "#91a0ae", callback: value => `${value}%` }, grid: { color: "#2a3744" }, title: { display: true, text: "Cumulative win percentage", color: "#91a0ae" } } }, plugins: { legend: { align: "start", labels: { color: "#e8eef5", usePointStyle: true, pointStyle: "line", boxWidth: 18, padding: 8, font: { size: 10 } }, onClick: (event, item) => { seasonLiveRaceSelectedPlayer = seasonLiveRaceSelectedPlayer === item.text ? "" : item.text; showSeasonLiveRaceFrame(seasonLiveRaceFrame); } }, tooltip: { mode: "nearest", intersect: true, callbacks: { label: context => { const player = seasonLiveRaceFrames[context.dataIndex]?.players.find(item => item.name === context.dataset.label); return player ? `${player.name}: ${player.winPct.toFixed(1)}% · ${player.wins}-${player.losses}` : ""; } } } } } });
   canvas.onclick = event => { const hits = seasonLiveRaceChart.getElementsAtEventForMode(event, "nearest", { intersect: true }, true); if (hits.length || !seasonLiveRaceSelectedPlayer) return; seasonLiveRaceSelectedPlayer = ""; showSeasonLiveRaceFrame(seasonLiveRaceFrame); seasonLiveRaceChart.setActiveElements([]); seasonLiveRaceChart.tooltip.setActiveElements([], { x: 0, y: 0 }); seasonLiveRaceChart.update("none"); };
   seasonLiveRaceChart.options.plugins.tooltip.callbacks.label = context => { const player = seasonLiveRaceFrames[context.dataIndex]?.players.find(item => item.name === context.dataset.label), metric = document.getElementById("season-live-race-metric")?.value || "winPct"; if (!player) return ""; const value = metric === "winPct" ? `${player.winPct.toFixed(1)}%` : metric === "gap" ? player.gap === 0 ? "Leader" : `${Math.abs(player.gap)} wins back` : `${player.wins} wins`; return `${player.name}: ${value} · ${player.wins}-${player.losses}`; };
   const refreshSeasonLiveRace = () => { stopSeasonLiveRace(); assignWebsiteRaceColors(seasonLiveRaceFrames, document.getElementById("season-live-race-metric")?.value || "winPct"); showSeasonLiveRaceFrame(seasonLiveRaceFrame); };
@@ -4500,11 +4510,11 @@ function renderSeasonLiveRace() {
   document.getElementById("season-live-race-scale").onchange = refreshSeasonLiveRace;
   document.getElementById("season-live-race-step").onchange = () => { document.getElementById("season-live-race-scale").value = document.getElementById("season-live-race-step").value === "game" ? "standard" : "zoom"; renderSeasonLiveRace(); };
   document.getElementById("season-live-race-previous").onclick = () => { stopSeasonLiveRace(); showSeasonLiveRaceFrame(seasonLiveRaceFrame - 1); };
-  document.getElementById("season-live-race-play").onclick = event => { if (seasonLiveRaceTimer) { stopSeasonLiveRace(); return; } if (seasonLiveRaceFrame >= seasonLiveRaceFrames.length - 1) showSeasonLiveRaceFrame(0); seasonLiveRacePassesRemaining = 1; event.currentTarget.textContent = "Pause"; seasonLiveRaceTimer = setTimeout(advanceSeasonLiveRace, RACE_FRAME_DELAY); };
+  document.getElementById("season-live-race-play").onclick = event => { if (seasonLiveRaceTimer) { stopSeasonLiveRace(); return; } if (seasonLiveRaceFrame >= seasonLiveRaceFrames.length - 1) showSeasonLiveRaceFrame(0); seasonLiveRacePassesRemaining = 1; event.currentTarget.textContent = "Pause"; seasonLiveRaceTimer = setTimeout(advanceSeasonLiveRace, seasonLiveRacePlayback.delay); };
   document.getElementById("season-live-race-next").onclick = () => { stopSeasonLiveRace(); showSeasonLiveRaceFrame(seasonLiveRaceFrame + 1); };
   document.getElementById("season-live-race-restart").onclick = () => { stopSeasonLiveRace(); showSeasonLiveRaceFrame(0); };
   showSeasonLiveRaceFrame(seasonLiveRaceFrames.length - 1);
-  observeRaceAutoplay(canvas.closest(".chart-wrap"), `season-${season}-${step}`, () => { stopSeasonLiveRace(); seasonLiveRacePassesRemaining = 1; showSeasonLiveRaceFrame(0); seasonLiveRaceTimer = setTimeout(advanceSeasonLiveRace, RACE_FRAME_DELAY); document.getElementById("season-live-race-play").textContent = "Pause"; });
+  observeRaceAutoplay(canvas.closest(".chart-wrap"), `season-${season}-${step}`, () => { stopSeasonLiveRace(); seasonLiveRacePassesRemaining = 1; showSeasonLiveRaceFrame(0); seasonLiveRaceTimer = setTimeout(advanceSeasonLiveRace, seasonLiveRacePlayback.delay); document.getElementById("season-live-race-play").textContent = "Pause"; });
 }
 function stopWeekLiveRace() {
   if (weekLiveRaceTimer) clearTimeout(weekLiveRaceTimer);
@@ -4594,8 +4604,8 @@ function advanceWeekLiveRace() {
   if (weekLiveRaceFrame >= weekLiveRaceFrames.length - 1) {
     if (weekLiveRacePassesRemaining > 1) { weekLiveRacePassesRemaining -= 1; showWeekLiveRaceFrame(0); }
     else { stopWeekLiveRace(); return; }
-  } else showWeekLiveRaceFrame(weekLiveRaceFrame + 1);
-  weekLiveRaceTimer = setTimeout(advanceWeekLiveRace, RACE_FRAME_DELAY);
+  } else showWeekLiveRaceFrame(Math.min(weekLiveRaceFrames.length - 1, weekLiveRaceFrame + weekLiveRacePlayback.step));
+  weekLiveRaceTimer = setTimeout(advanceWeekLiveRace, weekLiveRacePlayback.delay);
 }
 async function renderWeekLiveRace() {
   const canvas = ensureWeekLiveRacePanel(), season = document.getElementById("week-season")?.value, week = document.getElementById("week-choice")?.value;
@@ -4625,6 +4635,8 @@ async function renderWeekLiveRace() {
     document.getElementById("week-live-race-leadership").innerHTML = "";
     return;
   }
+  const baselineGameCount = websiteGames.filter(game => game.season === season && (game.week === week || week === "playoffs" && ["round 1", "round 2", "round 3", "super bowl"].includes(String(game.week).toLowerCase()))).length;
+  weekLiveRacePlayback = historicalRacePlayback("week", weekLiveRaceUsesArchive() ? "snapshot" : "game", weekLiveRaceFrames.length, baselineGameCount || weekLiveRaceFrames.length);
   assignWebsiteRaceColors(weekLiveRaceFrames, document.getElementById("week-live-race-metric")?.value || "winPct");
   if (weekLiveRaceChart) weekLiveRaceChart.destroy();
 
@@ -4634,7 +4646,7 @@ async function renderWeekLiveRace() {
     options: {
       responsive: true,
       maintainAspectRatio: false,
-      animation: { duration: 220 },
+      animation: { duration: Math.min(220, weekLiveRacePlayback.delay * .6) },
       layout: { padding: { top: 42 } },
       interaction: { mode: "nearest", intersect: true },
       onClick: event => {
@@ -4695,11 +4707,11 @@ async function renderWeekLiveRace() {
   document.getElementById("week-live-race-scale").onchange = refreshWeekLiveRace;
   document.getElementById("week-live-race-timeline").onchange = () => { weekLiveRaceSelectedPlayer = ""; renderWeekLiveRace(); };
   document.getElementById("week-live-race-previous").onclick = () => { stopWeekLiveRace(); showWeekLiveRaceFrame(weekLiveRaceFrame - 1); };
-  document.getElementById("week-live-race-play").onclick = event => { if (weekLiveRaceTimer) { stopWeekLiveRace(); return; } if (weekLiveRaceFrame >= weekLiveRaceFrames.length - 1) showWeekLiveRaceFrame(0); weekLiveRacePassesRemaining = 1; event.currentTarget.textContent = "Pause"; weekLiveRaceTimer = setTimeout(advanceWeekLiveRace, RACE_FRAME_DELAY); };
+  document.getElementById("week-live-race-play").onclick = event => { if (weekLiveRaceTimer) { stopWeekLiveRace(); return; } if (weekLiveRaceFrame >= weekLiveRaceFrames.length - 1) showWeekLiveRaceFrame(0); weekLiveRacePassesRemaining = 1; event.currentTarget.textContent = "Pause"; weekLiveRaceTimer = setTimeout(advanceWeekLiveRace, weekLiveRacePlayback.delay); };
   document.getElementById("week-live-race-next").onclick = () => { stopWeekLiveRace(); showWeekLiveRaceFrame(weekLiveRaceFrame + 1); };
   document.getElementById("week-live-race-restart").onclick = () => { stopWeekLiveRace(); showWeekLiveRaceFrame(0); };
   showWeekLiveRaceFrame(weekLiveRaceFrames.length - 1);
-  observeRaceAutoplay(canvas.closest(".chart-wrap"), `week-${season}-${week}-${weekLiveRaceUsesArchive() ? "live" : "games"}`, () => { stopWeekLiveRace(); weekLiveRacePassesRemaining = 1; showWeekLiveRaceFrame(0); weekLiveRaceTimer = setTimeout(advanceWeekLiveRace, RACE_FRAME_DELAY); document.getElementById("week-live-race-play").textContent = "Pause"; });
+  observeRaceAutoplay(canvas.closest(".chart-wrap"), `week-${season}-${week}-${weekLiveRaceUsesArchive() ? "live" : "games"}`, () => { stopWeekLiveRace(); weekLiveRacePassesRemaining = 1; showWeekLiveRaceFrame(0); weekLiveRaceTimer = setTimeout(advanceWeekLiveRace, weekLiveRacePlayback.delay); document.getElementById("week-live-race-play").textContent = "Pause"; });
 }
 function renderSeasonPlayer(standings, weeks) {
   const playerId = document.getElementById("season-player").value;
