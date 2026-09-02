@@ -4996,7 +4996,7 @@ function profilePeriodOrder(week) { const value = String(week || "").toLowerCase
 function matchupTooltipHtml(game, result, pickedTeam) { const favoritePoints = favoriteScore(game), underdogPoints = underdogScore(game), picked = String(pickedTeam || "").toUpperCase(), resultClass = result === "win" ? "win" : result === "loss" ? "loss" : "push", favoritePicked = String(game.favorite || "").toUpperCase() === picked, underdogPicked = String(game.underdog || "").toUpperCase() === picked; const value = (text, highlighted = false, className = "") => `<span class="${className} ${highlighted ? resultClass : "neutral"}">${websiteEscapeHtml(text ?? "?")}</span>`; return `<div class="tooltip-matchup">${value(`${teamDisplay(game.favorite, game)} ${favoritePoints}`, favoritePicked, "tooltip-favorite")}${value(game.spread ?? "PK", false, "tooltip-spread")}${value(`${underdogPoints} ${teamDisplay(game.underdog, game)}`, underdogPicked, "tooltip-underdog")}</div>`; }
 function profileGameResultHtml(game, pickedTeam, result, prefix = "") { return `<div>${prefix ? `<span class="neutral">${websiteEscapeHtml(prefix)}</span>` : ""}${matchupTooltipHtml(game, result, pickedTeam)}</div>`; }
 function weeklyGameTooltipHtml(game, result, pickedTeam) { return `${matchupTooltipHtml(game, result, pickedTeam)}<div class="tooltip-meta-start"><span class="neutral">${websiteEscapeHtml(game.gameDate ?? "?")}</span></div><div><span class="neutral">${websiteEscapeHtml(game.gameTime ?? "?")}</span></div>`; }
-function streakGameTooltipHtml(game, result, pickedTeam) {
+function streakGameTooltipHtml(game, result, pickedTeam, includeMetadataSource = true) {
   const location = [game.city, game.state, game.country && game.country !== "USA" ? game.country : ""].filter(Boolean).join(", ");
   const rows = [
     ["Season / week", `${game.season} · ${profileWeekLabel(game.week)} · Game ${game.playoffGameNum || game.gameNum || "?"}`],
@@ -5006,7 +5006,7 @@ function streakGameTooltipHtml(game, result, pickedTeam) {
     ["Temperature", game.temperatureF != null ? `${game.temperatureF}°F` : ""], ["Wind", game.windMph != null ? `${game.windMph} mph` : ""],
     ["Away coach", game.awayCoach], ["Home coach", game.homeCoach], ["Referee", game.referee],
     ["Attendance", game.attendance ? Number(game.attendance).toLocaleString() : ""], ["Game status", game.gameStatus],
-    ["ATS result", game.atsResult], ["Metadata source", game.metadataSource]
+    ["ATS result", game.atsResult], ...(includeMetadataSource ? [["Metadata source", game.metadataSource]] : [])
   ].filter(([, value]) => value !== "" && value != null);
   return `${matchupTooltipHtml(game, result, pickedTeam)}${rows.map(([label, value], index) => `<div${index === 0 ? ' class="tooltip-meta-start"' : ""}><span class="neutral">${websiteEscapeHtml(label)}: </span>${websiteEscapeHtml(value)}</div>`).join("")}`;
 }
@@ -5913,14 +5913,14 @@ function renderProfile(name) {
     const allPicks = picks.filter(item => item.pick.pick).map(item => {
       const result = Number(item.pick.resultWin || 0) ? "win" : Number(item.pick.resultLoss || 0) ? "loss" : "push";
       const game = item.game;
-      const tooltip = weeklyGameTooltipHtml(game, result, item.pick.pick);
+      const tooltip = streakGameTooltipHtml(game, result, item.pick.pick, false);
       return `<span class="weekly-pick-${result}" data-weekly-tooltip="${websiteEscapeHtml(tooltip)}">${item.pick.pick}</span>`;
     }).join(", ");
     const bestBets = picks.filter(item => Number(item.pick.bestBetWin || 0) || Number(item.pick.bestBetLoss || 0) || Number(item.pick.bestBetPush || 0)).map(item => {
       const result = Number(item.pick.bestBetWin || 0) ? "win" : Number(item.pick.bestBetLoss || 0) ? "loss" : "push";
       return { team: item.pick.bestBet, result, game: item.game };
     }).filter(item => item.team);
-    const bestBetText = bestBets.map(item => { const tooltip = weeklyGameTooltipHtml(item.game, item.result, item.team); return `<span class="weekly-bb-${item.result}" data-weekly-tooltip="${websiteEscapeHtml(tooltip)}">${item.team}</span>`; }).join(", ");
+    const bestBetText = bestBets.map(item => { const tooltip = streakGameTooltipHtml(item.game, item.result, item.team, false); return `<span class="weekly-bb-${item.result}" data-weekly-tooltip="${websiteEscapeHtml(tooltip)}">${item.team}</span>`; }).join(", ");
     const weekFact = websiteWeeks.find(item => item.playerId === playerId && item.season === row.Season && String(item.week) === String(row.Week));
     const actualTiebreak = weekFact?.actualTiebreak ?? row.ActualTiebreak ?? row.actualTiebreak;
     const tiebreaker = weekFact?.tiebreaker ?? row.Tiebreaker ?? row.tiebreaker;
