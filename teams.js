@@ -48,7 +48,7 @@ const teamsTrendGuides = {
       const values = dataset.data.map(value => value == null ? NaN : Number(value)), lastIndex = values.findLastIndex(Number.isFinite), point = chart.getDatasetMeta(datasetIndex).data[lastIndex];
       if (!point) return;
       context.fillStyle = dataset.borderColor;
-      context.fillText(`${datasetIndex ? "ATS" : "POOL"} ${values[lastIndex].toFixed(1)}%`, point.x + 7, point.y + (datasetIndex ? 8 : -8));
+      context.fillText(`${dataset.endpointLabel || (datasetIndex ? "ATS" : "POOL")} ${values[lastIndex].toFixed(1)}%`, point.x + 7, point.y + (datasetIndex ? 8 : -8));
     });
     context.restore();
   }
@@ -315,7 +315,7 @@ function setupTeamsSections() {
   bestBetHeading?.remove();
   bestBetHost?.remove();
   const affinityHeading = document.getElementById("teams-affinity-title");
-  if (affinityHeading) selectedSection.append(affinityHeading, document.getElementById("teams-affinity-table"));
+  if (affinityHeading) panel.append(affinityHeading, document.getElementById("teams-affinity-table"));
   charts.remove();
 }
 
@@ -377,13 +377,13 @@ function renderTeams() {
   const mostTrusted = [...qualifiedTrend].sort((left, right) => right.supportRate - left.supportRate)[0];
   const bestCover = [...qualifiedTrend].sort((left, right) => right.coverRate - left.coverRate)[0];
   document.getElementById("teams-trend-title").textContent = `${selectedTeam}: Pool Pick Share vs ATS Cover Rate`;
-  document.getElementById("teams-trend-note").textContent = mostTrusted && bestCover ? `Blue is the average percentage of players who picked ${selectedTeam} in each game; above 50% means the pool usually chose them. Green is the percentage of ${selectedTeam} games that covered; above 50% is a winning ATS season. Peak pick share was ${mostTrusted.season} (${pct(mostTrusted.supportRate)}); best cover rate was ${bestCover.season} (${pct(bestCover.coverRate)}).` : "Blue is average pick share; green is the team's ATS cover rate.";
+  document.getElementById("teams-trend-note").textContent = mostTrusted && bestCover ? `Blue is the average percentage of players who picked ${selectedTeam} in each game; above 50% means the pool usually chose them. Amber is the percentage of ${selectedTeam} games that covered; above 50% is a winning ATS season. Peak pick share was ${mostTrusted.season} (${pct(mostTrusted.supportRate)}); best cover rate was ${bestCover.season} (${pct(bestCover.coverRate)}).` : "Blue is average pick share; amber is the team's ATS cover rate.";
   if (teamsTrendChart) teamsTrendChart.destroy();
   teamsTrendChart = new Chart(document.getElementById("teams-trend-chart"), {
     type: "line",
     data: { labels: seasons, datasets: [
       { label: `Pool support for ${selectedTeam}`, data: trend.map(row => row.supportGames ? Number((row.supportRate * 100).toFixed(1)) : null), borderColor: "#8ca7ff", backgroundColor: "#8ca7ff", tension: .2 },
-      { label: `${selectedTeam} ATS cover rate`, data: trend.map(row => row.games ? Number((row.coverRate * 100).toFixed(1)) : null), borderColor: "#39c982", backgroundColor: "#39c982", borderWidth: 3, tension: .2 },
+      { label: `${selectedTeam} ATS cover rate`, endpointLabel: selectedTeam, data: trend.map(row => row.games ? Number((row.coverRate * 100).toFixed(1)) : null), borderColor: "#f5b942", backgroundColor: "#f5b942", borderWidth: 3, tension: .2 },
       { label: "50% break-even", data: seasons.map(() => 50), borderColor: "#91a0ae", backgroundColor: "#91a0ae", borderDash: [5, 5], pointRadius: 0, borderWidth: 1 }
     ] },
     options: { responsive: true, maintainAspectRatio: false, layout: { padding: { right: 70 } }, interaction: { mode: "index", intersect: false }, scales: { x: { ticks: { color: "#91a0ae", maxRotation: 60, minRotation: 45 }, grid: { color: "#2a3744" } }, y: { beginAtZero: true, max: 100, ticks: { color: "#91a0ae", callback: value => value + "%" }, grid: { color: context => context.tick.value === 50 ? "#b8c4cf" : "#2a3744", lineWidth: context => context.tick.value === 50 ? 2 : 1 } } }, plugins: { legend: { labels: { color: "#e8eef5", filter: item => item.text !== "50% break-even" } }, tooltip: { filter: item => item.dataset.label !== "50% break-even", callbacks: { afterBody: items => { const row = trend[items[0].dataIndex]; return [`Average support: ${pct(row.supportRate)} across ${row.supportGames} games`, `Team ATS: ${record(row.covers, row.noCovers, row.gamePushes)} (${pct(row.coverRate)})`]; } } } } },
