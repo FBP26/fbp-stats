@@ -194,33 +194,14 @@ function setupAllTimePlusMinusViews() {
   const leaders = document.getElementById("alltime-plus-minus-chart")?.closest(".chart-wrap");
   const history = document.getElementById("alltime-plus-minus-trend-chart")?.closest(".chart-wrap");
   if (!leaders || !history) return;
-  let controls = document.getElementById("alltime-plus-minus-view-controls");
-  if (!controls) {
-    const heading = leaders.previousElementSibling;
-    if (heading?.tagName === "H3") heading.textContent = "Plus/Minus";
-    controls = document.createElement("div");
-    controls.id = "alltime-plus-minus-view-controls";
-    controls.className = "explorer-controls";
-    controls.style.cssText = "grid-template-columns:minmax(190px,280px);margin:0 0 12px";
-    controls.innerHTML = '<label>View<select id="alltime-plus-minus-view"><option value="leaders">Leaders</option><option value="history">History</option></select></label>';
-    leaders.before(controls);
-    document.getElementById("alltime-plus-minus-view").onchange = applyAllTimePlusMinusView;
-  }
-  applyAllTimePlusMinusView();
-}
-
-function applyAllTimePlusMinusView() {
-  const leaders = document.getElementById("alltime-plus-minus-chart")?.closest(".chart-wrap");
-  const history = document.getElementById("alltime-plus-minus-trend-chart")?.closest(".chart-wrap");
-  const showHistory = document.getElementById("alltime-plus-minus-view")?.value === "history";
-  if (!leaders || !history) return;
-  leaders.hidden = showHistory;
-  history.hidden = !showHistory;
+  document.getElementById("alltime-plus-minus-view-controls")?.remove();
+  leaders.hidden = false;
+  history.hidden = true;
   const historyHeading = document.getElementById("alltime-plus-minus-trend-heading");
   const historyControls = document.getElementById("alltime-plus-minus-trend-controls");
   if (historyHeading) historyHeading.hidden = true;
-  if (historyControls) historyControls.hidden = !showHistory;
-  requestAnimationFrame(() => Chart.getChart(showHistory ? "alltime-plus-minus-trend-chart" : "alltime-plus-minus-chart")?.resize());
+  if (historyControls) historyControls.hidden = true;
+  requestAnimationFrame(() => Chart.getChart("alltime-plus-minus-chart")?.resize());
 }
 
 function setupSeasonCombinedViews() {
@@ -254,10 +235,11 @@ function setupSeasonCombinedViews() {
     const controls = document.createElement("div");
     controls.className = "explorer-controls";
     controls.style.cssText = "grid-template-columns:minmax(190px,280px);margin:0 0 12px";
-    controls.innerHTML = '<label>View<select id="season-best-bet-view"><option value="chart">Chart</option><option value="table">Weekly results</option></select></label>';
+    controls.innerHTML = '<label>View<select id="season-best-bet-view"><option value="table">Weekly results</option><option value="chart">Chart</option></select></label>';
     bestBetChart.before(controls);
     bestBetChart.after(bestBetTable);
-    bestBetTable.hidden = true;
+    bestBetChart.hidden = true;
+    bestBetTable.hidden = false;
     document.getElementById("season-best-bet-view").onchange = event => {
       bestBetChart.hidden = event.target.value !== "chart";
       bestBetTable.hidden = event.target.value !== "table";
@@ -270,17 +252,48 @@ function setupProfileBestWeeksViews() {
   const chart = document.getElementById("profile-best-weeks-chart")?.closest(".chart-wrap");
   const table = document.getElementById("profile-weekly-wins-detail");
   const chartPanel = chart?.closest(".panel"), tablePanel = table?.closest(".panel");
-  if (!chart || !table || !chartPanel || !tablePanel || document.getElementById("profile-best-weeks-view")) return;
-  const heading = chartPanel.querySelector(".panel-head");
-  heading.insertAdjacentHTML("beforeend", '<label>View<select id="profile-best-weeks-view"><option value="chart">Chart</option><option value="table">Winning weeks</option></select></label>');
-  chart.after(table);
-  table.hidden = true;
-  tablePanel.remove();
-  document.getElementById("profile-best-weeks-view").onchange = event => {
-    chart.hidden = event.target.value !== "chart";
-    table.hidden = event.target.value !== "table";
-    if (event.target.value === "chart") requestAnimationFrame(() => Chart.getChart("profile-best-weeks-chart")?.resize());
-  };
+  if (!chart || !table || !chartPanel || !tablePanel || tablePanel.dataset.positioned === "true") return;
+  const careerTrends = document.getElementById("profile-career-trends");
+  const summary = document.createElement("div");
+  summary.id = "profile-weekly-wins-summary";
+  summary.className = "summary compact-win-summary";
+  table.before(summary);
+  if (careerTrends) careerTrends.before(tablePanel);
+  tablePanel.dataset.positioned = "true";
+}
+
+function setupSplitPageViews() {
+  const configurations = [
+    { view: "alltime", choices: [["career", "Career leaders"], ["trends", "Historical trends"], ["teams", "Teams"], ["records", "Record book"]], groups: { career: ["alltime-summary", "alltime-champions", "alltime-top-chart", "alltime-plus-minus-chart", "alltime-money-chart"], trends: ["alltime-race-chart", "alltime-seasons-grid", "alltime-attendance-chart"], teams: ["alltime-pick-charts"], records: ["alltime-cards"] } },
+    { view: "season", choices: [["race", "Standings and race"], ["analysis", "Season analysis"]], groups: { race: ["season-summary", "season-top-chart", "season-notes", "season-weeks-grid", "season-race-chart", "season-money-chart"], analysis: ["season-consistency-chart", "season-h2h", "season-bb-chart", "season-bb-grid", "season-tb-chart", "season-tb-grid", "season-teams-chart", "season-contrarian-chart", "season-player-chart"] } },
+    { view: "players", choices: [["career", "Career performance"], ["picking", "Picking behavior"]], groups: { career: ["profile-stats", "profile-extra-stats", "profile-weekly-wins-detail", "profile-history-chart", "profile-best-weeks-chart", "profile-money-chart", "profile-plus-minus-chart", "profile-finish-chart", "profile-weekly-rank-sheet"], picking: ["profile-recent-chart", "profile-best-bet-chart", "profile-team-chart", "profile-pick-behavior", "profile-best-games-chart"] } }
+  ];
+  const blockFor = element => element?.tagName === "CANVAS" ? element.closest(".panel, .chart-wrap") : element;
+  configurations.forEach(config => {
+    const view = document.getElementById(`view-${config.view}`);
+    if (!view) return;
+    let select = document.getElementById(`${config.view}-section-view`);
+    if (!select) {
+      const controls = document.createElement("div");
+      controls.className = "explorer-controls section-view-control";
+      controls.innerHTML = `<label>View<select id="${config.view}-section-view"><option value="complete">Complete page</option>${config.choices.map(([value, label]) => `<option value="${value}">${label}</option>`).join("")}</select></label>`;
+      view.querySelector(".intro")?.after(controls);
+      select = controls.querySelector("select");
+    }
+    const apply = () => {
+      const selected = select.value;
+      Object.entries(config.groups).forEach(([group, ids]) => ids.forEach(id => {
+        const block = blockFor(document.getElementById(id));
+        if (!block) return;
+        const hidden = selected !== "complete" && selected !== group;
+        block.classList.toggle("section-view-hidden", hidden);
+        if (block.previousElementSibling?.tagName === "H3") block.previousElementSibling.classList.toggle("section-view-hidden", hidden);
+      }));
+      requestAnimationFrame(() => view.querySelectorAll("canvas").forEach(canvas => { if (canvas.offsetParent) Chart.getChart(canvas)?.resize(); }));
+    };
+    select.onchange = apply;
+    apply();
+  });
 }
 
 function setupAttendanceFilter() {
@@ -368,6 +381,7 @@ document.addEventListener("DOMContentLoaded", () => {
   document.head.append(style);
   setupProfileCareerTrends();
   setupProfileBestWeeksViews();
+  setupSplitPageViews();
   setupAllTimeCareerLeaders();
   setupAllTimePlusMinusViews();
   setupSeasonCombinedViews();
@@ -377,5 +391,5 @@ document.addEventListener("DOMContentLoaded", () => {
   setupProfileSidebarHovers();
   const allTimeView = document.getElementById("view-alltime");
   if (allTimeView) new MutationObserver(() => { setupAttendanceFilter(); setupAllTimePlusMinusViews(); }).observe(allTimeView, { childList: true, subtree: true });
-  new MutationObserver(() => { setupSeasonCombinedViews(); setupTableShowAllControls(); setupAllTimeHoverTargets(); setupProfileSidebarHovers(); }).observe(document.body, { childList: true, subtree: true });
+  new MutationObserver(() => { setupSeasonCombinedViews(); setupTableShowAllControls(); setupAllTimeHoverTargets(); setupProfileSidebarHovers(); setupSplitPageViews(); }).observe(document.body, { childList: true, subtree: true });
 });

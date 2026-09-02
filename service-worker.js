@@ -1,4 +1,4 @@
-const CACHE_NAME = "fbp-shell-v4";
+const CACHE_NAME = "fbp-shell-v5";
 const APP_SHELL = ["./", "./index.html", "./historical-ui.js", "./teams.js", "./manifest.webmanifest"];
 
 self.addEventListener("install", event => {
@@ -20,5 +20,9 @@ self.addEventListener("fetch", event => {
   if (requestUrl.origin !== self.location.origin) return;
   const shellPath = `.${requestUrl.pathname.slice(self.registration.scope.length - self.location.origin.length - 1)}`;
   if (!APP_SHELL.includes(shellPath)) return;
-  event.respondWith(caches.match(event.request).then(cached => cached || fetch(event.request)));
+  event.respondWith(fetch(event.request).then(response => {
+    const copy = response.clone();
+    event.waitUntil(caches.open(CACHE_NAME).then(cache => cache.put(event.request, copy)));
+    return response;
+  }).catch(() => caches.match(event.request)));
 });

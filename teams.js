@@ -292,7 +292,7 @@ function setupTeamsSections() {
   const headingFor = text => headings.find(heading => heading.textContent.trim() === text);
   const selectedSection = document.createElement("section");
   selectedSection.id = "teams-selected-section";
-  selectedSection.innerHTML = '<h3 class="teams-section-title" id="teams-selected-title" style="margin-top:0">Selected Team</h3><div id="teams-selected-summary"></div><div class="profile-charts" id="teams-selected-charts"></div>';
+  selectedSection.innerHTML = '<h3 class="teams-section-title" id="teams-selected-title" style="margin-top:0">Selected Team</h3><div class="teams-view-tabs" role="tablist"><button class="active" type="button" role="tab" aria-selected="true" data-teams-tab="detail">Team detail</button><button type="button" role="tab" aria-selected="false" data-teams-tab="players">Players</button></div><div id="teams-detail-tab"><div id="teams-selected-summary"></div><div class="profile-charts" id="teams-selected-charts"></div></div><div id="teams-players-tab" hidden><h3 id="teams-affinity-title" class="teams-section-title">Player affinity</h3><div id="teams-affinity-table"></div></div>';
   charts.before(selectedSection);
   const sharedControls = panel.querySelector(":scope > .explorer-controls");
   const teamLabel = document.getElementById("teams-team")?.closest("label"), metricLabel = document.getElementById("teams-metric")?.closest("label");
@@ -312,8 +312,15 @@ function setupTeamsSections() {
   comparisonHost?.remove();
   bestBetHeading?.remove();
   bestBetHost?.remove();
-  const affinityHeading = document.getElementById("teams-affinity-title");
-  if (affinityHeading) panel.append(affinityHeading, document.getElementById("teams-affinity-table"));
+  panel.querySelector(":scope > #teams-affinity-title")?.remove();
+  panel.querySelector(":scope > #teams-affinity-table")?.remove();
+  selectedSection.querySelectorAll("[data-teams-tab]").forEach(button => button.onclick = () => {
+    const players = button.dataset.teamsTab === "players";
+    document.getElementById("teams-detail-tab").hidden = players;
+    document.getElementById("teams-players-tab").hidden = !players;
+    selectedSection.querySelectorAll("[data-teams-tab]").forEach(item => { const active = item === button; item.classList.toggle("active", active); item.setAttribute("aria-selected", String(active)); });
+    if (!players) requestAnimationFrame(() => { teamsTrendChart?.resize(); teamsConsensusChart?.resize(); });
+  });
   charts.remove();
 }
 

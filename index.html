@@ -16,7 +16,7 @@
 <script src="https://cdn.jsdelivr.net/npm/chartjs-chart-sankey@0.14.0/dist/chartjs-chart-sankey.min.js"></script>
 <script src="https://unpkg.com/tabulator-tables@5.6.0/dist/js/tabulator.min.js"></script>
 <script src="https://cdn.jsdelivr.net/npm/papaparse@5.4.1/papaparse.min.js"></script>
-<script src="historical-ui.js?v=20260902-1"></script>
+<script src="historical-ui.js?v=20260902-2"></script>
 <style>
   :root { --bg: #0d1117; --panel: #171a1f; --panel-2: #20242a; --border: #3a3d42; --text: #f3f1e8; --muted: #aaa69b; --accent: #ffcf40; --accent-2: #e6a817; --positive: #39c982; --positive-bg: #123c2d; --danger: #ff6b6b; --danger-bg: #481f24; }
   * { box-sizing: border-box; }
@@ -630,6 +630,18 @@
     .website-game-context-neutral .website-context-location { display: block; grid-column: 1 / -1; text-align: center; }
     .website-weather-icon { min-width: 12px; margin-right: 1px; font-size: 9px; }
   }
+  .analysis-section { margin-top: 34px; padding-top: 28px; border-top: 1px solid var(--line); }
+  .analysis-section:first-child { margin-top: 0; padding-top: 0; border-top: 0; }
+  .section-view-control { margin: 0 0 20px; max-width: 360px; }
+  .section-view-hidden { display: none !important; }
+  .compact-win-summary { margin: 0 0 14px; }
+  .teams-view-tabs { display: flex; gap: 6px; margin: 18px 0; border-bottom: 1px solid var(--line); }
+  .teams-view-tabs button { border: 0; border-bottom: 2px solid transparent; border-radius: 0; background: transparent; color: var(--muted); padding: 9px 12px; }
+  .teams-view-tabs button.active { border-bottom-color: var(--accent); color: var(--text); }
+  @media (max-width: 560px) {
+    .website-game-context .website-context-venue { text-align: center; }
+    .website-game-context:not(:has(.website-context-weather:not(:empty))) .website-context-venue { grid-column: 1 / -1; text-align: center; }
+  }
 </style>
 </head>
 <body>
@@ -644,7 +656,7 @@
   <section id="view-picks-confirmation" class="view"><section class="intro"><div><h2>Picks submitted</h2></div><p>Week 1 · 2026-2027</p></section><div class="panel website-confirmation"><p id="confirmation-lead" class="confirmation-lead">Your picks were submitted successfully.</p><div class="confirmation-grid"><section id="confirmation-identity" class="confirmation-block"><h3>Your pool history</h3><p>Finding your place in the archive...</p></section><section id="confirmation-picks" class="confirmation-block"><h3>Live outlook</h3><p>Comparing your card with the field...</p></section><section id="confirmation-history" class="confirmation-block"><h3>This card in your history</h3><p>Loading your historical picks...</p></section></div><button id="website-view-week-one" type="button">View Week 1</button></div></section>
   <section id="view-week-one" class="view active">
     <section class="intro"><div><h2>Week 1</h2></div><p>2026-2027 submissions and weekly standings.</p></section>
-    <div class="panel"><div id="week-one-status"></div><div id="week-one-table" style="overflow-x:auto"></div><p class="week-one-landscape-hint">Rotate to landscape for a better view</p><section id="week-one-live-race" class="live-race"></section><div id="week-one-recap"></div><div id="week-one-scenarios" class="weekly-subview"></div><div id="week-one-sankey" class="weekly-subview"></div><div id="week-one-paths" class="weekly-subview"></div></div>
+    <div class="panel"><div id="week-one-status"></div><div id="week-one-table" style="overflow-x:auto"></div><p class="week-one-landscape-hint">Rotate to landscape for a better view</p><section id="week-one-live-race" class="live-race"></section><div id="week-one-recap"></div><div id="week-one-scenarios" class="weekly-subview"></div><div id="week-one-sankey" class="weekly-subview"></div></div>
   </section>
   <section id="view-alltime" class="view">
     <section class="intro"><div><h2>All Time</h2></div><p>Seventeen seasons of results in one place: the career leaders, every champion, and how the long-timers built their records.</p></section>
@@ -3391,8 +3403,11 @@ function renderSeason(resetPlayer = false) {
   seasonTopChart = new Chart(document.getElementById("season-top-chart"), { type: "bar", data: { labels: topRows.map(row => row.name), datasets: [{ label: "Win %", data: topRows.map(row => Number((row.winPct * 100).toFixed(2))), barText: topRows.map(row => `${row.name} ${row.wins}-${row.losses} · ${(row.winPct * 100).toFixed(1)}%`), backgroundColor: topRows.map((row, index) => ["#d4af37", "#c0c0c0", "#cd7f32"][index] || "#8ca7ffbb"), borderColor: topRows.map((row, index) => ["#d4af37", "#c0c0c0", "#cd7f32"][index] || "#8ca7ff"), borderWidth: 1 }] }, options: { indexAxis: "y", responsive: true, maintainAspectRatio: false, scales: { x: { beginAtZero: false, position: "top", suggestedMin: Math.max(0, Math.min(...topRows.map(row => row.winPct * 100)) - 3), ticks: { color: "#91a0ae", callback: value => value + "%" }, grid: { color: "#2a3744" } }, y: { ticks: { display: false }, grid: { color: "#2a3744" } } }, plugins: { legend: { display: false }, title: { display: true, text: "Top 10", color: "#e8eef5", font: { size: 15, weight: "normal" }, padding: { bottom: 12 } }, tooltip: { displayColors: false, callbacks: { label: context => { const row = topRows[context.dataIndex]; const lines = [`Record: ${row.wins}-${row.losses} (${(row.winPct * 100).toFixed(2)}%)`, `Season rank: ${row.seasonRank ?? "unranked"} of ${standings.filter(item => item.qualified).length}`, `Weeks played: ${row.weeks} of ${weeks.length}`, `Weeks won: ${row.weeksWon}`]; if (row.money) lines.push(`Money: $${row.money.toLocaleString()}`); return lines; } } } } } });
   renderSeasonNotes(standings, weeks, progress);
   renderSeasonWeeksGrid(standings, weeks, playoffRows);
-  if (seasonTable) seasonTable.destroy();
-  seasonTable = new Tabulator("#season-table", { data: standings.map((row, index) => ({ ...row, position: row.qualified ? row.seasonRank : "", winPctValue: row.winPct })), layout: "fitDataStretch", columns: [{ title: "Rank", field: "position", sorter: "number" }, { title: "Player", field: "name", sorter: "string" }, { title: "Wins", field: "wins", sorter: "number" }, { title: "Losses", field: "losses", sorter: "number" }, { title: "Win %", field: "winPctValue", sorter: "number", formatter: cell => `${(Number(cell.getValue() || 0) * 100).toFixed(2)}%` }, { title: "Weeks", field: "weeks", sorter: "number" }, { title: "Weeks Won", field: "weeksWon", sorter: "number" }, { title: "Weeks Atop", field: "weeksLed", sorter: "number" }, { title: "Top 5", field: "top5Weeks", sorter: "number" }, { title: "Money", field: "money", sorter: "number", formatter: cell => "$" + Number(cell.getValue() || 0).toLocaleString() }], placeholder: "No results" });
+  if (seasonTable) { seasonTable.destroy(); seasonTable = null; }
+  const seasonTableHost = document.getElementById("season-table");
+  const seasonTableHeading = seasonTableHost?.previousElementSibling;
+  if (seasonTableHeading?.tagName === "H3" && seasonTableHeading.textContent.trim() === "Standings") seasonTableHeading.remove();
+  seasonTableHost?.remove();
   renderSeasonLiveRace();
   renderSeasonMoney(standings, weeks, progress);
   renderSeasonConsistency(standings, weeks);
@@ -3412,12 +3427,16 @@ function renderSeason(resetPlayer = false) {
 function renderSeasonWeeksGrid(standings, weeks, playoffRows = {}) {
   const element = document.getElementById("season-weeks-grid");
   const hasPlayoffs = Object.keys(playoffRows).length > 0;
-  let html = '<table class="picks-grid"><thead><tr><th class="pg-player">Player</th>';
+  let html = '<table class="picks-grid sortable-grid"><thead><tr><th class="pg-player" data-sort="name">Player</th><th class="pg-sum-hdr pg-w" data-sort="wins">W</th><th class="pg-sum-hdr pg-l" data-sort="losses">L</th><th class="pg-sum-hdr" data-sort="total">Total</th><th class="pg-sum-hdr" data-sort="winPct">Win%</th>';
   weeks.forEach(week => { html += `<th class="pg-game">W${week}</th>`; });
   if (hasPlayoffs) html += '<th class="pg-round">PO</th>';
-  html += '<th class="pg-sum-hdr pg-w">W</th><th class="pg-sum-hdr pg-l">L</th><th class="pg-sum-hdr">Win%</th><th class="pg-sum-hdr">Won</th></tr></thead><tbody>';
+  html += '<th class="pg-sum-hdr" data-sort="money">Money</th><th class="pg-sum-hdr" data-sort="top5Weeks">Top 5</th><th class="pg-sum-hdr" data-sort="top10Weeks">Top 10</th><th class="pg-sum-hdr" data-sort="weeksWon">Won</th></tr></thead><tbody>';
   standings.forEach(player => {
-    html += `<tr><td class="pg-player">${player.name}</td>`;
+    const total = player.wins + player.losses;
+    const moneyWeeks = websiteWeeks.filter(row => row.season === document.getElementById("season-choice").value && row.playerId === player.playerId && Number(row.moneyAward || 0) > 0);
+    const moneyTooltip = moneyWeeks.map(row => `${profileWeekLabel(row.week)} · #${row.rank} · ${row.displayWins}-${row.displayLosses} · $${Number(row.moneyAward || 0).toLocaleString()}`).join("\n");
+    const top10Weeks = weeks.filter(week => { const rank = Number(player.weekMap[week]?.rank); return rank && rank <= 10; }).length;
+    html += `<tr data-name="${websiteEscapeHtml(player.name.toLowerCase())}" data-wins="${player.wins}" data-losses="${player.losses}" data-total="${total}" data-winpct="${player.winPct}" data-money="${player.money || 0}" data-top5weeks="${player.top5Weeks}" data-top10weeks="${top10Weeks}" data-weekswon="${player.weeksWon}"><td class="pg-player">${player.name}</td><td class="pg-sum-cell pg-w">${player.wins}</td><td class="pg-sum-cell pg-l">${player.losses}</td><td class="pg-sum-cell">${total}</td><td class="pg-sum-cell">${(player.winPct * 100).toFixed(1)}%</td>`;
     weeks.forEach(week => {
       const row = player.weekMap[week];
       if (!row) { html += '<td class="sg-none"></td>'; return; }
@@ -3434,10 +3453,17 @@ function renderSeasonWeeksGrid(standings, weeks, playoffRows = {}) {
         html += `<td class="${cls}" title="Playoffs: ${row.displayWins}-${row.displayLosses}, rank ${rank} of ${row.playerCount}">${row.displayWins}</td>`;
       }
     }
-    html += `<td class="pg-sum-cell pg-w">${player.wins}</td><td class="pg-sum-cell pg-l">${player.losses}</td><td class="pg-sum-cell">${(player.winPct * 100).toFixed(1)}%</td><td class="pg-sum-cell">${player.weeksWon}</td></tr>`;
+    html += `<td class="pg-sum-cell" title="${websiteEscapeHtml(moneyTooltip || "No money won")}">$${Number(player.money || 0).toLocaleString()}</td><td class="pg-sum-cell">${player.top5Weeks}</td><td class="pg-sum-cell">${top10Weeks}</td><td class="pg-sum-cell">${player.weeksWon}</td></tr>`;
   });
   html += '</tbody></table>';
   element.innerHTML = html;
+  element.querySelectorAll("th[data-sort]").forEach(header => header.addEventListener("click", () => {
+    const body = element.querySelector("tbody"), key = header.dataset.sort, ascending = header.dataset.direction !== "asc";
+    const rows = [...body.rows].sort((left, right) => { const a = left.dataset[key] ?? "", b = right.dataset[key] ?? ""; const numeric = key !== "name"; return (numeric ? Number(a) - Number(b) : a.localeCompare(b)) * (ascending ? 1 : -1); });
+    element.querySelectorAll("th[data-sort]").forEach(item => delete item.dataset.direction);
+    header.dataset.direction = ascending ? "asc" : "desc";
+    rows.forEach(row => body.append(row));
+  }));
 }
 function renderSeasonHeadToHead(standings, weeks) {
   const players = standings.filter(player => player.qualified).slice(0, 8);
@@ -3593,18 +3619,58 @@ function renderSeasonNotes(standings, weeks, progress) {
 function renderSeasonMoney(standings, weeks, progress) {
   const season = document.getElementById("season-choice").value;
   const byPlayer = new Map();
-  websiteWeeks.filter(row => row.season === season).forEach(row => {
-    const entry = byPlayer.get(row.playerId) || { name: row.name, weekly: 0, playoff: 0, title: 0, weeksWon: [] };
-    entry.weekly += Number(row.weeklyAward || 0);
-    entry.playoff += Number(row.playoffAward || 0);
-    entry.title += Number(row.seasonAward || 0);
-    if (Number(row.weeklyAward || 0) > 0) entry.weeksWon.push(row.week === "playoffs" ? "Playoffs" : `W${row.week}`);
-    byPlayer.set(row.playerId, entry);
+  websiteAwards.filter(row => row.season === season && Number(row.amount || 0) > 0).forEach(award => {
+    const entry = byPlayer.get(award.playerId) || { name: award.name, awards: [], total: 0 };
+    const weekRow = websiteWeeks.find(row => row.season === season && row.playerId === award.playerId && String(row.week) === String(award.week));
+    entry.awards.push({ ...award, weekRow });
+    entry.total += Number(award.amount || 0);
+    byPlayer.set(award.playerId, entry);
   });
-  const earners = [...byPlayer.values()].map(entry => ({ ...entry, total: entry.weekly + entry.playoff + entry.title })).filter(entry => entry.total > 0).sort((a, b) => b.total - a.total);
-  const sources = [["Weekly wins", "weekly", "#54d6b2"], ["Playoffs", "playoff", "#a978e8"], ["Season title", "title", "#ffb454"]].filter(([, key]) => earners.some(entry => entry[key] > 0));
+  const earners = [...byPlayer.values()].sort((a, b) => b.total - a.total || a.name.localeCompare(b.name));
+  const maxAwards = Math.max(0, ...earners.map(entry => entry.awards.length));
+  const awardColors = { weekly: "#54d6b2", playoff: "#a978e8", season: "#ffb454" };
+  const datasets = Array.from({ length: maxAwards }, (_, index) => ({
+    label: `Award ${index + 1}`,
+    data: earners.map(entry => Number(entry.awards[index]?.amount || 0)),
+    awardDetails: earners.map(entry => entry.awards[index] || null),
+    barText: index === 0 ? earners.map(entry => `${entry.name} · $${entry.total.toLocaleString()}`) : undefined,
+    backgroundColor: earners.map(entry => awardColors[entry.awards[index]?.awardType] || "#8ca7ff"),
+    borderColor: "#151c24",
+    borderWidth: 1,
+    stack: "money"
+  }));
   if (seasonMoneyChart) seasonMoneyChart.destroy();
-  seasonMoneyChart = new Chart(document.getElementById("season-money-chart"), { type: "bar", data: { labels: earners.map(entry => entry.name), datasets: sources.map(([label, key, color], index) => ({ label, data: earners.map(entry => entry[key]), barText: index === 0 ? earners.map(entry => `${entry.name} · $${entry.total.toLocaleString()}`) : undefined, backgroundColor: color, stack: "money" })) }, options: { indexAxis: "y", responsive: true, maintainAspectRatio: false, scales: { x: { stacked: true, beginAtZero: true, position: "top", ticks: { color: "#91a0ae", callback: value => "$" + value.toLocaleString() }, grid: { color: "#2a3744" } }, y: { stacked: true, ticks: { display: false }, grid: { color: "#2a3744" } } }, plugins: { legend: { labels: { color: "#e8eef5" } }, title: { display: true, text: earners.length ? "Money won this season" : "No money awarded this season", color: "#e8eef5", font: { size: 15, weight: "normal" }, padding: { bottom: 12 } }, tooltip: { callbacks: { title: items => earners[items[0].dataIndex].name, afterBody: items => { const entry = earners[items[0].dataIndex]; return [`Total $${entry.total.toLocaleString()}`, entry.weeksWon.length ? `Won ${entry.weeksWon.join(", ")}` : "No weekly wins"]; } } } } } });
+  seasonMoneyChart = new Chart(document.getElementById("season-money-chart"), {
+    type: "bar",
+    data: { labels: earners.map(entry => entry.name), datasets },
+    options: {
+      indexAxis: "y",
+      responsive: true,
+      maintainAspectRatio: false,
+      scales: {
+        x: { stacked: true, beginAtZero: true, position: "top", ticks: { color: "#91a0ae", callback: value => "$" + value.toLocaleString() }, grid: { color: "#2a3744" } },
+        y: { stacked: true, ticks: { display: false }, grid: { color: "#2a3744" } }
+      },
+      plugins: {
+        legend: { display: false },
+        title: { display: true, text: earners.length ? "Money won this season" : "No money awarded this season", color: "#e8eef5", font: { size: 15, weight: "normal" }, padding: { bottom: 12 } },
+        tooltip: {
+          filter: item => Number(item.raw || 0) > 0,
+          callbacks: {
+            title: items => earners[items[0].dataIndex].name,
+            label: context => {
+              const award = context.dataset.awardDetails?.[context.dataIndex];
+              if (!award) return "";
+              const row = award.weekRow;
+              const label = award.awardType === "season" ? "Season title" : award.awardType === "playoff" ? "Playoffs" : profileWeekLabel(award.week);
+              return [label, `Amount: $${Number(award.amount || 0).toLocaleString()}`, row ? `Record: ${row.displayWins}-${row.displayLosses}${Number(row.displayPushes || 0) ? `-${row.displayPushes}` : ""}` : "", row?.rank ? `Rank: #${row.rank} of ${row.playerCount}` : ""].filter(Boolean);
+            },
+            afterBody: items => `Season total: $${earners[items[0].dataIndex].total.toLocaleString()}`
+          }
+        }
+      }
+    }
+  });
 }
 function renderSeasonConsistency(standings, weeks) {
   const points = standings.filter(player => player.qualified).map(player => {
@@ -3689,7 +3755,7 @@ function renderAllTimePickCharts() {
   if (!panel || !grid) return;
   let host = document.getElementById("alltime-pick-charts");
   if (!host) { host = document.createElement("div"); host.id = "alltime-pick-charts"; grid.insertAdjacentElement("afterend", host); }
-  host.innerHTML = '<h3 style="margin:28px 0 8px;color:var(--accent);font:11px Arial,sans-serif;letter-spacing:1px;text-transform:uppercase">Team picks</h3><div class="grid-legend"><span>Percentage cells: <i style="background:#238b68"></i>above 50% <i style="background:#d94b5b"></i>below 50% · deeper color means farther from 50% (minimum 25 results)</span></div><div id="alltime-team-picks-table" style="overflow-x:auto"></div><h3 style="margin:28px 0 8px;color:var(--accent);font:11px Arial,sans-serif;letter-spacing:1px;text-transform:uppercase">Season champions</h3><div class="chart-wrap wide-chart race-chart-wrap"><canvas id="alltime-season-weeks-chart"></canvas></div>';
+  host.innerHTML = '<hr class="chart-divider"><h3 style="margin:28px 0 8px;color:var(--accent);font:11px Arial,sans-serif;letter-spacing:1px;text-transform:uppercase">Team picks</h3><div class="grid-legend"><span>Percentage cells: <i style="background:#238b68"></i>above 50% <i style="background:#d94b5b"></i>below 50% · deeper color means farther from 50% (minimum 25 results)</span></div><div id="alltime-team-picks-table" style="overflow-x:auto"></div>';
   const byTeam = new Map(), byPlayer = new Map(), byGame = new Map(), gameMap = new Map(websiteGames.map(game => [game.gameId, game]));
   const getTeamRow = team => byTeam.get(team) || { team, wins: 0, losses: 0, pushes: 0, playoffWins: 0, playoffLosses: 0, favoriteWins: 0, favoriteLosses: 0, favoritePushes: 0, underdogWins: 0, underdogLosses: 0, underdogPushes: 0, count: 0, pickedWins: 0, pickedLosses: 0, pickedPushes: 0, pickedAgainst: 0, pickedAgainstWins: 0, pickedAgainstLosses: 0, pickedAgainstPushes: 0, favoritePicks: 0, favoritePickWins: 0, favoritePickLosses: 0, favoritePickPushes: 0, underdogPicks: 0, underdogPickWins: 0, underdogPickLosses: 0, underdogPickPushes: 0 };
   websiteGames.forEach(game => {
@@ -3930,6 +3996,13 @@ function renderAllTime() {
     const ordered = [...byPlayer.values()].sort((a, b) => Number(a.rank) - Number(b.rank));
     return { season, champion: ordered[0], runnerUp: ordered[1], field: ordered.length };
   }).filter(item => item.champion);
+  const championsHost = document.getElementById("alltime-champions");
+  const championsHeading = championsHost?.previousElementSibling;
+  const careerChart = document.getElementById("alltime-top-chart")?.closest(".chart-wrap");
+  if (championsHost && championsHeading && careerChart && championsHeading.nextElementSibling === championsHost) {
+    careerChart.before(championsHeading, championsHost);
+    championsHeading.style.marginTop = "18px";
+  }
   const totalMoney = websiteAwards.reduce((sum, row) => sum + Math.max(0, Number(row.amount || 0)), 0);
   const weekCount = new Set(websiteWeeks.map(row => `${row.season}|${row.week}`)).size;
   document.getElementById("alltime-summary").innerHTML = [
@@ -5018,11 +5091,11 @@ function streakGameTooltipHtml(game, result, pickedTeam) {
   const rows = [
     ["Season / week", `${game.season} · ${profileWeekLabel(game.week)} · Game ${game.playoffGameNum || game.gameNum || "?"}`],
     ["Date", game.officialGameDate || game.gameDate], ["Kickoff", game.officialGameTime || game.gameTime],
-    ["Stadium", game.stadium], ["Location", location], ["Site", game.neutralSite ? "Neutral site" : "Traditional home site"],
+    ["Stadium", game.stadium], ["Location", location], ["Site", game.neutralSite ? "Neutral site" : ""],
     ["Roof", game.roof], ["Surface", game.surface], ["Weather", game.weather],
     ["Temperature", game.temperatureF != null ? `${game.temperatureF}°F` : ""], ["Wind", game.windMph != null ? `${game.windMph} mph` : ""],
     ["Away coach", game.awayCoach], ["Home coach", game.homeCoach], ["Referee", game.referee],
-    ["Attendance", game.attendance ? Number(game.attendance).toLocaleString() : ""], ["Game status", game.gameStatus],
+    ["Attendance", game.attendance ? Number(game.attendance).toLocaleString() : ""],
     ["ATS result", game.atsResult]
   ].filter(([, value]) => value !== "" && value != null);
   return `${matchupTooltipHtml(game, result, pickedTeam)}${rows.map(([label, value], index) => `<div${index === 0 ? ' class="tooltip-meta-start"' : ""}><span class="neutral">${websiteEscapeHtml(label)}: </span>${websiteEscapeHtml(value)}</div>`).join("")}`;
@@ -5787,7 +5860,8 @@ function renderProfile(name) {
   profileChart.update("none");
   if (profileBestWeeksChart) profileBestWeeksChart.destroy();
   const bestWeekDetails = bestWeeks.map(row => playerPicks.map(pick => ({ pick, game: gameById.get(pick.gameId) })).filter(item => item.game?.season === row.Season && String(item.game.week) === String(row.Week)).sort((a, b) => Number(a.game.gameNum || 0) - Number(b.game.gameNum || 0)));
-  profileBestWeeksChart = new Chart(document.getElementById("profile-best-weeks-chart"), { type: "bar", data: { labels: bestWeeks.map(row => `${String(row.Season).slice(0, 4)} ${row.Week === "playoffs" ? "P" : `W${row.Week}`}`), datasets: [{ label: "Win %", data: bestWeeks.map(row => Number((Number(row.WinPct || 0) * 100).toFixed(1))), barText: bestWeeks.map(row => [`${row.Wins}-${row.Losses}`, `${(Number(row.WinPct || 0) * 100).toFixed(1)}%`]), backgroundColor: bestWeeks.map((row, index) => ["#d4af37", "#c0c0c0", "#cd7f32"][index] || "#8ca7ffbb"), borderColor: bestWeeks.map((row, index) => ["#d4af37", "#c0c0c0", "#cd7f32"][index] || "#8ca7ff"), borderWidth: 1 }] }, options: { responsive: true, maintainAspectRatio: false, scales: { x: { ticks: { color: "#91a0ae" }, grid: { color: "#2a3744" } }, y: { beginAtZero: true, max: 100, ticks: { color: "#91a0ae", callback: value => value + "%" }, grid: { color: "#2a3744" } } }, plugins: { legend: { display: false }, tooltip: { enabled: false, external: context => profileChartTooltip(context, index => { const row = bestWeeks[index]; return `<strong>${row.Season} W${row.Week} · ${row.Wins}-${row.Losses} · ${(Number(row.WinPct || 0) * 100).toFixed(1)}%</strong>${bestWeekDetails[index].map(({ pick, game }) => { const result = Number(pick.resultWin || 0) ? "win" : Number(pick.resultLoss || 0) ? "loss" : "push"; const picked = String(pick.pick || "").toUpperCase(); const team = value => String(value || "").toUpperCase() === picked ? `<span class="${result}">${websiteEscapeHtml(teamDisplay(value, game))}</span>` : `<span class="neutral">${websiteEscapeHtml(teamDisplay(value, game))}</span>`; return `<div>${team(game.favorite)} <span class="neutral">${websiteEscapeHtml(game.spread ?? "PK")}</span> ${team(game.underdog)}</div>`; }).join("")}`; }) } } } });
+  const bestWeekMoney = bestWeeks.map(row => playerAwards.filter(award => award.season === row.Season && String(award.week) === String(row.Week)).reduce((sum, award) => sum + Number(award.amount || 0), 0));
+  profileBestWeeksChart = new Chart(document.getElementById("profile-best-weeks-chart"), { type: "bar", data: { labels: bestWeeks.map(row => `${String(row.Season).slice(0, 4)} ${row.Week === "playoffs" ? "P" : `W${row.Week}`}`), datasets: [{ label: "Win %", data: bestWeeks.map(row => Number((Number(row.WinPct || 0) * 100).toFixed(1))), barText: bestWeeks.map((row, index) => [`${row.Wins}-${row.Losses}`, `${(Number(row.WinPct || 0) * 100).toFixed(1)}%`, `$${bestWeekMoney[index].toLocaleString()}`]), backgroundColor: bestWeeks.map((row, index) => ["#d4af37", "#c0c0c0", "#cd7f32"][index] || "#8ca7ffbb"), borderColor: bestWeeks.map((row, index) => ["#d4af37", "#c0c0c0", "#cd7f32"][index] || "#8ca7ff"), borderWidth: 1 }] }, options: { responsive: true, maintainAspectRatio: false, scales: { x: { ticks: { color: "#91a0ae" }, grid: { color: "#2a3744" } }, y: { beginAtZero: true, max: 100, ticks: { color: "#91a0ae", callback: value => value + "%" }, grid: { color: "#2a3744" } } }, plugins: { legend: { display: false }, tooltip: { enabled: false, external: context => profileChartTooltip(context, index => { const row = bestWeeks[index]; return `<strong>${row.Season} W${row.Week} · ${row.Wins}-${row.Losses} · ${(Number(row.WinPct || 0) * 100).toFixed(1)}% · $${bestWeekMoney[index].toLocaleString()}</strong>${bestWeekDetails[index].map(({ pick, game }) => { const result = Number(pick.resultWin || 0) ? "win" : Number(pick.resultLoss || 0) ? "loss" : "push"; const picked = String(pick.pick || "").toUpperCase(); const team = value => String(value || "").toUpperCase() === picked ? `<span class="${result}">${websiteEscapeHtml(teamDisplay(value, game))}</span>` : `<span class="neutral">${websiteEscapeHtml(teamDisplay(value, game))}</span>`; return `<div>${team(game.favorite)} <span class="neutral">${websiteEscapeHtml(game.spread ?? "PK")}</span> ${team(game.underdog)}</div>`; }).join("")}`; }) } } } });
   profileBestWeeksChart.options.plugins.tooltip.external = context => profileChartTooltip(context, index => { const row = bestWeeks[index], details = bestWeekDetails[index], bestBet = details.find(({ pick }) => Number(pick.bestBetWin || 0) || Number(pick.bestBetLoss || 0) || Number(pick.bestBetPush || 0)); return `<strong>${row.Season} ${profileWeekLabel(row.Week)}</strong>${details.map(({ pick, game }) => { const result = Number(pick.resultWin || 0) ? "win" : Number(pick.resultLoss || 0) ? "loss" : "push"; return profileGameResultHtml(game, pick.pick, result); }).join("")}${bestBet ? `<div><span class="neutral">Best bet: </span><span class="${Number(bestBet.pick.bestBetWin || 0) ? "win" : Number(bestBet.pick.bestBetLoss || 0) ? "loss" : "push"}">${websiteEscapeHtml(bestBet.pick.bestBet)}</span></div>` : ""}`; });
   if (profileRecentChart) profileRecentChart.destroy();
   const recentChartCanvas = document.getElementById("profile-recent-chart"), recentChartWrap = recentChartCanvas.closest(".chart-wrap");
@@ -5846,7 +5920,7 @@ function renderProfile(name) {
   const seasonMoney = seasons.map((season, index) => { runningMoney += seasonAwardTotals[index]; return runningMoney; });
   const moneyJumpIndexes = new Set(seasonAwardTotals.map((value, index) => ({ value, index })).sort((a, b) => b.value - a.value).slice(0, 2).filter(row => row.value > 0).map(row => row.index));
   if (profileMoneyChart) profileMoneyChart.destroy();
-  profileMoneyChart = new Chart(document.getElementById("profile-money-chart"), { type: "line", data: { labels: seasons, datasets: [{ label: "Cumulative money", data: seasonMoney, pointText: seasonMoney.map((value, index) => moneyJumpIndexes.has(index) ? `+$${seasonAwardTotals[index].toLocaleString()}` : ""), borderColor: colors[2], backgroundColor: colors[2] + "44", fill: true, tension: .25, pointRadius: 4 }] }, options: { ...chartOptions, scales: { ...chartOptions.scales, y: { ...chartOptions.scales.y, ticks: { color: "#91a0ae", callback: value => "$" + value.toLocaleString() } } }, plugins: { ...chartOptions.plugins, legend: { display: false }, tooltip: { callbacks: { afterBody: items => { const season = seasons[items[0].dataIndex]; const awards = playerAwards.filter(row => row.season === season); return [`Won this season: $${seasonAwardTotals[items[0].dataIndex].toLocaleString()}`, ...awards.map(row => `${row.awardType === "season" ? "Season title" : row.awardType === "playoff" ? "Playoffs" : `W${row.week}`}: $${Number(row.amount || 0).toLocaleString()}`)]; } } } } } });
+  profileMoneyChart = new Chart(document.getElementById("profile-money-chart"), { type: "line", data: { labels: seasons, datasets: [{ label: "Cumulative money", data: seasonMoney, pointText: seasonMoney.map((value, index) => index === seasonMoney.length - 1 ? `$${value.toLocaleString()}` : moneyJumpIndexes.has(index) ? `+$${seasonAwardTotals[index].toLocaleString()}` : ""), borderColor: colors[2], backgroundColor: colors[2] + "44", fill: true, tension: .25, pointRadius: 4 }] }, options: { ...chartOptions, layout: { padding: { right: 54 } }, scales: { ...chartOptions.scales, y: { ...chartOptions.scales.y, ticks: { color: "#91a0ae", callback: value => "$" + value.toLocaleString() } } }, plugins: { ...chartOptions.plugins, legend: { display: false }, tooltip: { callbacks: { afterBody: items => { const season = seasons[items[0].dataIndex]; const awards = playerAwards.filter(row => row.season === season); return [`Won this season: $${seasonAwardTotals[items[0].dataIndex].toLocaleString()}`, ...awards.map(row => `${row.awardType === "season" ? "Season title" : row.awardType === "playoff" ? "Playoffs" : `W${row.week}`}: $${Number(row.amount || 0).toLocaleString()}`)]; } } } } } });
   const comparisonPeriods = [...new Map(websiteWeeks.filter(row => row.competition === "regular").map(row => [`${row.season}|${row.week}`, { key: `${row.season}|${row.week}`, label: `${row.season} ${profileWeekLabel(row.week)}`, season: row.season, week: row.week, order: Number(row.weekOrder || row.week || 0) }])).values()].sort((left, right) => String(left.season).localeCompare(String(right.season)) || left.order - right.order);
   const comparisonPlayers = [...new Set(websiteWeeks.filter(row => row.competition === "regular").map(row => row.name))].filter(playerName => playerName !== name);
   const comparisonLine = playerName => {
@@ -5926,7 +6000,7 @@ function renderProfile(name) {
   const picksByWeek = new Map();
   const profileWeekKey = (season, week) => `${season}|${String(week).toLowerCase().startsWith("round") || String(week).toLowerCase() === "super bowl" ? "playoffs" : week}`;
   playerPicks.forEach(pick => { const game = websiteGames.find(item => item.gameId === pick.gameId); if (!game) return; const key = profileWeekKey(game.season, game.week); const list = picksByWeek.get(key) || []; list.push({ pick, game }); picksByWeek.set(key, list); });
-  const winTable = winningRows.length ? ['<table class="picks-grid"><thead><tr><th class="pg-player">Week</th><th class="pg-player">Name</th><th class="pg-game">Record</th><th class="pg-game">Tiebreaker</th><th class="pg-game">Runner-up</th><th class="pg-game">Picks</th><th class="pg-game">Best bet</th></tr></thead><tbody>', ...winningRows.map(row => {
+  const winTable = winningRows.length ? ['<table class="picks-grid"><thead><tr><th class="pg-player">Week</th><th class="pg-player">Name</th><th class="pg-game">Record</th><th class="pg-game">Money</th><th class="pg-game">Tiebreaker</th><th class="pg-game">Runner-up</th><th class="pg-game">Picks</th><th class="pg-game">Best bet</th></tr></thead><tbody>', ...winningRows.map(row => {
     const key = profileWeekKey(row.Season, row.Week);
     const picks = (picksByWeek.get(key) || []).sort((a, b) => Number(a.game.playoffGameNum || a.game.gameNum || 0) - Number(b.game.playoffGameNum || b.game.gameNum || 0));
     const allPicks = picks.filter(item => item.pick.pick).map(item => {
@@ -5954,9 +6028,16 @@ function renderProfile(name) {
     const runnerRecord = runner ? `${runner.displayWins}-${runner.displayLosses}${Number(runner.displayPushes || 0) ? `-${runner.displayPushes}` : ""}` : "";
     const runnerText = runner ? `${websiteEscapeHtml(runner.name)} · <span class="weekly-win-record" data-weekly-tooltip="${websiteEscapeHtml(weeklyResultsTooltipHtml(runner))}">${runnerRecord}</span>` : "-";
     const weekLabel = row.Week === "playoffs" ? "Playoffs" : `Week ${row.Week}`;
-    return `<tr><td class="pg-player">${websiteEscapeHtml(`${row.Season} ${weekLabel}`)}</td><td class="pg-player">${websiteEscapeHtml(name)}</td><td class="sg-win1">${winnerRecordHtml}</td><td class="pg-sum-cell">${tiebreakCell}</td><td class="pg-sum-cell" style="text-align:left">${runnerText}</td><td class="pg-sum-cell" style="text-align:left">${allPicks || "-"}</td><td class="pg-sum-cell">${bestBetText || "-"}</td></tr>`;
+    const weekMoney = playerAwards.filter(award => award.season === row.Season && String(award.week) === String(row.Week)).reduce((sum, award) => sum + Number(award.amount || 0), 0);
+    return `<tr><td class="pg-player">${websiteEscapeHtml(`${row.Season} ${weekLabel}`)}</td><td class="pg-player">${websiteEscapeHtml(name)}</td><td class="sg-win1">${winnerRecordHtml}</td><td class="pg-sum-cell">$${weekMoney.toLocaleString()}</td><td class="pg-sum-cell">${tiebreakCell}</td><td class="pg-sum-cell" style="text-align:left">${runnerText}</td><td class="pg-sum-cell" style="text-align:left">${allPicks || "-"}</td><td class="pg-sum-cell">${bestBetText || "-"}</td></tr>`;
   }), '</tbody></table>'].join("") : '<div class="profile-list"><div><span>Weekly wins</span><strong>0</strong></div></div>';
   document.getElementById("profile-weekly-wins-detail").innerHTML = winTable;
+  const winsSummary = document.getElementById("profile-weekly-wins-summary");
+  if (winsSummary) {
+    const totalWon = winningRows.reduce((sum, row) => sum + playerAwards.filter(award => award.season === row.Season && String(award.week) === String(row.Week)).reduce((awardSum, award) => awardSum + Number(award.amount || 0), 0), 0);
+    const latest = winningRows[0];
+    winsSummary.innerHTML = [["Wins", winningRows.length], ["Money", `$${totalWon.toLocaleString()}`], ["Latest", latest ? `${latest.Season} ${profileWeekLabel(latest.Week)}` : "-"]].map(([label, value]) => `<div class="metric"><span>${label}</span><strong>${value}</strong></div>`).join("");
+  }
   const rankRows = [...websiteWeeks].filter(row => row.playerId === playerId || row.name === name);
   renderSortableWeeklyRankTable("profile-weekly-rank-sheet", rankRows);
 }
@@ -6242,7 +6323,7 @@ document.getElementById("notification-preferences-form")?.addEventListener("subm
 initializeNotificationPreferences();
 init().then(async () => { applyHistoricalLabels(); populateWeekSeasons(); populateSeasonChoices(); if (location.hash === "#weeks") { await loadDrilldown(); renderWinnerContributions(true); renderPicksGrid(); setTimeout(() => { orientWeekChart(); addGamePushMarkers(); }, 0); } if (websiteLastWeekData) renderWebsiteWeekRecap(websiteLastWeekData); });
 </script>
-<script src="teams.js?v=20260902-1"></script>
+<script src="teams.js?v=20260902-2"></script>
 <script>
 const WEBSITE_PERSISTED_FILTER_IDS = new Set([
   "season-choice", "payout-season", "streak-category", "game-season", "game-week", "game-choice",
