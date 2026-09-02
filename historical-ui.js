@@ -165,7 +165,7 @@ function setupProfileCareerTrends() {
   const plusPanel = plusCanvas.closest(".panel");
   plusPanel.querySelector("h3").textContent = "Plus/Minus History";
   plusPanel.classList.add("profile-plus-minus-panel");
-  finishCanvas.closest(".panel").after(plusPanel);
+  finishCanvas.closest(".panel").before(plusPanel);
   const panel = document.createElement("div");
   panel.id = "profile-career-trends";
   panel.className = "panel profile-chart";
