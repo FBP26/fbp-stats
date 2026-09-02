@@ -2569,10 +2569,10 @@ async function renderConfirmationHistory(submission) {
     const currentTeams = [...new Set(currentRows.map(row => row.pick).filter(Boolean))];
     const currentOpponents = [...new Set(currentRows.map(row => [row.game.favorite, row.game.underdog].map(team => String(team).toUpperCase()).find(team => team !== row.pick)).filter(Boolean))];
     const completedHistory = history.filter(row => ["win", "loss", "push"].includes(String(row.result).toLowerCase()));
-    const longestWinningRun = rows => {
-      let longest = 0, current = 0;
-      rows.forEach(row => { current = String(row.result).toLowerCase() === "win" ? current + 1 : 0; longest = Math.max(longest, current); });
-      return longest;
+    const activeWinningRun = rows => {
+      let length = 0;
+      for (let index = rows.length - 1; index >= 0 && String(rows[index].result).toLowerCase() === "win"; index--) length += 1;
+      return length;
     };
     const resultRecord = (rows, field = "result") => rows.reduce((record, row) => { const result = String(row[field] || "").toLowerCase(); if (result === "win") record.wins += 1; else if (result === "loss") record.losses += 1; else if (result === "push") record.pushes += 1; return record; }, { wins: 0, losses: 0, pushes: 0 });
     const recordLabel = record => `${record.wins}-${record.losses}${record.pushes ? `-${record.pushes}` : ""}`;
@@ -2624,11 +2624,9 @@ async function renderConfirmationHistory(submission) {
     const bestBetAgainstRows = bestBetOpponent ? completedHistory.filter(row => String(row.bestBet).toUpperCase() === String(row.pick).toUpperCase() && String(row.pick).toUpperCase() !== bestBetOpponent && [row.game.favorite, row.game.underdog].map(team => String(team).toUpperCase()).includes(bestBetOpponent)) : [];
     const bestBetCandidates = [{ mode: "for", team: currentBestBetTeam, opponent: bestBetOpponent, rows: bestBetForRows, last: bestBetForRows.at(-1) }, { mode: "against", team: bestBetOpponent, currentPick: currentBestBetTeam, rows: bestBetAgainstRows, last: bestBetAgainstRows.at(-1) }].filter(candidate => candidate.mode === "for" ? candidate.team && candidate.opponent : candidate.team && candidate.currentPick && candidate.currentPick !== candidate.team);
     const bestBetCallback = bestBetCandidates.sort((left, right) => gapSince(right.last).days - gapSince(left.last).days || left.rows.length - right.rows.length)[0];
-    const backingRuns = currentTeams.map(team => ({ team, length: longestWinningRun(completedHistory.filter(row => String(row.pick).toUpperCase() === team)) })).sort((left, right) => right.length - left.length);
-    const fadingRuns = currentOpponents.map(team => ({ team, length: longestWinningRun(completedHistory.filter(row => String(row.pick).toUpperCase() !== team && [row.game.favorite, row.game.underdog].map(value => String(value).toUpperCase()).includes(team))) })).sort((left, right) => right.length - left.length);
-    const bestBackingRun = backingRuns.find(run => run.length >= 2);
-    const bestFadingRun = fadingRuns.find(run => run.length >= 2);
-    const teamStreakText = [bestBackingRun ? `Among teams you picked this week, your longest run of correct picks is ${bestBackingRun.length} straight with the <strong>${websiteEscapeHtml(websiteNaturalTeamName(bestBackingRun.team))}</strong>.` : "", bestFadingRun ? `Among their opponents, your longest run is ${bestFadingRun.length} straight correct picks against the <strong>${websiteEscapeHtml(websiteNaturalTeamName(bestFadingRun.team))}</strong>.` : ""].filter(Boolean).join(" ");
+    const activeTeamRuns = currentTeams.map(team => ({ team, length: activeWinningRun(completedHistory.filter(row => String(row.pick).toUpperCase() === team)) })).sort((left, right) => right.length - left.length || websiteNaturalTeamName(left.team).localeCompare(websiteNaturalTeamName(right.team)));
+    const bestActiveTeamRun = activeTeamRuns.find(run => run.length > 0);
+    const teamStreakText = bestActiveTeamRun ? `Your longest active streak among teams you picked this week is <strong>${bestActiveTeamRun.length} straight correct ${bestActiveTeamRun.length === 1 ? "pick" : "picks"}</strong> with the <strong>${websiteEscapeHtml(websiteNaturalTeamName(bestActiveTeamRun.team))}</strong>.` : "None of the teams you picked this week currently carries an active correct-pick streak from your archived picks.";
     const teamRank = (team, against = false) => {
       const records = new Map();
       websitePicks.forEach(row => {
