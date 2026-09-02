@@ -80,6 +80,7 @@
   .website-game-row { position: relative; padding: 2px 0 4px; border-bottom: 1px solid var(--border); }
   .website-matchup { display: grid; grid-template-columns: minmax(0, 1fr) 48px minmax(0, 1fr); align-items: center; gap: 8px; }
   .website-game-context { margin: 0; padding: 0 4px 1px; color: var(--muted); font: 10px/1.3 Arial, sans-serif; text-align: center; }
+  .website-game-context > span + span::before { content: " · "; }
   .website-weather-icon { display: inline-block; min-width: 15px; margin-right: 2px; font-size: 12px; line-height: 1; vertical-align: -1px; }
   .website-side { display: flex; align-items: center; gap: 8px; min-width: 0; padding: 5px 8px; border: 1px solid transparent; border-radius: 5px; font: 14px Arial, sans-serif; text-transform: none; letter-spacing: 0; cursor: pointer; transition: background .15s, border-color .15s, color .15s; }
   .website-team-choice { display: grid; flex: 1; grid-template-columns: 38px minmax(0, 1fr); grid-template-areas: "logo name" "logo record"; align-items: center; column-gap: 8px; width: 100%; min-width: 0; padding: 6px 8px; border: 1px solid transparent; border-radius: 5px; }
@@ -623,9 +624,13 @@
     .website-team-choice { grid-template-columns: 21px minmax(0, 1fr); grid-template-areas: "logo name" "logo record"; column-gap: 3px; padding: 2px 3px; }
     .website-side.right .website-team-choice { grid-template-columns: minmax(0, 1fr) 21px; grid-template-areas: "name logo" "record logo"; }
     .website-team-logo { width: 21px; height: 21px; }
-    .website-mobile-venue, .website-context-venue { display: none !important; }
-    .website-game-context { padding: 0 1px 1px; font-size: 8px; line-height: 1.05; }
-    .website-weather-icon { display: none; }
+    .website-mobile-venue { display: none !important; }
+    .website-game-context { display: grid; grid-template-columns: minmax(0, 1fr) auto; gap: 5px; align-items: center; padding: 1px 3px 3px; overflow: visible; font-size: 8px; line-height: 1.1; text-align: left; white-space: normal; }
+    .website-game-context > span::before, .website-context-location, .website-context-broadcast { display: none; content: none; }
+    .website-context-venue { display: block !important; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+    .website-context-weather { display: block; text-align: right; white-space: nowrap; }
+    .website-game-context-neutral .website-context-location { display: block; grid-column: 1 / -1; text-align: center; }
+    .website-weather-icon { min-width: 12px; margin-right: 1px; font-size: 9px; }
   }
 </style>
 </head>
@@ -2276,7 +2281,7 @@ function websiteGameContext(game) {
   const weather = [hasTemperature ? `${game.temperature}°` : "", condition].filter(Boolean).join(" ");
   const weatherDetail = game.indoor ? "Indoor" : weather;
   const details = [["venue", game.venueName || game.venue], ["location", location], ["weather", weatherDetail], ["broadcast", game.broadcast || game.tv]].filter(([, value]) => value);
-  return details.length ? `<div class="website-game-context${websiteIsNeutralSite(game) ? " website-game-context-neutral" : ""}">${details.map(([type, value], index) => `<span class="website-context-${type}">${type === "weather" ? `<span class="website-weather-icon" aria-hidden="true">${weatherIcon}</span>` : ""}${websiteEscapeHtml(value)}${index < details.length - 1 ? " · " : ""}</span>`).join("")}</div>` : "";
+  return details.length ? `<div class="website-game-context${websiteIsNeutralSite(game) ? " website-game-context-neutral" : ""}">${details.map(([type, value]) => `<span class="website-context-${type}">${type === "weather" ? `<span class="website-weather-icon" aria-hidden="true">${weatherIcon}</span>` : ""}${websiteEscapeHtml(value)}</span>`).join("")}</div>` : "";
 }
 function websiteGamesMatch(left, right) {
   const leftId = left?.gameId || left?.id, rightId = right?.gameId || right?.id;
