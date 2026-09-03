@@ -12,10 +12,13 @@
 <link rel="icon" href="icons/fbp-icon.svg" type="image/svg+xml" />
 <link rel="apple-touch-icon" sizes="180x180" href="icons/fbp-apple-touch.png?v=20260901-2" />
 <link href="https://unpkg.com/tabulator-tables@5.6.0/dist/css/tabulator.min.css" rel="stylesheet">
+<link href="https://unpkg.com/leaflet@1.9.4/dist/leaflet.css" rel="stylesheet">
+<link href="map.css?v=20260903-1" rel="stylesheet">
 <script src="https://cdn.jsdelivr.net/npm/chart.js@4.4.3/dist/chart.umd.min.js"></script>
 <script src="https://cdn.jsdelivr.net/npm/chartjs-chart-sankey@0.14.0/dist/chartjs-chart-sankey.min.js"></script>
 <script src="https://unpkg.com/tabulator-tables@5.6.0/dist/js/tabulator.min.js"></script>
 <script src="https://cdn.jsdelivr.net/npm/papaparse@5.4.1/papaparse.min.js"></script>
+<script src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js"></script>
 <script src="historical-ui.js?v=20260903-1"></script>
 <style>
   :root { --bg: #0d1117; --panel: #171a1f; --panel-2: #20242a; --border: #3a3d42; --text: #f3f1e8; --muted: #aaa69b; --accent: #ffcf40; --accent-2: #e6a817; --positive: #39c982; --positive-bg: #123c2d; --danger: #ff6b6b; --danger-bg: #481f24; }
@@ -708,7 +711,7 @@
       <details><summary>How do the playoffs work?</summary><div class="faq-answer"><p>The playoff winner has the most wins across all four rounds. Round 1 has 6 games plus a Best Bet for 7 possible wins; Round 2 has 4 games plus a Best Bet for 5; Round 3 has 2 games plus a Best Bet for 3; and the Super Bowl pick is worth 2 wins. That is 13 games and 17 possible wins.</p><p>The Super Bowl's combined net passing yards break a tie. Starting in Round 2, picks remain hidden until every player who can still win has submitted for that round.</p></div></details>
       <details><summary>What notifications are available?</summary><div class="faq-answer"><p>The browser alert announces a newly opened regular-season week while FBP is open. Email preferences can cover a new slate, a move into first place, early and late game windows, Sunday and Monday night scenarios, and the final weekly result. An email address is inactive until its verification link is opened, and every message includes a one-click stop link.</p><p>Text alerts require a separate SMS provider and are not available yet. FBP does not save a phone number while text delivery is unavailable.</p></div></details>
       <details><summary>How do I add FBP to my phone's Home Screen?</summary><div class="faq-answer"><p><strong>iPhone or iPad:</strong> press and hold the URL, tap Share, scroll to Add to Home Screen, then tap Add.</p><p><strong>Android:</strong> tap Install and confirm. If Install is not shown, open Chrome's menu and tap Add to Home screen.</p></div></details>
-      <details><summary>What visitor information is collected?</summary><div class="faq-answer"><p>When anonymous analytics are enabled, FBP records page views, pick starts, submissions, a random browser/session identifier, referring domain, device class, viewport, language, and time zone. It does not collect IP addresses, precise location, names, picks, or full referring URLs for analytics.</p><p>The analytics are stored privately for site maintenance and are not shown on a public leaderboard or visitor page.</p></div></details>
+      <details><summary>What visitor information is collected?</summary><div class="faq-answer"><p>When anonymous analytics are enabled, FBP records page views, pick starts, submissions, a random browser/session identifier, referring domain, device class, viewport, language, time zone, and approximate network location. It does not collect IP addresses, browser GPS location, names, picks, or full referring URLs for analytics.</p><p>The Map may show aggregated approximate cities and activity counts. It never includes IP addresses or anonymous browser/session identifiers.</p></div></details>
     </div></div>
   </section>
   <section id="view-weeks" class="view"><select id="week-race-players" hidden></select>
@@ -734,12 +737,22 @@
     <section class="intro"><div><div class="eyebrow">League-wide pick behavior</div><h2>Teams</h2></div><p>See which NFL teams the pool picked or picked against, where confidence changed, and whether those choices beat the spread.</p></section>
     <div class="panel"><div class="explorer-controls"><label>Team<select id="teams-team"></select></label><label>Leaderboard<select id="teams-metric"><option value="volume">Most picked</option><option value="ats">Best record when picked</option><option value="fade">Best record picking against</option><option value="bestbet">Best Bet hit rate</option></select></label></div><div id="teams-summary" class="summary"></div><div class="profile-charts"><div class="panel profile-chart"><div class="panel-head"><h3>Team Leaders</h3></div><div class="chart-wrap"><canvas id="teams-leader-chart"></canvas></div></div><div class="panel profile-chart"><div class="panel-head"><h3 id="teams-trend-title">Pool Pick Share vs ATS Cover Rate</h3></div><p id="teams-trend-note" class="analysis-note"></p><div class="chart-wrap"><canvas id="teams-trend-chart"></canvas></div></div><div class="panel profile-chart"><div class="panel-head"><h3 id="teams-consensus-title">Picking the Team vs Picking Against It</h3></div><p id="teams-consensus-note" class="analysis-note"></p><div class="chart-wrap"><canvas id="teams-consensus-chart"></canvas></div></div><div class="panel profile-chart"><div class="panel-head"><h3 id="teams-neutral-title">Neutral-Site Picks</h3></div><p id="teams-neutral-note" class="analysis-note"></p><div class="chart-wrap"><canvas id="teams-neutral-chart"></canvas></div></div></div><h3 style="margin:28px 0 8px;color:var(--accent);font:11px Arial,sans-serif;letter-spacing:1px;text-transform:uppercase">Team leaderboard</h3><div id="teams-leaderboard-table"></div><h3 style="margin:28px 0 8px;color:var(--accent);font:11px Arial,sans-serif;letter-spacing:1px;text-transform:uppercase">Best Bet records</h3><div id="teams-bestbet-table"></div><h3 id="teams-affinity-title" style="margin:28px 0 8px;color:var(--accent);font:11px Arial,sans-serif;letter-spacing:1px;text-transform:uppercase">Player affinity</h3><div id="teams-affinity-table"></div></div>
   </section>
+  <section id="view-map" class="view">
+    <section class="intro"><div><div class="eyebrow">The pool, placed</div><h2>FBP Map</h2></div><p>Team markets shaped by seventeen seasons of picks, results, venues, and weather.</p></section>
+    <div class="fbp-map-shell">
+      <div class="panel fbp-map-toolbar"><label>Lens<select id="fbp-map-metric"><option value="support">Pool support</option><option value="edge">Pool edge</option><option value="cover">ATS reality</option><option value="weather">Temperature</option><option value="wind">Wind</option><option value="volume">Stadium history</option><option value="visitors" selected>Website visitors</option></select></label><label>Map style<select id="fbp-map-basemap"><option value="dark">Dark</option><option value="street">Street</option><option value="satellite" selected>Satellite</option></select></label><label>Season<select id="fbp-map-season"><option value="all">All seasons</option></select></label><label>Region<select id="fbp-map-region"><option value="all">All locations</option><option value="domestic">U.S. locations</option><option value="international">International</option></select></label><label>Division<select id="fbp-map-division"><option value="all">All divisions</option><option>AFC East</option><option>AFC North</option><option>AFC South</option><option>AFC West</option><option>NFC East</option><option>NFC North</option><option>NFC South</option><option>NFC West</option></select></label></div>
+      <div id="fbp-map-summary" class="fbp-map-summary"></div>
+      <section id="fbp-map-forecast" class="fbp-map-forecast" hidden></section>
+      <div class="fbp-map-layout"><div id="fbp-map-canvas" role="application" aria-label="Interactive map of NFL team markets"></div><aside id="fbp-map-detail" class="fbp-map-rail" aria-live="polite"><p class="fbp-map-empty">Loading team geography...</p></aside></div>
+      <div class="fbp-map-foot"><div class="fbp-map-legend"><span id="fbp-map-legend-low">Lower</span><span class="fbp-map-ramp" aria-hidden="true"></span><span id="fbp-map-legend-high">Higher</span></div><p id="fbp-map-footnote" class="fbp-map-caption">Pool lenses use current team markets. Weather and stadium lenses use every archived physical venue.</p></div>
+    </div>
+  </section>
 </main>
 <script>
 document.getElementById("profile-best-bet-chart")?.closest(".profile-chart")?.before(document.getElementById("profile-team-chart")?.closest(".profile-chart"));
 const DATA_DIR = "./data";
 const WEBSITE_WEEK_HISTORY_VERSION = "20260903-literal-none";
-const websiteRoutes = ["enter-picks", "week-one", "picks-confirmation", "alltime", "season", "payout", "streaks", "weeks", "weekly-rank", "games", "players", "names", "teams", "faq"];
+const websiteRoutes = ["enter-picks", "week-one", "picks-confirmation", "alltime", "season", "payout", "streaks", "weeks", "weekly-rank", "games", "players", "names", "teams", "map", "faq"];
 const standaloneAppLaunch = matchMedia("(display-mode: standalone)").matches || navigator.standalone === true;
 const savedStartupRoute = localStorage.getItem("fbpLastView");
 const requestedRoute = standaloneAppLaunch && websiteRoutes.includes(savedStartupRoute) ? savedStartupRoute : location.hash.slice(1);
@@ -6137,6 +6150,7 @@ function renderProfile(name) {
 }
 const synchronizedPlayerFilterIds = ["profile-player", "names-player", "season-player", "contribution-player", "weekly-rank-player"];
 let synchronizingPlayerFilters = false;
+let websiteFaqMapTaps = [];
 function synchronizePlayerFilters(source) {
   if (synchronizingPlayerFilters) return;
   const playerName = source.selectedOptions[0]?.textContent.trim().replace(/^All players$/i, "") || "";
@@ -6158,17 +6172,29 @@ function initViews() {
   });
   document.querySelectorAll("#nav button[data-view]").forEach(btn => btn.onclick = async () => {
     showView(btn.dataset.view);
+    if (btn.dataset.view === "faq") {
+      const now = Date.now();
+      websiteFaqMapTaps = [...websiteFaqMapTaps.filter(timestamp => now - timestamp < 3000), now];
+      if (websiteFaqMapTaps.length >= 5) {
+        websiteFaqMapTaps = [];
+        showView("map");
+        await loadDrilldown();
+        initFbpMap();
+        return;
+      }
+    } else websiteFaqMapTaps = [];
     if (btn.dataset.view === "players") {
       renderProfile(document.getElementById("profile-player").value);
       if (!websitePicks.length) loadDrilldown().then(() => { if (document.getElementById("view-players").classList.contains("active")) renderProfile(document.getElementById("profile-player").value); });
       return;
     }
-    if (["games", "weeks", "season", "names"].includes(btn.dataset.view)) await loadDrilldown();
+    if (["games", "weeks", "season", "names", "map"].includes(btn.dataset.view)) await loadDrilldown();
     if (btn.dataset.view === "weeks") { renderWeek(); renderWeekLiveRace(); renderWinnerContributions(true); setTimeout(() => { orientWeekChart(); addGamePushMarkers(); }, 0); }
     if (btn.dataset.view === "season") renderSeasonLiveRace();
     if (btn.dataset.view === "payout") renderPayout(true);
     if (btn.dataset.view === "weekly-rank") renderWeeklyRankView();
     if (btn.dataset.view === "names") renderSelectedNameProfile();
+    if (btn.dataset.view === "map") initFbpMap();
   });
   document.getElementById("profile-player").onchange = event => {
     const selectedName = event.target.value;
@@ -6438,12 +6464,13 @@ document.getElementById("notification-preferences-form")?.addEventListener("subm
 initializeNotificationPreferences();
 let historicalInitializationPromise = null;
 function startHistoricalInitialization() {
-  if (!historicalInitializationPromise) historicalInitializationPromise = init().then(async () => { applyHistoricalLabels(); populateWeekSeasons(); populateSeasonChoices(); if (location.hash === "#weeks") { await loadDrilldown(); renderWinnerContributions(true); renderPicksGrid(); setTimeout(() => { orientWeekChart(); addGamePushMarkers(); }, 0); } if (websiteLastWeekData) renderWebsiteWeekRecap(websiteLastWeekData); });
+  if (!historicalInitializationPromise) historicalInitializationPromise = init().then(async () => { applyHistoricalLabels(); populateWeekSeasons(); populateSeasonChoices(); if (location.hash === "#weeks") { await loadDrilldown(); renderWinnerContributions(true); renderPicksGrid(); setTimeout(() => { orientWeekChart(); addGamePushMarkers(); }, 0); } if (location.hash === "#map") initFbpMap(); if (websiteLastWeekData) renderWebsiteWeekRecap(websiteLastWeekData); });
   return historicalInitializationPromise;
 }
 if (requestedStartupRoute !== "week-one") startHistoricalInitialization();
 </script>
 <script src="teams.js?v=20260902-2"></script>
+<script src="map.js?v=20260903-1"></script>
 <script>
 const WEBSITE_PERSISTED_FILTER_IDS = new Set([
   "season-choice", "payout-season", "streak-category", "game-season", "game-week", "game-choice",

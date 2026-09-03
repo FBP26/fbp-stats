@@ -1,5 +1,5 @@
-const CACHE_NAME = "fbp-shell-v5";
-const APP_SHELL = ["./", "./index.html", "./historical-ui.js", "./teams.js", "./manifest.webmanifest"];
+const CACHE_NAME = "fbp-shell-v6";
+const APP_SHELL = ["./", "./index.html", "./historical-ui.js", "./teams.js", "./map.js", "./map.css", "./manifest.webmanifest"];
 
 self.addEventListener("install", event => {
   event.waitUntil(caches.open(CACHE_NAME).then(cache => cache.addAll(APP_SHELL)));

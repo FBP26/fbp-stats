@@ -1,0 +1,20 @@
+{
+  "updatedAt": "2026-09-03T20:34:51+00:00",
+  "privacy": "Aggregated approximate network-location counts only; no browser location permission, IP addresses, or anonymous IDs.",
+  "locations": [
+    {
+      "country": "US",
+      "region": "Virginia",
+      "regionCode": "VA",
+      "continent": "NA",
+      "city": "Richmond",
+      "latitude": 37.55376,
+      "longitude": -77.46026,
+      "views": 10,
+      "uniqueBrowsers": 2,
+      "sessions": 3,
+      "pickStarts": 0,
+      "submissions": 0
+    }
+  ]
+}
