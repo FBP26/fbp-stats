@@ -788,7 +788,12 @@ async function initializeWebsiteAnalytics() {
     websiteAnalyticsReady = false;
   }
 }
-initializeWebsiteAnalytics();
+let websiteAnalyticsInitializationPromise = null;
+function startWebsiteAnalytics() {
+  if (!websiteAnalyticsInitializationPromise) websiteAnalyticsInitializationPromise = initializeWebsiteAnalytics();
+  return websiteAnalyticsInitializationPromise;
+}
+if (requestedStartupRoute !== "week-one") startWebsiteAnalytics();
 initializeWebsiteNameAutocomplete();
 function showWebsiteConfirmation() { showView("picks-confirmation"); window.scrollTo({ top: 0, behavior: "auto" }); }
 function resetWebsiteBestBet() { const bestBet = document.getElementById("website-best-bet"); if (!bestBet) return; if (!bestBet.options.length || bestBet.options[0].value !== "") bestBet.insertBefore(new Option("Choose a best bet", ""), bestBet.options[0] || null); bestBet.value = ""; updateWebsiteBestBetPicker(); }
@@ -3002,6 +3007,8 @@ async function renderWebsiteWeekOne(currentWeekRequest = null) {
     renderWebsiteWeekOneGrid(data, "Week X");
     decorateWebsiteWeekOneHeaders(data);
     await new Promise(resolve => requestAnimationFrame(() => requestAnimationFrame(resolve)));
+    startWebsiteAnalytics();
+    startHistoricalInitialization();
     websitePreparePlayers(data);
     renderWebsiteWeekOneGrid(data, "Week X");
     decorateWebsiteWeekOneHeaders(data);
@@ -6335,7 +6342,12 @@ function applyHistoricalLabels() {
 applyHistoricalLabels();
 document.getElementById("notification-preferences-form")?.addEventListener("submit", saveNotificationPreferences);
 initializeNotificationPreferences();
-init().then(async () => { applyHistoricalLabels(); populateWeekSeasons(); populateSeasonChoices(); if (location.hash === "#weeks") { await loadDrilldown(); renderWinnerContributions(true); renderPicksGrid(); setTimeout(() => { orientWeekChart(); addGamePushMarkers(); }, 0); } if (websiteLastWeekData) renderWebsiteWeekRecap(websiteLastWeekData); });
+let historicalInitializationPromise = null;
+function startHistoricalInitialization() {
+  if (!historicalInitializationPromise) historicalInitializationPromise = init().then(async () => { applyHistoricalLabels(); populateWeekSeasons(); populateSeasonChoices(); if (location.hash === "#weeks") { await loadDrilldown(); renderWinnerContributions(true); renderPicksGrid(); setTimeout(() => { orientWeekChart(); addGamePushMarkers(); }, 0); } if (websiteLastWeekData) renderWebsiteWeekRecap(websiteLastWeekData); });
+  return historicalInitializationPromise;
+}
+if (requestedStartupRoute !== "week-one") startHistoricalInitialization();
 </script>
 <script src="teams.js?v=20260902-2"></script>
 <script>
