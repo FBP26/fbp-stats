@@ -346,6 +346,23 @@ const handleGet = async (request: Request, env: Env): Promise<Response> => {
   const url = new URL(request.url);
   const action = url.searchParams.get("action") || "current-week";
   if (action === "analytics-status") return json({ ok: true, analytics: true }, 200, env.CORS_ORIGIN);
+  if (action === "analytics-context") {
+    const context = request.cf;
+    const roundedCoordinate = (value: unknown): number | "" => {
+      const coordinate = Number(value);
+      return Number.isFinite(coordinate) ? Number(coordinate.toFixed(1)) : "";
+    };
+    return json({
+      ok: true,
+      country: context?.country || "",
+      region: context?.region || "",
+      regionCode: context?.regionCode || "",
+      city: context?.city || "",
+      latitude: roundedCoordinate(context?.latitude),
+      longitude: roundedCoordinate(context?.longitude),
+      continent: context?.continent || "",
+    }, 200, env.CORS_ORIGIN);
+  }
   if (action === "notification-status") return json({
     ok: true,
     channels: { email: Boolean(env.EMAIL_RELAY_URL && env.EMAIL_RELAY_SECRET), sms: false },

@@ -751,6 +751,10 @@ const WEBSITE_NOTIFICATION_ENDPOINT = "https://fbp-api.fbp-api-worker.workers.de
 const WEBSITE_ANALYTICS_HOST = location.hostname === "fbp26.github.io";
 let websiteAnalyticsReady = false;
 let websiteLastTrackedView = "";
+let websiteAnalyticsGeo = {};
+let websiteActiveView = "";
+let websiteActiveStartedAt = 0;
+let websiteActiveMilliseconds = 0;
 function websiteAnonymousId(storage, key) {
   try {
     let value = storage.getItem(key);
@@ -760,10 +764,32 @@ function websiteAnonymousId(storage, key) {
     return `${Date.now()}-${Math.random().toString(36).slice(2)}`;
   }
 }
-function websiteTrackEvent(event, view = location.hash.slice(1) || "enter-picks") {
+function websiteDeviceContext() {
+  const agent = navigator.userAgent || "";
+  const browser = /Edg\//.test(agent) ? "Edge" : /OPR\//.test(agent) ? "Opera" : /Firefox\//.test(agent) ? "Firefox" : /CriOS|Chrome\//.test(agent) ? "Chrome" : /Safari\//.test(agent) ? "Safari" : "Other";
+  const os = /iPhone|iPad|iPod/.test(agent) ? "iOS" : /Android/.test(agent) ? "Android" : /Windows/.test(agent) ? "Windows" : /Mac OS X/.test(agent) ? "macOS" : /CrOS/.test(agent) ? "ChromeOS" : /Linux/.test(agent) ? "Linux" : "Other";
+  const device = /iPad|Tablet|Android(?!.*Mobile)/i.test(agent) ? "tablet" : /Mobi|iPhone|iPod/i.test(agent) || matchMedia("(max-width: 850px)").matches ? "mobile" : "desktop";
+  return { browser, os, device, appMode: standaloneAppLaunch ? "installed app" : "browser" };
+}
+function websiteAccumulateActiveTime() {
+  if (websiteActiveStartedAt) websiteActiveMilliseconds += Math.max(0, performance.now() - websiteActiveStartedAt);
+  websiteActiveStartedAt = 0;
+}
+function websiteFlushActiveTime() {
+  websiteAccumulateActiveTime();
+  const durationSeconds = Math.round(websiteActiveMilliseconds / 1000);
+  websiteActiveMilliseconds = 0;
+  if (websiteAnalyticsReady && websiteActiveView && durationSeconds > 0) websiteTrackEvent("view_duration", websiteActiveView, { durationSeconds });
+}
+function websiteTrackEvent(event, view = location.hash.slice(1) || "enter-picks", extra = {}) {
   if (!websiteAnalyticsReady || !WEBSITE_SUBMISSIONS_ENDPOINT) return;
   if (event === "page_view" && websiteLastTrackedView === view) return;
-  if (event === "page_view") websiteLastTrackedView = view;
+  if (event === "page_view") {
+    websiteFlushActiveTime();
+    websiteLastTrackedView = view;
+    websiteActiveView = view;
+    websiteActiveStartedAt = document.visibilityState === "visible" ? performance.now() : 0;
+  }
   if (event === "picks_started") {
     try { if (sessionStorage.getItem("fbpPicksStarted")) return; sessionStorage.setItem("fbpPicksStarted", "1"); } catch (error) {}
   }
@@ -774,10 +800,12 @@ function websiteTrackEvent(event, view = location.hash.slice(1) || "enter-picks"
     browserId: websiteAnonymousId(localStorage, "fbpAnonymousBrowserId"),
     sessionId: websiteAnonymousId(sessionStorage, "fbpAnonymousSessionId"),
     referrerDomain,
-    device: matchMedia("(max-width: 850px)").matches ? "mobile" : "desktop",
+    ...websiteDeviceContext(),
     viewport: `${innerWidth}x${innerHeight}`,
     language: navigator.language || "",
-    timeZone: Intl.DateTimeFormat().resolvedOptions().timeZone || ""
+    timeZone: Intl.DateTimeFormat().resolvedOptions().timeZone || "",
+    ...websiteAnalyticsGeo,
+    ...extra
   };
   fetch(WEBSITE_SUBMISSIONS_ENDPOINT, { method: "POST", mode: "no-cors", keepalive: true, headers: { "Content-Type": "text/plain;charset=utf-8" }, body: JSON.stringify(payload) }).catch(() => {});
 }
@@ -785,14 +813,23 @@ async function initializeWebsiteAnalytics() {
   if (!WEBSITE_ANALYTICS_HOST || !WEBSITE_SUBMISSIONS_ENDPOINT) return;
   try {
     const separator = WEBSITE_SUBMISSIONS_ENDPOINT.includes("?") ? "&" : "?";
-    const response = await fetch(`${WEBSITE_SUBMISSIONS_ENDPOINT}${separator}action=analytics-status`, { signal: AbortSignal.timeout(10000) });
+    const [response, geo] = await Promise.all([
+      fetch(`${WEBSITE_SUBMISSIONS_ENDPOINT}${separator}action=analytics-status`, { signal: AbortSignal.timeout(10000) }),
+      fetch(`${WEBSITE_NOTIFICATION_ENDPOINT}/?action=analytics-context`, { signal: AbortSignal.timeout(10000) }).then(result => result.ok ? result.json() : {}).catch(() => ({}))
+    ]);
     const data = await response.json();
+    websiteAnalyticsGeo = geo?.ok ? { country: geo.country || "", region: geo.region || "", regionCode: geo.regionCode || "", city: geo.city || "", latitude: geo.latitude ?? "", longitude: geo.longitude ?? "", continent: geo.continent || "" } : {};
     websiteAnalyticsReady = Boolean(response.ok && data.ok && data.analytics);
     if (websiteAnalyticsReady) websiteTrackEvent("page_view");
   } catch (error) {
     websiteAnalyticsReady = false;
   }
 }
+document.addEventListener("visibilitychange", () => {
+  if (document.visibilityState === "hidden") websiteAccumulateActiveTime();
+  else if (websiteActiveView && !websiteActiveStartedAt) websiteActiveStartedAt = performance.now();
+});
+addEventListener("pagehide", websiteFlushActiveTime);
 let websiteAnalyticsInitializationPromise = null;
 function startWebsiteAnalytics() {
   if (!websiteAnalyticsInitializationPromise) websiteAnalyticsInitializationPromise = initializeWebsiteAnalytics();
