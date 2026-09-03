@@ -3690,15 +3690,18 @@ function renderSeasonConsistency(standings, weeks) {
 }
 function seasonPickStats(season, weeks) {
   const weekSet = new Set(weeks);
-  const gameIds = new Set(websiteGames.filter(game => game.season === season && weekSet.has(game.week)).map(game => game.gameId));
+  const seasonGames = websiteGames.filter(game => game.season === season && weekSet.has(game.week));
+  const gameIds = new Set(seasonGames.map(game => game.gameId));
+  const gameById = new Map(seasonGames.map(game => [game.gameId, game]));
   const picks = websitePicks.filter(pick => gameIds.has(pick.gameId));
   const byPlayer = new Map(), byTeam = new Map(), byGame = new Map();
   picks.forEach(pick => {
-    const player = byPlayer.get(pick.playerId) || { name: pick.name, bbWins: 0, bbTries: 0, picks: 0, offCrowd: 0, offCrowdWins: 0 };
+    const player = byPlayer.get(pick.playerId) || { name: pick.name, bbWins: 0, bbTries: 0, bbDetails: [], picks: 0, offCrowd: 0, offCrowdWins: 0 };
     player.picks += 1;
     const attempts = Number(pick.bestBetWin || 0) + Number(pick.bestBetLoss || 0) + Number(pick.bestBetPush || 0);
     player.bbTries += attempts;
     player.bbWins += Number(pick.bestBetWin || 0);
+    if (attempts) player.bbDetails.push({ game: gameById.get(pick.gameId), team: pick.bestBet, result: Number(pick.bestBetWin || 0) ? "win" : Number(pick.bestBetLoss || 0) ? "loss" : "push" });
     byPlayer.set(pick.playerId, player);
     const team = String(pick.pick || "").trim().toUpperCase();
     if (team) {
@@ -3744,7 +3747,7 @@ function renderSeasonPickCharts(standings, weeks) {
   const emptyTitle = ready ? "" : "Loading picks…";
   const bbRows = ready ? [...stats.byPlayer.entries()].filter(([playerId, row]) => qualified.has(playerId) && row.bbTries >= 5).map(([, row]) => ({ ...row, rate: row.bbWins / row.bbTries })).sort((a, b) => b.rate - a.rate).slice(0, 12) : [];
   if (seasonBbChart) seasonBbChart.destroy();
-  seasonBbChart = new Chart(document.getElementById("season-bb-chart"), { type: "bar", data: { labels: bbRows.map(row => row.name), datasets: [{ label: "Best bet hit rate", data: bbRows.map(row => Number((row.rate * 100).toFixed(1))), barText: bbRows.map(row => `${row.name} ${row.bbWins}/${row.bbTries} · ${(row.rate * 100).toFixed(1)}%`), backgroundColor: bbRows.map((row, index) => ["#d4af37", "#c0c0c0", "#cd7f32"][index] || "#7ee2b8bb"), borderColor: bbRows.map((row, index) => ["#d4af37", "#c0c0c0", "#cd7f32"][index] || "#7ee2b8"), borderWidth: 1 }] }, options: { indexAxis: "y", responsive: true, maintainAspectRatio: false, scales: { x: { beginAtZero: true, position: "top", ticks: { color: "#91a0ae", callback: value => value + "%" }, grid: { color: "#2a3744" } }, y: { ticks: { display: false }, grid: { color: "#2a3744" } } }, plugins: { legend: { display: false }, title: { display: true, text: emptyTitle || "Best bet hit rate (min 5 best bets)", color: "#e8eef5", font: { size: 15, weight: "normal" }, padding: { bottom: 12 } }, tooltip: { displayColors: false, callbacks: { label: context => { const row = bbRows[context.dataIndex]; return [`Hit ${row.bbWins} of ${row.bbTries}`, `A pushed best bet counts as a miss`]; } } } } } });
+  seasonBbChart = new Chart(document.getElementById("season-bb-chart"), { type: "bar", data: { labels: bbRows.map(row => row.name), datasets: [{ label: "Best bet hit rate", data: bbRows.map(row => Number((row.rate * 100).toFixed(1))), barText: bbRows.map(row => `${row.name} ${row.bbWins}/${row.bbTries} · ${(row.rate * 100).toFixed(1)}%`), backgroundColor: bbRows.map((row, index) => ["#d4af37", "#c0c0c0", "#cd7f32"][index] || "#7ee2b8bb"), borderColor: bbRows.map((row, index) => ["#d4af37", "#c0c0c0", "#cd7f32"][index] || "#7ee2b8"), borderWidth: 1 }] }, options: { indexAxis: "y", responsive: true, maintainAspectRatio: false, scales: { x: { beginAtZero: true, position: "top", ticks: { color: "#91a0ae", callback: value => value + "%" }, grid: { color: "#2a3744" } }, y: { ticks: { display: false }, grid: { color: "#2a3744" } } }, plugins: { legend: { display: false }, title: { display: true, text: emptyTitle || "Best bet hit rate (min 5 best bets)", color: "#e8eef5", font: { size: 15, weight: "normal" }, padding: { bottom: 12 } }, tooltip: { enabled: false, external: context => profileChartTooltip(context, index => { const row = bbRows[index]; return `<strong>${websiteEscapeHtml(row.name)} · ${row.bbWins}-${row.bbTries - row.bbWins} · ${(row.rate * 100).toFixed(1)}%</strong>${row.bbDetails.map(item => item.game ? profileGameResultHtml(item.game, item.team, item.result, `${item.game.season} ${profileWeekLabel(item.game.week)}`) : "").join("")}`; }, true) } } } });
   const teamRows = ready ? [...stats.byTeam.values()].filter(row => row.wins + row.losses > 0) : [], mode = teamView?.value || "most", atsRate = row => row.wins / (row.wins + row.losses), bbRate = row => row.bbWins / row.bbTries;
   const viewConfig = mode === "least" ? { rows: teamRows.sort((a, b) => a.count - b.count || a.team.localeCompare(b.team)).slice(0, 12), value: row => row.count, axis: "Times picked", title: "Least-picked teams", percent: false } : mode === "best" ? { rows: teamRows.filter(row => row.wins + row.losses >= 10).sort((a, b) => atsRate(b) - atsRate(a) || b.count - a.count).slice(0, 12), value: row => Number((atsRate(row) * 100).toFixed(1)), axis: "Win percentage when picked", title: "Best records when the pool picked the team · minimum 10 picks", percent: true } : mode === "worst" ? { rows: teamRows.filter(row => row.wins + row.losses >= 10).sort((a, b) => atsRate(a) - atsRate(b) || b.count - a.count).slice(0, 12), value: row => Number((atsRate(row) * 100).toFixed(1)), axis: "Win percentage when picked", title: "Worst records when the pool picked the team · minimum 10 picks", percent: true } : mode === "bestbet" ? { rows: teamRows.filter(row => row.bbTries >= 3).sort((a, b) => bbRate(b) - bbRate(a) || b.bbTries - a.bbTries).slice(0, 12), value: row => Number((bbRate(row) * 100).toFixed(1)), axis: "Best Bet hit rate", title: "Best Bet performance by team · minimum 3 Best Bets", percent: true } : { rows: teamRows.sort((a, b) => b.count - a.count || a.team.localeCompare(b.team)).slice(0, 12), value: row => row.count, axis: "Times picked", title: "Most-picked teams", percent: false };
   const shown = viewConfig.rows;
@@ -4103,7 +4106,7 @@ function renderAllTime() {
     if (wins + losses) bestWeeks.push({ name: row.name, season: row.season, week: row.week, wins, losses, pctKey: Number((wins / (wins + losses)).toFixed(4)), pct: wins / (wins + losses) });
   });
   const topWeeks = bestTies(bestWeeks, item => item.pctKey);
-  if (topWeeks.length) cards.push(["Best week ever", `${(topWeeks[0].pct * 100).toFixed(1)}%`, careerTieDetails(topWeeks, item => `${item.name} (${item.season} W${item.week} ${item.wins}-${item.losses})`, `${(topWeeks[0].pct * 100).toFixed(1)}%`, 2)]);
+  if (topWeeks.length) cards.push(["Best week ever", `${topWeeks[0].wins}-${topWeeks[0].losses} (${(topWeeks[0].pct * 100).toFixed(0)}%)`, careerTieDetails(topWeeks, item => `${item.name} (${item.season} W${item.week})`, `${topWeeks[0].wins}-${topWeeks[0].losses}`, 2)]);
   const bestPlusMinus = bestTies(plusMinusRows, row => row.plusMinus);
   if (bestPlusMinus.length) cards.push(["Best plus/minus", `${bestPlusMinus[0].plusMinus > 0 ? "+" : ""}${bestPlusMinus[0].plusMinus}`, careerTieDetails(bestPlusMinus, row => `${row.name} · ${row.wins} wins - ${row.losses} losses`, `${bestPlusMinus[0].plusMinus > 0 ? "+" : ""}${bestPlusMinus[0].plusMinus}`)]);
   const chronological = [...websiteWeeks].sort((a, b) => String(a.season).localeCompare(String(b.season)) || Number(a.weekOrder) - Number(b.weekOrder));
@@ -4128,7 +4131,7 @@ function renderAllTime() {
   const bestAbove500 = bestTies(above500Streaks, row => row.value);
   if (bestAbove500.length) cards.push(["Most weeks above .500 in a row", `${bestAbove500[0].value} weeks`, joinTies(bestAbove500.map(row => `${row.name} (${row.weeks.length === 1 ? row.weeks[0] : `${row.weeks[0]} to ${row.weeks[row.weeks.length - 1]}`})`), 3)]);
   const worstWeeks = bestTies(bestWeeks, item => -item.pctKey);
-  if (worstWeeks.length) cards.push(["Worst week ever", `${(worstWeeks[0].pct * 100).toFixed(1)}%`, joinTies(worstWeeks.map(item => `${item.name} (${item.season} W${item.week} ${item.wins}-${item.losses})`), 2)]);
+  if (worstWeeks.length) cards.push(["Worst week ever", `${worstWeeks[0].wins}-${worstWeeks[0].losses} (${(worstWeeks[0].pct * 100).toFixed(1)}%)`, joinTies(worstWeeks.map(item => `${item.name} (${item.season} W${item.week})`), 2)]);
   const droughts = [];
   byPlayerWeeks.forEach(list => {
     const firstWin = list.findIndex(row => Number(row.rank) === 1);
@@ -4489,7 +4492,7 @@ function renderSeasonBestBetGrid(standings, weeks) {
       const cell = row.cells[week];
       if (!cell || !cell.team) { html += '<td class="pg-pick-none"></td>'; return; }
       const cls = cell.result === "win" ? "pg-pick-win" : cell.result === "loss" ? "pg-pick-loss" : cell.result === "push" ? "pg-pick-push" : "pg-pick-pending";
-      const tooltip = cell.game ? weeklyGameTooltipHtml(cell.game, cell.result, cell.team) : "";
+      const tooltip = cell.game ? streakGameTooltipHtml(cell.game, cell.result, cell.team) : "";
       html += `<td class="${cls}"${tooltip ? ` data-weekly-tooltip="${websiteEscapeHtml(tooltip)}"` : ""}>${cell.team}</td>`;
     });
     html += '</tr>';
