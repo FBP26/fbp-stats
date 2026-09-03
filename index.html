@@ -768,7 +768,7 @@ function websiteDeviceContext() {
   const agent = navigator.userAgent || "";
   const browser = /Edg\//.test(agent) ? "Edge" : /OPR\//.test(agent) ? "Opera" : /Firefox\//.test(agent) ? "Firefox" : /CriOS|Chrome\//.test(agent) ? "Chrome" : /Safari\//.test(agent) ? "Safari" : "Other";
   const os = /iPhone|iPad|iPod/.test(agent) ? "iOS" : /Android/.test(agent) ? "Android" : /Windows/.test(agent) ? "Windows" : /Mac OS X/.test(agent) ? "macOS" : /CrOS/.test(agent) ? "ChromeOS" : /Linux/.test(agent) ? "Linux" : "Other";
-  const device = /iPad|Tablet|Android(?!.*Mobile)/i.test(agent) ? "tablet" : /Mobi|iPhone|iPod/i.test(agent) || matchMedia("(max-width: 850px)").matches ? "mobile" : "desktop";
+  const device = /iPad|Tablet|Android(?!.*Mobile)/i.test(agent) ? "tablet" : /Mobi|iPhone|iPod/i.test(agent) ? "mobile" : "desktop";
   return { browser, os, device, appMode: standaloneAppLaunch ? "installed app" : "browser" };
 }
 function websiteAccumulateActiveTime() {
