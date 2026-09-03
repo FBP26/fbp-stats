@@ -3421,7 +3421,7 @@ function renderSeason(resetPlayer = false) {
   renderSeasonTiebreakers(standings, weeks);
   renderSeasonTiebreakerGrid(standings, weeks);
   renderSeasonPickCharts(standings, weeks);
-  if (!websitePicks.length) loadDrilldown().then(() => renderSeasonPickCharts(standings, weeks));
+  if (!websitePicks.length) loadDrilldown().then(() => { renderSeasonPickCharts(standings, weeks); renderSeasonWeeksGrid(standings, weeks, playoffRows); });
   const playerSelect = document.getElementById("season-player");
   const previous = playerSelect.value;
   playerSelect.innerHTML = "";
@@ -3448,7 +3448,7 @@ function renderSeasonWeeksGrid(standings, weeks, playoffRows = {}) {
       if (!row) { html += '<td class="sg-none"></td>'; return; }
       const rank = Number(row.rank);
       const cls = rank === 1 ? "sg-win1" : rank <= 5 ? "sg-top5" : rank <= 10 ? "sg-top10" : "sg-rest";
-      html += `<td class="${cls}" title="Week ${week}: ${row.displayWins}-${row.displayLosses}, rank ${rank} of ${row.playerCount}">${row.displayWins}</td>`;
+      html += `<td class="${cls}" data-weekly-tooltip="${websiteEscapeHtml(weeklyResultsTooltipHtml(row))}">${row.displayWins}</td>`;
     });
     if (hasPlayoffs) {
       const row = playoffRows[player.playerId];
@@ -3456,7 +3456,7 @@ function renderSeasonWeeksGrid(standings, weeks, playoffRows = {}) {
       else {
         const rank = Number(row.rank);
         const cls = rank === 1 ? "sg-win1" : rank <= 5 ? "sg-top5" : rank <= 10 ? "sg-top10" : "sg-rest";
-        html += `<td class="${cls}" title="Playoffs: ${row.displayWins}-${row.displayLosses}, rank ${rank} of ${row.playerCount}">${row.displayWins}</td>`;
+        html += `<td class="${cls}" data-weekly-tooltip="${websiteEscapeHtml(weeklyResultsTooltipHtml(row))}">${row.displayWins}</td>`;
       }
     }
     html += `<td class="pg-sum-cell" title="${websiteEscapeHtml(moneyTooltip || "No money won")}">$${Number(player.money || 0).toLocaleString()}</td><td class="pg-sum-cell">${player.top5Weeks}</td><td class="pg-sum-cell">${top10Weeks}</td><td class="pg-sum-cell">${player.weeksWon}</td></tr>`;
@@ -4459,8 +4459,7 @@ function renderSeasonBestBetGrid(standings, weeks) {
   const season = document.getElementById("season-choice").value;
   const playoffOrder = ["round 1", "round 2", "round 3", "super bowl"];
   const shortLabel = { "round 1": "R1", "round 2": "R2", "round 3": "R3", "super bowl": "SB" };
-  const gameWeek = new Map();
-  websiteGames.filter(game => game.season === season).forEach(game => gameWeek.set(game.gameId, game.week));
+  const seasonGames = websiteGames.filter(game => game.season === season), gameById = new Map(seasonGames.map(game => [game.gameId, game])), gameWeek = new Map(seasonGames.map(game => [game.gameId, game.week]));
   const columns = [...weeks, ...playoffOrder.filter(week => websiteGames.some(game => game.season === season && game.week === week))];
   const byPlayer = new Map();
   websitePicks.forEach(pick => {
@@ -4469,9 +4468,9 @@ function renderSeasonBestBetGrid(standings, weeks) {
     const player = byPlayer.get(pick.playerId) || { name: pick.name, cells: {} };
     const cell = player.cells[week] || { team: "", result: "none" };
     if (!cell.team && pick.bestBet) cell.team = pick.bestBet;
-    if (Number(pick.bestBetWin || 0)) cell.result = "win";
-    else if (Number(pick.bestBetLoss || 0)) cell.result = "loss";
-    else if (Number(pick.bestBetPush || 0)) cell.result = "push";
+    if (Number(pick.bestBetWin || 0)) { cell.result = "win"; cell.game = gameById.get(pick.gameId); }
+    else if (Number(pick.bestBetLoss || 0)) { cell.result = "loss"; cell.game = gameById.get(pick.gameId); }
+    else if (Number(pick.bestBetPush || 0)) { cell.result = "push"; cell.game = gameById.get(pick.gameId); }
     player.cells[week] = cell;
     byPlayer.set(pick.playerId, player);
   });
@@ -4490,7 +4489,8 @@ function renderSeasonBestBetGrid(standings, weeks) {
       const cell = row.cells[week];
       if (!cell || !cell.team) { html += '<td class="pg-pick-none"></td>'; return; }
       const cls = cell.result === "win" ? "pg-pick-win" : cell.result === "loss" ? "pg-pick-loss" : cell.result === "push" ? "pg-pick-push" : "pg-pick-pending";
-      html += `<td class="${cls}" title="${shortLabel[week] || `Week ${week}`}: ${cell.team} ${cell.result === "none" ? "pending" : cell.result}">${cell.team}</td>`;
+      const tooltip = cell.game ? weeklyGameTooltipHtml(cell.game, cell.result, cell.team) : "";
+      html += `<td class="${cls}"${tooltip ? ` data-weekly-tooltip="${websiteEscapeHtml(tooltip)}"` : ""}>${cell.team}</td>`;
     });
     html += '</tr>';
   });
@@ -6073,7 +6073,27 @@ function renderProfile(name) {
   const rankRows = [...websiteWeeks].filter(row => row.playerId === playerId || row.name === name);
   renderSortableWeeklyRankTable("profile-weekly-rank-sheet", rankRows);
 }
+const synchronizedPlayerFilterIds = ["profile-player", "names-player", "season-player", "contribution-player", "weekly-rank-player"];
+let synchronizingPlayerFilters = false;
+function synchronizePlayerFilters(source) {
+  if (synchronizingPlayerFilters) return;
+  const playerName = source.selectedOptions[0]?.textContent.trim().replace(/^All players$/i, "") || "";
+  if (!playerName) return;
+  synchronizingPlayerFilters = true;
+  synchronizedPlayerFilterIds.forEach(id => {
+    const select = document.getElementById(id);
+    if (!select || select === source) return;
+    const option = [...select.options].find(item => item.textContent.trim() === playerName);
+    if (!option || select.value === option.value) return;
+    select.value = option.value;
+    select.dispatchEvent(new Event("change", { bubbles: true }));
+  });
+  synchronizingPlayerFilters = false;
+}
 function initViews() {
+  document.addEventListener("change", event => {
+    if (synchronizedPlayerFilterIds.includes(event.target.id)) synchronizePlayerFilters(event.target);
+  });
   document.querySelectorAll("#nav button[data-view]").forEach(btn => btn.onclick = async () => {
     showView(btn.dataset.view);
     if (btn.dataset.view === "players") {
