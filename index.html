@@ -30,7 +30,7 @@
   .pull-refresh.visible { opacity: 1; }
   .pull-refresh.refreshing .pull-refresh-icon { animation: app-refresh-spin .8s linear infinite; }
   @keyframes app-refresh-spin { to { transform: rotate(360deg); } }
-  main { width: 100%; padding: 28px clamp(8px, 1.5vw, 20px) 60px; }
+  main { width: 100%; max-width: 1500px; margin: 0; padding: 28px clamp(8px, 1.5vw, 20px) 60px; }
   .eyebrow { color: var(--accent); font: 11px Arial, sans-serif; letter-spacing: 1.4px; text-transform: uppercase; }
   .intro { display: flex; justify-content: space-between; align-items: end; gap: 20px; margin-bottom: 22px; }
   .intro h2 { font-size: clamp(28px, 5vw, 50px); line-height: 1; margin: 7px 0 0; font-weight: 400; }
@@ -647,6 +647,11 @@
     #view-week-one > .panel { padding-inline: 10px; }
     .website-game-context { display: flex; flex-wrap: wrap; justify-content: center; gap: 2px 6px; text-align: center; }
     .website-game-context .website-context-venue, .website-game-context .website-context-weather { text-align: center; }
+  }
+  @media (max-width: 850px) {
+    #view-players > label { width: 100%; max-width: none !important; }
+    #view-players .profile-grid, #view-players .profile-chart-stack, #view-players .profile-charts { width: 100%; grid-template-columns: minmax(0, 1fr); }
+    #view-players .panel, #view-players .profile-chart { width: 100%; max-width: 100%; }
   }
 </style>
 </head>
@@ -2680,6 +2685,9 @@ async function renderConfirmationHistory(submission) {
     const activeTeamRuns = currentTeams.map(team => ({ team, length: activeWinningRun(completedHistory.filter(row => String(row.pick).toUpperCase() === team)) })).sort((left, right) => right.length - left.length || websiteNaturalTeamName(left.team).localeCompare(websiteNaturalTeamName(right.team)));
     const bestActiveTeamRun = activeTeamRuns.find(run => run.length > 0);
     const teamStreakText = bestActiveTeamRun ? `Your longest active streak among teams you picked this week is <strong>${bestActiveTeamRun.length} straight correct ${bestActiveTeamRun.length === 1 ? "pick" : "picks"}</strong> with the <strong>${websiteEscapeHtml(websiteNaturalTeamName(bestActiveTeamRun.team))}</strong>.` : "None of the teams you picked this week currently carries an active correct-pick streak from your archived picks.";
+    const activeFadeRuns = currentOpponents.map(team => ({ team, length: activeWinningRun(completedHistory.filter(row => String(row.pick).toUpperCase() !== team && [row.game.favorite, row.game.underdog].some(value => String(value).toUpperCase() === team))) })).sort((left, right) => right.length - left.length || websiteNaturalTeamName(left.team).localeCompare(websiteNaturalTeamName(right.team)));
+    const bestActiveFadeRun = activeFadeRuns.find(run => run.length > 0);
+    const fadeStreakText = bestActiveFadeRun ? `Your longest active streak successfully betting against a team on this card is <strong>${bestActiveFadeRun.length} straight correct ${bestActiveFadeRun.length === 1 ? "pick" : "picks"}</strong> against the <strong>${websiteEscapeHtml(websiteNaturalTeamName(bestActiveFadeRun.team))}</strong>.` : "None of the teams you bet against this week currently carries an active correct-pick streak from your archived picks.";
     const teamRank = (team, against = false) => {
       const records = new Map();
       websitePicks.forEach(row => {
@@ -2716,7 +2724,7 @@ async function renderConfirmationHistory(submission) {
     };
     const backingHabit = currentTeams.map(team => ({ team, ...opportunityRun(team) })).sort((left, right) => right.length - left.length)[0];
     const fadingHabit = currentOpponents.map(team => ({ team, ...opportunityRun(team, true) })).sort((left, right) => right.length - left.length)[0];
-    const stories = [rankText, familiarityText, teamStreakText].filter(Boolean);
+    const stories = [rankText, familiarityText, teamStreakText, fadeStreakText].filter(Boolean);
     if (!stories.length) stories.push("The archives know you, but this particular card is breaking new ground. We will have better material after the games.");
     const historyRow = ({ type, team, choice, run, runRows = [], rows = [], last }) => {
       const gap = gapSince(last), runRecord = recordLabel(resultRecord(runRows)), careerRecord = recordLabel(resultRecord(rows));
