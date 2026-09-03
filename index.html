@@ -3008,7 +3008,6 @@ async function renderWebsiteWeekOne(currentWeekRequest = null) {
     decorateWebsiteWeekOneHeaders(data);
     await new Promise(resolve => requestAnimationFrame(() => requestAnimationFrame(resolve)));
     startWebsiteAnalytics();
-    startHistoricalInitialization();
     websitePreparePlayers(data);
     renderWebsiteWeekOneGrid(data, "Week X");
     decorateWebsiteWeekOneHeaders(data);
@@ -3016,6 +3015,7 @@ async function renderWebsiteWeekOne(currentWeekRequest = null) {
     renderWebsiteWeekRecap(data);
     renderWebsitePaths(data);
     renderWebsiteSankey(data);
+    startHistoricalInitialization();
     raceRequest.then(raceSnapshots => {
       if (!raceSnapshots.length || websiteRegularSelection.season !== Number(data.season) || websiteRegularSelection.week !== Number(data.week)) return;
       data.raceSnapshots = raceSnapshots;
