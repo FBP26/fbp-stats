@@ -16,7 +16,7 @@
 <script src="https://cdn.jsdelivr.net/npm/chartjs-chart-sankey@0.14.0/dist/chartjs-chart-sankey.min.js"></script>
 <script src="https://unpkg.com/tabulator-tables@5.6.0/dist/js/tabulator.min.js"></script>
 <script src="https://cdn.jsdelivr.net/npm/papaparse@5.4.1/papaparse.min.js"></script>
-<script src="historical-ui.js?v=20260902-3"></script>
+<script src="historical-ui.js?v=20260903-1"></script>
 <style>
   :root { --bg: #0d1117; --panel: #171a1f; --panel-2: #20242a; --border: #3a3d42; --text: #f3f1e8; --muted: #aaa69b; --accent: #ffcf40; --accent-2: #e6a817; --positive: #39c982; --positive-bg: #123c2d; --danger: #ff6b6b; --danger-bg: #481f24; }
   * { box-sizing: border-box; }
@@ -370,11 +370,13 @@
   .distribution-tooltip .tooltip-season-header { margin-top: 6px; padding-top: 6px; color: var(--accent-2); border-top: 1px solid #52606d; font-weight: bold; text-align: left; }
   .distribution-tooltip .tooltip-week-row { display: grid; grid-template-columns: minmax(64px, 1fr) 30px 56px; gap: 5px; border-top: 0; font-family: Consolas, monospace; text-align: right; }
   .distribution-tooltip .tooltip-week-row span:first-child { text-align: left; }
-  .season-long-tooltip { width: min(390px, calc(100vw - 16px)); }
-  .season-long-tooltip .season-tooltip-head { display: grid; grid-template-columns: 54px 34px 66px 48px 34px minmax(54px, 1fr); gap: 7px; padding: 3px 5px 5px; color: var(--muted); font: 9px Arial, sans-serif; text-align: right; text-transform: uppercase; }
+  .season-long-tooltip { width: max-content; max-width: calc(100vw - 30px); }
+  .season-career-tooltip { width: min(310px, calc(100vw - 30px)); overflow-x: auto; }
+  .season-detail-tooltip { width: max-content; max-width: calc(100vw - 30px); }
+  .season-long-tooltip .season-tooltip-head { display: grid; grid-template-columns: 54px 34px 66px 48px 34px 54px; gap: 4px; padding: 3px 5px 5px; color: var(--muted); font: 9px Arial, sans-serif; text-align: right; text-transform: uppercase; }
   .season-long-tooltip .season-tooltip-head span:first-child, .season-long-tooltip .season-tooltip-row span:first-child { text-align: left; }
   .season-long-tooltip .season-tooltip-head span:nth-child(2), .season-long-tooltip .season-tooltip-row .rank { text-align: left; }
-  .season-long-tooltip .season-tooltip-row { display: grid; grid-template-columns: 54px 34px 66px 48px 34px minmax(54px, 1fr); gap: 7px; align-items: center; padding: 5px; border-top: 1px solid #2a374466; font: 10px Consolas, monospace; text-align: right; }
+  .season-long-tooltip .season-tooltip-row { display: grid; grid-template-columns: 54px 34px 66px 48px 34px 54px; gap: 4px; align-items: center; padding: 5px; border-top: 1px solid #2a374466; font: 10px Consolas, monospace; text-align: right; }
   .season-long-tooltip .season-tooltip-row.top1 { border-left: 3px solid #d4af37; background: #d4af3714; }
   .season-long-tooltip .season-tooltip-row.top5 { border-left: 3px solid var(--accent); background: #54d6b20e; }
   .season-long-tooltip .season-tooltip-row.top10 { border-left: 3px solid #8ca7ff; background: #8ca7ff0e; }
@@ -387,6 +389,8 @@
   .season-long-tooltip .tooltip-week-row.top1 { color: #ffe9a8; background: #d4af3714; }
   .season-long-tooltip .tooltip-week-row.top5 { color: #7ee2b8; }
   .season-long-tooltip .tooltip-week-row.top10 { color: #a9c6ff; }
+  .season-detail-tooltip .season-tooltip-summary { display: grid; grid-template-columns: repeat(2, max-content); gap: 3px 8px; }
+  .profile-chart-tooltip .season-detail-tooltip .tooltip-week-row { grid-template-columns: 30px 28px max-content; justify-content: start; gap: 6px; padding: 2px 5px; }
   @media (max-width: 520px) { .season-long-tooltip .season-tooltip-head, .season-long-tooltip .season-tooltip-row { grid-template-columns: 46px 28px 58px 42px 28px minmax(46px, 1fr); gap: 4px; font-size: 8px; } }
   .profile-chart-tooltip .streak-game-grid { grid-template-columns: repeat(2, minmax(140px, 1fr)); gap: 3px; }
   .profile-chart-tooltip .streak-game-card { padding: 3px 5px; }
