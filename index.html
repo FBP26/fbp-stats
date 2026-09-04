@@ -3933,6 +3933,12 @@ function advanceAllTimeRace() {
   } else showAllTimeRaceFrame(Math.min(allTimeRaceFrames.length - 1, allTimeRaceFrame + allTimeRacePlayback.step));
   allTimeRaceTimer = setTimeout(advanceAllTimeRace, allTimeRacePlayback.delay);
 }
+function historicalRaceWeekLabel(week) {
+  const value = String(week || "").trim(), lower = value.toLowerCase();
+  if (lower === "super bowl") return "SB";
+  if (lower === "playoffs" || lower.startsWith("round")) return "Playoffs";
+  return `W${value}`;
+}
 function renderAllTimeRace() {
   if (!websiteGames.length || !websitePicks.length) return;
   stopAllTimeRace();
@@ -3968,7 +3974,7 @@ function renderAllTimeRace() {
     const game = gameById.get(pick.gameId);
     if (!game || !(Number(pick.resultWin || 0) || Number(pick.resultLoss || 0) || Number(pick.resultPush || 0))) return;
     const key = step === "season" ? game.season : step === "week" ? `${game.season}|${String(game.weekOrder || game.week).padStart(2, "0")}` : `${game.gameDate || game.season}|${String(game.gameNum || 0).padStart(2, "0")}|${game.gameId}`;
-    if (!groups.has(key)) groups.set(key, { label: step === "season" ? game.season : step === "week" ? `${game.season} W${game.week}` : `${game.season} W${game.week} G${game.gameNum}`, picks: [] });
+    if (!groups.has(key)) groups.set(key, { label: step === "season" ? game.season : step === "week" ? `${game.season} ${historicalRaceWeekLabel(game.week)}` : `${game.season} ${historicalRaceWeekLabel(game.week)} G${game.gameNum}`, picks: [] });
     groups.get(key).picks.push(pick);
   });
   const totals = new Map();
@@ -4668,7 +4674,7 @@ function renderSeasonLiveRace() {
   if (!websiteGames.length || !websitePicks.length) { loadDrilldown().then(renderSeasonLiveRace); return; }
   stopSeasonLiveRace();
   const step = document.getElementById("season-live-race-step")?.value || "game", games = websiteGames.filter(game => game.season === season && /^\d+$/.test(String(game.week))).sort((left, right) => Number(left.weekOrder || left.week || 0) - Number(right.weekOrder || right.week || 0) || String(left.gameDate || "").localeCompare(String(right.gameDate || "")) || Number(left.gameNum || 0) - Number(right.gameNum || 0)), groups = new Map(), picksByGame = websitePicksByGame();
-  games.forEach(game => { const week = Number(game.weekOrder || game.week || 0), key = step === "week" ? String(week).padStart(2, "0") : `${String(week).padStart(2, "0")}|${String(game.gameNum || 0).padStart(2, "0")}|${game.gameId}`, group = groups.get(key) || { label: step === "week" ? `Week ${game.week}` : `Week ${game.week} · Game ${game.gameNum}`, games: [] }; group.games.push(game); groups.set(key, group); });
+  games.forEach(game => { const week = Number(game.weekOrder || game.week || 0), key = step === "week" ? String(week).padStart(2, "0") : `${String(week).padStart(2, "0")}|${String(game.gameNum || 0).padStart(2, "0")}|${game.gameId}`, group = groups.get(key) || { label: step === "week" ? historicalRaceWeekLabel(game.week) : `${historicalRaceWeekLabel(game.week)} · Game ${game.gameNum}`, games: [] }; group.games.push(game); groups.set(key, group); });
   const totals = new Map();
   seasonLiveRaceFrames = [...groups].sort(([left], [right]) => left.localeCompare(right)).map(([, group]) => { group.games.forEach(game => (picksByGame.get(game.gameId) || []).forEach(pick => { const player = websitePlayers.find(item => item.playerId === pick.playerId), total = totals.get(pick.playerId) || { name: player?.name || pick.name || pick.playerId, wins: 0, losses: 0, decisions: 0, winPct: 0 }, win = Number(pick.resultWin || 0) + Number(pick.bestBetWin || 0), loss = Number(pick.resultLoss || 0) + Number(pick.bestBetLoss || 0) + Number(pick.bestBetPush || 0); total.wins += win; total.losses += loss; total.decisions += win + loss; total.winPct = total.decisions ? total.wins / total.decisions * 100 : 0; totals.set(pick.playerId, total); })); const players = [...totals.values()].map(player => ({ ...player })), leaderWins = Math.max(0, ...players.map(player => player.wins)); return { label: group.label, players: players.map(player => ({ ...player, gap: player.wins - leaderWins })) }; });
   seasonLiveRacePlayback = historicalRacePlayback("season", step, seasonLiveRaceFrames.length, new Set(games.map(game => game.week)).size);
