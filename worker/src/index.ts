@@ -602,6 +602,26 @@ const notificationEventLabels: Record<NotificationEvent, string> = {
   weeklyResult: "Weekly result",
 };
 
+const notificationTimingExplanation = (event: NotificationEvent, picksDueMinutes: number): string => {
+  const explanations: Record<NotificationEvent, string> = {
+    picksReady: "all games and point spreads have been posted and locked",
+    picksDue: `the first kickoff is about ${picksDueMinutes} minutes away and your picks are not in`,
+    firstPlace: "the latest Current Week standings first show you in 1st place",
+    earlyWindow: "all Sunday 1 PM games are final",
+    lateWindow: "the Sunday afternoon games are final",
+    beforeSnf: "the Sunday afternoon games are final and Sunday Night Football starts within 35 minutes",
+    beforeMnf: "Monday Night Football starts within 35 minutes",
+    weeklyResult: "the week has been finalized",
+  };
+  return `Why you received this now: ${explanations[event]}. Notifications are checked every 5 minutes.`;
+};
+
+const weeklyStandingsSummary = (players: JsonObject[]): string => {
+  if (!players.length) return "Current weekly standings\nNo player cards have been submitted yet.";
+  const rows = players.map((player, index) => `${Number(player.rank) || index + 1}. ${player.name} — ${player.wins || 0}-${player.losses || 0}`);
+  return `Current weekly standings\n${rows.join("\n")}`;
+};
+
 const picksReadySummary = (games: JsonObject[], weekNumber: unknown): string => {
   const gameLines = games.flatMap((game, index) => {
     const home = String(game.homeTeam || "").toUpperCase();
@@ -613,7 +633,7 @@ const picksReadySummary = (games: JsonObject[], weekNumber: unknown): string => 
     const time = Number.isNaN(kickoff.getTime()) ? "Time TBD" : kickoff.toLocaleTimeString("en-US", { timeZone: "America/New_York", hour: "numeric", minute: "2-digit", timeZoneName: "short" });
     return [`${index + 1}. ${displayTeam(game.favorite)}   ${Number(game.spread)}   ${displayTeam(game.underdog)}`, `   ${date} · ${time}`, ""];
   });
-  return `The Week ${weekNumber} slate is open. All ${games.length} games and point spreads are posted.\n\n${gameLines.join("\n").trimEnd()}`;
+  return `${games.length} games and their point spreads are posted for Week ${weekNumber} and will not change.\n\n${gameLines.join("\n").trimEnd()}`;
 };
 
 const dispatchWeekNotifications = async (env: Env, week: Record<string, unknown>): Promise<void> => {
@@ -629,7 +649,6 @@ const dispatchWeekNotifications = async (env: Env, week: Record<string, unknown>
     "SELECT * FROM notification_subscriptions WHERE status = 'active' AND channel = 'email' AND manage_token IS NOT NULL",
   ).all();
   const publicApiUrl = (env.PUBLIC_API_URL || "https://fbp-api.fbp-api-worker.workers.dev").replace(/\/$/, "");
-  const pendingGames = games.filter((game) => game.state !== "FINAL").length;
   for (const subscription of subscriptions.results) {
     const followedName = String(subscription.player_name);
     const followed = players.find((player) => String(player.name).toLowerCase() === followedName.toLowerCase());
@@ -654,19 +673,16 @@ const dispatchWeekNotifications = async (env: Env, week: Record<string, unknown>
           "UPDATE notification_deliveries SET status = 'queued', error_message = NULL WHERE subscription_id = ? AND deduplication_key = ?",
         ).bind(subscription.id, deduplicationKey).run();
       }
-      const leader = players[0];
-      const summary = followed
-        ? `${followedName} is #${rank} of ${players.length} at ${followed.wins || 0}-${followed.losses || 0}.\nWin probability: ${Number(followed.winProbability || 0).toFixed(1)}%\nPaths to victory: ${Number(followed.pathsToVictory || 0).toLocaleString()}\nGames remaining: ${pendingGames}`
-        : leader ? `Current leader: ${leader.name} at ${leader.wins || 0}-${leader.losses || 0}.\nPlayers entered: ${players.length}\nGames remaining: ${pendingGames}`
-          : `No player cards have been submitted yet.\nGames remaining: ${pendingGames}`;
+      const standings = weeklyStandingsSummary(players);
       const stopUrl = `${publicApiUrl}/?action=unsubscribe-notifications&token=${subscription.manage_token}`;
       const firstKickoff = games.map((game) => Date.parse(String(game.kickoff || ""))).filter(Number.isFinite).sort((left, right) => left - right)[0];
       const eventSummary = event === "picksDue"
         ? `${followedName}, your Week ${week.week} picks are not in yet.\n\nFirst kickoff: ${new Date(firstKickoff).toLocaleString("en-US", { timeZone: "America/New_York", weekday: "long", month: "short", day: "numeric", hour: "numeric", minute: "2-digit", timeZoneName: "short" })}\nSubmit before kickoff to avoid missing the opening game.`
-        : event === "picksReady" ? picksReadySummary(games, week.week) : summary;
+        : event === "picksReady" ? picksReadySummary(games, week.week) : standings;
+      const timingExplanation = notificationTimingExplanation(event, Number(subscription.picks_due_minutes) || 60);
       const sent = await sendRelayEmail(env, String(subscription.destination),
         `FBP Week ${week.week}: ${notificationEventLabels[event]}`,
-        `${notificationEventLabels[event]}\n\n${eventSummary}\n\nOpen FBP: ${env.PUBLIC_SITE_URL || "https://fbp26.github.io/fbp-stats/"}\n\nStop all FBP alerts: ${stopUrl}`);
+        `${notificationEventLabels[event]}\n\n${eventSummary}\n\n${timingExplanation}\n\nOpen FBP: ${env.PUBLIC_SITE_URL || "https://fbp26.github.io/fbp-stats/"}\n\nStop all FBP alerts: ${stopUrl}`);
       await env.DB.prepare(
         "UPDATE notification_deliveries SET status = ?, sent_at = ?, error_message = ? WHERE subscription_id = ? AND deduplication_key = ?",
       ).bind(sent ? "sent" : "failed", sent ? new Date().toISOString() : null, sent ? null : "Email relay rejected the message.", subscription.id, deduplicationKey).run();

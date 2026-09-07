@@ -29,7 +29,7 @@ test("U.S. mobile destinations normalize without exposing the full number", () =
   assert.throws(() => normalizeNotificationDestination("sms", "555"), /valid U.S. mobile/);
 });
 
-test("scheduled events follow completed Sunday windows and upcoming night games", () => {
+test("scheduled events combine the late window with the pre-SNF alert", () => {
   const now = new Date("2026-09-13T23:55:00Z");
   const games = [
     { kickoff: "2026-09-13T17:00:00Z", state: "FINAL", spread: 3.5 },
@@ -37,9 +37,10 @@ test("scheduled events follow completed Sunday windows and upcoming night games"
     { kickoff: "2026-09-14T00:20:00Z", state: "PREGAME", spread: 2.5 },
     { kickoff: "2026-09-15T00:15:00Z", state: "PREGAME", spread: 1.5 },
   ];
-  assert.deepEqual(scheduledNotificationEvents(now, games, "live"), ["earlyWindow", "lateWindow", "beforeSnf"]);
-  assert.deepEqual(scheduledNotificationEvents(now, games, "staged"), ["picksReady", "earlyWindow", "lateWindow", "beforeSnf"]);
-  assert.deepEqual(scheduledNotificationEvents(now, games.map((game, index) => index ? game : { ...game, spread: "" }), "staged"), ["earlyWindow", "lateWindow", "beforeSnf"]);
+  assert.deepEqual(scheduledNotificationEvents(now, games, "live"), ["earlyWindow", "beforeSnf"]);
+  assert.deepEqual(scheduledNotificationEvents(now, games, "staged"), ["picksReady", "earlyWindow", "beforeSnf"]);
+  assert.deepEqual(scheduledNotificationEvents(now, games.map((game, index) => index ? game : { ...game, spread: "" }), "staged"), ["earlyWindow", "beforeSnf"]);
+  assert.deepEqual(scheduledNotificationEvents(now, games.map((game, index) => index === 1 ? { ...game, state: "LIVE" } : game), "live"), ["earlyWindow"]);
 });
 
 test("picks due reminder honors a configurable lead time before the first kickoff", () => {

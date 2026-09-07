@@ -106,12 +106,11 @@ export const scheduledNotificationEvents = (
   const sundayNight = timed.filter((item) => item.kickoff?.day === "Sun" && Number(item.kickoff.hour) >= 20);
   const mondayNight = timed.filter((item) => item.kickoff?.day === "Mon" && Number(item.kickoff.hour) >= 19);
   if (early.length && early.every(final)) events.add("earlyWindow");
-  if (late.length && [...early, ...late].every(final)) events.add("lateWindow");
   const beginsSoon = (item: typeof timed[number]) => {
     const milliseconds = Number(item.kickoff?.time) - now.getTime();
     return String(item.game.state) === "PREGAME" && milliseconds >= 0 && milliseconds <= 35 * 60 * 1000;
   };
-  if (sundayNight.some(beginsSoon)) events.add("beforeSnf");
+  if (sundayNight.some(beginsSoon) && late.length && [...early, ...late].every(final)) events.add("beforeSnf");
   if (mondayNight.some(beginsSoon)) events.add("beforeMnf");
   return [...events];
 };

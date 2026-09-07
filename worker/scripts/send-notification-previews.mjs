@@ -2,19 +2,27 @@ const recipient = process.argv.find(argument => argument.startsWith("--to="))?.s
 const shouldSend = process.argv.includes("--send");
 const siteUrl = "https://fbp26.github.io/fbp-stats/";
 const stopUrl = "https://fbp-api.fbp-api-worker.workers.dev/?action=unsubscribe-notifications&token=EXAMPLE";
-const playerSummary = "Jim is #1 of 42 at 11-4.\nWin probability: 38.6%\nPaths to victory: 1,284\nGames remaining: 3";
+const standings = "Current weekly standings\n1. Jim — 11-4\n2. Brianna — 10-5\n3. Gary — 9-6\n4. Bo — 8-7";
+const timing = {
+  picksReady: "Why you received this now: all games and point spreads have been posted and locked. Notifications are checked every 5 minutes.",
+  picksDue: "Why you received this now: the first kickoff is about 60 minutes away and your picks are not in. Notifications are checked every 5 minutes.",
+  firstPlace: "Why you received this now: the latest Current Week standings first show you in 1st place. Notifications are checked every 5 minutes.",
+  earlyWindow: "Why you received this now: all Sunday 1 PM games are final. Notifications are checked every 5 minutes.",
+  beforeSnf: "Why you received this now: the Sunday afternoon games are final and Sunday Night Football starts within 35 minutes. Notifications are checked every 5 minutes.",
+  beforeMnf: "Why you received this now: Monday Night Football starts within 35 minutes. Notifications are checked every 5 minutes.",
+  weeklyResult: "Why you received this now: the week has been finalized. Notifications are checked every 5 minutes.",
+};
 const messages = [
-  ["Picks are ready", "The Week 1 slate is open.\n\n16 games are posted and ready for picks."],
-  ["Picks due reminder", "Jim, your Week 1 picks are not in yet.\n\nFirst kickoff: Thursday, Sep 10, 8:20 PM EDT\nSubmit before kickoff to avoid missing the opening game."],
-  ["First-place update", playerSummary],
-  ["Early games complete", playerSummary],
-  ["Late games complete", playerSummary],
-  ["Before Sunday Night Football", playerSummary],
-  ["Before Monday Night Football", playerSummary],
-  ["Weekly result", "Jim finished #3 of 42 at 12-5.\nWeek winner: Brianna at 14-3.\nTiebreak difference: 18 yards."],
-].map(([label, summary]) => ({
+  ["Picks are ready", "16 games and their point spreads are posted for Week 1 and will not change.", timing.picksReady],
+  ["Picks due reminder", "Jim, your Week 1 picks are not in yet.\n\nFirst kickoff: Wednesday, Sep 9, 8:20 PM EDT\nSubmit before kickoff to avoid missing the opening game.", timing.picksDue],
+  ["First-place update", standings, timing.firstPlace],
+  ["Early games complete", standings, timing.earlyWindow],
+  ["Before Sunday Night Football", standings, timing.beforeSnf],
+  ["Before Monday Night Football", standings, timing.beforeMnf],
+  ["Weekly result", standings, timing.weeklyResult],
+].map(([label, summary, timingExplanation]) => ({
   subject: `FBP Week 1: ${label}`,
-  body: `${label}\n\n${summary}\n\nOpen FBP: ${siteUrl}\n\nStop all FBP alerts: ${stopUrl}`,
+  body: `${label}\n\n${summary}\n\n${timingExplanation}\n\nOpen FBP: ${siteUrl}\n\nStop all FBP alerts: ${stopUrl}`,
 }));
 
 if (!shouldSend) {

@@ -2251,12 +2251,12 @@ async function initializeNotificationPreferences() {
   const eventCopy = {
     firstPlace: "Current Week update when you move into 1st place.",
     earlyWindow: "Current Week position and highlights after the 1 PM games.",
-    lateWindow: "Current Week position and highlights after the late games.",
-    beforeSnf: "Current Week position, highlights, paths, and pivotal SNF scenarios.",
+    beforeSnf: "Current standings after the Sunday afternoon games, before Sunday Night Football.",
     beforeMnf: "Current Week position, highlights, paths, and pivotal MNF scenarios.",
     weeklyResult: "Weekly winner, your finish, and highlights."
   };
   Object.entries(eventCopy).forEach(([name, copy]) => form.elements[name]?.closest("label")?.querySelector("small")?.replaceChildren(copy));
+  form.elements.lateWindow?.closest("label")?.remove();
   const summary = document.querySelector(".notification-settings > summary");
   if (summary) summary.textContent = "Email alert preferences";
   status.textContent = "We'll email you a verification link to confirm the address. Alerts start only after you open it, and every email includes a stop link.";
@@ -2295,7 +2295,7 @@ async function initializeNotificationPreferences() {
     } catch (error) { status.textContent = error.message; }
   }
 }
-function notificationEventsForForm() { return ["picksReady", "picksDue", "firstPlace", "earlyWindow", "lateWindow", "beforeSnf", "beforeMnf", "weeklyResult"]; }
+function notificationEventsForForm() { return ["picksReady", "picksDue", "firstPlace", "earlyWindow", "beforeSnf", "beforeMnf", "weeklyResult"]; }
 async function saveNotificationPreferences(event) {
   event.preventDefault();
   const form = event.currentTarget, button = document.getElementById("notification-save"), status = document.getElementById("notification-status");
