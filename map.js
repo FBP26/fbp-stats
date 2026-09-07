@@ -224,6 +224,27 @@ function fbpMapTeamVenueRows(row) {
   return [...counts.entries()].sort((left, right) => right[1] - left[1]).slice(0, 5);
 }
 
+function fbpMapTooltip(row, metric, totalViews) {
+  const cell = (label, value) => `<span><small>${websiteEscapeHtml(label)}</small><strong>${websiteEscapeHtml(value)}</strong></span>`;
+  if (row.kind === "visitor") {
+    const views = Number(row.views || 0), sessions = Number(row.sessions || 0), starts = Number(row.pickStarts || 0), submissions = Number(row.submissions || 0);
+    const location = [row.city, row.region, row.country].filter(Boolean).join(", ");
+    const share = totalViews ? `${(views / totalViews * 100).toFixed(1)}%` : "0%";
+    const viewsPerSession = sessions ? (views / sessions).toFixed(1) : "—";
+    const conversion = starts ? `${(submissions / starts * 100).toFixed(0)}%` : submissions ? "Submitted" : "—";
+    const updated = fbpMapVisitorData.updatedAt ? new Date(fbpMapVisitorData.updatedAt).toLocaleString() : "Not available";
+    return `<div class="fbp-map-tooltip-title">${websiteEscapeHtml(location)}</div><div class="fbp-map-tooltip-grid">${cell("Page views", views.toLocaleString())}${cell("Traffic share", share)}${cell("Unique browsers", Number(row.uniqueBrowsers || 0).toLocaleString())}${cell("Sessions", sessions.toLocaleString())}${cell("Views / session", viewsPerSession)}${cell("Pick starts", starts.toLocaleString())}${cell("Submissions", submissions.toLocaleString())}${cell("Start → submit", conversion)}</div><div class="fbp-map-tooltip-note">Approximate network location · Updated ${websiteEscapeHtml(updated)}</div>`;
+  }
+  if (row.kind === "venue") {
+    const title = row.names.at(-1) || row.venueId;
+    const teamNames = row.teams.map(team => websiteNaturalTeamName(team.toLowerCase())).sort();
+    const teams = teamNames.length > 6 ? `${teamNames.length} teams represented` : teamNames.join(" · ") || "No team data";
+    return `<div class="fbp-map-tooltip-title">${websiteEscapeHtml(title)}</div><div class="fbp-map-tooltip-subtitle">${websiteEscapeHtml(`${row.market.city} · ${row.market.country}`)}</div><div class="fbp-map-tooltip-grid">${cell(FBP_MAP_METRICS[metric].label, FBP_MAP_METRICS[metric].format(fbpMapMetricValue(row, metric)))}${cell("Pool games", row.mapGames.length.toLocaleString())}${cell("Average temp", row.averageTemperature == null ? "No data" : `${row.averageTemperature.toFixed(1)}°F`)}${cell("Average wind", row.averageWind == null ? "No data" : `${row.averageWind.toFixed(1)} mph`)}${cell("Roof", fbpMapMostCommon(row.roofs))}${cell("Surface", fbpMapMostCommon(row.surfaces))}</div><div class="fbp-map-tooltip-note">${websiteEscapeHtml(teams)} · ${websiteEscapeHtml(row.firstDate)}–${websiteEscapeHtml(row.lastDate)}</div>`;
+  }
+  const market = FBP_MAP_MARKETS[row.team];
+  return `<div class="fbp-map-tooltip-title">${websiteEscapeHtml(websiteNaturalTeamName(row.team.toLowerCase()))}</div><div class="fbp-map-tooltip-subtitle">${websiteEscapeHtml(market.city)}</div><div class="fbp-map-tooltip-grid">${cell(FBP_MAP_METRICS[metric].label, FBP_MAP_METRICS[metric].format(fbpMapMetricValue(row, metric)))}${cell("Pool picks", Number(row.picks || 0).toLocaleString())}${cell("When picked", row.wins + row.losses ? `${row.wins}-${row.losses}` : "No record")}${cell("Team ATS", row.covers + row.noCovers ? `${row.covers}-${row.noCovers}` : "No record")}${cell("Best Bets", Number(row.bestBets || 0).toLocaleString())}${cell("Average temp", row.averageTemperature == null ? "No data" : `${row.averageTemperature.toFixed(1)}°F`)}</div>`;
+}
+
 function fbpMapRenderDetail(row, metric) {
   const host = document.getElementById("fbp-map-detail");
   if (!host || !row) return;
@@ -253,6 +274,30 @@ function fbpMapRenderForecast() {
   host.innerHTML = `<div class="fbp-map-forecast-head"><span>Current slate forecast</span><strong>${games.length} reported</strong></div><div class="fbp-map-forecast-grid">${games.map(game => { const matchup = `${String(game.away || game.favorite || "").toUpperCase()} at ${String(game.home || game.underdog || "").toUpperCase()}`; const wind = game.windMph !== "" && game.windMph != null ? `${game.windMph} mph wind` : game.wind ? `${game.wind} wind` : ""; const conditions = game.indoor ? "Indoor" : [game.temperature !== "" && game.temperature != null ? `${game.temperature}°F` : "", game.weather, wind].filter(Boolean).join(" · "); const location = [game.venueName || game.venue, [game.venueCity, game.venueState].filter(Boolean).join(", "), game.kickoff, game.broadcast || game.tv].filter(Boolean).join(" · "); return `<div><span>${websiteEscapeHtml(matchup)}</span><strong>${websiteEscapeHtml(conditions)}</strong><small>${websiteEscapeHtml(location)}</small></div>`; }).join("")}</div>`;
 }
 
+function fbpMapRenderVisitorReport(rows) {
+  const host = document.getElementById("fbp-map-visitor-report");
+  if (!host) return;
+  host.hidden = false;
+  const totals = rows.reduce((result, row) => {
+    result.views += Number(row.views || 0);
+    result.browsers += Number(row.uniqueBrowsers || 0);
+    result.sessions += Number(row.sessions || 0);
+    result.starts += Number(row.pickStarts || 0);
+    result.submissions += Number(row.submissions || 0);
+    return result;
+  }, { views: 0, browsers: 0, sessions: 0, starts: 0, submissions: 0 });
+  const rate = (numerator, denominator) => denominator ? `${(numerator / denominator * 100).toFixed(1)}%` : "—";
+  const viewsPerSession = totals.sessions ? (totals.views / totals.sessions).toFixed(1) : "—";
+  const sorted = [...rows].sort((left, right) => Number(right.views || 0) - Number(left.views || 0) || String(left.city || "").localeCompare(String(right.city || "")));
+  const locationRows = sorted.map(row => {
+    const views = Number(row.views || 0), starts = Number(row.pickStarts || 0), submissions = Number(row.submissions || 0);
+    const location = [row.city, row.region, row.country].filter(Boolean).join(", ");
+    return `<tr><th scope="row">${websiteEscapeHtml(location)}</th><td>${views.toLocaleString()}</td><td>${rate(views, totals.views)}</td><td>${Number(row.uniqueBrowsers || 0).toLocaleString()}</td><td>${Number(row.sessions || 0).toLocaleString()}</td><td>${starts.toLocaleString()}</td><td>${submissions.toLocaleString()}</td><td>${rate(submissions, starts)}</td></tr>`;
+  }).join("");
+  const updated = fbpMapVisitorData.updatedAt ? new Date(fbpMapVisitorData.updatedAt).toLocaleString() : "Not available";
+  host.innerHTML = `<div class="fbp-map-report-head"><div><span>Aggregate visitor analytics</span><h3>Website activity report</h3></div><p>Updated ${websiteEscapeHtml(updated)}</p></div><div class="fbp-map-report-metrics"><div><span>Page views</span><strong>${totals.views.toLocaleString()}</strong></div><div><span>Browser-location counts</span><strong>${totals.browsers.toLocaleString()}</strong></div><div><span>Sessions</span><strong>${totals.sessions.toLocaleString()}</strong></div><div><span>Views / session</span><strong>${viewsPerSession}</strong></div><div><span>Pick starts</span><strong>${totals.starts.toLocaleString()}</strong></div><div><span>Submissions</span><strong>${totals.submissions.toLocaleString()}</strong></div><div><span>View → start</span><strong>${rate(totals.starts, totals.views)}</strong></div><div><span>Start → submit</span><strong>${rate(totals.submissions, totals.starts)}</strong></div></div><div class="fbp-map-report-table-wrap"><table class="fbp-map-report-table"><thead><tr><th>Location</th><th>Views</th><th>Share</th><th>Browsers</th><th>Sessions</th><th>Starts</th><th>Submits</th><th>Completion</th></tr></thead><tbody>${locationRows || `<tr><td colspan="8">No visitor activity is available for this selection.</td></tr>`}</tbody></table></div><p class="fbp-map-caption">Browser counts are unique within each approximate location and may include the same browser again if its network location changed. The public report contains aggregate counts only, with no IP addresses or anonymous identifiers.</p>`;
+}
+
 function fbpMapRender() {
   if (!fbpMap || !fbpMapMarkers) return;
   const season = document.getElementById("fbp-map-season").value;
@@ -273,6 +318,7 @@ function fbpMapRender() {
   const rowsWithValues = rows.filter(row => fbpMapMetricValue(row, metric) != null && (row.kind === "visitor" || row.kind === "venue" || metric === "volume" || row.picks || row.games || row.temperatureGames));
   const values = rowsWithValues.map(row => fbpMapMetricValue(row, metric));
   const minimum = values.length ? Math.min(...values) : 0, maximum = values.length ? Math.max(...values) : 1;
+  const totalViews = rowsWithValues.reduce((sum, row) => sum + Number(row.views || 0), 0);
   fbpMapMarkers.clearLayers();
   rowsWithValues.forEach(row => {
     const market = row.market, value = fbpMapMetricValue(row, metric), key = fbpMapRowKey(row);
@@ -280,7 +326,7 @@ function fbpMapRender() {
     const radius = 8 + Math.min(12, Math.sqrt(sample) / 2.5);
     const marker = L.circleMarker([market.lat, market.lng], { radius, color: "#f3f1e8", weight: fbpMapSelectedTeam === key ? 3 : 1, fillColor: fbpMapColor(value, minimum, maximum), fillOpacity: .9 });
     const markerTitle = row.kind === "visitor" ? [row.city, row.region, row.country].filter(Boolean).join(", ") : row.kind === "venue" ? row.names.at(-1) || row.venueId : row.team;
-    marker.bindTooltip(`<strong>${websiteEscapeHtml(markerTitle)}</strong> · ${websiteEscapeHtml(FBP_MAP_METRICS[metric].format(value))}`, { className: "fbp-map-tooltip", direction: "top" });
+    marker.bindTooltip(fbpMapTooltip(row, metric, totalViews), { className: "fbp-map-tooltip", direction: "top", opacity: 1, sticky: true });
     marker.on("click", () => { fbpMapSelectedTeam = key; fbpMapRender(); fbpMapRenderDetail(row, metric); });
     marker.addTo(fbpMapMarkers);
     const markerElement = marker.getElement();
@@ -293,7 +339,6 @@ function fbpMapRender() {
   const sorted = [...rowsWithValues].sort((left, right) => fbpMapMetricValue(right, metric) - fbpMapMetricValue(left, metric));
   const leader = sorted[0], trailer = sorted.at(-1);
   const rowLabel = row => row.kind === "visitor" ? [row.city, row.region, row.country].filter(Boolean).join(", ") : row.kind === "venue" ? row.names.at(-1) || row.venueId : row.team;
-  const totalViews = rowsWithValues.reduce((sum, row) => sum + Number(row.views || 0), 0);
   document.getElementById("fbp-map-summary").innerHTML = visitorMode ? `<div><span>Mapped regions</span><strong>${rowsWithValues.length}</strong></div><div><span>Page views</span><strong>${totalViews.toLocaleString()}</strong></div><div><span>Most traffic</span><strong>${leader ? `${rowLabel(leader)} · ${FBP_MAP_METRICS[metric].format(fbpMapMetricValue(leader, metric))}` : "No data"}</strong></div><div><span>Updated</span><strong>${fbpMapVisitorData.updatedAt ? new Date(fbpMapVisitorData.updatedAt).toLocaleDateString() : "Run export"}</strong></div>` : `<div><span>Mapped ${venueMode ? "venues" : "markets"}</span><strong>${rowsWithValues.length}</strong></div><div><span>Archived games</span><strong>${fbpMapSeasonGames(season).length.toLocaleString()}</strong></div><div><span>Highest</span><strong>${leader ? `${rowLabel(leader)} · ${FBP_MAP_METRICS[metric].format(fbpMapMetricValue(leader, metric))}` : "No data"}</strong></div><div><span>Lowest</span><strong>${trailer ? `${rowLabel(trailer)} · ${FBP_MAP_METRICS[metric].format(fbpMapMetricValue(trailer, metric))}` : "No data"}</strong></div>`;
   const metricDefinition = FBP_MAP_METRICS[metric];
   document.getElementById("fbp-map-legend-low").textContent = metricDefinition.low;
@@ -304,8 +349,9 @@ function fbpMapRender() {
   if (fbpMapSelectedTeam && rowsWithValues.some(row => fbpMapRowKey(row) === fbpMapSelectedTeam)) fbpMapRenderDetail(rowsWithValues.find(row => fbpMapRowKey(row) === fbpMapSelectedTeam), metric);
   else if (leader) { fbpMapSelectedTeam = fbpMapRowKey(leader); fbpMapRenderDetail(leader, metric); }
   else document.getElementById("fbp-map-detail").innerHTML = `<p class="fbp-map-empty">No mapped data is available for this selection.</p>`;
-  if (visitorMode) { const forecast = document.getElementById("fbp-map-forecast"); forecast.hidden = true; forecast.innerHTML = ""; }
-  else fbpMapRenderForecast();
+  const visitorReport = document.getElementById("fbp-map-visitor-report");
+  if (visitorMode) { const forecast = document.getElementById("fbp-map-forecast"); forecast.hidden = true; forecast.innerHTML = ""; fbpMapRenderVisitorReport(rowsWithValues); }
+  else { if (visitorReport) { visitorReport.hidden = true; visitorReport.innerHTML = ""; } fbpMapRenderForecast(); }
   setTimeout(() => fbpMap.invalidateSize(), 0);
 }
 

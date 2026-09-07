@@ -13,7 +13,7 @@
 <link rel="apple-touch-icon" sizes="180x180" href="icons/fbp-apple-touch.png?v=20260901-2" />
 <link href="https://unpkg.com/tabulator-tables@5.6.0/dist/css/tabulator.min.css" rel="stylesheet">
 <link href="https://unpkg.com/leaflet@1.9.4/dist/leaflet.css" rel="stylesheet">
-<link href="map.css?v=20260903-1" rel="stylesheet">
+<link href="map.css?v=20260907-2" rel="stylesheet">
 <script src="https://cdn.jsdelivr.net/npm/chart.js@4.4.3/dist/chart.umd.min.js"></script>
 <script src="https://cdn.jsdelivr.net/npm/chartjs-chart-sankey@0.14.0/dist/chartjs-chart-sankey.min.js"></script>
 <script src="https://unpkg.com/tabulator-tables@5.6.0/dist/js/tabulator.min.js"></script>
@@ -745,6 +745,7 @@
       <section id="fbp-map-forecast" class="fbp-map-forecast" hidden></section>
       <div class="fbp-map-layout"><div id="fbp-map-canvas" role="application" aria-label="Interactive map of NFL team markets"></div><aside id="fbp-map-detail" class="fbp-map-rail" aria-live="polite"><p class="fbp-map-empty">Loading team geography...</p></aside></div>
       <div class="fbp-map-foot"><div class="fbp-map-legend"><span id="fbp-map-legend-low">Lower</span><span class="fbp-map-ramp" aria-hidden="true"></span><span id="fbp-map-legend-high">Higher</span></div><p id="fbp-map-footnote" class="fbp-map-caption">Pool lenses use current team markets. Weather and stadium lenses use every archived physical venue.</p></div>
+      <section id="fbp-map-visitor-report" class="fbp-map-report" aria-live="polite" hidden></section>
     </div>
   </section>
 </main>
@@ -755,7 +756,9 @@ const WEBSITE_WEEK_HISTORY_VERSION = "20260903-literal-none";
 const websiteRoutes = ["enter-picks", "week-one", "picks-confirmation", "alltime", "season", "payout", "streaks", "weeks", "weekly-rank", "games", "players", "names", "teams", "map", "faq"];
 const standaloneAppLaunch = matchMedia("(display-mode: standalone)").matches || navigator.standalone === true;
 const savedStartupRoute = localStorage.getItem("fbpLastView");
-const requestedRoute = standaloneAppLaunch && websiteRoutes.includes(savedStartupRoute) ? savedStartupRoute : location.hash.slice(1);
+const websiteNavigationType = performance.getEntriesByType("navigation")[0]?.type;
+const websiteFaqReloadOpensMap = location.hash === "#faq" && (websiteNavigationType === "reload" || performance.navigation?.type === 1);
+const requestedRoute = websiteFaqReloadOpensMap ? "map" : standaloneAppLaunch && websiteRoutes.includes(savedStartupRoute) ? savedStartupRoute : location.hash.slice(1);
 const requestedStartupRoute = requestedRoute === "weekly-rank" ? "weeks" : websiteRoutes.includes(requestedRoute) ? requestedRoute : "week-one";
 if (location.hash === "#weekly-rank") history.replaceState(null, "", "#weeks");
 let startupRoutePending = true;
@@ -2209,7 +2212,7 @@ const websiteStagedGamesCache = new Map();
 websiteStagedGamesCache.set("REGULAR_SEASON-2026-1", { games: WEBSITE_WEEK_ONE_GAMES, storedAt: Date.now() });
 let websiteActiveRegularWeekPromise = null;
 let websiteActiveRegularWeekLoadedAt = 0;
-const WEBSITE_ACTIVE_SLATE_CACHE_KEY = "fbpActiveSlate";
+const WEBSITE_ACTIVE_SLATE_CACHE_KEY = "fbpActiveSlate-v2";
 try {
   const cachedSlate = JSON.parse(localStorage.getItem(WEBSITE_ACTIVE_SLATE_CACHE_KEY) || "null");
   const cachedSelection = cachedSlate?.selection;
@@ -6156,7 +6159,6 @@ function renderProfile(name) {
 }
 const synchronizedPlayerFilterIds = ["profile-player", "names-player", "season-player", "contribution-player", "weekly-rank-player"];
 let synchronizingPlayerFilters = false;
-let websiteFaqMapTaps = [];
 function synchronizePlayerFilters(source) {
   if (synchronizingPlayerFilters) return;
   const playerName = source.selectedOptions[0]?.textContent.trim().replace(/^All players$/i, "") || "";
@@ -6178,17 +6180,6 @@ function initViews() {
   });
   document.querySelectorAll("#nav button[data-view]").forEach(btn => btn.onclick = async () => {
     showView(btn.dataset.view);
-    if (btn.dataset.view === "faq") {
-      const now = Date.now();
-      websiteFaqMapTaps = [...websiteFaqMapTaps.filter(timestamp => now - timestamp < 3000), now];
-      if (websiteFaqMapTaps.length >= 5) {
-        websiteFaqMapTaps = [];
-        showView("map");
-        await loadDrilldown();
-        initFbpMap();
-        return;
-      }
-    } else websiteFaqMapTaps = [];
     if (btn.dataset.view === "players") {
       renderProfile(document.getElementById("profile-player").value);
       if (!websitePicks.length) loadDrilldown().then(() => { if (document.getElementById("view-players").classList.contains("active")) renderProfile(document.getElementById("profile-player").value); });
@@ -6476,7 +6467,7 @@ function startHistoricalInitialization() {
 if (requestedStartupRoute !== "week-one") startHistoricalInitialization();
 </script>
 <script src="teams.js?v=20260902-2"></script>
-<script src="map.js?v=20260903-1"></script>
+<script src="map.js?v=20260907-2"></script>
 <script>
 const WEBSITE_PERSISTED_FILTER_IDS = new Set([
   "season-choice", "payout-season", "streak-category", "game-season", "game-week", "game-choice",
