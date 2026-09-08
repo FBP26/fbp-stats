@@ -758,6 +758,11 @@ const standaloneAppLaunch = matchMedia("(display-mode: standalone)").matches || 
 const savedStartupRoute = localStorage.getItem("fbpLastView");
 const websiteNavigationType = performance.getEntriesByType("navigation")[0]?.type;
 const websiteFaqReloadOpensMap = location.hash === "#faq" && (websiteNavigationType === "reload" || performance.navigation?.type === 1);
+const websiteLaunchUrl = new URL(location.href);
+if (websiteLaunchUrl.searchParams.has("app-refresh")) {
+  websiteLaunchUrl.searchParams.delete("app-refresh");
+  history.replaceState(null, "", websiteLaunchUrl);
+}
 const requestedRoute = websiteFaqReloadOpensMap ? "map" : standaloneAppLaunch && websiteRoutes.includes(savedStartupRoute) ? savedStartupRoute : location.hash.slice(1);
 const requestedStartupRoute = requestedRoute === "weekly-rank" ? "weeks" : websiteRoutes.includes(requestedRoute) ? requestedRoute : "week-one";
 if (location.hash === "#weekly-rank") history.replaceState(null, "", "#weeks");
@@ -3244,29 +3249,18 @@ async function refreshWebsiteApp() {
   indicator.classList.add("visible", "refreshing");
   indicator.style.transform = "translate(-50%, 0)";
   label.textContent = "Refreshing";
-  let reloadRequested = false;
   try {
-    const activeView = document.querySelector(".view.active")?.id.replace(/^view-/, "") || location.hash.slice(1);
-    if (activeView === "week-one") {
-      const currentWeekRequest = fetchWebsiteCurrentWeek();
-      await Promise.all([loadActiveRegularWeek(true), renderWebsiteWeekOne(currentWeekRequest)]);
-    } else if (activeView === "enter-picks") {
-      await loadActiveRegularWeek(true);
-      await refreshWebsitePicksWeather();
-    } else {
-      reloadRequested = true;
-      await new Promise(resolve => setTimeout(resolve, 250));
-      location.reload();
-      return;
-    }
-    label.textContent = "Updated";
+    const registration = await navigator.serviceWorker?.getRegistration();
+    await registration?.update();
+    const refreshedUrl = new URL(location.href);
+    refreshedUrl.searchParams.set("app-refresh", Date.now());
+    location.replace(refreshedUrl);
   } catch (error) {
     console.warn(`App refresh failed: ${error.message}`);
     label.textContent = "Try again";
-  } finally {
     websiteAppRefreshing = false;
     indicator.classList.remove("refreshing");
-    if (!reloadRequested) resetWebsitePullRefresh(1200);
+    resetWebsitePullRefresh(1200);
   }
 }
 {
@@ -6613,7 +6607,9 @@ if (startupRoute === "week-one" && !WEBSITE_SUBMISSIONS_ENDPOINT) {
   startupRoutePending = false;
 })();
   if ("serviceWorker" in navigator) {
-    window.addEventListener("load", () => navigator.serviceWorker.register("service-worker.js").catch(error => console.warn(`App install support failed: ${error.message}`)));
+    window.addEventListener("load", () => navigator.serviceWorker.register("service-worker.js", { updateViaCache: "none" })
+      .then(registration => registration.update())
+      .catch(error => console.warn(`App install support failed: ${error.message}`)));
   }
   {
     const installHelp = document.getElementById("website-install-help"), installCopy = document.getElementById("website-install-copy"), installAction = document.getElementById("website-install-action");
