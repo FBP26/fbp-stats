@@ -13,7 +13,7 @@
 <link rel="apple-touch-icon" sizes="180x180" href="icons/fbp-apple-touch.png?v=20260901-2" />
 <link href="https://unpkg.com/tabulator-tables@5.6.0/dist/css/tabulator.min.css" rel="stylesheet">
 <link href="https://unpkg.com/leaflet@1.9.4/dist/leaflet.css" rel="stylesheet">
-<link href="map.css?v=20260907-2" rel="stylesheet">
+<link href="map.css?v=20260909-1" rel="stylesheet">
 <script src="https://cdn.jsdelivr.net/npm/chart.js@4.4.3/dist/chart.umd.min.js"></script>
 <script src="https://cdn.jsdelivr.net/npm/chartjs-chart-sankey@0.14.0/dist/chartjs-chart-sankey.min.js"></script>
 <script src="https://unpkg.com/tabulator-tables@5.6.0/dist/js/tabulator.min.js"></script>
@@ -711,7 +711,7 @@
       <details><summary>How do the playoffs work?</summary><div class="faq-answer"><p>The playoff winner has the most wins across all four rounds. Round 1 has 6 games plus a Best Bet for 7 possible wins; Round 2 has 4 games plus a Best Bet for 5; Round 3 has 2 games plus a Best Bet for 3; and the Super Bowl pick is worth 2 wins. That is 13 games and 17 possible wins.</p><p>The Super Bowl's combined net passing yards break a tie. Starting in Round 2, picks remain hidden until every player who can still win has submitted for that round.</p></div></details>
       <details><summary>What notifications are available?</summary><div class="faq-answer"><p>The browser alert announces a newly opened regular-season week while FBP is open. Email preferences can cover a new slate, a move into first place, early and late game windows, Sunday and Monday night scenarios, and the final weekly result. An email address is inactive until its verification link is opened, and every message includes a one-click stop link.</p><p>Text alerts require a separate SMS provider and are not available yet. FBP does not save a phone number while text delivery is unavailable.</p></div></details>
       <details><summary>How do I add FBP to my phone's Home Screen?</summary><div class="faq-answer"><p><strong>iPhone or iPad:</strong> press and hold the URL, tap Share, scroll to Add to Home Screen, then tap Add.</p><p><strong>Android:</strong> tap Install and confirm. If Install is not shown, open Chrome's menu and tap Add to Home screen.</p></div></details>
-      <details><summary>What visitor information is collected?</summary><div class="faq-answer"><p>When anonymous analytics are enabled, FBP records page views, pick starts, submissions, a random browser/session identifier, referring domain, device class, viewport, language, time zone, and approximate network location. It does not collect IP addresses, browser GPS location, names, picks, or full referring URLs for analytics.</p><p>The Map may show aggregated approximate cities and activity counts. It never includes IP addresses or anonymous browser/session identifiers.</p></div></details>
+      <details><summary>What visitor information is collected?</summary><div class="faq-answer"><p>When anonymous analytics are enabled, FBP records page views, active time, pick starts, submissions, a random browser/session identifier, referring domain, device class, viewport, language, time zone, and approximate network location. It does not collect IP addresses, browser GPS location, names, picks, or full referring URLs for analytics.</p><p>The Map shows aggregated approximate cities plus anonymous page-order and active-time timelines. It never publishes IP addresses, locations tied to a session, or browser/session identifiers.</p></div></details>
     </div></div>
   </section>
   <section id="view-weeks" class="view"><select id="week-race-players" hidden></select>
@@ -6507,7 +6507,7 @@ function startHistoricalInitialization() {
 if (requestedStartupRoute !== "week-one") startHistoricalInitialization();
 </script>
 <script src="teams.js?v=20260902-2"></script>
-<script src="map.js?v=20260907-2"></script>
+<script src="map.js?v=20260909-1"></script>
 <script>
 const WEBSITE_PERSISTED_FILTER_IDS = new Set([
   "season-choice", "payout-season", "streak-category", "game-season", "game-week", "game-choice",

@@ -274,6 +274,33 @@ function fbpMapRenderForecast() {
   host.innerHTML = `<div class="fbp-map-forecast-head"><span>Current slate forecast</span><strong>${games.length} reported</strong></div><div class="fbp-map-forecast-grid">${games.map(game => { const matchup = `${String(game.away || game.favorite || "").toUpperCase()} at ${String(game.home || game.underdog || "").toUpperCase()}`; const wind = game.windMph !== "" && game.windMph != null ? `${game.windMph} mph wind` : game.wind ? `${game.wind} wind` : ""; const conditions = game.indoor ? "Indoor" : [game.temperature !== "" && game.temperature != null ? `${game.temperature}°F` : "", game.weather, wind].filter(Boolean).join(" · "); const location = [game.venueName || game.venue, [game.venueCity, game.venueState].filter(Boolean).join(", "), game.kickoff, game.broadcast || game.tv].filter(Boolean).join(" · "); return `<div><span>${websiteEscapeHtml(matchup)}</span><strong>${websiteEscapeHtml(conditions)}</strong><small>${websiteEscapeHtml(location)}</small></div>`; }).join("")}</div>`;
 }
 
+function fbpMapViewLabel(view) {
+  const labels = { "enter-picks": "Enter Picks", "week-one": "Current Week", alltime: "All Time", season: "Seasons", payout: "Payout", streaks: "Streaks", weeks: "Weeks", games: "Games", players: "Players", names: "Names", teams: "Teams", map: "FBP Map", faq: "FAQ", "picks-confirmation": "Picks submitted" };
+  return labels[view] || String(view || "Unknown").replace(/-/g, " ").replace(/\b\w/g, letter => letter.toUpperCase());
+}
+
+function fbpMapDuration(seconds) {
+  if (seconds == null) return "Time not recorded";
+  const total = Math.max(0, Number(seconds) || 0), hours = Math.floor(total / 3600), minutes = Math.floor(total % 3600 / 60), remainder = Math.floor(total % 60);
+  if (hours) return `${hours}h ${minutes}m`;
+  if (minutes) return `${minutes}m ${remainder}s`;
+  return `${remainder}s`;
+}
+
+function fbpMapSessionRows() {
+  return (fbpMapVisitorData.sessions || []).map(session => {
+    const started = new Date(session.startedAt);
+    const pages = (session.pages || []).map(page => {
+      const entered = new Date(page.enteredAt);
+      const time = Number.isNaN(entered.getTime()) ? "Time unavailable" : entered.toLocaleTimeString([], { hour: "numeric", minute: "2-digit" });
+      return `<span class="fbp-map-session-step"><strong>${websiteEscapeHtml(fbpMapViewLabel(page.view))}</strong><small>${websiteEscapeHtml(time)} · ${websiteEscapeHtml(fbpMapDuration(page.durationSeconds))}</small></span>`;
+    }).join('<span class="fbp-map-session-arrow" aria-hidden="true">→</span>');
+    const startText = Number.isNaN(started.getTime()) ? "Unknown" : started.toLocaleString([], { month: "short", day: "numeric", hour: "numeric", minute: "2-digit" });
+    const activeTime = (session.pages || []).some(page => page.durationSeconds != null) ? fbpMapDuration(session.activeSeconds) : "Time not recorded";
+    return `<tr><th scope="row">#${Number(session.sessionNumber || 0).toLocaleString()}</th><td>${websiteEscapeHtml(startText)}</td><td>${websiteEscapeHtml(activeTime)}</td><td><div class="fbp-map-session-path">${pages}</div></td></tr>`;
+  }).join("");
+}
+
 function fbpMapRenderVisitorReport(rows) {
   const host = document.getElementById("fbp-map-visitor-report");
   if (!host) return;
@@ -295,7 +322,8 @@ function fbpMapRenderVisitorReport(rows) {
     return `<tr><th scope="row">${websiteEscapeHtml(location)}</th><td>${views.toLocaleString()}</td><td>${rate(views, totals.views)}</td><td>${Number(row.uniqueBrowsers || 0).toLocaleString()}</td><td>${Number(row.sessions || 0).toLocaleString()}</td><td>${starts.toLocaleString()}</td><td>${submissions.toLocaleString()}</td><td>${rate(submissions, starts)}</td></tr>`;
   }).join("");
   const updated = fbpMapVisitorData.updatedAt ? new Date(fbpMapVisitorData.updatedAt).toLocaleString() : "Not available";
-  host.innerHTML = `<div class="fbp-map-report-head"><div><span>Aggregate visitor analytics</span><h3>Website activity report</h3></div><p>Updated ${websiteEscapeHtml(updated)}</p></div><div class="fbp-map-report-metrics"><div><span>Page views</span><strong>${totals.views.toLocaleString()}</strong></div><div><span>Browser-location counts</span><strong>${totals.browsers.toLocaleString()}</strong></div><div><span>Sessions</span><strong>${totals.sessions.toLocaleString()}</strong></div><div><span>Views / session</span><strong>${viewsPerSession}</strong></div><div><span>Pick starts</span><strong>${totals.starts.toLocaleString()}</strong></div><div><span>Submissions</span><strong>${totals.submissions.toLocaleString()}</strong></div><div><span>View → start</span><strong>${rate(totals.starts, totals.views)}</strong></div><div><span>Start → submit</span><strong>${rate(totals.submissions, totals.starts)}</strong></div></div><div class="fbp-map-report-table-wrap"><table class="fbp-map-report-table"><thead><tr><th>Location</th><th>Views</th><th>Share</th><th>Browsers</th><th>Sessions</th><th>Starts</th><th>Submits</th><th>Completion</th></tr></thead><tbody>${locationRows || `<tr><td colspan="8">No visitor activity is available for this selection.</td></tr>`}</tbody></table></div><p class="fbp-map-caption">Browser counts are unique within each approximate location and may include the same browser again if its network location changed. The public report contains aggregate counts only, with no IP addresses or anonymous identifiers.</p>`;
+  const sessionRows = fbpMapSessionRows();
+  host.innerHTML = `<div class="fbp-map-report-head"><div><span>Aggregate visitor analytics</span><h3>Website activity report</h3></div><p>Updated ${websiteEscapeHtml(updated)}</p></div><div class="fbp-map-report-metrics"><div><span>Page views</span><strong>${totals.views.toLocaleString()}</strong></div><div><span>Browser-location counts</span><strong>${totals.browsers.toLocaleString()}</strong></div><div><span>Sessions</span><strong>${totals.sessions.toLocaleString()}</strong></div><div><span>Views / session</span><strong>${viewsPerSession}</strong></div><div><span>Pick starts</span><strong>${totals.starts.toLocaleString()}</strong></div><div><span>Submissions</span><strong>${totals.submissions.toLocaleString()}</strong></div><div><span>View → start</span><strong>${rate(totals.starts, totals.views)}</strong></div><div><span>Start → submit</span><strong>${rate(totals.submissions, totals.starts)}</strong></div></div><div class="fbp-map-report-table-wrap"><table class="fbp-map-report-table"><thead><tr><th>Location</th><th>Views</th><th>Share</th><th>Browsers</th><th>Sessions</th><th>Starts</th><th>Submits</th><th>Completion</th></tr></thead><tbody>${locationRows || `<tr><td colspan="8">No visitor activity is available for this selection.</td></tr>`}</tbody></table></div><p class="fbp-map-caption">Browser counts are unique within each approximate location and may include the same browser again if its network location changed.</p><details class="fbp-map-sessions" open><summary><span>Anonymous session timelines</span><strong>${Number(fbpMapVisitorData.sessions?.length || 0).toLocaleString()} sessions · newest first</strong></summary><p class="fbp-map-caption">Each row shows the pages visited in order and active time recorded on each page. Older visits without a duration event say “Time not recorded.” Raw browser IDs, session IDs, and session locations are not published.</p><div class="fbp-map-report-table-wrap"><table class="fbp-map-report-table fbp-map-session-table"><thead><tr><th>Session</th><th>Started</th><th>Recorded active</th><th>Page timeline</th></tr></thead><tbody>${sessionRows || `<tr><td colspan="4">No session timelines are available yet.</td></tr>`}</tbody></table></div></details>`;
 }
 
 function fbpMapRender() {

@@ -327,6 +327,72 @@
   font-weight: 600;
 }
 
+.fbp-map-sessions {
+  margin-top: 26px;
+  border-top: 1px solid var(--border);
+  padding-top: 18px;
+}
+
+.fbp-map-sessions summary {
+  display: flex;
+  align-items: baseline;
+  justify-content: space-between;
+  gap: 14px;
+  color: var(--text);
+  cursor: pointer;
+  list-style-position: inside;
+}
+
+.fbp-map-sessions summary span {
+  font: 700 18px Arial, sans-serif;
+}
+
+.fbp-map-sessions summary strong {
+  color: var(--muted);
+  font: 11px Arial, sans-serif;
+}
+
+.fbp-map-session-table {
+  min-width: 900px;
+}
+
+.fbp-map-session-table th,
+.fbp-map-session-table td {
+  vertical-align: top;
+}
+
+.fbp-map-session-table td:last-child {
+  width: 100%;
+  text-align: left;
+  white-space: normal;
+}
+
+.fbp-map-session-path {
+  display: flex;
+  align-items: center;
+  flex-wrap: wrap;
+  gap: 6px;
+}
+
+.fbp-map-session-step {
+  display: inline-flex;
+  align-items: baseline;
+  gap: 5px;
+  border-bottom: 2px solid #d3a52f;
+  padding: 2px 0 3px;
+}
+
+.fbp-map-session-step strong {
+  color: var(--text);
+  font-size: 11px;
+}
+
+.fbp-map-session-step small,
+.fbp-map-session-arrow {
+  color: var(--muted);
+  font-size: 10px;
+}
+
 .fbp-map-legend {
   display: flex;
   align-items: center;
@@ -473,5 +539,11 @@
     align-items: flex-start;
     flex-direction: column;
     gap: 6px;
+  }
+
+  .fbp-map-sessions summary {
+    align-items: flex-start;
+    flex-direction: column;
+    gap: 4px;
   }
 }
