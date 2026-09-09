@@ -757,8 +757,8 @@ const websiteRoutes = ["enter-picks", "week-one", "picks-confirmation", "alltime
 const standaloneAppLaunch = matchMedia("(display-mode: standalone)").matches || navigator.standalone === true;
 const savedStartupRoute = localStorage.getItem("fbpLastView");
 const websiteNavigationType = performance.getEntriesByType("navigation")[0]?.type;
-const websiteFaqReloadOpensMap = location.hash === "#faq" && (websiteNavigationType === "reload" || performance.navigation?.type === 1);
 const websiteLaunchUrl = new URL(location.href);
+const websiteFaqReloadOpensMap = location.hash === "#faq" && (websiteLaunchUrl.searchParams.has("app-refresh") || websiteNavigationType === "reload" || performance.navigation?.type === 1);
 if (websiteLaunchUrl.searchParams.has("app-refresh")) {
   websiteLaunchUrl.searchParams.delete("app-refresh");
   history.replaceState(null, "", websiteLaunchUrl);
