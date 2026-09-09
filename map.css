@@ -359,15 +359,15 @@
 }
 
 .fbp-map-session-table th:first-child {
-  width: 155px;
+  width: 120px;
 }
 
 .fbp-map-session-table th:nth-child(2) {
-  width: 150px;
+  width: 112px;
 }
 
 .fbp-map-session-table th:nth-child(3) {
-  width: 140px;
+  width: 92px;
 }
 
 .fbp-map-session-table th,
