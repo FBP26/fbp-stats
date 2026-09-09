@@ -3059,11 +3059,14 @@ function renderWebsiteWeekRecap(data) {
 }
 function decorateWebsiteWeekOneHeaders(data) { const headers = [...document.querySelectorAll("#week-one-table th.pg-game")].slice(1, 17); headers.forEach((header, index) => { const favorite = data.favorites[index]; const underdog = data.underdogs[index]; const favoriteScore = data.favoriteScores[index]; const underdogScore = data.underdogScores[index]; const game = (data.games || []).find(item => item.favorite?.toLowerCase() === favorite.toLowerCase() && item.underdog?.toLowerCase() === underdog.toLowerCase()); const gameStatus = String(game?.status || "").toUpperCase(); const started = ["IN_PROGRESS", "FINAL", "COMPLETED"].includes(gameStatus); const status = gameStatus === "IN_PROGRESS" ? game.statusText : ["FINAL", "COMPLETED"].includes(gameStatus) ? "Final" : ""; const spread = `<small class="pg-header-spread">${data.spreads[index]}</small>`; if (!started && game) { const kickoff = game.kickoffGroup || game.kickoff || game.statusText || ""; header.innerHTML = `${favorite}${spread}${underdog}${kickoff ? `<small class="pg-header-kickoff">${kickoff}</small>` : ""}`; return; } const score = value => `<span class="pg-header-score">${value === "" ? "-" : value}</span>`; header.innerHTML = `${favorite}${score(favoriteScore)}${spread}${score(underdogScore)}${underdog}${status ? `<small class="pg-header-kickoff">${status}</small>` : ""}`; }); }
 function renderWebsiteWeekOneGrid(data, source) { const rows = data.players || []; const status = document.getElementById("week-one-status"); const gamesFinal = (data.games || []).length ? data.games.filter(game => ["FINAL", "COMPLETED"].includes(String(game.status || "").toUpperCase())).length : (data.favoriteScores || []).filter((score, index) => score !== "" && data.underdogScores[index] !== "").length; status.innerHTML = [["Submissions", rows.length], ["Games final", gamesFinal], ["Source", source]].map(([label,value]) => `<div class="metric"><span>${label}</span><strong>${value}</strong></div>`).join(""); const table = document.getElementById("week-one-table"); if (!rows.length) { table.innerHTML = `<p style="color:var(--muted)">No Week 1 submissions yet.</p>`; return; } let html = '<table class="picks-grid"><thead><tr><th class="pg-player">Player</th><th class="pg-game">Week name</th>'; data.favorites.forEach((favorite, index) => { html += `<th class="pg-game">${favorite}<br><small>${data.spreads[index]}</small><br>${data.underdogs[index]}</th>`; }); html += `<th class="pg-bb-hdr">BB</th><th class="pg-sum-hdr">TB${data.actualTiebreaker ? `<br><small>${data.actualTiebreaker}</small>` : ""}</th><th class="pg-sum-hdr pg-w">W</th><th class="pg-sum-hdr pg-l">L</th><th class="pg-sum-hdr">Total</th><th class="pg-sum-hdr">Win%</th><th class="pg-sum-hdr">Prob</th><th class="pg-sum-hdr">Paths</th></tr></thead><tbody>`; rows.forEach(row => { html += `<tr><td class="pg-player">${row.name}</td><td class="pg-sum-cell">${row.weekName || ""}</td>`; row.picks.forEach((pick, index) => { html += `<td class="${websiteWeekOnePickClass(data, index, pick)}">${pick}</td>`; }); const bestBetIndex = row.picks.findIndex(pick => pick === row.bestBet); const bestBetClass = bestBetIndex < 0 ? "pg-bb-none" : websiteWeekOnePickClass(data, bestBetIndex, row.bestBet).replace("pg-pick", "pg-bb"); html += `<td class="${bestBetClass}">${row.bestBet || ""}</td><td class="pg-sum-cell">${row.tiebreaker || ""}</td><td class="pg-sum-cell pg-w">${row.wins || ""}</td><td class="pg-sum-cell pg-l">${row.losses || ""}</td><td class="pg-sum-cell">${row.total || ""}</td><td class="pg-sum-cell">${row.winPercent || ""}</td><td class="pg-sum-cell">${row.winProbability || ""}</td><td class="pg-sum-cell">${row.pathsToVictory || ""}</td></tr>`; }); table.innerHTML = html + '</tbody></table>'; }
-const WEBSITE_CURRENT_WEEK_CACHE_KEY = "fbpCurrentWeek-v1";
+const WEBSITE_CURRENT_WEEK_CACHE_KEY = "fbpCurrentWeek-v2";
+function websiteCurrentWeekAnalysisComplete(data) {
+  return Array.isArray(data?.players) && data.players.every(player => player.winProbability !== "" && player.winProbability != null && player.pathsToVictory !== "" && player.pathsToVictory != null);
+}
 function websiteReadCurrentWeekCache() {
   try {
     const cached = JSON.parse(localStorage.getItem(WEBSITE_CURRENT_WEEK_CACHE_KEY) || "null");
-    return cached?.data?.ok && Array.isArray(cached.data.players) && Array.isArray(cached.data.games) ? cached.data : null;
+    return cached?.data?.ok && Array.isArray(cached.data.games) && websiteCurrentWeekAnalysisComplete(cached.data) ? cached.data : null;
   } catch (error) {
     return null;
   }
@@ -3077,7 +3080,6 @@ async function fetchWebsiteCurrentWeek() {
   const response = await fetch(`${WEBSITE_SUBMISSIONS_ENDPOINT}${separator}action=current-week&fast=1`, { signal: AbortSignal.timeout(20000) });
   const data = await response.json();
   if (!response.ok || !data.ok) throw new Error(data.error || "Could not load the current week.");
-  websiteWriteCurrentWeekCache(data);
   return data;
 }
 async function fetchWebsiteCurrentWeekRace(season, week) {
@@ -3099,11 +3101,10 @@ async function renderWebsiteWeekOne(currentWeekRequest = null) {
     updateWebsiteWeekLabels(websiteRegularSelection);
     const raceRequest = fetchWebsiteCurrentWeekRace(websiteRegularSelection.season, websiteRegularSelection.week).catch(error => { console.warn(error.message); return []; });
     if (!/^\d+(?:\.\d+)?$/.test(String(data.actualTiebreaker || ""))) data.actualTiebreaker = "";
-    renderWebsiteWeekOneGrid(data, "Week X");
-    decorateWebsiteWeekOneHeaders(data);
     await new Promise(resolve => requestAnimationFrame(() => requestAnimationFrame(resolve)));
     startWebsiteAnalytics();
     websitePreparePlayers(data);
+    websiteWriteCurrentWeekCache(data);
     renderWebsiteWeekOneGrid(data, "Week X");
     decorateWebsiteWeekOneHeaders(data);
     renderWebsiteRace(data);
