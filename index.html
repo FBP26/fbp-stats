@@ -2804,8 +2804,30 @@ async function renderWebsiteConfirmation(submission, result) {
   document.getElementById("confirmation-lead").textContent = result?.unchanged ? `These picks were already saved for ${submission.name.trim()}. The original submission was kept.` : submission.mode === "test" ? "Test picks submitted. Season records were not changed." : `Picks submitted for ${submission.name.trim()}.`;
   renderConfirmationIdentity(submission, result?.identity);
   renderConfirmationPicks(submission);
-  renderConfirmationHistory(submission);
-  loadConfirmationProbability(submission);
+  await Promise.allSettled([renderConfirmationHistory(submission), loadConfirmationProbability(submission)]);
+}
+function websiteConfirmationEmailText() {
+  const sectionText = id => {
+    const copy = document.getElementById(id)?.cloneNode(true);
+    if (!copy) return "";
+    copy.querySelectorAll("br").forEach(element => element.replaceWith("\n"));
+    copy.querySelectorAll("th, td").forEach(element => element.append(element.nextElementSibling ? "\t" : "\n"));
+    copy.querySelectorAll("h1, h2, h3, h4, p, li").forEach(element => element.append("\n"));
+    return copy.textContent.replace(/[ \t]+\n/g, "\n").replace(/\n{3,}/g, "\n\n").trim();
+  };
+  return ["confirmation-lead", "confirmation-identity", "confirmation-picks", "confirmation-history"].map(sectionText).filter(Boolean).join("\n\n").slice(0, 15000);
+}
+async function sendWebsitePickConfirmationEmail(confirmationEmailToken) {
+  if (!confirmationEmailToken || !WEBSITE_SUBMISSIONS_ENDPOINT) return true;
+  const payload = { action: "send-pick-confirmation-email", confirmationEmailToken, confirmationText: websiteConfirmationEmailText() };
+  for (let attempt = 0; attempt < 2; attempt++) {
+    try {
+      const response = await fetch(WEBSITE_SUBMISSIONS_ENDPOINT, { method: "POST", headers: { "Content-Type": "text/plain;charset=utf-8" }, body: JSON.stringify(payload), signal: AbortSignal.timeout(20000) });
+      const result = await response.json();
+      if (response.ok && result.ok) return true;
+    } catch (error) { console.warn(`Confirmation email attempt ${attempt + 1} failed:`, error); }
+  }
+  return false;
 }
 let websiteBestBetMismatchAttempts = 0;
 let websiteBestBetMismatchSignature = "";
@@ -2931,7 +2953,7 @@ document.getElementById("website-picks-form").onsubmit = async event => {
   if (websitePicksSubmissionPending) return;
   if (!websiteActiveGames.length) { status.textContent = "Stage this week before submitting test picks."; return; }
   const selection = websitePickSelection();
-  const submission = { mode: selection.testMode ? "test" : "production", season: selection.season, week: selection.week, phase: selection.phase, name: document.getElementById("website-picks-name").value, weekName: document.getElementById("website-week-name").value.trim(), picks: websiteActiveGames.map((game, index) => form.elements[`game-${index + 1}`].value), bestBet: document.getElementById("website-best-bet").value, tiebreaker: document.getElementById("website-tiebreaker").value };
+  const submission = { mode: selection.testMode ? "test" : "production", season: selection.season, week: selection.week, phase: selection.phase, name: document.getElementById("website-picks-name").value, weekName: document.getElementById("website-week-name").value.trim(), picks: websiteActiveGames.map((game, index) => form.elements[`game-${index + 1}`].value), bestBet: document.getElementById("website-best-bet").value, tiebreaker: document.getElementById("website-tiebreaker").value, includeConfirmationInEmail: !selection.testMode };
   websitePicksSubmissionPending = true;
   submitButton.disabled = true;
   const submitButtonLabel = submitButton.textContent;
@@ -2963,8 +2985,10 @@ document.getElementById("website-picks-form").onsubmit = async event => {
     status.textContent = selection.testMode ? "Test picks submitted. Season records were not changed." : "Picks submitted successfully.";
     websiteTrackEvent("submission", "enter-picks");
     document.querySelector("#view-picks-confirmation .intro p").textContent = selection.testMode ? `Preseason Week ${selection.week} test` : `Week ${selection.week} · ${selection.season}-${selection.season + 1}`;
-    await renderWebsiteConfirmation(submission, result);
+    const confirmationReady = renderWebsiteConfirmation(submission, result);
     form.reset(); resetWebsiteBestBet(); showWebsiteConfirmation();
+    await confirmationReady;
+    if (!await sendWebsitePickConfirmationEmail(result.confirmationEmailToken)) console.warn("Picks were saved, but the combined admin confirmation email could not be verified.");
     websiteBestBetMismatchAttempts = 0; websiteBestBetMismatchSignature = ""; websiteApprovedNewPlayerName = "";
   } catch (error) { status.textContent = `Could not submit picks: ${error.message}`; }
   finally {
