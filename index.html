@@ -3071,6 +3071,16 @@ function websiteReadCurrentWeekCache() {
     return null;
   }
 }
+function websiteRenderCachedCurrentWeek() {
+  const cached = websiteReadCurrentWeekCache();
+  if (!cached) return false;
+  websiteRegularSelection = { season: Number(cached.season) || 2026, week: Number(cached.week) || 1, phase: "REGULAR_SEASON", staged: Boolean(cached.games.length) };
+  updateWebsiteWeekLabels(websiteRegularSelection);
+  renderWebsiteWeekOneGrid(cached, "Cached while refreshing");
+  document.getElementById("week-one-table").dataset.instantWeek = "true";
+  decorateWebsiteWeekOneHeaders(cached);
+  return true;
+}
 function websiteWriteCurrentWeekCache(data) {
   try { localStorage.setItem(WEBSITE_CURRENT_WEEK_CACHE_KEY, JSON.stringify({ storedAt: Date.now(), data })); }
   catch (error) { console.warn(`Current Week could not be cached: ${error.message}`); }
@@ -3202,6 +3212,9 @@ async function renderSelectedWebsiteWeek(activeWeekKnown = false, currentWeekReq
   const selection = websitePickSelection();
   if (!selection.testMode) {
     const table = document.getElementById("week-one-table");
+    const pendingCurrentWeek = currentWeekRequest || (WEBSITE_SUBMISSIONS_ENDPOINT ? fetchWebsiteCurrentWeek() : null);
+    pendingCurrentWeek?.catch(() => {});
+    if (!document.querySelector("#week-one-table .picks-grid")) websiteRenderCachedCurrentWeek();
     if (!WEBSITE_SUBMISSIONS_ENDPOINT && !document.querySelector("#week-one-table .picks-grid") && table?.dataset.instantWeek !== "true") {
       const fallback = websiteWeekOneFallback();
       renderWebsiteWeekOneGrid(fallback, "Cached Week 1");
@@ -3212,7 +3225,7 @@ async function renderSelectedWebsiteWeek(activeWeekKnown = false, currentWeekReq
     const active = websitePickSelection();
     document.querySelector("#view-week-one .intro h2").textContent = `Week ${active.week}`;
     document.querySelector("#view-week-one .intro p").textContent = `${active.season}-${active.season + 1} submissions and weekly standings.`;
-    return renderWebsiteWeekOne(currentWeekRequest);
+    return renderWebsiteWeekOne(pendingCurrentWeek);
   }
   const hasExistingBoard = Boolean(document.querySelector("#week-one-table .picks-grid"));
   if (!hasExistingBoard) {
@@ -3309,7 +3322,7 @@ async function refreshWebsiteApp() {
   }, { passive: true });
   document.addEventListener("touchcancel", () => { tracking = false; resetWebsitePullRefresh(); }, { passive: true });
 }
-document.addEventListener("click",event=>{const button=event.target.closest("#nav button[data-view]");if(!button)return;if(button.dataset.view==="enter-picks")setTimeout(()=>{renderWebsitePicksForm();resetWebsiteBestBet();},0);if(button.dataset.view==="week-one")setTimeout(renderSelectedWebsiteWeek,0);});
+document.addEventListener("click",event=>{const button=event.target.closest("#nav button[data-view]");if(!button)return;if(!document.getElementById(`view-${button.dataset.view}`)?.classList.contains("active"))showView(button.dataset.view);if(button.dataset.view==="enter-picks")setTimeout(()=>{renderWebsitePicksForm();resetWebsiteBestBet();},0);if(button.dataset.view==="week-one")setTimeout(renderSelectedWebsiteWeek,0);});
 document.getElementById("website-view-week-one")?.addEventListener("click",()=>{showView("week-one");renderSelectedWebsiteWeek();});
 let profileChart = null, profileMoneyChart = null, profilePlusMinusChart = null, profilePlacementChart = null, profileBestWeeksChart = null, profileRecentChart = null, profileBestBetChart = null, profileTeamChart = null, profileClubChart = null, profileBestGamesChart = null, profileSituationalChart = null, gamePicksTable = null, weekChart = null, weekTable = null, weekRaceChart = null, winnerContributionChart = null, weeklyRankChart = null, streakChart = null, streakTable = null, seasonTopChart = null, seasonTable = null, seasonRaceChart = null, seasonPlayerChart = null, seasonMoneyChart = null, seasonConsistencyChart = null, seasonBbChart = null, seasonTeamsChart = null, seasonContrarianChart = null, seasonTbChart = null, allTimeTopChart = null, allTimePlusMinusChart = null, allTimePlusMinusTrendChart = null, allTimeGamesChart = null, allTimeArcsChart = null, allTimeMoneyChart = null, allTimeTurnoutChart = null, allTimeStreakChart = null, allTimeTeamPicksChart = null, allTimeContrarianChart = null, allTimeSeasonWeeksChart = null, manifest = [], dashboard = [], tableData = {}, websiteWeeks = [], websitePlayoffRoundNames = [], websiteAwards = [], websiteSeasons = [], websitePlayers = [], websiteRecords = [], websiteStreaks = [], websiteGames = [], websitePicks = [], websitePayouts = [];
 let allTimeAttendanceChart = null, allTimeRaceChart = null, allTimeRaceFrames = [], allTimeRaceFrame = 0, allTimeRaceTimer = null, allTimeRaceSelectedPlayer = "", allTimeRacePassesRemaining = 0, allTimeRacePlayback = { delay: RACE_FRAME_DELAY, step: 1 };
@@ -6581,14 +6594,7 @@ if (tiebreaker) {
 }
 updateWebsiteWeekLabels(websiteEntrySelection);
 showView(startupRoute);
-const cachedCurrentWeek = startupRoute === "week-one" ? websiteReadCurrentWeekCache() : null;
-if (cachedCurrentWeek) {
-  websiteRegularSelection = { season: Number(cachedCurrentWeek.season) || 2026, week: Number(cachedCurrentWeek.week) || 1, phase: "REGULAR_SEASON", staged: Boolean(cachedCurrentWeek.games.length) };
-  updateWebsiteWeekLabels(websiteRegularSelection);
-  renderWebsiteWeekOneGrid(cachedCurrentWeek, "Cached while refreshing");
-  document.getElementById("week-one-table").dataset.instantWeek = "true";
-  decorateWebsiteWeekOneHeaders(cachedCurrentWeek);
-}
+if (startupRoute === "week-one") websiteRenderCachedCurrentWeek();
 if (startupRoute === "week-one" && !WEBSITE_SUBMISSIONS_ENDPOINT) {
   const fallback = websiteWeekOneFallback();
   renderWebsiteWeekOneGrid(fallback, "Cached Week 1");
