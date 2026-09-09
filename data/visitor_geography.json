@@ -1,6 +1,6 @@
 {
-  "updatedAt": "2026-09-09T17:44:37+00:00",
-  "privacy": "Approximate locations are aggregated. Session timelines contain page names and active time only; no IP addresses, locations, browser IDs, or session IDs.",
+  "updatedAt": "2026-09-09T18:28:18+00:00",
+  "privacy": "Session timelines contain page names, active time, and approximate network city/region/country only; no IP addresses, browser IDs, or session IDs.",
   "locations": [
     {
       "country": "US",
@@ -10,9 +10,9 @@
       "city": "Richmond",
       "latitude": 37.55376,
       "longitude": -77.46026,
-      "views": 125,
-      "uniqueBrowsers": 11,
-      "sessions": 35,
+      "views": 139,
+      "uniqueBrowsers": 12,
+      "sessions": 37,
       "pickStarts": 3,
       "submissions": 2
     },
@@ -341,9 +341,78 @@
   ],
   "sessions": [
     {
+      "sessionNumber": 262,
+      "startedAt": "2026-09-09T14:00:17-04:00",
+      "activeSeconds": 0,
+      "location": {
+        "city": "Richmond",
+        "region": "Virginia",
+        "country": "US"
+      },
+      "pages": [
+        {
+          "view": "week-one",
+          "enteredAt": "2026-09-09T14:00:17-04:00",
+          "durationSeconds": null
+        },
+        {
+          "view": "week-one",
+          "enteredAt": "2026-09-09T14:09:42-04:00",
+          "durationSeconds": null
+        },
+        {
+          "view": "enter-picks",
+          "enteredAt": "2026-09-09T14:09:58-04:00",
+          "durationSeconds": null
+        },
+        {
+          "view": "enter-picks",
+          "enteredAt": "2026-09-09T14:10:50-04:00",
+          "durationSeconds": null
+        },
+        {
+          "view": "enter-picks",
+          "enteredAt": "2026-09-09T14:11:13-04:00",
+          "durationSeconds": null
+        },
+        {
+          "view": "enter-picks",
+          "enteredAt": "2026-09-09T14:20:07-04:00",
+          "durationSeconds": null
+        },
+        {
+          "view": "week-one",
+          "enteredAt": "2026-09-09T14:20:41-04:00",
+          "durationSeconds": null
+        }
+      ]
+    },
+    {
+      "sessionNumber": 261,
+      "startedAt": "2026-09-09T13:59:12-04:00",
+      "activeSeconds": 0,
+      "location": {
+        "city": "Richmond",
+        "region": "Virginia",
+        "country": "US"
+      },
+      "pages": [
+        {
+          "view": "week-one",
+          "enteredAt": "2026-09-09T13:59:12-04:00",
+          "durationSeconds": null
+        }
+      ]
+    },
+    {
       "sessionNumber": 260,
       "startedAt": "2026-09-09T13:35:21-04:00",
       "activeSeconds": 164,
+      "location": {
+        "city": "Allentown",
+        "region": "Pennsylvania",
+        "country": "US"
+      },
       "pages": [
         {
           "view": "names",
@@ -361,6 +430,11 @@
       "sessionNumber": 259,
       "startedAt": "2026-09-09T13:27:43-04:00",
       "activeSeconds": 0,
+      "location": {
+        "city": "Richmond",
+        "region": "Virginia",
+        "country": "US"
+      },
       "pages": [
         {
           "view": "enter-picks",
@@ -371,13 +445,28 @@
           "view": "enter-picks",
           "enteredAt": "2026-09-09T13:34:26-04:00",
           "durationSeconds": null
+        },
+        {
+          "view": "faq",
+          "enteredAt": "2026-09-09T13:46:17-04:00",
+          "durationSeconds": null
+        },
+        {
+          "view": "map",
+          "enteredAt": "2026-09-09T13:46:26-04:00",
+          "durationSeconds": null
         }
       ]
     },
     {
       "sessionNumber": 258,
       "startedAt": "2026-09-09T13:24:33-04:00",
-      "activeSeconds": 62,
+      "activeSeconds": 311,
+      "location": {
+        "city": "Richmond",
+        "region": "Virginia",
+        "country": "US"
+      },
       "pages": [
         {
           "view": "week-one",
@@ -387,6 +476,26 @@
         {
           "view": "enter-picks",
           "enteredAt": "2026-09-09T13:25:43-04:00",
+          "durationSeconds": 220
+        },
+        {
+          "view": "week-one",
+          "enteredAt": "2026-09-09T14:23:55-04:00",
+          "durationSeconds": 25
+        },
+        {
+          "view": "season",
+          "enteredAt": "2026-09-09T14:24:19-04:00",
+          "durationSeconds": null
+        },
+        {
+          "view": "week-one",
+          "enteredAt": "2026-09-09T14:24:26-04:00",
+          "durationSeconds": 4
+        },
+        {
+          "view": "map",
+          "enteredAt": "2026-09-09T14:24:40-04:00",
           "durationSeconds": null
         }
       ]
@@ -395,6 +504,11 @@
       "sessionNumber": 257,
       "startedAt": "2026-09-09T13:19:47-04:00",
       "activeSeconds": 0,
+      "location": {
+        "city": "Richmond",
+        "region": "Virginia",
+        "country": "US"
+      },
       "pages": [
         {
           "view": "enter-picks",
@@ -407,6 +521,11 @@
       "sessionNumber": 256,
       "startedAt": "2026-09-09T13:15:20-04:00",
       "activeSeconds": 5,
+      "location": {
+        "city": "Richmond",
+        "region": "Virginia",
+        "country": "US"
+      },
       "pages": [
         {
           "view": "enter-picks",
@@ -429,6 +548,11 @@
       "sessionNumber": 255,
       "startedAt": "2026-09-09T13:05:53-04:00",
       "activeSeconds": 0,
+      "location": {
+        "city": "New Castle",
+        "region": "Delaware",
+        "country": "US"
+      },
       "pages": [
         {
           "view": "enter-picks",
@@ -441,6 +565,11 @@
       "sessionNumber": 254,
       "startedAt": "2026-09-09T13:04:24-04:00",
       "activeSeconds": 4,
+      "location": {
+        "city": "Houston",
+        "region": "Texas",
+        "country": "US"
+      },
       "pages": [
         {
           "view": "enter-picks",
@@ -453,6 +582,11 @@
       "sessionNumber": 253,
       "startedAt": "2026-09-09T12:59:21-04:00",
       "activeSeconds": 0,
+      "location": {
+        "city": "Fort George G Mead Junction",
+        "region": "Maryland",
+        "country": "US"
+      },
       "pages": [
         {
           "view": "enter-picks",
@@ -465,6 +599,11 @@
       "sessionNumber": 252,
       "startedAt": "2026-09-09T12:58:14-04:00",
       "activeSeconds": 706,
+      "location": {
+        "city": "Richmond",
+        "region": "Virginia",
+        "country": "US"
+      },
       "pages": [
         {
           "view": "enter-picks",
@@ -516,12 +655,17 @@
     {
       "sessionNumber": 251,
       "startedAt": "2026-09-09T12:56:15-04:00",
-      "activeSeconds": 0,
+      "activeSeconds": 48,
+      "location": {
+        "city": "Ashburn",
+        "region": "Virginia",
+        "country": "US"
+      },
       "pages": [
         {
           "view": "alltime",
           "enteredAt": "2026-09-09T12:56:23-04:00",
-          "durationSeconds": null
+          "durationSeconds": 48
         }
       ]
     },
@@ -529,6 +673,11 @@
       "sessionNumber": 250,
       "startedAt": "2026-09-09T12:55:53-04:00",
       "activeSeconds": 0,
+      "location": {
+        "city": "Ashburn",
+        "region": "Virginia",
+        "country": "US"
+      },
       "pages": [
         {
           "view": "enter-picks",
@@ -541,6 +690,11 @@
       "sessionNumber": 249,
       "startedAt": "2026-09-09T12:54:14-04:00",
       "activeSeconds": 119,
+      "location": {
+        "city": "Richmond",
+        "region": "Virginia",
+        "country": "US"
+      },
       "pages": [
         {
           "view": "enter-picks",
@@ -578,6 +732,11 @@
       "sessionNumber": 248,
       "startedAt": "2026-09-09T12:46:24-04:00",
       "activeSeconds": 0,
+      "location": {
+        "city": "Houston",
+        "region": "Texas",
+        "country": "US"
+      },
       "pages": [
         {
           "view": "enter-picks",
@@ -595,6 +754,11 @@
       "sessionNumber": 247,
       "startedAt": "2026-09-09T12:21:42-04:00",
       "activeSeconds": 28,
+      "location": {
+        "city": "Manteo",
+        "region": "North Carolina",
+        "country": "US"
+      },
       "pages": [
         {
           "view": "week-one",
@@ -622,6 +786,11 @@
       "sessionNumber": 246,
       "startedAt": "2026-09-09T11:43:47-04:00",
       "activeSeconds": 120,
+      "location": {
+        "city": "Charlottesville",
+        "region": "Virginia",
+        "country": "US"
+      },
       "pages": [
         {
           "view": "week-one",
@@ -634,6 +803,11 @@
       "sessionNumber": 245,
       "startedAt": "2026-09-09T11:28:22-04:00",
       "activeSeconds": 0,
+      "location": {
+        "city": "Richmond",
+        "region": "Virginia",
+        "country": "US"
+      },
       "pages": [
         {
           "view": "enter-picks",
@@ -651,6 +825,11 @@
       "sessionNumber": 244,
       "startedAt": "2026-09-09T11:12:01-04:00",
       "activeSeconds": 229,
+      "location": {
+        "city": "New York City",
+        "region": "New York",
+        "country": "US"
+      },
       "pages": [
         {
           "view": "enter-picks",
@@ -693,6 +872,11 @@
       "sessionNumber": 243,
       "startedAt": "2026-09-09T10:41:58-04:00",
       "activeSeconds": 156,
+      "location": {
+        "city": "Mechanicsville",
+        "region": "Virginia",
+        "country": "US"
+      },
       "pages": [
         {
           "view": "week-one",
@@ -720,6 +904,11 @@
       "sessionNumber": 242,
       "startedAt": "2026-09-09T10:29:08-04:00",
       "activeSeconds": 0,
+      "location": {
+        "city": "New York City",
+        "region": "New York",
+        "country": "US"
+      },
       "pages": [
         {
           "view": "enter-picks",
@@ -732,6 +921,11 @@
       "sessionNumber": 241,
       "startedAt": "2026-09-09T10:17:54-04:00",
       "activeSeconds": 961,
+      "location": {
+        "city": "Houston",
+        "region": "Texas",
+        "country": "US"
+      },
       "pages": [
         {
           "view": "alltime",
@@ -759,6 +953,11 @@
       "sessionNumber": 240,
       "startedAt": "2026-09-09T09:29:34-04:00",
       "activeSeconds": 3,
+      "location": {
+        "city": "Schertz",
+        "region": "Texas",
+        "country": "US"
+      },
       "pages": [
         {
           "view": "week-one",
@@ -771,6 +970,11 @@
       "sessionNumber": 239,
       "startedAt": "2026-09-09T08:28:29-04:00",
       "activeSeconds": 23,
+      "location": {
+        "city": "Richmond",
+        "region": "Virginia",
+        "country": "US"
+      },
       "pages": [
         {
           "view": "week-one",
@@ -788,6 +992,11 @@
       "sessionNumber": 238,
       "startedAt": "2026-09-09T07:00:15-04:00",
       "activeSeconds": 30,
+      "location": {
+        "city": "Coral Springs",
+        "region": "Florida",
+        "country": "US"
+      },
       "pages": [
         {
           "view": "week-one",
@@ -815,6 +1024,11 @@
       "sessionNumber": 237,
       "startedAt": "2026-09-09T01:09:58-04:00",
       "activeSeconds": 75,
+      "location": {
+        "city": "Richmond",
+        "region": "Virginia",
+        "country": "US"
+      },
       "pages": [
         {
           "view": "week-one",
@@ -842,6 +1056,11 @@
       "sessionNumber": 236,
       "startedAt": "2026-09-08T18:33:36-04:00",
       "activeSeconds": 194,
+      "location": {
+        "city": "Richmond",
+        "region": "Virginia",
+        "country": "US"
+      },
       "pages": [
         {
           "view": "week-one",
@@ -864,6 +1083,11 @@
       "sessionNumber": 235,
       "startedAt": "2026-09-08T17:40:46-04:00",
       "activeSeconds": 308,
+      "location": {
+        "city": "Spotsylvania Courthouse",
+        "region": "Virginia",
+        "country": "US"
+      },
       "pages": [
         {
           "view": "enter-picks",
@@ -881,6 +1105,11 @@
       "sessionNumber": 234,
       "startedAt": "2026-09-08T16:06:04-04:00",
       "activeSeconds": 0,
+      "location": {
+        "city": "Closter",
+        "region": "New Jersey",
+        "country": "US"
+      },
       "pages": [
         {
           "view": "enter-picks",
@@ -893,6 +1122,11 @@
       "sessionNumber": 233,
       "startedAt": "2026-09-08T14:55:02-04:00",
       "activeSeconds": 49,
+      "location": {
+        "city": "Richmond",
+        "region": "Virginia",
+        "country": "US"
+      },
       "pages": [
         {
           "view": "enter-picks",
@@ -935,6 +1169,11 @@
       "sessionNumber": 232,
       "startedAt": "2026-09-08T09:24:00-04:00",
       "activeSeconds": 0,
+      "location": {
+        "city": "Richmond",
+        "region": "Virginia",
+        "country": "US"
+      },
       "pages": [
         {
           "view": "weeks",
@@ -947,6 +1186,11 @@
       "sessionNumber": 231,
       "startedAt": "2026-09-08T09:16:58-04:00",
       "activeSeconds": 0,
+      "location": {
+        "city": "Richmond",
+        "region": "Virginia",
+        "country": "US"
+      },
       "pages": [
         {
           "view": "enter-picks",
@@ -959,6 +1203,11 @@
       "sessionNumber": 230,
       "startedAt": "2026-09-08T09:04:31-04:00",
       "activeSeconds": 58,
+      "location": {
+        "city": "Winchester",
+        "region": "Virginia",
+        "country": "US"
+      },
       "pages": [
         {
           "view": "players",
@@ -981,6 +1230,11 @@
       "sessionNumber": 229,
       "startedAt": "2026-09-08T09:02:41-04:00",
       "activeSeconds": 5,
+      "location": {
+        "city": "New York City",
+        "region": "New York",
+        "country": "US"
+      },
       "pages": [
         {
           "view": "week-one",
@@ -1003,6 +1257,11 @@
       "sessionNumber": 228,
       "startedAt": "2026-09-08T09:01:49-04:00",
       "activeSeconds": 67,
+      "location": {
+        "city": "New York City",
+        "region": "New York",
+        "country": "US"
+      },
       "pages": [
         {
           "view": "enter-picks",
@@ -1030,6 +1289,11 @@
       "sessionNumber": 227,
       "startedAt": "2026-09-08T08:23:27-04:00",
       "activeSeconds": 0,
+      "location": {
+        "city": "Richmond",
+        "region": "Virginia",
+        "country": "US"
+      },
       "pages": [
         {
           "view": "enter-picks",
@@ -1042,6 +1306,11 @@
       "sessionNumber": 226,
       "startedAt": "2026-09-07T19:55:12-04:00",
       "activeSeconds": 15,
+      "location": {
+        "city": "Richmond",
+        "region": "Virginia",
+        "country": "US"
+      },
       "pages": [
         {
           "view": "enter-picks",
@@ -1059,6 +1328,11 @@
       "sessionNumber": 225,
       "startedAt": "2026-09-07T19:54:29-04:00",
       "activeSeconds": 5,
+      "location": {
+        "city": "Richmond",
+        "region": "Virginia",
+        "country": "US"
+      },
       "pages": [
         {
           "view": "week-one",
@@ -1071,6 +1345,11 @@
       "sessionNumber": 224,
       "startedAt": "2026-09-07T19:49:52-04:00",
       "activeSeconds": 0,
+      "location": {
+        "city": "Richmond",
+        "region": "Virginia",
+        "country": "US"
+      },
       "pages": [
         {
           "view": "payout",
@@ -1083,6 +1362,11 @@
       "sessionNumber": 223,
       "startedAt": "2026-09-07T17:49:13-04:00",
       "activeSeconds": 0,
+      "location": {
+        "city": "Highland Springs",
+        "region": "Virginia",
+        "country": "US"
+      },
       "pages": [
         {
           "view": "enter-picks",
@@ -1095,6 +1379,11 @@
       "sessionNumber": 222,
       "startedAt": "2026-09-07T17:47:46-04:00",
       "activeSeconds": 0,
+      "location": {
+        "city": "Highland Springs",
+        "region": "Virginia",
+        "country": "US"
+      },
       "pages": [
         {
           "view": "enter-picks",
@@ -1107,6 +1396,11 @@
       "sessionNumber": 221,
       "startedAt": "2026-09-07T17:46:14-04:00",
       "activeSeconds": 8,
+      "location": {
+        "city": "Highland Springs",
+        "region": "Virginia",
+        "country": "US"
+      },
       "pages": [
         {
           "view": "week-one",
@@ -1124,6 +1418,11 @@
       "sessionNumber": 220,
       "startedAt": "2026-09-07T17:33:25-04:00",
       "activeSeconds": 3,
+      "location": {
+        "city": "Highland Springs",
+        "region": "Virginia",
+        "country": "US"
+      },
       "pages": [
         {
           "view": "week-one",
@@ -1141,6 +1440,11 @@
       "sessionNumber": 219,
       "startedAt": "2026-09-07T17:33:12-04:00",
       "activeSeconds": 0,
+      "location": {
+        "city": "Highland Springs",
+        "region": "Virginia",
+        "country": "US"
+      },
       "pages": [
         {
           "view": "week-one",
@@ -1153,6 +1457,11 @@
       "sessionNumber": 218,
       "startedAt": "2026-09-07T17:32:56-04:00",
       "activeSeconds": 0,
+      "location": {
+        "city": "Highland Springs",
+        "region": "Virginia",
+        "country": "US"
+      },
       "pages": [
         {
           "view": "week-one",
@@ -1165,6 +1474,11 @@
       "sessionNumber": 217,
       "startedAt": "2026-09-07T13:12:08-04:00",
       "activeSeconds": 2,
+      "location": {
+        "city": "Richmond",
+        "region": "Virginia",
+        "country": "US"
+      },
       "pages": [
         {
           "view": "week-one",
@@ -1177,6 +1491,11 @@
       "sessionNumber": 216,
       "startedAt": "2026-09-07T12:41:08-04:00",
       "activeSeconds": 2,
+      "location": {
+        "city": "Richmond",
+        "region": "Virginia",
+        "country": "US"
+      },
       "pages": [
         {
           "view": "week-one",
@@ -1189,6 +1508,11 @@
       "sessionNumber": 215,
       "startedAt": "2026-09-07T11:41:43-04:00",
       "activeSeconds": 589,
+      "location": {
+        "city": "Richmond",
+        "region": "Virginia",
+        "country": "US"
+      },
       "pages": [
         {
           "view": "map",
@@ -1236,6 +1560,11 @@
       "sessionNumber": 214,
       "startedAt": "2026-09-07T11:01:05-04:00",
       "activeSeconds": 1110,
+      "location": {
+        "city": "Tuckahoe",
+        "region": "Virginia",
+        "country": "US"
+      },
       "pages": [
         {
           "view": "week-one",
@@ -1338,6 +1667,11 @@
       "sessionNumber": 213,
       "startedAt": "2026-09-07T09:27:45-04:00",
       "activeSeconds": 0,
+      "location": {
+        "city": "Richmond",
+        "region": "Virginia",
+        "country": "US"
+      },
       "pages": [
         {
           "view": "enter-picks",
@@ -1350,6 +1684,11 @@
       "sessionNumber": 212,
       "startedAt": "2026-09-07T08:57:27-04:00",
       "activeSeconds": 9,
+      "location": {
+        "city": "Westerly",
+        "region": "Rhode Island",
+        "country": "US"
+      },
       "pages": [
         {
           "view": "week-one",
@@ -1367,6 +1706,11 @@
       "sessionNumber": 211,
       "startedAt": "2026-09-07T08:26:55-04:00",
       "activeSeconds": 635,
+      "location": {
+        "city": "Westerly",
+        "region": "Rhode Island",
+        "country": "US"
+      },
       "pages": [
         {
           "view": "week-one",
@@ -1409,6 +1753,11 @@
       "sessionNumber": 210,
       "startedAt": "2026-09-07T07:59:31-04:00",
       "activeSeconds": 9,
+      "location": {
+        "city": "Saint Petersburg",
+        "region": "St.-Petersburg",
+        "country": "RU"
+      },
       "pages": [
         {
           "view": "week-one",
@@ -1421,6 +1770,11 @@
       "sessionNumber": 209,
       "startedAt": "2026-09-07T07:25:13-04:00",
       "activeSeconds": 101,
+      "location": {
+        "city": "Richmond",
+        "region": "Virginia",
+        "country": "US"
+      },
       "pages": [
         {
           "view": "map",
@@ -1453,6 +1807,11 @@
       "sessionNumber": 208,
       "startedAt": "2026-09-07T07:24:26-04:00",
       "activeSeconds": 52,
+      "location": {
+        "city": "Richmond",
+        "region": "Virginia",
+        "country": "US"
+      },
       "pages": [
         {
           "view": "week-one",
@@ -1465,6 +1824,11 @@
       "sessionNumber": 207,
       "startedAt": "2026-09-06T10:11:11-04:00",
       "activeSeconds": 0,
+      "location": {
+        "city": "Westerly",
+        "region": "Rhode Island",
+        "country": "US"
+      },
       "pages": [
         {
           "view": "week-one",
@@ -1477,6 +1841,11 @@
       "sessionNumber": 206,
       "startedAt": "2026-09-06T09:08:29-04:00",
       "activeSeconds": 0,
+      "location": {
+        "city": "Westerly",
+        "region": "Rhode Island",
+        "country": "US"
+      },
       "pages": [
         {
           "view": "names",
@@ -1489,6 +1858,11 @@
       "sessionNumber": 205,
       "startedAt": "2026-09-06T04:18:43-04:00",
       "activeSeconds": 0,
+      "location": {
+        "city": "Wintergreen",
+        "region": "Virginia",
+        "country": "US"
+      },
       "pages": [
         {
           "view": "map",
@@ -1501,6 +1875,11 @@
       "sessionNumber": 204,
       "startedAt": "2026-09-05T22:45:36-04:00",
       "activeSeconds": 142,
+      "location": {
+        "city": "Wintergreen",
+        "region": "Virginia",
+        "country": "US"
+      },
       "pages": [
         {
           "view": "players",
@@ -1538,6 +1917,11 @@
       "sessionNumber": 203,
       "startedAt": "2026-09-05T19:26:47-04:00",
       "activeSeconds": 0,
+      "location": {
+        "city": "Closter",
+        "region": "New Jersey",
+        "country": "US"
+      },
       "pages": [
         {
           "view": "enter-picks",
@@ -1550,6 +1934,11 @@
       "sessionNumber": 202,
       "startedAt": "2026-09-05T17:53:42-04:00",
       "activeSeconds": 0,
+      "location": {
+        "city": "The Dalles",
+        "region": "Oregon",
+        "country": "US"
+      },
       "pages": [
         {
           "view": "week-one",
@@ -1562,6 +1951,11 @@
       "sessionNumber": 201,
       "startedAt": "2026-09-05T17:53:32-04:00",
       "activeSeconds": 610,
+      "location": {
+        "city": "Short Pump",
+        "region": "Virginia",
+        "country": "US"
+      },
       "pages": [
         {
           "view": "week-one",
@@ -1589,6 +1983,11 @@
       "sessionNumber": 200,
       "startedAt": "2026-09-05T13:22:24-04:00",
       "activeSeconds": 72,
+      "location": {
+        "city": "Dallas",
+        "region": "Texas",
+        "country": "US"
+      },
       "pages": [
         {
           "view": "picks-confirmation",
@@ -1611,6 +2010,11 @@
       "sessionNumber": 199,
       "startedAt": "2026-09-05T10:58:03-04:00",
       "activeSeconds": 0,
+      "location": {
+        "city": "Richmond",
+        "region": "Virginia",
+        "country": "US"
+      },
       "pages": [
         {
           "view": "streaks",
@@ -1623,6 +2027,11 @@
       "sessionNumber": 198,
       "startedAt": "2026-09-05T10:13:57-04:00",
       "activeSeconds": 310,
+      "location": {
+        "city": "Richmond",
+        "region": "Virginia",
+        "country": "US"
+      },
       "pages": [
         {
           "view": "week-one",
@@ -1660,6 +2069,11 @@
       "sessionNumber": 197,
       "startedAt": "2026-09-04T20:30:11-04:00",
       "activeSeconds": 0,
+      "location": {
+        "city": "Roanoke",
+        "region": "Virginia",
+        "country": "US"
+      },
       "pages": [
         {
           "view": "players",
@@ -1672,6 +2086,11 @@
       "sessionNumber": 196,
       "startedAt": "2026-09-04T19:59:20-04:00",
       "activeSeconds": 97,
+      "location": {
+        "city": "Roanoke",
+        "region": "Virginia",
+        "country": "US"
+      },
       "pages": [
         {
           "view": "names",
@@ -1699,6 +2118,11 @@
       "sessionNumber": 195,
       "startedAt": "2026-09-04T19:48:37-04:00",
       "activeSeconds": 503,
+      "location": {
+        "city": "Short Pump",
+        "region": "Virginia",
+        "country": "US"
+      },
       "pages": [
         {
           "view": "enter-picks",
@@ -1741,6 +2165,11 @@
       "sessionNumber": 194,
       "startedAt": "2026-09-04T19:47:11-04:00",
       "activeSeconds": 15,
+      "location": {
+        "city": "Roanoke",
+        "region": "Virginia",
+        "country": "US"
+      },
       "pages": [
         {
           "view": "map",
@@ -1758,6 +2187,11 @@
       "sessionNumber": 193,
       "startedAt": "2026-09-04T12:37:47-04:00",
       "activeSeconds": 0,
+      "location": {
+        "city": "New York City",
+        "region": "New York",
+        "country": "US"
+      },
       "pages": [
         {
           "view": "enter-picks",
@@ -1770,6 +2204,11 @@
       "sessionNumber": 192,
       "startedAt": "2026-09-04T10:27:23-04:00",
       "activeSeconds": 7,
+      "location": {
+        "city": "New York City",
+        "region": "New York",
+        "country": "US"
+      },
       "pages": [
         {
           "view": "week-one",
@@ -1787,6 +2226,11 @@
       "sessionNumber": 191,
       "startedAt": "2026-09-04T09:03:28-04:00",
       "activeSeconds": 87944,
+      "location": {
+        "city": "Richmond",
+        "region": "Virginia",
+        "country": "US"
+      },
       "pages": [
         {
           "view": "alltime",
@@ -1869,6 +2313,11 @@
       "sessionNumber": 190,
       "startedAt": "2026-09-04T09:02:01-04:00",
       "activeSeconds": 0,
+      "location": {
+        "city": "Richmond",
+        "region": "Virginia",
+        "country": "US"
+      },
       "pages": [
         {
           "view": "streaks",
@@ -1886,6 +2335,11 @@
       "sessionNumber": 189,
       "startedAt": "2026-09-04T07:31:27-04:00",
       "activeSeconds": 0,
+      "location": {
+        "city": "Richmond",
+        "region": "Virginia",
+        "country": "US"
+      },
       "pages": [
         {
           "view": "players",
@@ -1903,6 +2357,11 @@
       "sessionNumber": 188,
       "startedAt": "2026-09-04T05:51:44-04:00",
       "activeSeconds": 0,
+      "location": {
+        "city": "Closter",
+        "region": "New Jersey",
+        "country": "US"
+      },
       "pages": [
         {
           "view": "week-one",
@@ -1915,6 +2374,11 @@
       "sessionNumber": 187,
       "startedAt": "2026-09-03T17:19:49-04:00",
       "activeSeconds": 173,
+      "location": {
+        "city": "Richmond",
+        "region": "Virginia",
+        "country": "US"
+      },
       "pages": [
         {
           "view": "map",
@@ -1967,6 +2431,11 @@
       "sessionNumber": 186,
       "startedAt": "2026-09-03T16:47:48-04:00",
       "activeSeconds": 62,
+      "location": {
+        "city": "Richmond",
+        "region": "Virginia",
+        "country": "US"
+      },
       "pages": [
         {
           "view": "faq",
@@ -1989,6 +2458,11 @@
       "sessionNumber": 185,
       "startedAt": "2026-09-03T16:46:45-04:00",
       "activeSeconds": 2,
+      "location": {
+        "city": "Richmond",
+        "region": "Virginia",
+        "country": "US"
+      },
       "pages": [
         {
           "view": "week-one",
@@ -2001,6 +2475,11 @@
       "sessionNumber": 184,
       "startedAt": "2026-09-03T16:33:19-04:00",
       "activeSeconds": 0,
+      "location": {
+        "city": "Richmond",
+        "region": "Virginia",
+        "country": "US"
+      },
       "pages": [
         {
           "view": "teams",
@@ -2018,6 +2497,11 @@
       "sessionNumber": 183,
       "startedAt": "2026-09-03T16:17:13-04:00",
       "activeSeconds": 8,
+      "location": {
+        "city": "Richmond",
+        "region": "Virginia",
+        "country": "US"
+      },
       "pages": [
         {
           "view": "names",
@@ -2055,6 +2539,7 @@
       "sessionNumber": 182,
       "startedAt": "2026-09-03T16:00:18-04:00",
       "activeSeconds": 0,
+      "location": {},
       "pages": [
         {
           "view": "week-one",
@@ -2067,6 +2552,7 @@
       "sessionNumber": 181,
       "startedAt": "2026-09-03T15:59:52-04:00",
       "activeSeconds": 0,
+      "location": {},
       "pages": [
         {
           "view": "names",
@@ -2079,6 +2565,7 @@
       "sessionNumber": 180,
       "startedAt": "2026-09-03T15:53:06-04:00",
       "activeSeconds": 0,
+      "location": {},
       "pages": [
         {
           "view": "week-one",
@@ -2091,6 +2578,7 @@
       "sessionNumber": 179,
       "startedAt": "2026-09-03T15:52:57-04:00",
       "activeSeconds": 0,
+      "location": {},
       "pages": [
         {
           "view": "week-one",
@@ -2103,6 +2591,7 @@
       "sessionNumber": 178,
       "startedAt": "2026-09-03T15:52:14-04:00",
       "activeSeconds": 0,
+      "location": {},
       "pages": [
         {
           "view": "week-one",
@@ -2115,6 +2604,7 @@
       "sessionNumber": 177,
       "startedAt": "2026-09-03T15:52:00-04:00",
       "activeSeconds": 0,
+      "location": {},
       "pages": [
         {
           "view": "names",
@@ -2127,6 +2617,7 @@
       "sessionNumber": 176,
       "startedAt": "2026-09-03T15:18:48-04:00",
       "activeSeconds": 0,
+      "location": {},
       "pages": [
         {
           "view": "names",
@@ -2174,6 +2665,7 @@
       "sessionNumber": 175,
       "startedAt": "2026-09-03T15:10:34-04:00",
       "activeSeconds": 0,
+      "location": {},
       "pages": [
         {
           "view": "names",
@@ -2186,6 +2678,7 @@
       "sessionNumber": 174,
       "startedAt": "2026-09-03T15:08:46-04:00",
       "activeSeconds": 0,
+      "location": {},
       "pages": [
         {
           "view": "names",
@@ -2198,6 +2691,11 @@
       "sessionNumber": 173,
       "startedAt": "2026-09-03T13:40:23-04:00",
       "activeSeconds": 6,
+      "location": {
+        "city": "Richmond",
+        "region": "Virginia",
+        "country": "US"
+      },
       "pages": [
         {
           "view": "names",
@@ -2235,6 +2733,7 @@
       "sessionNumber": 172,
       "startedAt": "2026-09-03T13:20:53-04:00",
       "activeSeconds": 0,
+      "location": {},
       "pages": [
         {
           "view": "names",
@@ -2247,6 +2746,7 @@
       "sessionNumber": 171,
       "startedAt": "2026-09-03T12:03:39-04:00",
       "activeSeconds": 0,
+      "location": {},
       "pages": [
         {
           "view": "season",
@@ -2279,6 +2779,7 @@
       "sessionNumber": 170,
       "startedAt": "2026-09-03T11:54:24-04:00",
       "activeSeconds": 0,
+      "location": {},
       "pages": [
         {
           "view": "payout",
@@ -2311,6 +2812,7 @@
       "sessionNumber": 169,
       "startedAt": "2026-09-03T11:48:01-04:00",
       "activeSeconds": 0,
+      "location": {},
       "pages": [
         {
           "view": "names",
@@ -2343,6 +2845,7 @@
       "sessionNumber": 168,
       "startedAt": "2026-09-03T11:22:12-04:00",
       "activeSeconds": 0,
+      "location": {},
       "pages": [
         {
           "view": "season",
@@ -2365,6 +2868,7 @@
       "sessionNumber": 167,
       "startedAt": "2026-09-03T11:04:17-04:00",
       "activeSeconds": 0,
+      "location": {},
       "pages": [
         {
           "view": "alltime",
@@ -2382,6 +2886,7 @@
       "sessionNumber": 166,
       "startedAt": "2026-09-03T10:38:11-04:00",
       "activeSeconds": 0,
+      "location": {},
       "pages": [
         {
           "view": "players",
@@ -2404,6 +2909,7 @@
       "sessionNumber": 165,
       "startedAt": "2026-09-03T10:36:17-04:00",
       "activeSeconds": 0,
+      "location": {},
       "pages": [
         {
           "view": "players",
@@ -2416,6 +2922,7 @@
       "sessionNumber": 164,
       "startedAt": "2026-09-03T10:35:55-04:00",
       "activeSeconds": 0,
+      "location": {},
       "pages": [
         {
           "view": "players",
@@ -2428,6 +2935,7 @@
       "sessionNumber": 163,
       "startedAt": "2026-09-03T10:29:11-04:00",
       "activeSeconds": 0,
+      "location": {},
       "pages": [
         {
           "view": "week-one",
@@ -2440,6 +2948,7 @@
       "sessionNumber": 162,
       "startedAt": "2026-09-03T10:28:54-04:00",
       "activeSeconds": 0,
+      "location": {},
       "pages": [
         {
           "view": "week-one",
@@ -2457,6 +2966,7 @@
       "sessionNumber": 161,
       "startedAt": "2026-09-03T10:25:09-04:00",
       "activeSeconds": 0,
+      "location": {},
       "pages": [
         {
           "view": "week-one",
@@ -2479,6 +2989,11 @@
       "sessionNumber": 160,
       "startedAt": "2026-09-03T10:22:39-04:00",
       "activeSeconds": 16992,
+      "location": {
+        "city": "Richmond",
+        "region": "Virginia",
+        "country": "US"
+      },
       "pages": [
         {
           "view": "weeks",
@@ -2661,6 +3176,7 @@
       "sessionNumber": 159,
       "startedAt": "2026-09-03T10:19:04-04:00",
       "activeSeconds": 0,
+      "location": {},
       "pages": [
         {
           "view": "enter-picks",
@@ -2673,6 +3189,7 @@
       "sessionNumber": 158,
       "startedAt": "2026-09-03T10:18:00-04:00",
       "activeSeconds": 0,
+      "location": {},
       "pages": [
         {
           "view": "week-one",
@@ -2700,6 +3217,7 @@
       "sessionNumber": 157,
       "startedAt": "2026-09-03T10:14:51-04:00",
       "activeSeconds": 0,
+      "location": {},
       "pages": [
         {
           "view": "week-one",
@@ -2717,6 +3235,7 @@
       "sessionNumber": 156,
       "startedAt": "2026-09-03T10:08:50-04:00",
       "activeSeconds": 0,
+      "location": {},
       "pages": [
         {
           "view": "alltime",
@@ -2769,6 +3288,7 @@
       "sessionNumber": 155,
       "startedAt": "2026-09-03T10:03:34-04:00",
       "activeSeconds": 0,
+      "location": {},
       "pages": [
         {
           "view": "payout",
@@ -2836,6 +3356,7 @@
       "sessionNumber": 154,
       "startedAt": "2026-09-03T10:03:13-04:00",
       "activeSeconds": 0,
+      "location": {},
       "pages": [
         {
           "view": "picks-confirmation",
@@ -2848,6 +3369,7 @@
       "sessionNumber": 153,
       "startedAt": "2026-09-03T10:03:07-04:00",
       "activeSeconds": 0,
+      "location": {},
       "pages": [
         {
           "view": "picks-confirmation",
@@ -2860,6 +3382,7 @@
       "sessionNumber": 152,
       "startedAt": "2026-09-03T09:57:35-04:00",
       "activeSeconds": 0,
+      "location": {},
       "pages": [
         {
           "view": "players",
@@ -2882,6 +3405,7 @@
       "sessionNumber": 151,
       "startedAt": "2026-09-03T09:44:20-04:00",
       "activeSeconds": 0,
+      "location": {},
       "pages": [
         {
           "view": "week-one",
@@ -2914,6 +3438,7 @@
       "sessionNumber": 150,
       "startedAt": "2026-09-03T09:41:44-04:00",
       "activeSeconds": 0,
+      "location": {},
       "pages": [
         {
           "view": "players",
@@ -2981,6 +3506,7 @@
       "sessionNumber": 149,
       "startedAt": "2026-09-03T08:45:03-04:00",
       "activeSeconds": 0,
+      "location": {},
       "pages": [
         {
           "view": "week-one",
@@ -2993,6 +3519,7 @@
       "sessionNumber": 148,
       "startedAt": "2026-09-03T08:36:09-04:00",
       "activeSeconds": 0,
+      "location": {},
       "pages": [
         {
           "view": "week-one",
@@ -3020,6 +3547,7 @@
       "sessionNumber": 147,
       "startedAt": "2026-09-03T08:32:41-04:00",
       "activeSeconds": 0,
+      "location": {},
       "pages": [
         {
           "view": "payout",
@@ -3032,6 +3560,7 @@
       "sessionNumber": 146,
       "startedAt": "2026-09-03T08:32:30-04:00",
       "activeSeconds": 0,
+      "location": {},
       "pages": [
         {
           "view": "payout",
@@ -3049,6 +3578,7 @@
       "sessionNumber": 145,
       "startedAt": "2026-09-03T08:31:08-04:00",
       "activeSeconds": 0,
+      "location": {},
       "pages": [
         {
           "view": "names",
@@ -3066,6 +3596,7 @@
       "sessionNumber": 144,
       "startedAt": "2026-09-03T08:23:44-04:00",
       "activeSeconds": 0,
+      "location": {},
       "pages": [
         {
           "view": "names",
@@ -3108,6 +3639,7 @@
       "sessionNumber": 143,
       "startedAt": "2026-09-03T08:22:37-04:00",
       "activeSeconds": 0,
+      "location": {},
       "pages": [
         {
           "view": "week-one",
@@ -3135,6 +3667,7 @@
       "sessionNumber": 142,
       "startedAt": "2026-09-03T08:22:24-04:00",
       "activeSeconds": 0,
+      "location": {},
       "pages": [
         {
           "view": "week-one",
@@ -3162,6 +3695,7 @@
       "sessionNumber": 141,
       "startedAt": "2026-09-03T08:21:58-04:00",
       "activeSeconds": 0,
+      "location": {},
       "pages": [
         {
           "view": "week-one",
@@ -3174,6 +3708,7 @@
       "sessionNumber": 140,
       "startedAt": "2026-09-03T08:15:18-04:00",
       "activeSeconds": 0,
+      "location": {},
       "pages": [
         {
           "view": "week-one",
@@ -3211,6 +3746,7 @@
       "sessionNumber": 139,
       "startedAt": "2026-09-03T08:14:14-04:00",
       "activeSeconds": 0,
+      "location": {},
       "pages": [
         {
           "view": "names",
@@ -3223,6 +3759,7 @@
       "sessionNumber": 138,
       "startedAt": "2026-09-03T08:14:10-04:00",
       "activeSeconds": 0,
+      "location": {},
       "pages": [
         {
           "view": "names",
@@ -3235,6 +3772,7 @@
       "sessionNumber": 137,
       "startedAt": "2026-09-03T08:12:39-04:00",
       "activeSeconds": 0,
+      "location": {},
       "pages": [
         {
           "view": "week-one",
@@ -3267,6 +3805,7 @@
       "sessionNumber": 136,
       "startedAt": "2026-09-03T08:12:34-04:00",
       "activeSeconds": 0,
+      "location": {},
       "pages": [
         {
           "view": "week-one",
@@ -3279,6 +3818,7 @@
       "sessionNumber": 135,
       "startedAt": "2026-09-03T08:08:35-04:00",
       "activeSeconds": 0,
+      "location": {},
       "pages": [
         {
           "view": "week-one",
@@ -3291,6 +3831,7 @@
       "sessionNumber": 134,
       "startedAt": "2026-09-03T07:15:46-04:00",
       "activeSeconds": 0,
+      "location": {},
       "pages": [
         {
           "view": "enter-picks",
@@ -3323,6 +3864,7 @@
       "sessionNumber": 133,
       "startedAt": "2026-09-03T02:50:32-04:00",
       "activeSeconds": 0,
+      "location": {},
       "pages": [
         {
           "view": "week-one",
@@ -3335,6 +3877,7 @@
       "sessionNumber": 132,
       "startedAt": "2026-09-02T22:49:27-04:00",
       "activeSeconds": 0,
+      "location": {},
       "pages": [
         {
           "view": "week-one",
@@ -3347,6 +3890,7 @@
       "sessionNumber": 131,
       "startedAt": "2026-09-02T22:24:31-04:00",
       "activeSeconds": 0,
+      "location": {},
       "pages": [
         {
           "view": "week-one",
@@ -3359,6 +3903,7 @@
       "sessionNumber": 130,
       "startedAt": "2026-09-02T22:24:27-04:00",
       "activeSeconds": 0,
+      "location": {},
       "pages": [
         {
           "view": "picks-confirmation",
@@ -3371,6 +3916,7 @@
       "sessionNumber": 129,
       "startedAt": "2026-09-02T22:22:47-04:00",
       "activeSeconds": 0,
+      "location": {},
       "pages": [
         {
           "view": "enter-picks",
@@ -3383,6 +3929,7 @@
       "sessionNumber": 128,
       "startedAt": "2026-09-02T21:48:00-04:00",
       "activeSeconds": 0,
+      "location": {},
       "pages": [
         {
           "view": "week-one",
@@ -3420,6 +3967,7 @@
       "sessionNumber": 127,
       "startedAt": "2026-09-02T21:43:19-04:00",
       "activeSeconds": 0,
+      "location": {},
       "pages": [
         {
           "view": "week-one",
@@ -3432,6 +3980,7 @@
       "sessionNumber": 126,
       "startedAt": "2026-09-02T21:41:32-04:00",
       "activeSeconds": 0,
+      "location": {},
       "pages": [
         {
           "view": "week-one",
@@ -3449,6 +3998,7 @@
       "sessionNumber": 125,
       "startedAt": "2026-09-02T21:35:34-04:00",
       "activeSeconds": 0,
+      "location": {},
       "pages": [
         {
           "view": "week-one",
@@ -3461,6 +4011,7 @@
       "sessionNumber": 124,
       "startedAt": "2026-09-02T21:29:58-04:00",
       "activeSeconds": 0,
+      "location": {},
       "pages": [
         {
           "view": "week-one",
@@ -3488,6 +4039,7 @@
       "sessionNumber": 123,
       "startedAt": "2026-09-02T21:28:31-04:00",
       "activeSeconds": 0,
+      "location": {},
       "pages": [
         {
           "view": "week-one",
@@ -3500,6 +4052,7 @@
       "sessionNumber": 122,
       "startedAt": "2026-09-02T21:23:19-04:00",
       "activeSeconds": 0,
+      "location": {},
       "pages": [
         {
           "view": "week-one",
@@ -3542,6 +4095,7 @@
       "sessionNumber": 121,
       "startedAt": "2026-09-02T21:23:10-04:00",
       "activeSeconds": 0,
+      "location": {},
       "pages": [
         {
           "view": "week-one",
@@ -3554,6 +4108,7 @@
       "sessionNumber": 120,
       "startedAt": "2026-09-02T21:23:04-04:00",
       "activeSeconds": 0,
+      "location": {},
       "pages": [
         {
           "view": "week-one",
@@ -3566,6 +4121,7 @@
       "sessionNumber": 119,
       "startedAt": "2026-09-02T21:21:37-04:00",
       "activeSeconds": 0,
+      "location": {},
       "pages": [
         {
           "view": "week-one",
@@ -3578,6 +4134,7 @@
       "sessionNumber": 118,
       "startedAt": "2026-09-02T21:21:05-04:00",
       "activeSeconds": 0,
+      "location": {},
       "pages": [
         {
           "view": "week-one",
@@ -3590,6 +4147,7 @@
       "sessionNumber": 117,
       "startedAt": "2026-09-02T21:19:55-04:00",
       "activeSeconds": 0,
+      "location": {},
       "pages": [
         {
           "view": "week-one",
@@ -3612,6 +4170,7 @@
       "sessionNumber": 116,
       "startedAt": "2026-09-02T21:16:06-04:00",
       "activeSeconds": 0,
+      "location": {},
       "pages": [
         {
           "view": "alltime",
@@ -3624,6 +4183,7 @@
       "sessionNumber": 115,
       "startedAt": "2026-09-02T21:14:18-04:00",
       "activeSeconds": 0,
+      "location": {},
       "pages": [
         {
           "view": "players",
@@ -3641,6 +4201,7 @@
       "sessionNumber": 114,
       "startedAt": "2026-09-02T21:09:42-04:00",
       "activeSeconds": 0,
+      "location": {},
       "pages": [
         {
           "view": "names",
@@ -3653,6 +4214,7 @@
       "sessionNumber": 113,
       "startedAt": "2026-09-02T21:02:34-04:00",
       "activeSeconds": 0,
+      "location": {},
       "pages": [
         {
           "view": "names",
@@ -3665,6 +4227,7 @@
       "sessionNumber": 112,
       "startedAt": "2026-09-02T20:38:52-04:00",
       "activeSeconds": 0,
+      "location": {},
       "pages": [
         {
           "view": "names",
@@ -3937,6 +4500,7 @@
       "sessionNumber": 111,
       "startedAt": "2026-09-02T20:35:17-04:00",
       "activeSeconds": 0,
+      "location": {},
       "pages": [
         {
           "view": "names",
@@ -3959,6 +4523,7 @@
       "sessionNumber": 110,
       "startedAt": "2026-09-02T20:27:23-04:00",
       "activeSeconds": 0,
+      "location": {},
       "pages": [
         {
           "view": "alltime",
@@ -3971,6 +4536,7 @@
       "sessionNumber": 109,
       "startedAt": "2026-09-02T20:22:15-04:00",
       "activeSeconds": 0,
+      "location": {},
       "pages": [
         {
           "view": "week-one",
@@ -4003,6 +4569,7 @@
       "sessionNumber": 108,
       "startedAt": "2026-09-02T17:56:44-04:00",
       "activeSeconds": 0,
+      "location": {},
       "pages": [
         {
           "view": "week-one",
@@ -4025,6 +4592,7 @@
       "sessionNumber": 107,
       "startedAt": "2026-09-02T17:47:01-04:00",
       "activeSeconds": 0,
+      "location": {},
       "pages": [
         {
           "view": "week-one",
@@ -4047,6 +4615,7 @@
       "sessionNumber": 106,
       "startedAt": "2026-09-02T17:44:50-04:00",
       "activeSeconds": 0,
+      "location": {},
       "pages": [
         {
           "view": "week-one",
@@ -4059,6 +4628,7 @@
       "sessionNumber": 105,
       "startedAt": "2026-09-02T17:36:19-04:00",
       "activeSeconds": 0,
+      "location": {},
       "pages": [
         {
           "view": "week-one",
@@ -4071,6 +4641,7 @@
       "sessionNumber": 104,
       "startedAt": "2026-09-02T17:06:19-04:00",
       "activeSeconds": 0,
+      "location": {},
       "pages": [
         {
           "view": "week-one",
@@ -4118,6 +4689,7 @@
       "sessionNumber": 103,
       "startedAt": "2026-09-02T17:06:08-04:00",
       "activeSeconds": 0,
+      "location": {},
       "pages": [
         {
           "view": "week-one",
@@ -4130,6 +4702,7 @@
       "sessionNumber": 102,
       "startedAt": "2026-09-02T17:05:40-04:00",
       "activeSeconds": 0,
+      "location": {},
       "pages": [
         {
           "view": "week-one",
@@ -4142,6 +4715,7 @@
       "sessionNumber": 101,
       "startedAt": "2026-09-02T17:04:08-04:00",
       "activeSeconds": 0,
+      "location": {},
       "pages": [
         {
           "view": "week-one",
@@ -4154,6 +4728,7 @@
       "sessionNumber": 100,
       "startedAt": "2026-09-02T17:02:13-04:00",
       "activeSeconds": 0,
+      "location": {},
       "pages": [
         {
           "view": "week-one",
@@ -4166,6 +4741,7 @@
       "sessionNumber": 99,
       "startedAt": "2026-09-02T16:55:55-04:00",
       "activeSeconds": 0,
+      "location": {},
       "pages": [
         {
           "view": "enter-picks",
@@ -4188,6 +4764,7 @@
       "sessionNumber": 98,
       "startedAt": "2026-09-02T16:25:59-04:00",
       "activeSeconds": 0,
+      "location": {},
       "pages": [
         {
           "view": "week-one",
@@ -4200,6 +4777,7 @@
       "sessionNumber": 97,
       "startedAt": "2026-09-02T16:17:34-04:00",
       "activeSeconds": 0,
+      "location": {},
       "pages": [
         {
           "view": "alltime",
@@ -4262,6 +4840,7 @@
       "sessionNumber": 96,
       "startedAt": "2026-09-02T15:41:55-04:00",
       "activeSeconds": 0,
+      "location": {},
       "pages": [
         {
           "view": "week-one",
@@ -4274,6 +4853,7 @@
       "sessionNumber": 95,
       "startedAt": "2026-09-02T14:21:26-04:00",
       "activeSeconds": 0,
+      "location": {},
       "pages": [
         {
           "view": "alltime",
@@ -4321,6 +4901,7 @@
       "sessionNumber": 94,
       "startedAt": "2026-09-02T13:46:14-04:00",
       "activeSeconds": 0,
+      "location": {},
       "pages": [
         {
           "view": "weeks",
@@ -4398,6 +4979,7 @@
       "sessionNumber": 93,
       "startedAt": "2026-09-02T13:33:25-04:00",
       "activeSeconds": 0,
+      "location": {},
       "pages": [
         {
           "view": "season",
@@ -4430,6 +5012,7 @@
       "sessionNumber": 92,
       "startedAt": "2026-09-02T13:17:32-04:00",
       "activeSeconds": 0,
+      "location": {},
       "pages": [
         {
           "view": "players",
@@ -4467,6 +5050,7 @@
       "sessionNumber": 91,
       "startedAt": "2026-09-02T12:28:23-04:00",
       "activeSeconds": 0,
+      "location": {},
       "pages": [
         {
           "view": "players",
@@ -4534,6 +5118,7 @@
       "sessionNumber": 90,
       "startedAt": "2026-09-02T11:40:21-04:00",
       "activeSeconds": 0,
+      "location": {},
       "pages": [
         {
           "view": "players",
@@ -4581,6 +5166,7 @@
       "sessionNumber": 89,
       "startedAt": "2026-09-02T10:48:38-04:00",
       "activeSeconds": 0,
+      "location": {},
       "pages": [
         {
           "view": "week-one",
@@ -4608,6 +5194,7 @@
       "sessionNumber": 88,
       "startedAt": "2026-09-02T10:43:57-04:00",
       "activeSeconds": 0,
+      "location": {},
       "pages": [
         {
           "view": "alltime",
@@ -4620,6 +5207,7 @@
       "sessionNumber": 87,
       "startedAt": "2026-09-02T10:32:27-04:00",
       "activeSeconds": 0,
+      "location": {},
       "pages": [
         {
           "view": "enter-picks",
@@ -4637,6 +5225,7 @@
       "sessionNumber": 86,
       "startedAt": "2026-09-02T09:04:34-04:00",
       "activeSeconds": 0,
+      "location": {},
       "pages": [
         {
           "view": "week-one",
@@ -4649,6 +5238,7 @@
       "sessionNumber": 85,
       "startedAt": "2026-09-02T08:40:51-04:00",
       "activeSeconds": 0,
+      "location": {},
       "pages": [
         {
           "view": "week-one",
@@ -4676,6 +5266,7 @@
       "sessionNumber": 84,
       "startedAt": "2026-09-02T08:40:39-04:00",
       "activeSeconds": 0,
+      "location": {},
       "pages": [
         {
           "view": "week-one",
@@ -4688,6 +5279,7 @@
       "sessionNumber": 83,
       "startedAt": "2026-09-02T08:39:39-04:00",
       "activeSeconds": 0,
+      "location": {},
       "pages": [
         {
           "view": "week-one",
@@ -5020,6 +5612,7 @@
       "sessionNumber": 82,
       "startedAt": "2026-09-01T22:43:43-04:00",
       "activeSeconds": 0,
+      "location": {},
       "pages": [
         {
           "view": "week-one",
@@ -5037,6 +5630,7 @@
       "sessionNumber": 81,
       "startedAt": "2026-09-01T22:31:10-04:00",
       "activeSeconds": 0,
+      "location": {},
       "pages": [
         {
           "view": "week-one",
@@ -5154,6 +5748,7 @@
       "sessionNumber": 80,
       "startedAt": "2026-09-01T21:59:35-04:00",
       "activeSeconds": 0,
+      "location": {},
       "pages": [
         {
           "view": "week-one",
@@ -5431,6 +6026,7 @@
       "sessionNumber": 79,
       "startedAt": "2026-09-01T20:31:50-04:00",
       "activeSeconds": 0,
+      "location": {},
       "pages": [
         {
           "view": "week-one",
@@ -5618,6 +6214,7 @@
       "sessionNumber": 78,
       "startedAt": "2026-09-01T20:30:53-04:00",
       "activeSeconds": 0,
+      "location": {},
       "pages": [
         {
           "view": "week-one",
@@ -5650,6 +6247,7 @@
       "sessionNumber": 77,
       "startedAt": "2026-09-01T20:05:10-04:00",
       "activeSeconds": 0,
+      "location": {},
       "pages": [
         {
           "view": "week-one",
@@ -5662,6 +6260,7 @@
       "sessionNumber": 76,
       "startedAt": "2026-09-01T19:02:32-04:00",
       "activeSeconds": 0,
+      "location": {},
       "pages": [
         {
           "view": "teams",
@@ -5674,6 +6273,7 @@
       "sessionNumber": 75,
       "startedAt": "2026-09-01T18:15:26-04:00",
       "activeSeconds": 0,
+      "location": {},
       "pages": [
         {
           "view": "enter-picks",
@@ -5761,6 +6361,7 @@
       "sessionNumber": 74,
       "startedAt": "2026-09-01T17:40:25-04:00",
       "activeSeconds": 0,
+      "location": {},
       "pages": [
         {
           "view": "week-one",
@@ -5798,6 +6399,7 @@
       "sessionNumber": 73,
       "startedAt": "2026-09-01T17:38:11-04:00",
       "activeSeconds": 0,
+      "location": {},
       "pages": [
         {
           "view": "week-one",
@@ -5810,6 +6412,7 @@
       "sessionNumber": 72,
       "startedAt": "2026-09-01T17:30:58-04:00",
       "activeSeconds": 0,
+      "location": {},
       "pages": [
         {
           "view": "week-one",
@@ -5822,6 +6425,7 @@
       "sessionNumber": 71,
       "startedAt": "2026-09-01T17:09:03-04:00",
       "activeSeconds": 0,
+      "location": {},
       "pages": [
         {
           "view": "enter-picks",
@@ -5849,6 +6453,7 @@
       "sessionNumber": 70,
       "startedAt": "2026-09-01T17:07:27-04:00",
       "activeSeconds": 0,
+      "location": {},
       "pages": [
         {
           "view": "week-one",
@@ -5861,6 +6466,7 @@
       "sessionNumber": 69,
       "startedAt": "2026-09-01T17:07:06-04:00",
       "activeSeconds": 0,
+      "location": {},
       "pages": [
         {
           "view": "week-one",
@@ -5873,6 +6479,7 @@
       "sessionNumber": 68,
       "startedAt": "2026-09-01T16:59:18-04:00",
       "activeSeconds": 0,
+      "location": {},
       "pages": [
         {
           "view": "week-one",
@@ -6345,6 +6952,7 @@
       "sessionNumber": 67,
       "startedAt": "2026-09-01T16:32:34-04:00",
       "activeSeconds": 0,
+      "location": {},
       "pages": [
         {
           "view": "enter-picks",
@@ -6392,6 +7000,7 @@
       "sessionNumber": 66,
       "startedAt": "2026-09-01T16:30:36-04:00",
       "activeSeconds": 0,
+      "location": {},
       "pages": [
         {
           "view": "week-one",
@@ -6409,6 +7018,7 @@
       "sessionNumber": 65,
       "startedAt": "2026-09-01T16:26:37-04:00",
       "activeSeconds": 0,
+      "location": {},
       "pages": [
         {
           "view": "alltime",
@@ -6446,6 +7056,7 @@
       "sessionNumber": 64,
       "startedAt": "2026-09-01T15:01:37-04:00",
       "activeSeconds": 0,
+      "location": {},
       "pages": [
         {
           "view": "week-one",
@@ -6463,6 +7074,7 @@
       "sessionNumber": 63,
       "startedAt": "2026-09-01T14:51:08-04:00",
       "activeSeconds": 0,
+      "location": {},
       "pages": [
         {
           "view": "enter-picks",
@@ -6480,6 +7092,7 @@
       "sessionNumber": 62,
       "startedAt": "2026-09-01T14:49:32-04:00",
       "activeSeconds": 0,
+      "location": {},
       "pages": [
         {
           "view": "weeks",
@@ -6707,6 +7320,7 @@
       "sessionNumber": 61,
       "startedAt": "2026-09-01T14:47:19-04:00",
       "activeSeconds": 0,
+      "location": {},
       "pages": [
         {
           "view": "season",
@@ -6719,6 +7333,7 @@
       "sessionNumber": 60,
       "startedAt": "2026-09-01T14:44:26-04:00",
       "activeSeconds": 0,
+      "location": {},
       "pages": [
         {
           "view": "week-one",
@@ -6731,6 +7346,7 @@
       "sessionNumber": 59,
       "startedAt": "2026-09-01T14:40:57-04:00",
       "activeSeconds": 0,
+      "location": {},
       "pages": [
         {
           "view": "weeks",
@@ -6743,6 +7359,7 @@
       "sessionNumber": 58,
       "startedAt": "2026-09-01T14:09:08-04:00",
       "activeSeconds": 0,
+      "location": {},
       "pages": [
         {
           "view": "games",
@@ -6770,6 +7387,7 @@
       "sessionNumber": 57,
       "startedAt": "2026-09-01T11:26:42-04:00",
       "activeSeconds": 0,
+      "location": {},
       "pages": [
         {
           "view": "weeks",
@@ -6787,6 +7405,7 @@
       "sessionNumber": 56,
       "startedAt": "2026-09-01T10:18:09-04:00",
       "activeSeconds": 0,
+      "location": {},
       "pages": [
         {
           "view": "names",
@@ -6799,6 +7418,7 @@
       "sessionNumber": 55,
       "startedAt": "2026-09-01T07:17:10-04:00",
       "activeSeconds": 0,
+      "location": {},
       "pages": [
         {
           "view": "week-one",
@@ -6891,6 +7511,7 @@
       "sessionNumber": 54,
       "startedAt": "2026-09-01T00:18:42-04:00",
       "activeSeconds": 0,
+      "location": {},
       "pages": [
         {
           "view": "week-one",
@@ -6903,6 +7524,7 @@
       "sessionNumber": 53,
       "startedAt": "2026-09-01T00:10:50-04:00",
       "activeSeconds": 0,
+      "location": {},
       "pages": [
         {
           "view": "names",
@@ -6915,6 +7537,7 @@
       "sessionNumber": 52,
       "startedAt": "2026-08-31T18:08:37-04:00",
       "activeSeconds": 0,
+      "location": {},
       "pages": [
         {
           "view": "players",
@@ -6932,6 +7555,7 @@
       "sessionNumber": 51,
       "startedAt": "2026-08-31T17:50:29-04:00",
       "activeSeconds": 0,
+      "location": {},
       "pages": [
         {
           "view": "enter-picks",
@@ -6944,6 +7568,7 @@
       "sessionNumber": 50,
       "startedAt": "2026-08-31T17:20:37-04:00",
       "activeSeconds": 0,
+      "location": {},
       "pages": [
         {
           "view": "enter-picks",
@@ -6961,6 +7586,7 @@
       "sessionNumber": 49,
       "startedAt": "2026-08-31T17:20:22-04:00",
       "activeSeconds": 0,
+      "location": {},
       "pages": [
         {
           "view": "enter-picks",
@@ -6973,6 +7599,7 @@
       "sessionNumber": 48,
       "startedAt": "2026-08-31T17:05:59-04:00",
       "activeSeconds": 0,
+      "location": {},
       "pages": [
         {
           "view": "season",
@@ -6995,6 +7622,7 @@
       "sessionNumber": 47,
       "startedAt": "2026-08-31T16:34:57-04:00",
       "activeSeconds": 0,
+      "location": {},
       "pages": [
         {
           "view": "enter-picks",
@@ -7257,6 +7885,7 @@
       "sessionNumber": 46,
       "startedAt": "2026-08-31T16:34:43-04:00",
       "activeSeconds": 0,
+      "location": {},
       "pages": [
         {
           "view": "week-one",
@@ -7324,6 +7953,7 @@
       "sessionNumber": 45,
       "startedAt": "2026-08-31T16:33:17-04:00",
       "activeSeconds": 0,
+      "location": {},
       "pages": [
         {
           "view": "week-one",
@@ -7416,6 +8046,7 @@
       "sessionNumber": 44,
       "startedAt": "2026-08-31T16:17:52-04:00",
       "activeSeconds": 0,
+      "location": {},
       "pages": [
         {
           "view": "week-one",
@@ -7433,6 +8064,7 @@
       "sessionNumber": 43,
       "startedAt": "2026-08-31T16:13:43-04:00",
       "activeSeconds": 0,
+      "location": {},
       "pages": [
         {
           "view": "week-one",
@@ -7445,6 +8077,7 @@
       "sessionNumber": 42,
       "startedAt": "2026-08-31T15:46:01-04:00",
       "activeSeconds": 0,
+      "location": {},
       "pages": [
         {
           "view": "enter-picks",
@@ -7477,6 +8110,7 @@
       "sessionNumber": 41,
       "startedAt": "2026-08-31T15:34:23-04:00",
       "activeSeconds": 0,
+      "location": {},
       "pages": [
         {
           "view": "week-one",
@@ -7494,6 +8128,7 @@
       "sessionNumber": 40,
       "startedAt": "2026-08-31T15:32:18-04:00",
       "activeSeconds": 0,
+      "location": {},
       "pages": [
         {
           "view": "week-one",
@@ -7506,6 +8141,7 @@
       "sessionNumber": 39,
       "startedAt": "2026-08-31T14:34:42-04:00",
       "activeSeconds": 0,
+      "location": {},
       "pages": [
         {
           "view": "teams",
@@ -7518,6 +8154,7 @@
       "sessionNumber": 38,
       "startedAt": "2026-08-31T13:44:14-04:00",
       "activeSeconds": 0,
+      "location": {},
       "pages": [
         {
           "view": "week-one",
@@ -7580,6 +8217,7 @@
       "sessionNumber": 37,
       "startedAt": "2026-08-31T13:08:30-04:00",
       "activeSeconds": 0,
+      "location": {},
       "pages": [
         {
           "view": "week-one",
@@ -7667,6 +8305,7 @@
       "sessionNumber": 36,
       "startedAt": "2026-08-31T10:18:39-04:00",
       "activeSeconds": 0,
+      "location": {},
       "pages": [
         {
           "view": "week-one",
@@ -7679,6 +8318,7 @@
       "sessionNumber": 35,
       "startedAt": "2026-08-31T09:38:17-04:00",
       "activeSeconds": 0,
+      "location": {},
       "pages": [
         {
           "view": "week-one",
@@ -7691,6 +8331,7 @@
       "sessionNumber": 34,
       "startedAt": "2026-08-31T09:15:32-04:00",
       "activeSeconds": 0,
+      "location": {},
       "pages": [
         {
           "view": "week-one",
@@ -7703,6 +8344,7 @@
       "sessionNumber": 33,
       "startedAt": "2026-08-30T21:08:52-04:00",
       "activeSeconds": 0,
+      "location": {},
       "pages": [
         {
           "view": "week-one",
@@ -7735,6 +8377,7 @@
       "sessionNumber": 32,
       "startedAt": "2026-08-30T07:39:48-04:00",
       "activeSeconds": 0,
+      "location": {},
       "pages": [
         {
           "view": "week-one",
@@ -7747,6 +8390,7 @@
       "sessionNumber": 31,
       "startedAt": "2026-08-29T18:01:53-04:00",
       "activeSeconds": 0,
+      "location": {},
       "pages": [
         {
           "view": "alltime",
@@ -7794,6 +8438,7 @@
       "sessionNumber": 30,
       "startedAt": "2026-08-29T07:56:02-04:00",
       "activeSeconds": 0,
+      "location": {},
       "pages": [
         {
           "view": "week-one",
@@ -7851,6 +8496,7 @@
       "sessionNumber": 29,
       "startedAt": "2026-08-28T03:49:49-04:00",
       "activeSeconds": 0,
+      "location": {},
       "pages": [
         {
           "view": "players",
@@ -7873,6 +8519,7 @@
       "sessionNumber": 28,
       "startedAt": "2026-08-28T03:49:40-04:00",
       "activeSeconds": 0,
+      "location": {},
       "pages": [
         {
           "view": "week-one",
@@ -7885,6 +8532,7 @@
       "sessionNumber": 27,
       "startedAt": "2026-08-28T02:07:06-04:00",
       "activeSeconds": 0,
+      "location": {},
       "pages": [
         {
           "view": "week-one",
@@ -7897,6 +8545,7 @@
       "sessionNumber": 26,
       "startedAt": "2026-08-27T23:40:14-04:00",
       "activeSeconds": 0,
+      "location": {},
       "pages": [
         {
           "view": "week-one",
@@ -7989,6 +8638,7 @@
       "sessionNumber": 25,
       "startedAt": "2026-08-27T22:42:07-04:00",
       "activeSeconds": 0,
+      "location": {},
       "pages": [
         {
           "view": "week-one",
@@ -8021,6 +8671,7 @@
       "sessionNumber": 24,
       "startedAt": "2026-08-27T22:03:13-04:00",
       "activeSeconds": 0,
+      "location": {},
       "pages": [
         {
           "view": "week-one",
@@ -8048,6 +8699,7 @@
       "sessionNumber": 23,
       "startedAt": "2026-08-27T22:01:56-04:00",
       "activeSeconds": 0,
+      "location": {},
       "pages": [
         {
           "view": "week-one",
@@ -8060,6 +8712,7 @@
       "sessionNumber": 22,
       "startedAt": "2026-08-27T20:52:45-04:00",
       "activeSeconds": 0,
+      "location": {},
       "pages": [
         {
           "view": "week-one",
@@ -8077,6 +8730,7 @@
       "sessionNumber": 21,
       "startedAt": "2026-08-27T20:30:49-04:00",
       "activeSeconds": 0,
+      "location": {},
       "pages": [
         {
           "view": "week-one",
@@ -8089,6 +8743,7 @@
       "sessionNumber": 20,
       "startedAt": "2026-08-27T19:28:07-04:00",
       "activeSeconds": 0,
+      "location": {},
       "pages": [
         {
           "view": "players",
@@ -8121,6 +8776,7 @@
       "sessionNumber": 19,
       "startedAt": "2026-08-27T19:24:51-04:00",
       "activeSeconds": 0,
+      "location": {},
       "pages": [
         {
           "view": "week-one",
@@ -8133,6 +8789,7 @@
       "sessionNumber": 18,
       "startedAt": "2026-08-27T19:20:10-04:00",
       "activeSeconds": 0,
+      "location": {},
       "pages": [
         {
           "view": "week-one",
@@ -8180,6 +8837,7 @@
       "sessionNumber": 17,
       "startedAt": "2026-08-27T18:54:37-04:00",
       "activeSeconds": 0,
+      "location": {},
       "pages": [
         {
           "view": "week-one",
@@ -8192,6 +8850,7 @@
       "sessionNumber": 16,
       "startedAt": "2026-08-27T13:12:42-04:00",
       "activeSeconds": 0,
+      "location": {},
       "pages": [
         {
           "view": "enter-picks",
@@ -8224,6 +8883,7 @@
       "sessionNumber": 15,
       "startedAt": "2026-08-27T07:24:10-04:00",
       "activeSeconds": 0,
+      "location": {},
       "pages": [
         {
           "view": "players",
@@ -8256,6 +8916,7 @@
       "sessionNumber": 14,
       "startedAt": "2026-08-26T18:52:17-04:00",
       "activeSeconds": 0,
+      "location": {},
       "pages": [
         {
           "view": "players",
@@ -8268,6 +8929,7 @@
       "sessionNumber": 13,
       "startedAt": "2026-08-26T16:42:56-04:00",
       "activeSeconds": 0,
+      "location": {},
       "pages": [
         {
           "view": "week-one",
@@ -8295,6 +8957,7 @@
       "sessionNumber": 12,
       "startedAt": "2026-08-26T15:35:39-04:00",
       "activeSeconds": 0,
+      "location": {},
       "pages": [
         {
           "view": "week-one",
@@ -8307,6 +8970,7 @@
       "sessionNumber": 11,
       "startedAt": "2026-08-26T15:35:25-04:00",
       "activeSeconds": 0,
+      "location": {},
       "pages": [
         {
           "view": "week-one",
@@ -8319,6 +8983,7 @@
       "sessionNumber": 10,
       "startedAt": "2026-08-26T15:34:09-04:00",
       "activeSeconds": 0,
+      "location": {},
       "pages": [
         {
           "view": "week-one",
@@ -8331,6 +8996,7 @@
       "sessionNumber": 9,
       "startedAt": "2026-08-26T15:22:04-04:00",
       "activeSeconds": 0,
+      "location": {},
       "pages": [
         {
           "view": "players",
@@ -8343,6 +9009,7 @@
       "sessionNumber": 8,
       "startedAt": "2026-08-26T12:40:28-04:00",
       "activeSeconds": 0,
+      "location": {},
       "pages": [
         {
           "view": "week-one",
@@ -8355,6 +9022,7 @@
       "sessionNumber": 7,
       "startedAt": "2026-08-26T12:18:18-04:00",
       "activeSeconds": 0,
+      "location": {},
       "pages": [
         {
           "view": "week-one",
@@ -8367,6 +9035,7 @@
       "sessionNumber": 6,
       "startedAt": "2026-08-26T12:18:12-04:00",
       "activeSeconds": 0,
+      "location": {},
       "pages": [
         {
           "view": "week-one",
@@ -8379,6 +9048,7 @@
       "sessionNumber": 5,
       "startedAt": "2026-08-26T12:16:47-04:00",
       "activeSeconds": 0,
+      "location": {},
       "pages": [
         {
           "view": "enter-picks",
@@ -8391,6 +9061,7 @@
       "sessionNumber": 4,
       "startedAt": "2026-08-26T03:03:29-04:00",
       "activeSeconds": 0,
+      "location": {},
       "pages": [
         {
           "view": "week-one",
@@ -8408,6 +9079,7 @@
       "sessionNumber": 3,
       "startedAt": "2026-08-26T03:02:19-04:00",
       "activeSeconds": 0,
+      "location": {},
       "pages": [
         {
           "view": "enter-picks",
@@ -8420,6 +9092,7 @@
       "sessionNumber": 2,
       "startedAt": "2026-08-26T01:57:53-04:00",
       "activeSeconds": 0,
+      "location": {},
       "pages": [
         {
           "view": "week-one",
@@ -8482,6 +9155,7 @@
       "sessionNumber": 1,
       "startedAt": "2026-08-26T01:44:40-04:00",
       "activeSeconds": 0,
+      "location": {},
       "pages": [
         {
           "view": "enter-picks",

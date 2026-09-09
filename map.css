@@ -361,6 +361,19 @@
   vertical-align: top;
 }
 
+.fbp-map-session-number,
+.fbp-map-session-location {
+  display: block;
+}
+
+.fbp-map-session-location {
+  margin-top: 4px;
+  color: var(--muted);
+  font-size: 10px;
+  font-weight: 400;
+  white-space: normal;
+}
+
 .fbp-map-session-table td:last-child {
   width: 100%;
   text-align: left;
