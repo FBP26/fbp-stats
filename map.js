@@ -105,6 +105,38 @@ let fbpMapReady = false;
 let fbpMapSelectedTeam = "";
 let fbpMapVisitorData = { updatedAt: "", locations: [] };
 let fbpMapBaseLayers = [];
+let fbpMapVisitorRefreshTimer = null;
+let fbpMapVisitorRefreshPending = false;
+
+async function fbpMapLoadVisitorData() {
+  const separator = WEBSITE_SUBMISSIONS_ENDPOINT.includes("?") ? "&" : "?";
+  const liveUrl = `${WEBSITE_SUBMISSIONS_ENDPOINT}${separator}action=visitor-geography&_=${Date.now()}`;
+  try {
+    const response = await fetch(liveUrl, { cache: "no-store", signal: AbortSignal.timeout(15000) });
+    if (!response.ok) throw new Error(`Visitor report returned ${response.status}`);
+    return await response.json();
+  } catch (error) {
+    return fetch(`./data/visitor_geography.json?v=${Date.now()}`).then(response => response.ok ? response.json() : Promise.reject(error));
+  }
+}
+
+async function fbpMapRefreshVisitorData() {
+  if (fbpMapVisitorRefreshPending || document.visibilityState !== "visible" || !document.getElementById("view-map")?.classList.contains("active") || document.getElementById("fbp-map-metric")?.value !== "visitors") return;
+  fbpMapVisitorRefreshPending = true;
+  try {
+    fbpMapVisitorData = await fbpMapLoadVisitorData();
+    if (fbpMapReady) fbpMapRender();
+  } catch (error) {
+    console.warn(`Visitor map refresh failed: ${error.message}`);
+  } finally {
+    fbpMapVisitorRefreshPending = false;
+  }
+}
+
+function fbpMapStartVisitorRefresh() {
+  clearInterval(fbpMapVisitorRefreshTimer);
+  fbpMapVisitorRefreshTimer = setInterval(fbpMapRefreshVisitorData, 60000);
+}
 
 function fbpMapSetBasemap(style) {
   if (!fbpMap) return;
@@ -397,7 +429,7 @@ async function initFbpMap() {
   try {
     await loadDrilldown();
     buildTeamsAnalytics();
-    fbpMapVisitorData = await fetch(`./data/visitor_geography.json?v=${Date.now()}`).then(response => response.ok ? response.json() : Promise.reject(new Error("Visitor export unavailable"))).catch(() => ({ updatedAt: "", locations: [] }));
+    fbpMapVisitorData = await fbpMapLoadVisitorData();
   } catch (error) {
     document.getElementById("fbp-map-detail").innerHTML = `<p class="fbp-map-empty">Map data could not be loaded. ${websiteEscapeHtml(error.message)}</p>`;
     return;
@@ -411,5 +443,6 @@ async function initFbpMap() {
   fbpMapSetBasemap(document.getElementById("fbp-map-basemap").value);
   fbpMapMarkers = L.layerGroup().addTo(fbpMap);
   fbpMapReady = true;
+  fbpMapStartVisitorRefresh();
   fbpMapRender();
 }
