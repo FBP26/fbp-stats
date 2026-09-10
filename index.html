@@ -1221,7 +1221,7 @@ function websiteRaceHasLiveGame(snapshot) {
 function renderWebsiteRaceLeadership() {
   const host = document.getElementById("website-race-leadership");
   if (!host || !websiteRaceSnapshots.length) return;
-  const metric = websiteRaceMetric();
+  const metric = "winProbability";
   const timestamps = websiteRaceSnapshots.map(snapshot => new Date(snapshot.timestamp).getTime());
   const intervals = websiteRaceSnapshots.map((snapshot, index) => {
     if (!websiteRaceHasLiveGame(snapshot)) return null;
