@@ -1225,9 +1225,11 @@ function renderWebsiteRaceLeadership() {
   const timestamps = websiteRaceSnapshots.map(snapshot => new Date(snapshot.timestamp).getTime());
   const intervals = websiteRaceSnapshots.map((snapshot, index) => {
     if (!websiteRaceHasLiveGame(snapshot)) return null;
-    const leader = [...snapshot.players].sort((left, right) => Number(right[metric] || 0) - Number(left[metric] || 0) || left.name.localeCompare(right.name))[0];
+    const ranked = [...snapshot.players].sort((left, right) => Number(right[metric] || 0) - Number(left[metric] || 0) || left.name.localeCompare(right.name));
+    const topValue = Number(ranked[0]?.[metric] || 0);
+    const leaderNames = ranked.filter(player => Number(player[metric] || 0) === topValue).map(player => player.name);
     const nextTimestamp = timestamps[index + 1], duration = nextTimestamp - timestamps[index];
-    return leader && Number.isFinite(duration) && duration > 0 ? { name: leader.name, duration, index } : null;
+    return leaderNames.length && Number.isFinite(duration) && duration > 0 ? { name: leaderNames.join(" + "), duration, index } : null;
   }).filter(Boolean);
   if (!intervals.length) { host.innerHTML = '<div class="live-race-leadership-head"><h4>Time on top</h4><p>Timing begins with the next live-game snapshot.</p></div>'; return; }
   const totals = new Map(), reigns = [];
@@ -1505,20 +1507,22 @@ function showWebsiteRaceFrame(frame, animate = true) {
   const fieldLimit = (document.getElementById("website-race-field")?.value || "top10") === "all" ? snapshot.players.length : 10;
   const ranked = [...snapshot.players].sort((left, right) => Number(right[metric] || 0) - Number(left[metric] || 0) || left.name.localeCompare(right.name)).slice(0, fieldLimit);
   const previousRanked = websiteRaceFrame ? [...websiteRaceSnapshots[websiteRaceFrame - 1].players].sort((left, right) => Number(right[metric] || 0) - Number(left[metric] || 0) || left.name.localeCompare(right.name)) : [];
-  const previousRanks = new Map(previousRanked.map((player, index) => [player.name, index]));
+  const raceRank = (players, index) => players.findIndex(player => Number(player[metric] || 0) === Number(players[index]?.[metric] || 0));
+  const previousRanks = new Map(previousRanked.map((player, index) => [player.name, raceRank(previousRanked, index)]));
+  const leaderNames = ranked.filter(player => Number(player[metric] || 0) === Number(ranked[0]?.[metric] || 0)).map(player => player.name);
   const leader = document.getElementById("website-race-leader"), lineLeader = document.getElementById("website-race-line-leader");
-  setRaceLeaderBackdrop(leader, ranked[0]?.name || "");
-  setRaceLeaderBackdrop(lineLeader, ranked[0]?.name || "");
+  setRaceLeaderBackdrop(leader, leaderNames.join(" + "));
+  setRaceLeaderBackdrop(lineLeader, leaderNames.join(" + "));
   websiteRaceRows.forEach(row => { row.style.opacity = "0"; });
   ranked.forEach((player, index) => {
     const row = websiteRaceRows.get(player.name);
     if (!row) return;
-    const value = Number(player[metric] || 0), previousRank = previousRanks.get(player.name), movement = previousRank === undefined ? 0 : previousRank - index;
+    const value = Number(player[metric] || 0), rank = raceRank(ranked, index), tied = ranked.filter(candidate => Number(candidate[metric] || 0) === value).length > 1, previousRank = previousRanks.get(player.name), movement = previousRank === undefined ? 0 : previousRank - rank;
     if (!animate) row.style.transition = "none";
     row.style.opacity = "1";
     row.style.setProperty("--runner-color", websiteRaceColor(player.name, 1, index));
     row.style.transform = `translateY(${index * 34}px)`;
-    row.querySelector(".live-racer-rank").textContent = `#${index + 1}`;
+    row.querySelector(".live-racer-rank").textContent = `${tied ? "T-" : "#"}${rank + 1}`;
     const movementElement = row.querySelector(".live-racer-movement");
     movementElement.className = `live-racer-movement ${movement > 0 ? "up" : movement < 0 ? "down" : "same"}`;
     movementElement.textContent = websiteRaceFrame === 0 ? "—" : movement > 0 ? `↑ +${movement}` : movement < 0 ? `↓ ${movement}` : "— 0";
@@ -1530,7 +1534,7 @@ function showWebsiteRaceFrame(frame, animate = true) {
   document.getElementById("website-race-headline").textContent = websiteRaceCheckpointHeadline(websiteRaceFrame);
   renderWebsiteRaceLineChart(animate);
   setRaceFrameBadge("website-race-line", `Frame ${websiteRaceFrame + 1} of ${websiteRaceSnapshots.length}`, websiteRaceCheckpointHeadline(websiteRaceFrame));
-  setRaceLeaderBackdrop(lineLeader, ranked[0]?.name || "", websiteRaceLineChart);
+  setRaceLeaderBackdrop(lineLeader, leaderNames.join(" + "), websiteRaceLineChart);
 }
 function advanceWebsiteRace() {
   if (!websiteRaceTimer || websiteRaceSnapshots.length < 2) return;
