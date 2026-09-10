@@ -1560,7 +1560,10 @@ function renderWebsiteRace(data) {
   const context = `${data.testMode ? "preseason" : "regular"}-${data.season}-${data.week}`;
   const serverSnapshots = Array.isArray(data.raceSnapshots) ? data.raceSnapshots : [];
   const currentSnapshots = context === websiteRaceContext ? websiteRaceSnapshots : [];
-  let snapshots = websiteMergeRaceSnapshots(websiteStoredRaceSnapshots(context), currentSnapshots, serverSnapshots);
+  const storedSnapshots = websiteStoredRaceSnapshots(context);
+  const calculatedByTimestamp = new Map([...storedSnapshots, ...currentSnapshots].filter(snapshot => snapshot.probabilityModel === "website").map(snapshot => [snapshot.timestamp, snapshot]));
+  const calculatedServerSnapshots = serverSnapshots.map(snapshot => calculatedByTimestamp.get(snapshot.timestamp) || websiteRaceProbabilitySnapshot(data, snapshot));
+  let snapshots = websiteMergeRaceSnapshots(storedSnapshots, currentSnapshots, calculatedServerSnapshots);
   snapshots = websiteReconcileRaceSnapshots(snapshots, data.players || []);
   const current = { timestamp: data.updatedAt || new Date().toISOString(), probabilityModel: "website", gameState: (data.games || []).map(game => ({ gameId: game.gameId || "", away: game.away || "", home: game.home || "", status: websiteGameStatus(game), period: game.period || "", clock: game.clock || "", possession: game.possession || "", awayScore: game.awayScore ?? game.favoriteScore ?? "", homeScore: game.homeScore ?? game.underdogScore ?? "" })), players: (data.players || []).map(player => ({ name: player.name, winProbability: parseFloat(player.winProbability || 0) || 0, pathsToVictory: Number(player.pathsToVictory || 0), winPercent: parseFloat(player.winPercent || 0) || 0 })) };
   const latestStored = snapshots[snapshots.length - 1];
@@ -1671,6 +1674,20 @@ function websiteGameCoverProbability(data, index, state = null) {
   const favoriteScore = favoriteIsAway ? awayScore : homeScore, underdogScore = favoriteIsAway ? homeScore : awayScore;
   const modeledGame = { ...game, ...current, favorite, underdog, espnStatus: websiteGameStatus(current) || websiteGameStatus(game), espnAwayScore: awayScore, espnHomeScore: homeScore };
   return websiteGameOutcomeProbabilities({ games: [modeledGame], favorites: [favorite], underdogs: [underdog], spreads: [spread], favoriteScores: [favoriteScore], underdogScores: [underdogScore] }, 0);
+}
+function websiteRaceProbabilitySnapshot(data, snapshot) {
+  const favoriteScores = [], underdogScores = [];
+  const games = data.games.map((game, index) => {
+    const state = websiteGameStateForSnapshot(snapshot, game) || {};
+    const awayScore = state.awayScore ?? game.awayScore ?? "", homeScore = state.homeScore ?? game.homeScore ?? "";
+    const favoriteIsAway = String(data.favorites[index]).toUpperCase() === String(state.away || game.away).toUpperCase();
+    favoriteScores.push(favoriteIsAway ? awayScore : homeScore);
+    underdogScores.push(favoriteIsAway ? homeScore : awayScore);
+    return { ...game, ...state, favorite: data.favorites[index], underdog: data.underdogs[index], espnStatus: websiteGameStatus(state) || websiteGameStatus(game), espnAwayScore: awayScore, espnHomeScore: homeScore };
+  });
+  const probabilities = websiteConditionalProbabilities({ ...data, games, favoriteScores, underdogScores }, {}, WEBSITE_SIMULATION_LIMIT);
+  const priorPlayers = new Map((snapshot.players || []).map(player => [String(player.name || "").trim().toLowerCase(), player]));
+  return { ...snapshot, probabilityModel: "website", players: data.players.map((player, index) => ({ ...priorPlayers.get(String(player.name || "").trim().toLowerCase()), name: player.name, winProbability: probabilities[index] || 0 })) };
 }
 function websiteGameCoverSeries(data, index) {
   const game = data.games[index] || {};
@@ -1833,9 +1850,9 @@ function websiteCalculationScenarioIndexes(total) {
     ? Array.from({ length: total }, (value, index) => index)
     : websiteSampleScenarioIndexes(total, WEBSITE_SIMULATION_LIMIT);
 }
-function websiteConditionalProbabilities(data, forced = {}) {
+function websiteConditionalProbabilities(data, forced = {}, calculationLimit = WEBSITE_EXACT_CALCULATION_LIMIT) {
   const scenarios = websiteScenarioOutcomes(data, forced);
-  const indexes = websiteCalculationScenarioIndexes(scenarios.total);
+  const indexes = scenarios.total <= calculationLimit ? Array.from({ length: scenarios.total }, (value, index) => index) : websiteSampleScenarioIndexes(scenarios.total, Math.min(calculationLimit, WEBSITE_SIMULATION_LIMIT));
   const totals = new Array(data.players.length).fill(0);
   const pathCounts = new Array(data.players.length).fill(0);
   const shareCache = new Map();
