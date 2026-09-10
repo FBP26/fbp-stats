@@ -1228,7 +1228,7 @@ function renderWebsiteRaceLeadership() {
     const ranked = [...snapshot.players].sort((left, right) => Number(right[metric] || 0) - Number(left[metric] || 0) || left.name.localeCompare(right.name));
     const topValue = Number(ranked[0]?.[metric] || 0);
     const leaderNames = ranked.filter(player => Number(player[metric] || 0) === topValue).map(player => player.name);
-    const nextTimestamp = timestamps[index + 1], duration = nextTimestamp - timestamps[index];
+    const nextTimestamp = timestamps[index + 1] || Date.now(), duration = nextTimestamp - timestamps[index];
     return leaderNames.length && Number.isFinite(duration) && duration > 0 ? { name: leaderNames.join(" + "), duration, index } : null;
   }).filter(Boolean);
   if (!intervals.length) { host.innerHTML = '<div class="live-race-leadership-head"><h4>Time on top</h4><p>Timing begins with the next live-game snapshot.</p></div>'; return; }
