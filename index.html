@@ -1222,8 +1222,9 @@ function renderWebsiteRaceLeadership() {
   const host = document.getElementById("website-race-leadership");
   if (!host || !websiteRaceSnapshots.length) return;
   const metric = "winProbability";
-  const timestamps = websiteRaceSnapshots.map(snapshot => new Date(snapshot.timestamp).getTime());
-  const intervals = websiteRaceSnapshots.map((snapshot, index) => {
+  const probabilitySnapshots = websiteRaceSnapshots.filter(snapshot => snapshot.probabilityModel === "website");
+  const timestamps = probabilitySnapshots.map(snapshot => new Date(snapshot.timestamp).getTime());
+  const intervals = probabilitySnapshots.map((snapshot, index) => {
     if (!websiteRaceHasLiveGame(snapshot)) return null;
     const ranked = [...snapshot.players].sort((left, right) => Number(right[metric] || 0) - Number(left[metric] || 0) || left.name.localeCompare(right.name));
     const topValue = Number(ranked[0]?.[metric] || 0);
@@ -1559,19 +1560,17 @@ function renderWebsiteRace(data) {
   const context = `${data.testMode ? "preseason" : "regular"}-${data.season}-${data.week}`;
   const serverSnapshots = Array.isArray(data.raceSnapshots) ? data.raceSnapshots : [];
   const currentSnapshots = context === websiteRaceContext ? websiteRaceSnapshots : [];
-  let snapshots = data.testMode ? websiteMergeRaceSnapshots(websiteStoredRaceSnapshots(context), currentSnapshots, serverSnapshots) : serverSnapshots.length ? [...serverSnapshots] : [...currentSnapshots];
+  let snapshots = websiteMergeRaceSnapshots(websiteStoredRaceSnapshots(context), currentSnapshots, serverSnapshots);
   snapshots = websiteReconcileRaceSnapshots(snapshots, data.players || []);
-  const current = { timestamp: data.updatedAt || new Date().toISOString(), gameState: (data.games || []).map(game => ({ gameId: game.gameId || "", away: game.away || "", home: game.home || "", status: websiteGameStatus(game), period: game.period || "", clock: game.clock || "", possession: game.possession || "", awayScore: game.awayScore ?? game.favoriteScore ?? "", homeScore: game.homeScore ?? game.underdogScore ?? "" })), players: (data.players || []).map(player => ({ name: player.name, winProbability: parseFloat(player.winProbability || 0) || 0, pathsToVictory: Number(player.pathsToVictory || 0), winPercent: parseFloat(player.winPercent || 0) || 0 })) };
+  const current = { timestamp: data.updatedAt || new Date().toISOString(), probabilityModel: "website", gameState: (data.games || []).map(game => ({ gameId: game.gameId || "", away: game.away || "", home: game.home || "", status: websiteGameStatus(game), period: game.period || "", clock: game.clock || "", possession: game.possession || "", awayScore: game.awayScore ?? game.favoriteScore ?? "", homeScore: game.homeScore ?? game.underdogScore ?? "" })), players: (data.players || []).map(player => ({ name: player.name, winProbability: parseFloat(player.winProbability || 0) || 0, pathsToVictory: Number(player.pathsToVictory || 0), winPercent: parseFloat(player.winPercent || 0) || 0 })) };
   const latestStored = snapshots[snapshots.length - 1];
   const currentSignature = websiteRaceSnapshotSignature(current);
   const latestSignature = websiteRaceSnapshotSignature(latestStored);
   if (current.players.length && currentSignature !== latestSignature) snapshots.push(current);
   websiteRaceContext = context;
   websiteRaceSnapshots = snapshots.filter(snapshot => snapshot?.timestamp && Array.isArray(snapshot.players) && snapshot.players.length).slice(-360);
-  if (data.testMode) {
-    try { localStorage.setItem(`fbpRaceSnapshots-${context}`, JSON.stringify(websiteRaceSnapshots)); }
-    catch (error) { console.warn(`Preseason race history could not be saved: ${error.message}`); }
-  }
+  try { localStorage.setItem(`fbpRaceSnapshots-${context}`, JSON.stringify(websiteRaceSnapshots)); }
+  catch (error) { console.warn(`Race history could not be saved: ${error.message}`); }
   if (!websiteRaceSnapshots.length) { host.innerHTML = '<div class="live-race-head"><div><h3>Live Weekly Race</h3><p>Win probability and paths will build here every five minutes once the live refresh starts.</p></div></div><div class="live-race-empty">No race snapshots yet. The first production refresh will create the opening frame.</div>'; return; }
   const names = [...new Set(websiteRaceSnapshots.flatMap(snapshot => snapshot.players.map(player => player.name)))];
   const waitingForUpdate = websiteRaceSnapshots.length < 2;
