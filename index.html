@@ -546,6 +546,8 @@
   .live-race-controls button:hover { border-color: var(--accent); color: var(--accent); }
   .live-race-controls .live-race-step { width: 36px; padding: 7px; font-size: 18px; line-height: 1; }
   .live-race-controls button:disabled { cursor: default; opacity: .55; }
+  .website-race-event-panel { align-self: end; min-width: 310px; max-width: 430px; min-height: 58px; margin-left: auto; padding: 7px 10px; border: 1px solid #ffcf4066; border-radius: 4px; background: #0d1117e8; color: var(--accent); font: bold 11px/1.3 Consolas, monospace; text-align: right; }
+  .website-race-event-panel small { display: block; margin-top: 3px; color: var(--text); font: 10px/1.3 Arial, sans-serif; }
   .race-controls { display: grid; grid-template-columns: minmax(0, 1fr) auto; align-items: end; gap: 10px 18px; max-width: none !important; }
   #view-weeks .race-controls { grid-template-columns: minmax(0, 1fr) auto; }
   .race-filter-group, .race-playback-group { display: flex; align-items: end; flex-wrap: nowrap; gap: 8px; }
@@ -604,7 +606,7 @@
   .live-leader-stat span { display: block; margin-top: 3px; color: var(--muted); font: 10px/1.35 Arial, sans-serif; }
   .live-race-empty { display: grid; min-height: 220px; place-items: center; padding: 24px; color: var(--muted); font: 13px/1.55 Arial, sans-serif; text-align: center; }
   @media (prefers-reduced-motion: reduce) { .live-racer { transition: none; } .race-frame-badge.flash { animation: none; } }
-  @media (max-width: 620px) and (orientation: portrait) { .live-race-line-wrap { display: none; } .live-race-track { display: block; } .week-one-landscape-hint { display: block; } .live-race-head { gap: 8px; margin-bottom: 8px; } .live-race-controls { display: grid; grid-template-columns: minmax(105px, 1fr) 32px 70px 32px; gap: 4px; width: 100%; } .live-race-controls label { width: auto; } .live-race-controls button { min-height: 32px; padding: 5px; } #website-race-restart { display: none; } .live-race-controls label:has(#website-race-speed) { grid-column: 1; } .live-race-status { grid-column: 2 / -1; max-width: 100%; } .live-race-time { min-width: 0; width: auto; padding: 7px 2px; text-align: right; } .live-race-headline { max-width: 100%; padding-right: 2px; } .live-racer { grid-template-columns: 28px 48px minmax(58px, 1fr) 52px; gap: 4px; padding-inline: 4px; } .live-racer-name, .live-racer-value, .live-racer-movement { font-size: 10px; } .live-race-leadership-head { align-items: start; flex-direction: column; gap: 3px; } .live-race-leadership-head p { text-align: left; } .live-leader-stats { grid-template-columns: repeat(2, minmax(0, 1fr)); } .live-game-drama-grid { grid-template-columns: 1fr; } }
+  @media (max-width: 620px) and (orientation: portrait) { .live-race-line-wrap { display: none; } .live-race-track { display: block; } .week-one-landscape-hint { display: block; color: var(--accent-2); } .live-race-head { gap: 8px; margin-bottom: 8px; } .live-race-controls { display: grid; grid-template-columns: minmax(105px, 1fr) 32px 70px 32px; gap: 4px; width: 100%; } .live-race-controls label { width: auto; } .live-race-controls button { min-height: 32px; padding: 5px; } #website-race-restart { display: none; } .live-race-controls label:has(#website-race-speed) { grid-column: 1; } .website-race-event-panel { grid-column: 1 / -1; min-width: 0; max-width: none; min-height: 52px; margin-left: 0; text-align: left; } .live-racer { grid-template-columns: 28px 48px minmax(58px, 1fr) 52px; gap: 4px; padding-inline: 4px; } .live-racer-name, .live-racer-value, .live-racer-movement { font-size: 10px; } .live-race-leadership-head { align-items: start; flex-direction: column; gap: 3px; } .live-race-leadership-head p { text-align: left; } .live-leader-stats { grid-template-columns: repeat(2, minmax(0, 1fr)); } .live-game-drama-grid { grid-template-columns: 1fr; } }
   @media (orientation: landscape) and (max-height: 600px) { .live-race-line-wrap { height: 300px; } }
   @media (max-width: 850px) { .week-recap-grid { grid-template-columns: 1fr; } }
   @media (max-width: 720px) { .race-controls, #view-weeks .race-controls { grid-template-columns: 1fr; } .race-filter-group { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); } .race-filter-group label { width: auto; } .race-playback-group { flex-wrap: wrap; justify-content: start; justify-self: start; } .race-controls .live-race-status { grid-column: 1; } }
@@ -1538,15 +1540,10 @@ function showWebsiteRaceFrame(frame, animate = true) {
     if (!animate) requestAnimationFrame(() => { row.style.transition = ""; });
   });
   const stamp = new Date(snapshot.timestamp);
-  document.getElementById("website-race-time").textContent = `${stamp.toLocaleString([], { weekday: "short", hour: "numeric", minute: "2-digit" })} · ${websiteRaceFrame + 1}/${websiteRaceSnapshots.length}`;
   const checkpointHeadline = websiteRaceCheckpointHeadline(websiteRaceFrame);
-  document.getElementById("website-race-headline").textContent = checkpointHeadline;
+  const eventPanel = document.getElementById("website-race-event-panel");
+  eventPanel.innerHTML = `${websiteEscapeHtml(`${stamp.toLocaleString([], { weekday: "short", hour: "numeric", minute: "2-digit" })} · ${websiteRaceFrame + 1}/${websiteRaceSnapshots.length}`)}${checkpointHeadline ? `<small>${websiteEscapeHtml(checkpointHeadline)}</small>` : ""}`;
   renderWebsiteRaceLineChart(animate);
-  const badge = document.querySelector("#week-one-live-race .live-race-line-wrap .race-frame-badge");
-  if (checkpointHeadline) {
-    setRaceFrameBadge("website-race-line", stamp.toLocaleTimeString([], { hour: "numeric", minute: "2-digit" }), checkpointHeadline);
-    positionHistoricalRaceBadge(websiteRaceLineChart);
-  } else badge?.remove();
   setRaceLeaderBackdrop(lineLeader, leaderNames.join(" + "), websiteRaceLineChart);
 }
 function advanceWebsiteRace() {
@@ -1594,6 +1591,8 @@ function renderWebsiteRace(data) {
   const waitingForUpdate = websiteRaceSnapshots.length < 2;
   const drama = websiteRaceGameDrama(data);
   host.innerHTML = `<div class="live-race-head"><div><h3>Live Weekly Race</h3><p>${waitingForUpdate ? "The opening frame is saved. Playback unlocks after the next changed live update." : "Desktop traces every player's rank from the start to the current checkpoint. Mobile follows the compact race ladder."}</p></div><div class="live-race-controls"><label>Race by<select id="website-race-metric"><option value="winProbability">Win probability</option><option value="winPercent">Win %</option><option value="pathsToVictory">Paths to victory</option></select></label><button id="website-race-previous" class="live-race-step" type="button" title="Previous frame" aria-label="Previous frame"${waitingForUpdate ? " disabled" : ""}>‹</button><button id="website-race-play" type="button"${waitingForUpdate ? " disabled" : ""}>${waitingForUpdate ? "Waiting for next update" : "Play race"}</button><button id="website-race-next" class="live-race-step" type="button" title="Next frame" aria-label="Next frame"${waitingForUpdate ? " disabled" : ""}>›</button><button id="website-race-restart" type="button">Restart</button><label>Speed<select id="website-race-speed"><option value="1400">0.75x</option><option value="900" selected>1x</option><option value="500">2x</option></select></label><div class="live-race-status"><output id="website-race-time" class="live-race-time" aria-live="polite"></output><output id="website-race-headline" class="live-race-headline" aria-live="polite"></output></div></div></div><div class="live-race-line-wrap"><canvas id="website-race-line-chart"></canvas></div><div id="website-race-track" class="live-race-track"><div id="website-race-leader" class="live-race-leader" aria-hidden="true"></div></div><section id="website-race-leadership" class="live-race-leadership"></section>${drama.length ? `<section class="live-game-drama"><h4>Game drama from saved checkpoints</h4><div class="live-game-drama-grid">${drama.map(([label, detail]) => `<div class="live-game-drama-item"><span>${label}</span><strong>${websiteEscapeHtml(detail)}</strong></div>`).join("")}</div></section>` : ""}`;
+  document.querySelector("#week-one-live-race .live-race-status")?.replaceWith(Object.assign(document.createElement("output"), { id: "website-race-event-panel", className: "website-race-event-panel" }));
+  document.getElementById("website-race-event-panel")?.setAttribute("aria-live", "polite");
   ["website-race-previous", "website-race-next"].forEach(id => { const button = document.getElementById(id); if (button) button.dataset.nativeTooltip = "true"; });
   document.getElementById("website-race-metric").value = "winProbability";
   document.querySelector("#week-one-live-race .live-race-line-wrap")?.insertAdjacentHTML("afterbegin", '<div id="website-race-line-leader" class="live-race-leader" aria-hidden="true"></div>');
