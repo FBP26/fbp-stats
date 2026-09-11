@@ -1054,6 +1054,11 @@ let websiteContenderDetailMode = "simple";
 let websiteSankeyChart = null;
 let websiteRaceSnapshots = [], websiteRaceContext = "", websiteRaceAutoplayContext = "", websiteRaceFrame = 0, websiteRaceTimer = null, websiteRaceRows = new Map(), websiteRacePlaybackRequested = false, websiteRaceLineChart = null, websiteRaceSelectedPlayer = "", websiteRacePassesRemaining = 0, websiteRaceLiveNow = false;
 const RACE_FRAME_DELAY = 1400;
+const WEBSITE_RACE_MAX_PLAYBACK_MS = 60000;
+function websiteRacePlaybackDelay() {
+  const transitions = Math.max(1, websiteRaceSnapshots.length - 1);
+  return Math.min(RACE_FRAME_DELAY, Math.max(100, Math.floor(WEBSITE_RACE_MAX_PLAYBACK_MS / transitions)));
+}
 function historicalRacePlayback(scope, unit, frameCount, baselineFrameCount) {
   const durationMultiplier = scope === "alltime" ? unit === "season" ? 1 : unit === "week" ? 2 : 3 : scope === "season" ? unit === "week" ? 1 : 2 : unit === "game" ? 1 : 2;
   const targetDuration = Math.max(1, baselineFrameCount - 1) * RACE_FRAME_DELAY * durationMultiplier;
@@ -1205,7 +1210,7 @@ function startWebsiteRace() {
   if (websiteRaceTimer) clearTimeout(websiteRaceTimer);
   const button = document.getElementById("website-race-play");
   if (button) button.textContent = "Pause";
-  websiteRaceTimer = setTimeout(advanceWebsiteRace, RACE_FRAME_DELAY);
+  websiteRaceTimer = setTimeout(advanceWebsiteRace, websiteRacePlaybackDelay());
 }
 function websiteRaceDuration(milliseconds) {
   const seconds = Math.max(0, Math.round(milliseconds / 1000));
@@ -1241,7 +1246,7 @@ function renderWebsiteRaceLeadership() {
     total.duration += interval.duration;
     totals.set(interval.name, total);
     const latest = reigns[reigns.length - 1];
-    if (latest?.name === interval.name && latest.lastIndex === interval.index - 1) { latest.duration += interval.duration; latest.lastIndex = interval.index; }
+    if (latest?.name === interval.name) { latest.duration += interval.duration; latest.lastIndex = interval.index; }
     else reigns.push({ ...interval, lastIndex: interval.index });
   });
   const totalDuration = reigns.reduce((sum, reign) => sum + reign.duration, 0) || reigns.length;
@@ -1547,12 +1552,12 @@ function showWebsiteRaceFrame(frame, animate = true) {
 function advanceWebsiteRace() {
   if (!websiteRaceTimer || websiteRaceSnapshots.length < 2) return;
   if (websiteRaceFrame >= websiteRaceSnapshots.length - 1) {
-    if (websiteRacePassesRemaining > 1) { websiteRacePassesRemaining -= 1; showWebsiteRaceFrame(0, false); websiteRaceTimer = setTimeout(advanceWebsiteRace, RACE_FRAME_DELAY); return; }
+    if (websiteRacePassesRemaining > 1) { websiteRacePassesRemaining -= 1; showWebsiteRaceFrame(0, false); websiteRaceTimer = setTimeout(advanceWebsiteRace, websiteRacePlaybackDelay()); return; }
     stopWebsiteRace(); return;
   }
   showWebsiteRaceFrame(websiteRaceFrame + 1);
   if (websiteRaceFrame >= websiteRaceSnapshots.length - 1 && websiteRacePassesRemaining <= 1) { stopWebsiteRace(); return; }
-  websiteRaceTimer = setTimeout(advanceWebsiteRace, RACE_FRAME_DELAY);
+  websiteRaceTimer = setTimeout(advanceWebsiteRace, websiteRacePlaybackDelay());
 }
 function renderWebsiteRace(data) {
   const host = document.getElementById("week-one-live-race");
@@ -1571,7 +1576,8 @@ function renderWebsiteRace(data) {
   const storedSnapshots = websiteStoredRaceSnapshots(context);
   const calculatedByTimestamp = new Map([...storedSnapshots, ...currentSnapshots].filter(snapshot => snapshot.probabilityModel === "website").map(snapshot => [snapshot.timestamp, snapshot]));
   const calculatedServerSnapshots = distinctServerSnapshots.map(snapshot => calculatedByTimestamp.get(snapshot.timestamp) || websiteRaceProbabilitySnapshot(data, snapshot));
-  let snapshots = websiteMergeRaceSnapshots(storedSnapshots, currentSnapshots, calculatedServerSnapshots);
+  const hasCanonicalServerHistory = !data.testMode && calculatedServerSnapshots.length > 0;
+  let snapshots = hasCanonicalServerHistory ? calculatedServerSnapshots : websiteMergeRaceSnapshots(storedSnapshots, currentSnapshots, calculatedServerSnapshots);
   snapshots = websiteReconcileRaceSnapshots(snapshots, data.players || []);
   const current = { timestamp: data.updatedAt || new Date().toISOString(), probabilityModel: "website", gameState: (data.games || []).map(game => ({ gameId: game.gameId || "", away: game.away || "", home: game.home || "", status: websiteGameStatus(game), period: game.period || "", clock: game.clock || "", possession: game.possession || "", awayScore: game.awayScore ?? game.favoriteScore ?? "", homeScore: game.homeScore ?? game.underdogScore ?? "" })), players: (data.players || []).map(player => ({ name: player.name, winProbability: parseFloat(player.winProbability || 0) || 0, pathsToVictory: Number(player.pathsToVictory || 0), winPercent: parseFloat(player.winPercent || 0) || 0 })) };
   const latestStored = snapshots[snapshots.length - 1];
