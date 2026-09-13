@@ -1596,7 +1596,7 @@ function renderWebsiteRace(data) {
   ["website-race-previous", "website-race-next"].forEach(id => { const button = document.getElementById(id); if (button) button.dataset.nativeTooltip = "true"; });
   document.getElementById("website-race-metric").value = "winProbability";
   document.querySelector("#week-one-live-race .live-race-line-wrap")?.insertAdjacentHTML("afterbegin", '<div id="website-race-line-leader" class="live-race-leader" aria-hidden="true"></div>');
-  document.getElementById("website-race-metric")?.closest("label")?.insertAdjacentHTML("afterend", '<label>Field<select id="website-race-field"><option value="top10">Top 10</option><option value="all" selected>All players</option></select></label>');
+  document.getElementById("website-race-metric")?.closest("label")?.insertAdjacentHTML("afterend", '<label>Field<select id="website-race-field"><option value="top10" selected>Top 10</option><option value="all">All players</option></select></label>');
   const track = document.getElementById("website-race-track");
   websiteRaceRows = new Map();
   names.forEach(name => {
