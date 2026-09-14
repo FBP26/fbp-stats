@@ -546,8 +546,8 @@
   .live-race-controls button:hover { border-color: var(--accent); color: var(--accent); }
   .live-race-controls .live-race-step { width: 36px; padding: 7px; font-size: 18px; line-height: 1; }
   .live-race-controls button:disabled { cursor: default; opacity: .55; }
-  .website-race-event-panel { align-self: end; min-width: 310px; max-width: 430px; min-height: 58px; margin-left: auto; padding: 7px 10px; border: 1px solid #ffcf4066; border-radius: 4px; background: #0d1117e8; color: var(--accent); font: bold 11px/1.3 Consolas, monospace; text-align: right; }
-  .website-race-event-panel small { display: block; margin-top: 3px; color: var(--text); font: 10px/1.3 Arial, sans-serif; }
+  .website-race-event-panel { align-self: end; min-width: 310px; max-width: 430px; min-height: 0; margin-left: auto; padding: 5px 9px; border: 1px solid #ffcf4066; border-radius: 4px; background: #0d1117e8; color: var(--accent); font: bold 11px/1.2 Consolas, monospace; text-align: right; }
+  .website-race-event-panel small { display: block; margin-top: 2px; color: var(--text); font: 10px/1.2 Arial, sans-serif; }
   .race-controls { display: grid; grid-template-columns: minmax(0, 1fr) auto; align-items: end; gap: 10px 18px; max-width: none !important; }
   #view-weeks .race-controls { grid-template-columns: minmax(0, 1fr) auto; }
   .race-filter-group, .race-playback-group { display: flex; align-items: end; flex-wrap: nowrap; gap: 8px; }
@@ -589,12 +589,6 @@
   .live-racer-name { overflow: hidden; color: var(--text); font: bold 12px Arial, sans-serif; text-overflow: ellipsis; white-space: nowrap; }
   .live-racer-value { color: var(--text); font: bold 11px Consolas, monospace; text-align: right; }
   .live-race-leadership { padding: 16px 8px 4px; border-bottom: 1px solid var(--border); }
-  .live-game-drama { padding: 16px 8px 4px; border-bottom: 1px solid var(--border); }
-  .live-game-drama h4 { margin: 0 0 10px; color: var(--accent); font: 11px Arial, sans-serif; letter-spacing: 1px; text-transform: uppercase; }
-  .live-game-drama-grid { display: grid; grid-template-columns: repeat(3, minmax(0, 1fr)); gap: 8px; }
-  .live-game-drama-item { padding: 10px; border-left: 2px solid var(--accent-2); background: var(--panel-2); }
-  .live-game-drama-item span { display: block; color: var(--muted); font: 9px Arial, sans-serif; text-transform: uppercase; }
-  .live-game-drama-item strong { display: block; margin-top: 4px; font: 13px/1.35 Georgia, serif; }
   .live-race-leadership-head { display: flex; align-items: baseline; justify-content: space-between; gap: 12px; margin-bottom: 10px; }
   .live-race-leadership h4 { margin: 0; color: var(--accent); font: 11px Arial, sans-serif; letter-spacing: 1px; text-transform: uppercase; }
   .live-race-leadership-head p { margin: 0; color: var(--muted); font: 11px/1.4 Arial, sans-serif; text-align: right; }
@@ -606,7 +600,7 @@
   .live-leader-stat span { display: block; margin-top: 3px; color: var(--muted); font: 10px/1.35 Arial, sans-serif; }
   .live-race-empty { display: grid; min-height: 220px; place-items: center; padding: 24px; color: var(--muted); font: 13px/1.55 Arial, sans-serif; text-align: center; }
   @media (prefers-reduced-motion: reduce) { .live-racer { transition: none; } .race-frame-badge.flash { animation: none; } }
-  @media (max-width: 620px) and (orientation: portrait) { .live-race-line-wrap { display: none; } .live-race-track { display: block; } .week-one-landscape-hint { display: block; color: var(--accent-2); } .live-race-head { gap: 8px; margin-bottom: 8px; } .live-race-controls { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)) 32px 70px 32px; gap: 4px; width: 100%; } .live-race-controls label { width: auto; } .live-race-controls button { min-height: 32px; padding: 5px; } #website-race-restart { display: none; } .live-race-controls label:has(#website-race-speed) { grid-column: 1; } .website-race-event-panel { grid-column: 1 / -1; min-width: 0; max-width: none; min-height: 52px; margin-left: 0; text-align: left; } .live-racer { grid-template-columns: 28px 48px minmax(58px, 1fr) 52px; gap: 4px; padding-inline: 4px; } .live-racer-name, .live-racer-value, .live-racer-movement { font-size: 10px; } .live-race-leadership-head { align-items: start; flex-direction: column; gap: 3px; } .live-race-leadership-head p { text-align: left; } .live-leader-stats { grid-template-columns: repeat(2, minmax(0, 1fr)); } .live-game-drama-grid { grid-template-columns: 1fr; } }
+  @media (max-width: 620px) and (orientation: portrait) { .live-race-line-wrap { display: none; } .live-race-track { display: block; } .week-one-landscape-hint { display: block; color: var(--accent-2); } .live-race-head { gap: 8px; margin-bottom: 8px; } .live-race-controls { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)) 32px 70px 32px; gap: 4px; width: 100%; } .live-race-controls label { width: auto; } .live-race-controls button { min-height: 32px; padding: 5px; } #website-race-restart { display: none; } .live-race-controls label:has(#website-race-speed) { grid-column: 1; } .website-race-event-panel { grid-column: 1 / -1; min-width: 0; max-width: none; min-height: 0; margin-left: 0; text-align: left; } .live-racer { grid-template-columns: 28px 48px minmax(58px, 1fr) 52px; gap: 4px; padding-inline: 4px; } .live-racer-name, .live-racer-value, .live-racer-movement { font-size: 10px; } .live-race-leadership-head { align-items: start; flex-direction: column; gap: 3px; } .live-race-leadership-head p { text-align: left; } .live-leader-stats { grid-template-columns: repeat(2, minmax(0, 1fr)); } .live-game-drama-grid { grid-template-columns: 1fr; } }
   @media (orientation: landscape) and (max-height: 600px) { .live-race-line-wrap { height: 300px; } }
   @media (max-width: 850px) { .week-recap-grid { grid-template-columns: 1fr; } }
   @media (max-width: 720px) { .race-controls, #view-weeks .race-controls { grid-template-columns: 1fr; } .race-filter-group { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); } .race-filter-group label { width: auto; } .race-playback-group { flex-wrap: wrap; justify-content: start; justify-self: start; } .race-controls .live-race-status { grid-column: 1; } }
@@ -677,7 +671,7 @@
   <section id="view-picks-confirmation" class="view"><section class="intro"><div><h2>Picks submitted</h2></div><p>Week 1 · 2026-2027</p></section><div class="panel website-confirmation"><p id="confirmation-lead" class="confirmation-lead">Your picks were submitted successfully.</p><div class="confirmation-grid"><section id="confirmation-identity" class="confirmation-block"><h3>Your pool history</h3><p>Finding your place in the archive...</p></section><section id="confirmation-picks" class="confirmation-block"><h3>Live outlook</h3><p>Comparing your card with the field...</p></section><section id="confirmation-history" class="confirmation-block"><h3>This card in your history</h3><p>Loading your historical picks...</p></section></div><button id="website-view-week-one" type="button">View Week 1</button></div></section>
   <section id="view-week-one" class="view active">
     <section class="intro"><div><h2>Week 1</h2></div><p>2026-2027 submissions and weekly standings.</p></section>
-    <div class="panel"><div id="week-one-status"></div><div id="week-one-table" style="overflow-x:auto"></div><p class="week-one-landscape-hint">Rotate to landscape for a better view</p><section id="week-one-live-race" class="live-race"></section><div id="week-one-recap"></div><div id="week-one-scenarios" class="weekly-subview"></div><div id="week-one-sankey" class="weekly-subview"></div></div>
+    <div class="panel"><div id="week-one-status"></div><div id="week-one-table" style="overflow-x:auto"></div><p class="week-one-landscape-hint">Rotate to landscape for a better view</p><section id="week-one-live-race" class="live-race"></section><div id="week-one-recap"></div><div id="week-one-paths" class="weekly-subview"></div><div id="week-one-scenarios" class="weekly-subview"></div><div id="week-one-sankey" class="weekly-subview"></div></div>
   </section>
   <section id="view-alltime" class="view">
     <section class="intro"><div><h2>All Time</h2></div><p>Seventeen seasons of results in one place: the career leaders, every champion, and how the long-timers built their records.</p></section>
@@ -1407,32 +1401,6 @@ function websiteRaceCheckpointHeadline(snapshotIndex) {
   const score = events.filter(event => event.type === "score").sort((left, right) => right.points - left.points)[0];
   return score?.headline || events[0]?.lines?.[0] || "";
 }
-function websiteRaceGameDrama(data) {
-  const summaries = (data.games || []).map((game, index) => {
-    const favorite = data.favorites[index], underdog = data.underdogs[index], spread = Number(data.spreads[index]) || 0;
-    const margins = websiteRaceSnapshots.map((snapshot, snapshotIndex) => {
-      const state = websiteGameStateForSnapshot(snapshot, game);
-      if (!state) return null;
-      const favoriteIsAway = String(favorite).toUpperCase() === String(state.away || game.away).toUpperCase();
-      const favoriteScore = websiteRaceScore(favoriteIsAway ? state.awayScore : state.homeScore), underdogScore = websiteRaceScore(favoriteIsAway ? state.homeScore : state.awayScore);
-      return Number.isFinite(favoriteScore) && Number.isFinite(underdogScore) ? { value: favoriteScore - underdogScore - spread, snapshotIndex } : null;
-    }).filter(Boolean);
-    if (margins.length < 2) return null;
-    const low = Math.min(...margins.map(point => point.value)), high = Math.max(...margins.map(point => point.value)), final = margins[margins.length - 1].value;
-    if (high === low) return null;
-    const flips = margins.slice(1).filter((point, pointIndex) => Math.sign(point.value) !== Math.sign(margins[pointIndex].value) && point.value !== 0);
-    const comeback = final > 0 ? Math.max(0, -low) : final < 0 ? Math.max(0, high) : 0;
-    return { favorite, underdog, swing: high - low, comeback, finalSide: final > 0 ? favorite : final < 0 ? underdog : "Push", latestFlip: flips.at(-1)?.snapshotIndex ?? -1 };
-  }).filter(Boolean);
-  if (!summaries.length) return [];
-  const wildest = [...summaries].sort((left, right) => right.swing - left.swing)[0];
-  const biggestComeback = [...summaries].sort((left, right) => right.comeback - left.comeback)[0];
-  const finish = [...summaries].sort((left, right) => right.latestFlip - left.latestFlip)[0];
-  const cards = [["Wildest ATS swing", `${wildest.favorite}-${wildest.underdog} swung ${wildest.swing.toFixed(1)} points in ATS margin`]];
-  if (biggestComeback.comeback > 0) cards.push(["Biggest cover comeback", `${biggestComeback.finalSide} erased a ${biggestComeback.comeback.toFixed(1)}-point ATS deficit`]);
-  if (finish.latestFlip >= 0) cards.push(["Craziest finish so far", `${finish.favorite}-${finish.underdog} flipped the cover side latest`]);
-  return cards;
-}
 function renderWebsiteRaceLineChart(animate = true) {
   const canvas = document.getElementById("website-race-line-chart");
   if (!canvas || matchMedia("(max-width: 620px) and (orientation: portrait)").matches) {
@@ -1589,8 +1557,7 @@ function renderWebsiteRace(data) {
   if (!websiteRaceSnapshots.length) { host.innerHTML = '<div class="live-race-head"><div><h3>Live Weekly Race</h3><p>Win probability and paths will build here every five minutes once the live refresh starts.</p></div></div><div class="live-race-empty">No race snapshots yet. The first production refresh will create the opening frame.</div>'; return; }
   const names = [...new Set(websiteRaceSnapshots.flatMap(snapshot => snapshot.players.map(player => player.name)))];
   const waitingForUpdate = websiteRaceSnapshots.length < 2;
-  const drama = websiteRaceGameDrama(data);
-  host.innerHTML = `<div class="live-race-head"><div><h3>Live Weekly Race</h3><p>${waitingForUpdate ? "The opening frame is saved. Playback unlocks after the next changed live update." : "Desktop traces every player's rank from the start to the current checkpoint. Mobile follows the compact race ladder."}</p></div><div class="live-race-controls"><label>Race by<select id="website-race-metric"><option value="winProbability">Win probability</option><option value="winPercent">Win %</option><option value="pathsToVictory">Paths to victory</option></select></label><button id="website-race-previous" class="live-race-step" type="button" title="Previous frame" aria-label="Previous frame"${waitingForUpdate ? " disabled" : ""}>‹</button><button id="website-race-play" type="button"${waitingForUpdate ? " disabled" : ""}>${waitingForUpdate ? "Waiting for next update" : "Play race"}</button><button id="website-race-next" class="live-race-step" type="button" title="Next frame" aria-label="Next frame"${waitingForUpdate ? " disabled" : ""}>›</button><button id="website-race-restart" type="button">Restart</button><label>Speed<select id="website-race-speed"><option value="1400">0.75x</option><option value="900" selected>1x</option><option value="500">2x</option></select></label><div class="live-race-status"><output id="website-race-time" class="live-race-time" aria-live="polite"></output><output id="website-race-headline" class="live-race-headline" aria-live="polite"></output></div></div></div><div class="live-race-line-wrap"><canvas id="website-race-line-chart"></canvas></div><div id="website-race-track" class="live-race-track"><div id="website-race-leader" class="live-race-leader" aria-hidden="true"></div></div><section id="website-race-leadership" class="live-race-leadership"></section>${drama.length ? `<section class="live-game-drama"><h4>Game drama from saved checkpoints</h4><div class="live-game-drama-grid">${drama.map(([label, detail]) => `<div class="live-game-drama-item"><span>${label}</span><strong>${websiteEscapeHtml(detail)}</strong></div>`).join("")}</div></section>` : ""}`;
+  host.innerHTML = `<div class="live-race-head"><div><h3>Live Weekly Race</h3><p>${waitingForUpdate ? "The opening frame is saved. Playback unlocks after the next changed live update." : "Desktop traces every player's rank from the start to the current checkpoint. Mobile follows the compact race ladder."}</p></div><div class="live-race-controls"><label>Race by<select id="website-race-metric"><option value="winProbability">Win probability</option><option value="winPercent">Win %</option><option value="pathsToVictory">Paths to victory</option></select></label><button id="website-race-previous" class="live-race-step" type="button" title="Previous frame" aria-label="Previous frame"${waitingForUpdate ? " disabled" : ""}>‹</button><button id="website-race-play" type="button"${waitingForUpdate ? " disabled" : ""}>${waitingForUpdate ? "Waiting for next update" : "Play race"}</button><button id="website-race-next" class="live-race-step" type="button" title="Next frame" aria-label="Next frame"${waitingForUpdate ? " disabled" : ""}>›</button><button id="website-race-restart" type="button">Restart</button><label>Speed<select id="website-race-speed"><option value="1400">0.75x</option><option value="900" selected>1x</option><option value="500">2x</option></select></label><div class="live-race-status"><output id="website-race-time" class="live-race-time" aria-live="polite"></output><output id="website-race-headline" class="live-race-headline" aria-live="polite"></output></div></div></div><div class="live-race-line-wrap"><canvas id="website-race-line-chart"></canvas></div><div id="website-race-track" class="live-race-track"><div id="website-race-leader" class="live-race-leader" aria-hidden="true"></div></div><section id="website-race-leadership" class="live-race-leadership"></section>`;
   document.querySelector("#week-one-live-race .live-race-status")?.replaceWith(Object.assign(document.createElement("output"), { id: "website-race-event-panel", className: "website-race-event-panel" }));
   document.getElementById("website-race-event-panel")?.setAttribute("aria-live", "polite");
   ["website-race-previous", "website-race-next"].forEach(id => { const button = document.getElementById(id); if (button) button.dataset.nativeTooltip = "true"; });
@@ -2128,11 +2095,6 @@ function renderWebsiteContenderPaths(data) {
   const host = document.getElementById("week-one-paths");
   if (!host || !(data.players || []).length) return;
   const analysis = websiteContenderPaths(data);
-  if (analysis.scenarios.variable.length > WEBSITE_EXACT_SCENARIO_GAME_LIMIT) {
-    host.innerHTML = "";
-    document.getElementById("week-one-scenarios").innerHTML = "";
-    return;
-  }
   const rows = analysis.contenders.map((contender, contenderIndex) => {
     const narrative = websiteContenderDetailMode === "complete" ? websiteContenderNarrative(analysis, contender) : websiteSimpleContenderNarrative(analysis, contender, contenderIndex);
     return `<tr><td><strong>${contender.player.name}</strong></td><td>${websiteProbabilityText(contender.probability * 100)}</td><td>${narrative}</td></tr>`;
@@ -3178,8 +3140,8 @@ async function renderWebsiteWeekOne(currentWeekRequest = null) {
     decorateWebsiteWeekOneHeaders(data);
     renderWebsiteRace(data);
     renderWebsiteWeekRecap(data);
-    renderWebsitePaths(data);
-    renderWebsiteSankey(data);
+    renderWebsiteContenderPaths(data);
+    renderWebsitePersonalizedSankey(data);
     startHistoricalInitialization();
     raceRequest.then(raceSnapshots => {
       if (!raceSnapshots.length || websiteRegularSelection.season !== Number(data.season) || websiteRegularSelection.week !== Number(data.week)) return;
@@ -3305,8 +3267,8 @@ async function renderSelectedWebsiteWeek(activeWeekKnown = false, currentWeekReq
     renderWebsiteRace(data);
     decorateWebsiteWeekOneHeaders(data);
     renderWebsitePlayerLedgers(data);
-    renderWebsitePaths(data);
-    renderWebsiteSankey(data);
+    renderWebsiteContenderPaths(data);
+    renderWebsitePersonalizedSankey(data);
     document.querySelector("#view-week-one .intro h2").textContent = `Preseason Week ${selection.week} Test`;
     document.querySelector("#view-week-one .intro p").textContent = "Test entries only · excluded from season records.";
     websiteLiveRefreshTimer = setTimeout(renderSelectedWebsiteWeek, 60000);
