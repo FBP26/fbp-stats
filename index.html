@@ -637,6 +637,7 @@
   }
   .analysis-section { margin-top: 34px; padding-top: 28px; border-top: 1px solid var(--line); }
   .analysis-section:first-child { margin-top: 0; padding-top: 0; border-top: 0; }
+  #view-live-analysis #week-one-sankey { overflow-x: auto; }
   .compact-win-summary { margin: 0 0 14px; }
   .teams-view-tabs { display: flex; gap: 6px; margin: 18px 0; border-bottom: 1px solid var(--line); }
   .teams-view-tabs button { border: 0; border-bottom: 2px solid transparent; border-radius: 0; background: transparent; color: var(--muted); padding: 9px 12px; }
@@ -644,6 +645,8 @@
   @media (max-width: 560px) {
     header { padding-inline: 8px; }
     main { padding-inline: 8px; }
+    #view-live-analysis .path-controls label { min-width: 0; width: auto; flex: 1 1 0; }
+    #view-live-analysis .path-controls select { width: 100%; min-width: 0; }
     .website-game-context .website-context-venue { text-align: center; }
     .website-game-context:not(:has(.website-context-weather:not(:empty))) .website-context-venue { text-align: center; }
   }
@@ -661,7 +664,7 @@
 </head>
 <body>
 <div id="website-pull-refresh" class="pull-refresh" role="status" aria-live="polite"><span class="pull-refresh-icon" aria-hidden="true">↻</span><span class="pull-refresh-label">Pull to refresh</span></div>
-<header><nav id="nav"><button data-view="enter-picks">Enter Picks</button><button data-view="week-one">Week 1</button><button data-view="players">Players</button><button data-view="alltime">All Time</button><button data-view="season">Seasons</button><button data-view="weeks">Weeks</button><button data-view="games">Games</button><button data-view="streaks">Streaks</button><button data-view="teams">Teams</button><button data-view="names">Names</button><button data-view="payout">Payout</button><button data-view="faq">FAQ</button></nav></header>
+<header><nav id="nav"><button data-view="enter-picks">Enter Picks</button><button data-view="week-one">Week 1</button><button data-view="live-analysis">Live Analysis</button><button data-view="players">Players</button><button data-view="alltime">All Time</button><button data-view="season">Seasons</button><button data-view="weeks">Weeks</button><button data-view="games">Games</button><button data-view="streaks">Streaks</button><button data-view="teams">Teams</button><button data-view="names">Names</button><button data-view="payout">Payout</button><button data-view="faq">FAQ</button></nav></header>
 <aside id="website-install-help" class="install-help" hidden><div><strong>Add FBP to your Home Screen</strong><span id="website-install-copy"></span></div><button id="website-install-action" type="button" hidden>Install</button><button id="website-install-close" class="install-help-close" type="button" aria-label="Dismiss home-screen instructions">×</button></aside>
 <main>
   <section id="view-enter-picks" class="view">
@@ -671,7 +674,11 @@
   <section id="view-picks-confirmation" class="view"><section class="intro"><div><h2>Picks submitted</h2></div><p>Week 1 · 2026-2027</p></section><div class="panel website-confirmation"><p id="confirmation-lead" class="confirmation-lead">Your picks were submitted successfully.</p><div class="confirmation-grid"><section id="confirmation-identity" class="confirmation-block"><h3>Your pool history</h3><p>Finding your place in the archive...</p></section><section id="confirmation-picks" class="confirmation-block"><h3>Live outlook</h3><p>Comparing your card with the field...</p></section><section id="confirmation-history" class="confirmation-block"><h3>This card in your history</h3><p>Loading your historical picks...</p></section></div><button id="website-view-week-one" type="button">View Week 1</button></div></section>
   <section id="view-week-one" class="view active">
     <section class="intro"><div><h2>Week 1</h2></div><p>2026-2027 submissions and weekly standings.</p></section>
-    <div class="panel"><div id="week-one-status"></div><div id="week-one-table" style="overflow-x:auto"></div><p class="week-one-landscape-hint">Rotate to landscape for a better view</p><section id="week-one-live-race" class="live-race"></section><div id="week-one-recap"></div><div id="week-one-paths" class="weekly-subview"></div><div id="week-one-scenarios" class="weekly-subview"></div><div id="week-one-sankey" class="weekly-subview"></div></div>
+    <div class="panel"><div id="week-one-status"></div><div id="week-one-table" style="overflow-x:auto"></div><p class="week-one-landscape-hint">Rotate to landscape for a better view</p><div id="week-one-analysis-anchor" hidden></div><section id="week-one-live-race" class="live-race"></section><div id="week-one-recap"></div><div id="week-one-paths" class="weekly-subview"></div><div id="week-one-scenarios" class="weekly-subview"></div><div id="week-one-sankey" class="weekly-subview"></div></div>
+  </section>
+  <section id="view-live-analysis" class="view">
+    <section class="intro"><div><h2>Live Analysis</h2></div><p>Weekly race, recap, and paths to victory.</p></section>
+    <div id="live-analysis-host" class="panel"></div>
   </section>
   <section id="view-alltime" class="view">
     <section class="intro"><div><h2>All Time</h2></div><p>Seventeen seasons of results in one place: the career leaders, every champion, and how the long-timers built their records.</p></section>
@@ -749,7 +756,7 @@
 document.getElementById("profile-best-bet-chart")?.closest(".profile-chart")?.before(document.getElementById("profile-team-chart")?.closest(".profile-chart"));
 const DATA_DIR = "./data";
 const WEBSITE_WEEK_HISTORY_VERSION = "20260903-literal-none";
-const websiteRoutes = ["enter-picks", "week-one", "picks-confirmation", "alltime", "season", "payout", "streaks", "weeks", "weekly-rank", "games", "players", "names", "teams", "map", "faq"];
+const websiteRoutes = ["enter-picks", "week-one", "live-analysis", "picks-confirmation", "alltime", "season", "payout", "streaks", "weeks", "weekly-rank", "games", "players", "names", "teams", "map", "faq"];
 const standaloneAppLaunch = matchMedia("(display-mode: standalone)").matches || navigator.standalone === true;
 const savedStartupRoute = localStorage.getItem("fbpLastView");
 const websiteNavigationType = performance.getEntriesByType("navigation")[0]?.type;
@@ -3343,7 +3350,7 @@ async function refreshWebsiteApp() {
   }, { passive: true });
   document.addEventListener("touchcancel", () => { tracking = false; resetWebsitePullRefresh(); }, { passive: true });
 }
-document.addEventListener("click",event=>{const button=event.target.closest("#nav button[data-view]");if(!button)return;if(!document.getElementById(`view-${button.dataset.view}`)?.classList.contains("active"))showView(button.dataset.view);if(button.dataset.view==="enter-picks")setTimeout(()=>{renderWebsitePicksForm();resetWebsiteBestBet();},0);if(button.dataset.view==="week-one")setTimeout(renderSelectedWebsiteWeek,0);});
+document.addEventListener("click",event=>{const button=event.target.closest("#nav button[data-view]");if(!button)return;if(!document.getElementById(`view-${button.dataset.view}`)?.classList.contains("active"))showView(button.dataset.view);if(button.dataset.view==="enter-picks")setTimeout(()=>{renderWebsitePicksForm();resetWebsiteBestBet();},0);if(["week-one","live-analysis"].includes(button.dataset.view))setTimeout(renderSelectedWebsiteWeek,0);});
 document.getElementById("website-view-week-one")?.addEventListener("click",()=>{showView("week-one");renderSelectedWebsiteWeek();});
 let profileChart = null, profileMoneyChart = null, profilePlusMinusChart = null, profilePlacementChart = null, profileBestWeeksChart = null, profileRecentChart = null, profileBestBetChart = null, profileTeamChart = null, profileClubChart = null, profileBestGamesChart = null, profileSituationalChart = null, gamePicksTable = null, weekChart = null, weekTable = null, weekRaceChart = null, winnerContributionChart = null, weeklyRankChart = null, streakChart = null, streakTable = null, seasonTopChart = null, seasonTable = null, seasonRaceChart = null, seasonPlayerChart = null, seasonMoneyChart = null, seasonConsistencyChart = null, seasonBbChart = null, seasonTeamsChart = null, seasonContrarianChart = null, seasonTbChart = null, allTimeTopChart = null, allTimePlusMinusChart = null, allTimePlusMinusTrendChart = null, allTimeGamesChart = null, allTimeArcsChart = null, allTimeMoneyChart = null, allTimeTurnoutChart = null, allTimeStreakChart = null, allTimeTeamPicksChart = null, allTimeContrarianChart = null, allTimeSeasonWeeksChart = null, manifest = [], dashboard = [], tableData = {}, websiteWeeks = [], websitePlayoffRoundNames = [], websiteAwards = [], websiteSeasons = [], websitePlayers = [], websiteRecords = [], websiteStreaks = [], websiteGames = [], websitePicks = [], websitePayouts = [];
 let allTimeAttendanceChart = null, allTimeRaceChart = null, allTimeRaceFrames = [], allTimeRaceFrame = 0, allTimeRaceTimer = null, allTimeRaceSelectedPlayer = "", allTimeRacePassesRemaining = 0, allTimeRacePlayback = { delay: RACE_FRAME_DELAY, step: 1 };
@@ -3438,7 +3445,17 @@ function percentFormatter(cell) { const v = cell.getValue(); if (v === "" || v =
 function isMoneyColumn(name) { return /money|won\s*\$|streak.*money/i.test(name) && !/won during|weeks during/i.test(name); }
 function isPercentColumn(name) { return /^%$|win\s*%|%\s*won/i.test(name); }
 function buildColumns(columns, rows) { return columns.map(col => { const sample = rows.find(r => r[col] !== "" && r[col] != null); const value = sample && sample[col]; const numeric = value !== undefined && value !== "" && !isNaN(parseFloat(String(value).replace(/[$,%]/g, ""))); const def = { title: col, field: col, headerFilter: true, headerFilterPlaceholder: "filter...", sorter: numeric ? "number" : "string" }; if (isMoneyColumn(col)) def.formatter = moneyFormatter; else if (isPercentColumn(col)) def.formatter = percentFormatter; return def; }); }
-function showView(view) { if (view === "alltime" && startupRoutePending) return; if (view !== "season") stopSeasonLiveRace(); if (view !== "weeks") stopWeekLiveRace(); document.querySelectorAll(".view").forEach(section => section.classList.toggle("active", section.id === `view-${view}`)); document.querySelectorAll("#nav button[data-view]").forEach(btn => btn.classList.toggle("active", btn.dataset.view === view)); history.replaceState(null, "", `#${view}`); if (websiteRoutes.includes(view) && view !== "picks-confirmation") localStorage.setItem("fbpLastView", view); websiteRefreshInstallHelp(view); websiteTrackEvent("page_view", view); }
+function placeWebsiteLiveAnalysis(view) {
+  const anchor = document.getElementById("week-one-analysis-anchor");
+  const destination = view === "live-analysis" ? document.getElementById("live-analysis-host") : anchor?.parentElement;
+  if (!destination) return;
+  ["week-one-live-race", "week-one-recap", "week-one-paths", "week-one-scenarios", "week-one-sankey"].forEach(id => {
+    const section = document.getElementById(id);
+    if (section) destination.appendChild(section);
+  });
+  requestAnimationFrame(() => window.dispatchEvent(new Event("resize")));
+}
+function showView(view) { if (view === "alltime" && startupRoutePending) return; placeWebsiteLiveAnalysis(view); if (view !== "season") stopSeasonLiveRace(); if (view !== "weeks") stopWeekLiveRace(); document.querySelectorAll(".view").forEach(section => section.classList.toggle("active", section.id === `view-${view}`)); document.querySelectorAll("#nav button[data-view]").forEach(btn => btn.classList.toggle("active", btn.dataset.view === view)); history.replaceState(null, "", `#${view}`); if (websiteRoutes.includes(view) && view !== "picks-confirmation") localStorage.setItem("fbpLastView", view); websiteRefreshInstallHelp(view); websiteTrackEvent("page_view", view); }
 function renderProfile(name) { const overall = (tableData.overall || []).find(row => row.Name === name); const money = (tableData.money_won || []).find(row => row.Name === name); const weekly = dashboard.filter(row => row.Name === name); document.getElementById("profile-name").textContent = name || "Choose a player"; if (!overall) { document.getElementById("profile-stats").innerHTML = ""; return; } const stats = [["Wins", overall.Wins], ["Losses", overall.Losses], ["Win percentage", (Number(overall["%"] || 0) * 100).toFixed(2) + "%"], ["Plus/minus", overall["Plus/Minus"]], ["Total money won", "$" + Number(money?.["Total Money Won"] || 0).toLocaleString()], ["Weeks won", money?.["Weeks Won"] || 0]]; document.getElementById("profile-stats").innerHTML = stats.map(([label, value]) => `<div><span>${label}</span><strong>${value}</strong></div>`).join(""); const seasons = [...new Set(weekly.map(row => row.Season))].sort(); if (profileChart) profileChart.destroy(); profileChart = new Chart(document.getElementById("profile-history-chart"), { type: "line", data: { labels: seasons, datasets: [{ label: "Wins", data: seasons.map(season => weekly.filter(row => row.Season === season).reduce((sum, row) => sum + Number(row.Wins || 0), 0)), borderColor: colors[0], backgroundColor: colors[0] + "55", tension: .25 }, { label: "Average rank", data: seasons.map(season => { const rows = weekly.filter(row => row.Season === season); return rows.reduce((sum, row) => sum + Number(row.Rank || 0), 0) / rows.length; }), borderColor: colors[1], backgroundColor: colors[1] + "55", tension: .25, yAxisID: "rank" }] }, options: { responsive: true, maintainAspectRatio: false, scales: { x: { ticks: { color: "#91a0ae" }, grid: { color: "#2a3744" } }, y: { beginAtZero: true, ticks: { color: "#91a0ae" }, grid: { color: "#2a3744" } }, rank: { position: "right", reverse: true, ticks: { color: "#91a0ae" }, grid: { drawOnChartArea: false } } }, plugins: { legend: { labels: { color: "#e8eef5" } } } } }); }
 function renderProfileLegacy(name) {
   const overall = (tableData.overall || []).find(row => row.Name === name);
@@ -6616,14 +6633,14 @@ if (tiebreaker) {
 updateWebsiteWeekLabels(websiteEntrySelection);
 showView(startupRoute);
 if (startupRoute === "week-one") websiteRenderCachedCurrentWeek();
-if (startupRoute === "week-one" && !WEBSITE_SUBMISSIONS_ENDPOINT) {
+if (["week-one", "live-analysis"].includes(startupRoute) && !WEBSITE_SUBMISSIONS_ENDPOINT) {
   const fallback = websiteWeekOneFallback();
   renderWebsiteWeekOneGrid(fallback, "Cached Week 1");
   document.getElementById("week-one-table").dataset.instantWeek = "true";
   decorateWebsiteWeekOneHeaders(fallback);
 }
 (async () => {
-  const currentWeekRequest = startupRoute === "week-one"
+  const currentWeekRequest = ["week-one", "live-analysis"].includes(startupRoute)
     ? fetchWebsiteCurrentWeek().then(data => ({ data }), error => ({ error }))
     : null;
   if (startupRoute === "enter-picks") {
@@ -6642,7 +6659,7 @@ if (startupRoute === "week-one" && !WEBSITE_SUBMISSIONS_ENDPOINT) {
     } catch (error) { console.warn(`Active slate refresh failed: ${error.message}`); }
     return;
   }
-  if (startupRoute === "week-one") {
+  if (["week-one", "live-analysis"].includes(startupRoute)) {
     const result = await currentWeekRequest;
     let preseasonActive = false;
     if (!result.error && result.data.staged === false) {
