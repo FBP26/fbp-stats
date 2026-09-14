@@ -427,6 +427,7 @@
   .analysis-table th { background: #202c38; color: var(--muted); font-size: 10px; text-transform: uppercase; }
   .analysis-table td { background: var(--panel-2); }
   .scenario-player-row td { background: #202c38; border-top: 2px solid var(--accent); }
+  .scenario-winner-row td { background: #17372d; border-top-color: #7fc8a9; color: #e8fff5; }
   .scenario-subrow td:first-child { padding-left: 22px; color: var(--muted); }
   .scenario-chance { color: var(--accent-2); white-space: nowrap; }
   .analysis-note { margin: 0 0 10px; color: var(--muted); font: 11px Arial, sans-serif; }
@@ -664,7 +665,7 @@
 </head>
 <body>
 <div id="website-pull-refresh" class="pull-refresh" role="status" aria-live="polite"><span class="pull-refresh-icon" aria-hidden="true">↻</span><span class="pull-refresh-label">Pull to refresh</span></div>
-<header><nav id="nav"><button data-view="enter-picks">Enter Picks</button><button data-view="week-one">Week 1</button><button data-view="live-analysis">Live Analysis</button><button data-view="players">Players</button><button data-view="alltime">All Time</button><button data-view="season">Seasons</button><button data-view="weeks">Weeks</button><button data-view="games">Games</button><button data-view="streaks">Streaks</button><button data-view="teams">Teams</button><button data-view="names">Names</button><button data-view="payout">Payout</button><button data-view="faq">FAQ</button></nav></header>
+<header><nav id="nav"><button data-view="enter-picks">Enter Picks</button><button data-view="week-one">Week 1</button><button data-view="live-analysis">Live</button><button data-view="players">Players</button><button data-view="alltime">All Time</button><button data-view="season">Seasons</button><button data-view="weeks">Weeks</button><button data-view="games">Games</button><button data-view="streaks">Streaks</button><button data-view="teams">Teams</button><button data-view="names">Names</button><button data-view="payout">Payout</button><button data-view="faq">FAQ</button></nav></header>
 <aside id="website-install-help" class="install-help" hidden><div><strong>Add FBP to your Home Screen</strong><span id="website-install-copy"></span></div><button id="website-install-action" type="button" hidden>Install</button><button id="website-install-close" class="install-help-close" type="button" aria-label="Dismiss home-screen instructions">×</button></aside>
 <main>
   <section id="view-enter-picks" class="view">
@@ -674,11 +675,11 @@
   <section id="view-picks-confirmation" class="view"><section class="intro"><div><h2>Picks submitted</h2></div><p>Week 1 · 2026-2027</p></section><div class="panel website-confirmation"><p id="confirmation-lead" class="confirmation-lead">Your picks were submitted successfully.</p><div class="confirmation-grid"><section id="confirmation-identity" class="confirmation-block"><h3>Your pool history</h3><p>Finding your place in the archive...</p></section><section id="confirmation-picks" class="confirmation-block"><h3>Live outlook</h3><p>Comparing your card with the field...</p></section><section id="confirmation-history" class="confirmation-block"><h3>This card in your history</h3><p>Loading your historical picks...</p></section></div><button id="website-view-week-one" type="button">View Week 1</button></div></section>
   <section id="view-week-one" class="view active">
     <section class="intro"><div><h2>Week 1</h2></div><p>2026-2027 submissions and weekly standings.</p></section>
-    <div class="panel"><div id="week-one-status"></div><div id="week-one-table" style="overflow-x:auto"></div><p class="week-one-landscape-hint">Rotate to landscape for a better view</p><div id="week-one-analysis-anchor" hidden></div><section id="week-one-live-race" class="live-race"></section><div id="week-one-recap"></div><div id="week-one-paths" class="weekly-subview"></div><div id="week-one-scenarios" class="weekly-subview"></div><div id="week-one-sankey" class="weekly-subview"></div></div>
+    <div class="panel"><div id="week-one-status"></div><div id="week-one-table" style="overflow-x:auto"></div><p class="week-one-landscape-hint">Rotate to landscape for a better view</p></div>
   </section>
   <section id="view-live-analysis" class="view">
-    <section class="intro"><div><h2>Live Analysis</h2></div><p>Weekly race, recap, and paths to victory.</p></section>
-    <div id="live-analysis-host" class="panel"></div>
+    <section class="intro"><div><h2>Live</h2></div><p>Weekly race, recap, and paths to victory.</p></section>
+    <div id="live-analysis-host" class="panel"><section id="week-one-live-race" class="live-race"></section><div id="week-one-recap"></div><div id="week-one-scenarios" class="weekly-subview"></div><div id="week-one-sankey" class="weekly-subview"></div></div>
   </section>
   <section id="view-alltime" class="view">
     <section class="intro"><div><h2>All Time</h2></div><p>Seventeen seasons of results in one place: the career leaders, every champion, and how the long-timers built their records.</p></section>
@@ -1230,7 +1231,7 @@ function renderWebsiteRaceLeadership() {
   const host = document.getElementById("website-race-leadership");
   if (!host || !websiteRaceSnapshots.length) return;
   const metric = "winProbability";
-  const probabilitySnapshots = websiteRaceSnapshots.filter(snapshot => snapshot.probabilityModel === "website");
+  const probabilitySnapshots = websiteRaceSnapshots.slice(0, websiteRaceFrame + 1).filter(snapshot => snapshot.probabilityModel === "website");
   const timestamps = probabilitySnapshots.map(snapshot => new Date(snapshot.timestamp).getTime());
   const intervals = probabilitySnapshots.map((snapshot, index) => {
     if (!websiteRaceHasLiveGame(snapshot)) return null;
@@ -1238,9 +1239,10 @@ function renderWebsiteRaceLeadership() {
     const topValue = Number(ranked[0]?.[metric] || 0);
     const leaderNames = ranked.filter(player => Number(player[metric] || 0) === topValue).map(player => player.name);
     const hasNextSnapshot = Number.isFinite(timestamps[index + 1]);
-    const nextTimestamp = hasNextSnapshot ? timestamps[index + 1] : websiteRaceLiveNow ? Date.now() : timestamps[index];
+    const atLatestFrame = websiteRaceFrame === websiteRaceSnapshots.length - 1;
+    const nextTimestamp = hasNextSnapshot ? timestamps[index + 1] : atLatestFrame && websiteRaceLiveNow ? Date.now() : timestamps[index];
     const duration = hasNextSnapshot ? nextTimestamp - timestamps[index] : Math.min(10 * 60 * 1000, nextTimestamp - timestamps[index]);
-    return leaderNames.length && Number.isFinite(duration) && duration > 0 ? { name: leaderNames.join(" + "), duration, index } : null;
+    return leaderNames.length && Number.isFinite(duration) && duration > 0 ? { name: leaderNames.join(" + "), duration, index, start: timestamps[index], end: nextTimestamp } : null;
   }).filter(Boolean);
   if (!intervals.length) { host.innerHTML = '<div class="live-race-leadership-head"><h4>Time on top</h4><p>Timing begins with the next live-game snapshot.</p></div>'; return; }
   const totals = new Map(), reigns = [];
@@ -1249,14 +1251,15 @@ function renderWebsiteRaceLeadership() {
     total.duration += interval.duration;
     totals.set(interval.name, total);
     const latest = reigns[reigns.length - 1];
-    if (latest?.name === interval.name) { latest.duration += interval.duration; latest.lastIndex = interval.index; }
+    if (latest?.name === interval.name) { latest.duration += interval.duration; latest.lastIndex = interval.index; latest.end = interval.end; }
     else reigns.push({ ...interval, lastIndex: interval.index });
   });
   const totalDuration = reigns.reduce((sum, reign) => sum + reign.duration, 0) || reigns.length;
   const longest = [...reigns].sort((left, right) => right.duration - left.duration)[0];
   const leaders = [...totals.values()].sort((left, right) => right.duration - left.duration || left.name.localeCompare(right.name));
   const leadChanges = intervals.slice(1).filter((interval, index) => interval.name !== intervals[index].name).length;
-  host.innerHTML = `<div class="live-race-leadership-head"><h4>Time on top</h4><p>${leadChanges} lead change${leadChanges === 1 ? "" : "s"} during play · ${websiteRaceDuration(totalDuration)} measured · Longest: ${websiteEscapeHtml(longest.name)} ${websiteRaceDuration(longest.duration)}</p></div><div class="live-leader-trail" aria-label="Time on top while games were live">${reigns.map(reign => `<span class="live-leader-segment" style="--runner-color:${websiteRaceColor(reign.name)};flex:${reign.duration / totalDuration}" title="${websiteEscapeHtml(reign.name)} · ${websiteRaceDuration(reign.duration)} on top while games were live">${reign.duration / totalDuration >= .09 ? websiteEscapeHtml(reign.name) : ""}</span>`).join("")}</div><div class="live-leader-stats">${leaders.map(leader => `<div class="live-leader-stat" style="--runner-color:${websiteRaceColor(leader.name)}"><strong>${websiteEscapeHtml(leader.name)}</strong><span>${websiteRaceDuration(leader.duration)} on top during live play</span></div>`).join("")}</div>`;
+  const dateTime = timestamp => new Date(timestamp).toLocaleString([], { weekday: "short", hour: "numeric", minute: "2-digit" });
+  host.innerHTML = `<div class="live-race-leadership-head"><h4>Time on top</h4><p>${leadChanges} lead change${leadChanges === 1 ? "" : "s"} during play · ${websiteRaceDuration(totalDuration)} measured · Longest: ${websiteEscapeHtml(longest.name)} ${websiteRaceDuration(longest.duration)}</p></div><div class="live-leader-trail" aria-label="Time on top while games were live">${reigns.map(reign => `<span class="live-leader-segment" tabindex="0" style="--runner-color:${websiteRaceColor(reign.name)};flex:${reign.duration / totalDuration}" title="${websiteEscapeHtml(reign.name)} · ${websiteRaceDuration(reign.duration)} · ${dateTime(reign.start)} to ${dateTime(reign.end)}">${reign.duration / totalDuration >= .09 ? websiteEscapeHtml(reign.name) : ""}</span>`).join("")}</div><div class="live-leader-stats">${leaders.map(leader => `<div class="live-leader-stat" style="--runner-color:${websiteRaceColor(leader.name)}"><strong>${websiteEscapeHtml(leader.name)}</strong><span>${websiteRaceDuration(leader.duration)} on top during live play</span></div>`).join("")}</div>`;
 }
 function setRaceLeaderBackdrop(element, name, chart = null) {
   if (!element) return;
@@ -1431,31 +1434,6 @@ function renderWebsiteRaceLineChart(animate = true) {
     }).filter(Boolean);
     return { label: name, data, borderColor: displayColor, backgroundColor: displayColor, borderWidth: websiteRaceSelectedPlayer === name ? 4 : selected ? 2 : 1, tension: .24, spanGaps: true, pointRadius: context => context.dataIndex === data.length - 1 ? 6 : context.dataIndex === 0 ? 4 : selected ? 1.5 : 0, pointStyle: context => racePointStyle(context, data), pointRotation: context => racePointRotation(context, data, true), pointHoverRadius: 8, pointBackgroundColor: context => context.dataIndex === 0 && data.length > 1 ? "#0f171e" : displayColor, pointBorderColor: displayColor, pointBorderWidth: 2 };
   });
-  const importantCheckpoints = websiteRaceImportantCheckpointIndexes(websiteRaceSnapshots.length, metric);
-  const checkpointEvents = {
-    id: "websiteRaceCheckpointEvents",
-    beforeDatasetsDraw(chart) {
-      const { ctx, chartArea, scales } = chart;
-      shownSnapshots.forEach((snapshot, index) => {
-        if (!importantCheckpoints.has(index)) return;
-        const events = websiteRaceCheckpointEvents(index);
-        const x = scales.x.getPixelForValue(index), scoreEvent = events.find(event => event.type === "score");
-        ctx.save();
-        ctx.strokeStyle = scoreEvent ? "#f5b942" : "#7fc8a9";
-        ctx.lineWidth = scoreEvent ? 2 : 1;
-        ctx.setLineDash(scoreEvent ? [] : [4, 4]);
-        ctx.beginPath();
-        ctx.moveTo(x, chartArea.top);
-        ctx.lineTo(x, chartArea.bottom);
-        ctx.stroke();
-        ctx.fillStyle = ctx.strokeStyle;
-        ctx.beginPath();
-        ctx.arc(x, chartArea.top + 5, scoreEvent ? 5 : 3, 0, Math.PI * 2);
-        ctx.fill();
-        ctx.restore();
-      });
-    }
-  };
   const endpointLabels = {
     id: "websiteRaceEndpointLabels",
     afterDatasetsDraw(chart) {
@@ -1465,7 +1443,6 @@ function renderWebsiteRaceLineChart(animate = true) {
       chart.data.datasets.forEach((dataset, index) => {
         const points = chart.getDatasetMeta(index).data;
         const point = points[points.length - 1], value = dataset.data[dataset.data.length - 1];
-        if (!point || !value) return;
         if (websiteRaceSelectedPlayer && dataset.label !== websiteRaceSelectedPlayer) return;
         ctx.fillStyle = dataset.borderColor;
         ctx.textBaseline = "middle";
@@ -1482,8 +1459,29 @@ function renderWebsiteRaceLineChart(animate = true) {
   };
   const data = { datasets };
   const options = { responsive: true, maintainAspectRatio: false, animation: animate ? { duration: 520 } : false, layout: { padding: { top: 42, right: compactLandscape ? 80 : 118 } }, interaction: { mode: "nearest", intersect: false }, onClick: (event, elements) => { const name = elements[0] ? websiteRaceLineChart.data.datasets[elements[0].datasetIndex].label : ""; websiteRaceSelectedPlayer = websiteRaceSelectedPlayer === name ? "" : name; renderWebsiteRaceLineChart(false); }, scales: { x: { type: "linear", min: 0, max: Math.max(1, websiteRaceFrame), grid: { color: "#2a374466" }, ticks: { color: "#91a0ae", maxTicksLimit: 7, callback: value => { const snapshot = websiteRaceSnapshots[Math.round(Number(value))]; return snapshot ? new Date(snapshot.timestamp).toLocaleTimeString([], { hour: "numeric", minute: "2-digit" }) : ""; } }, title: { display: true, text: "Race checkpoints", color: "#91a0ae" } }, y: { min: 1, max: Math.max(2, names.length), reverse: true, grid: { color: "#2a3744" }, ticks: { color: "#91a0ae", stepSize: 1, callback: value => `#${value}` }, title: { display: true, text: "Rank", color: "#91a0ae" } } }, plugins: { legend: { display: false }, tooltip: { displayColors: false, padding: 6, cornerRadius: 4, caretSize: 5, borderColor: "#52606d", borderWidth: 1, titleFont: { size: 9, weight: "normal" }, bodyFont: { size: 10 }, titleMarginBottom: 3, bodySpacing: 1, callbacks: { title: items => { const snapshot = websiteRaceSnapshots[items[0]?.raw?.snapshotIndex]; return snapshot ? new Date(snapshot.timestamp).toLocaleString([], { weekday: "short", hour: "numeric", minute: "2-digit", second: "2-digit" }) : ""; }, label: context => { const value = context.raw.metricValue, formatted = metric === "winProbability" || metric === "winPercent" ? websiteProbabilityText(value) : value.toLocaleString(); return [context.dataset.label, `Rank #${context.parsed.y}`, `${websiteRaceMetricLabel(metric)}: ${formatted}`]; }, afterLabel: context => websiteRaceCheckpointChanges(context.raw.snapshotIndex) } } } };
+  options.scales.x.ticks.callback = value => {
+    const snapshot = websiteRaceSnapshots[Math.round(Number(value))];
+    return snapshot ? new Date(snapshot.timestamp).toLocaleString([], { weekday: "short", hour: "numeric", minute: "2-digit" }) : "";
+  };
+  options.onClick = event => {
+    const chart = websiteRaceLineChart;
+    if (!chart?.chartArea || event.x < chart.chartArea.left || event.x > chart.chartArea.right || event.y < chart.chartArea.top || event.y > chart.chartArea.bottom) return;
+    const frame = Math.max(0, Math.min(websiteRaceFrame, Math.round(chart.scales.x.getValueForPixel(event.x))));
+    const nearest = chart.data.datasets.map((dataset, datasetIndex) => {
+      const pointIndex = dataset.data.findIndex(point => point.x === frame);
+      const point = pointIndex >= 0 ? chart.getDatasetMeta(datasetIndex).data[pointIndex] : null;
+      return point ? { name: dataset.label, distance: Math.abs(point.y - event.y) } : null;
+    }).filter(Boolean).sort((left, right) => left.distance - right.distance)[0];
+    stopWebsiteRace();
+    if (nearest?.distance <= 12) {
+      websiteRaceSelectedPlayer = websiteRaceSelectedPlayer === nearest.name ? "" : nearest.name;
+      setTimeout(() => renderWebsiteRaceLineChart(false), 0);
+      return;
+    }
+    setTimeout(() => showWebsiteRaceFrame(frame, false), 0);
+  };
   if (websiteRaceLineChart) websiteRaceLineChart.destroy();
-  websiteRaceLineChart = new Chart(canvas, { type: "line", data, options, plugins: [checkpointEvents, endpointLabels] });
+  websiteRaceLineChart = new Chart(canvas, { type: "line", data, options, plugins: [endpointLabels] });
 }
 function showWebsiteRaceFrame(frame, animate = true) {
   if (!websiteRaceSnapshots.length) return;
@@ -1519,6 +1517,7 @@ function showWebsiteRaceFrame(frame, animate = true) {
   const eventPanel = document.getElementById("website-race-event-panel");
   eventPanel.innerHTML = `${websiteEscapeHtml(`${stamp.toLocaleString([], { weekday: "short", hour: "numeric", minute: "2-digit" })} · ${websiteRaceFrame + 1}/${websiteRaceSnapshots.length}`)}${checkpointHeadline ? `<small>${websiteEscapeHtml(checkpointHeadline)}</small>` : ""}`;
   renderWebsiteRaceLineChart(animate);
+  renderWebsiteRaceLeadership();
   setRaceLeaderBackdrop(lineLeader, leaderNames.join(" + "), websiteRaceLineChart);
 }
 function advanceWebsiteRace() {
@@ -1537,8 +1536,7 @@ function renderWebsiteRace(data) {
   const hasLiveData = (data.games || []).some(game => ["IN", "IN_PROGRESS", "LIVE", "POST", "FINAL", "COMPLETED"].includes(websiteGameStatus(game)));
   host.hidden = !hasLiveData;
   if (!hasLiveData) { host.innerHTML = ""; return; }
-  const wasPlaying = Boolean(websiteRaceTimer);
-  stopWebsiteRace(true);
+  stopWebsiteRace();
   if (websiteRaceLineChart) websiteRaceLineChart.destroy();
   websiteRaceLineChart = null;
   const context = `${data.testMode ? "preseason" : "regular"}-${data.season}-${data.week}`;
@@ -1587,11 +1585,7 @@ function renderWebsiteRace(data) {
   document.getElementById("website-race-play").onclick = () => { if (websiteRaceTimer) { stopWebsiteRace(); return; } if (websiteRaceFrame >= websiteRaceSnapshots.length - 1) showWebsiteRaceFrame(0, false); websiteRacePassesRemaining = 1; websiteRacePlaybackRequested = true; startWebsiteRace(); };
   document.getElementById("website-race-next").onclick = () => { stopWebsiteRace(); showWebsiteRaceFrame(websiteRaceFrame + 1); };
   document.getElementById("website-race-restart").onclick = () => { stopWebsiteRace(); showWebsiteRaceFrame(0, false); };
-  websiteRacePlaybackRequested = wasPlaying && websiteRacePlaybackRequested;
-  showWebsiteRaceFrame(wasPlaying ? Math.min(websiteRaceFrame, websiteRaceSnapshots.length - 1) : websiteRaceSnapshots.length - 1, false);
-  renderWebsiteRaceLeadership();
-  if (websiteRacePlaybackRequested) startWebsiteRace();
-  observeRaceAutoplay(host, `current-${context}`, () => { stopWebsiteRace(); websiteRacePassesRemaining = 1; websiteRacePlaybackRequested = true; showWebsiteRaceFrame(0, false); startWebsiteRace(); });
+  showWebsiteRaceFrame(websiteRaceSnapshots.length - 1, false);
 }
 document.addEventListener("visibilitychange", () => {
   if (document.hidden) {
@@ -2087,6 +2081,7 @@ function renderWebsiteScenarioBreakdown(data, analysis = websiteContenderPaths(d
     return;
   }
   const rows = analysis.contenders.map(contender => {
+    const winsEveryOutcome = contender.probability >= 1 - 1e-9;
     const scenarios = contender.paths.slice().sort((left, right) => {
       const chanceDifference = right.probabilityContribution - left.probabilityContribution;
       return Math.abs(chanceDifference) > 1e-12 ? chanceDifference : websiteScenarioIncorrectCount(analysis, contender, left) - websiteScenarioIncorrectCount(analysis, contender, right);
@@ -2094,7 +2089,8 @@ function renderWebsiteScenarioBreakdown(data, analysis = websiteContenderPaths(d
       const result = path.low == null || path.high == null ? "Wins outright; no tiebreak" : `Tiebreak with ${websiteJoinNames(path.tiedWith)} · needs ${websiteYardRange(path.low, path.high)} net passing yards · ${(path.share * 100).toFixed(0)}% chance to win tiebreak`;
       return `<tr class="scenario-subrow"><td>Scenario ${index + 1}</td><td class="scenario-chance">${websiteProbabilityText(path.probabilityContribution * 100)}</td><td>${websiteScenarioOutcomeText(analysis, contender, path)}</td><td>${result}</td></tr>`;
     }).join("");
-    return `<tr class="scenario-player-row"><td><strong>${contender.player.name}</strong></td><td><strong>${websiteProbabilityText(contender.probability * 100)}</strong></td><td colspan="2">${contender.paths.length} specific ${contender.paths.length === 1 ? "scenario" : "scenarios"}</td></tr>${scenarios}`;
+    const summary = winsEveryOutcome ? "WINNER · Wins every remaining outcome" : `${contender.paths.length} specific ${contender.paths.length === 1 ? "scenario" : "scenarios"}`;
+    return `<tr class="scenario-player-row${winsEveryOutcome ? " scenario-winner-row" : ""}"><td><strong>${contender.player.name}</strong></td><td><strong>${websiteProbabilityText(contender.probability * 100)}</strong></td><td colspan="2"><strong>${summary}</strong></td></tr>${scenarios}`;
   }).join("");
   host.innerHTML = `<h3 class="compact-live-title">Scenarios</h3><p class="analysis-note">Each indented row is one exact outcome combination and its contribution to that player's total chance. A player's scenario percentages add to the chance in the bold row above.</p><div class="analysis-table-wrap"><table class="analysis-table"><thead><tr><th>Player / scenario</th><th>Chance</th><th>Exact outcomes</th><th>How the player wins</th></tr></thead><tbody>${rows || '<tr><td colspan="4">No winning scenarios remain.</td></tr>'}</tbody></table></div>`;
 }
@@ -3128,38 +3124,42 @@ async function fetchWebsiteCurrentWeekRace(season, week) {
   return data.raceSnapshots || [];
 }
 async function renderWebsiteWeekOne(currentWeekRequest = null) {
+  const liveView = document.getElementById("view-live-analysis")?.classList.contains("active");
   const weekTable = document.getElementById("week-one-table");
   const hasExistingBoard = Boolean(document.querySelector("#week-one-table .picks-grid"));
   document.querySelector(".website-current-week-error")?.remove();
-  if (!hasExistingBoard && weekTable?.dataset.instantWeek !== "true") weekTable.innerHTML = '<p class="website-instructions">Loading this week\'s submissions...</p>';
+  if (!liveView && !hasExistingBoard && weekTable?.dataset.instantWeek !== "true") weekTable.innerHTML = '<p class="website-instructions">Loading this week\'s submissions...</p>';
   if (!WEBSITE_SUBMISSIONS_ENDPOINT) return;
   try {
     const data = await (currentWeekRequest || fetchWebsiteCurrentWeek());
     websiteRegularSelection = { season: Number(data.season) || 2026, week: Number(data.week) || 1, phase: "REGULAR_SEASON", staged: Boolean((data.games || []).length) };
     updateWebsiteWeekLabels(websiteRegularSelection);
-    const raceRequest = fetchWebsiteCurrentWeekRace(websiteRegularSelection.season, websiteRegularSelection.week).catch(error => { console.warn(error.message); return []; });
+    const raceRequest = liveView ? fetchWebsiteCurrentWeekRace(websiteRegularSelection.season, websiteRegularSelection.week).catch(error => { console.warn(error.message); return []; }) : null;
     if (!/^\d+(?:\.\d+)?$/.test(String(data.actualTiebreaker || ""))) data.actualTiebreaker = "";
     await new Promise(resolve => requestAnimationFrame(() => requestAnimationFrame(resolve)));
     startWebsiteAnalytics();
     websitePreparePlayers(data);
     websiteWriteCurrentWeekCache(data);
-    renderWebsiteWeekOneGrid(data, "Week X");
-    decorateWebsiteWeekOneHeaders(data);
-    renderWebsiteRace(data);
-    renderWebsiteWeekRecap(data);
-    renderWebsiteContenderPaths(data);
-    renderWebsitePersonalizedSankey(data);
+    if (liveView) {
+      renderWebsiteRace(data);
+      renderWebsiteWeekRecap(data);
+      renderWebsiteScenarioBreakdown(data);
+      renderWebsitePersonalizedSankey(data);
+    } else {
+      renderWebsiteWeekOneGrid(data, "Week X");
+      decorateWebsiteWeekOneHeaders(data);
+    }
     startHistoricalInitialization();
-    raceRequest.then(raceSnapshots => {
+    raceRequest?.then(raceSnapshots => {
       if (!raceSnapshots.length || websiteRegularSelection.season !== Number(data.season) || websiteRegularSelection.week !== Number(data.week)) return;
       data.raceSnapshots = raceSnapshots;
       renderWebsiteRace(data);
     });
-    if (document.getElementById("view-week-one")?.classList.contains("active")) websiteLiveRefreshTimer = setTimeout(() => renderSelectedWebsiteWeek(true), 60000);
+    if (document.querySelector("#view-week-one.active, #view-live-analysis.active")) websiteLiveRefreshTimer = setTimeout(() => renderSelectedWebsiteWeek(true), 60000);
   } catch (error) {
     const table = document.getElementById("week-one-table"), hasCachedContent = table?.dataset.instantWeek === "true";
-    if (!hasExistingBoard && !hasCachedContent) document.getElementById("week-one-status").insertAdjacentHTML("afterend", `<p class="website-instructions website-current-week-error">The current week could not load: ${error.message}</p>`);
-    if (document.getElementById("view-week-one")?.classList.contains("active")) websiteLiveRefreshTimer = setTimeout(() => renderSelectedWebsiteWeek(true), 60000);
+    if (!liveView && !hasExistingBoard && !hasCachedContent) document.getElementById("week-one-status").insertAdjacentHTML("afterend", `<p class="website-instructions website-current-week-error">The current week could not load: ${error.message}</p>`);
+    if (document.querySelector("#view-week-one.active, #view-live-analysis.active")) websiteLiveRefreshTimer = setTimeout(() => renderSelectedWebsiteWeek(true), 60000);
   }
 }
 const renderWebsiteWeekOneGridBase = renderWebsiteWeekOneGrid;
@@ -3239,11 +3239,12 @@ async function renderSelectedWebsiteWeek(activeWeekKnown = false, currentWeekReq
   websiteLiveRefreshTimer = null;
   const selection = websitePickSelection();
   if (!selection.testMode) {
+    const liveView = document.getElementById("view-live-analysis")?.classList.contains("active");
     const table = document.getElementById("week-one-table");
     const pendingCurrentWeek = currentWeekRequest || (WEBSITE_SUBMISSIONS_ENDPOINT ? fetchWebsiteCurrentWeek() : null);
     pendingCurrentWeek?.catch(() => {});
-    if (!document.querySelector("#week-one-table .picks-grid")) websiteRenderCachedCurrentWeek();
-    if (!WEBSITE_SUBMISSIONS_ENDPOINT && !document.querySelector("#week-one-table .picks-grid") && table?.dataset.instantWeek !== "true") {
+    if (!liveView && !document.querySelector("#week-one-table .picks-grid")) websiteRenderCachedCurrentWeek();
+    if (!liveView && !WEBSITE_SUBMISSIONS_ENDPOINT && !document.querySelector("#week-one-table .picks-grid") && table?.dataset.instantWeek !== "true") {
       const fallback = websiteWeekOneFallback();
       renderWebsiteWeekOneGrid(fallback, "Cached Week 1");
       table.dataset.instantWeek = "true";
@@ -3445,17 +3446,7 @@ function percentFormatter(cell) { const v = cell.getValue(); if (v === "" || v =
 function isMoneyColumn(name) { return /money|won\s*\$|streak.*money/i.test(name) && !/won during|weeks during/i.test(name); }
 function isPercentColumn(name) { return /^%$|win\s*%|%\s*won/i.test(name); }
 function buildColumns(columns, rows) { return columns.map(col => { const sample = rows.find(r => r[col] !== "" && r[col] != null); const value = sample && sample[col]; const numeric = value !== undefined && value !== "" && !isNaN(parseFloat(String(value).replace(/[$,%]/g, ""))); const def = { title: col, field: col, headerFilter: true, headerFilterPlaceholder: "filter...", sorter: numeric ? "number" : "string" }; if (isMoneyColumn(col)) def.formatter = moneyFormatter; else if (isPercentColumn(col)) def.formatter = percentFormatter; return def; }); }
-function placeWebsiteLiveAnalysis(view) {
-  const anchor = document.getElementById("week-one-analysis-anchor");
-  const destination = view === "live-analysis" ? document.getElementById("live-analysis-host") : anchor?.parentElement;
-  if (!destination) return;
-  ["week-one-live-race", "week-one-recap", "week-one-paths", "week-one-scenarios", "week-one-sankey"].forEach(id => {
-    const section = document.getElementById(id);
-    if (section) destination.appendChild(section);
-  });
-  requestAnimationFrame(() => window.dispatchEvent(new Event("resize")));
-}
-function showView(view) { if (view === "alltime" && startupRoutePending) return; placeWebsiteLiveAnalysis(view); if (view !== "season") stopSeasonLiveRace(); if (view !== "weeks") stopWeekLiveRace(); document.querySelectorAll(".view").forEach(section => section.classList.toggle("active", section.id === `view-${view}`)); document.querySelectorAll("#nav button[data-view]").forEach(btn => btn.classList.toggle("active", btn.dataset.view === view)); history.replaceState(null, "", `#${view}`); if (websiteRoutes.includes(view) && view !== "picks-confirmation") localStorage.setItem("fbpLastView", view); websiteRefreshInstallHelp(view); websiteTrackEvent("page_view", view); }
+function showView(view) { if (view === "alltime" && startupRoutePending) return; if (view !== "season") stopSeasonLiveRace(); if (view !== "weeks") stopWeekLiveRace(); document.querySelectorAll(".view").forEach(section => section.classList.toggle("active", section.id === `view-${view}`)); document.querySelectorAll("#nav button[data-view]").forEach(btn => btn.classList.toggle("active", btn.dataset.view === view)); history.replaceState(null, "", `#${view}`); if (websiteRoutes.includes(view) && view !== "picks-confirmation") localStorage.setItem("fbpLastView", view); websiteRefreshInstallHelp(view); websiteTrackEvent("page_view", view); }
 function renderProfile(name) { const overall = (tableData.overall || []).find(row => row.Name === name); const money = (tableData.money_won || []).find(row => row.Name === name); const weekly = dashboard.filter(row => row.Name === name); document.getElementById("profile-name").textContent = name || "Choose a player"; if (!overall) { document.getElementById("profile-stats").innerHTML = ""; return; } const stats = [["Wins", overall.Wins], ["Losses", overall.Losses], ["Win percentage", (Number(overall["%"] || 0) * 100).toFixed(2) + "%"], ["Plus/minus", overall["Plus/Minus"]], ["Total money won", "$" + Number(money?.["Total Money Won"] || 0).toLocaleString()], ["Weeks won", money?.["Weeks Won"] || 0]]; document.getElementById("profile-stats").innerHTML = stats.map(([label, value]) => `<div><span>${label}</span><strong>${value}</strong></div>`).join(""); const seasons = [...new Set(weekly.map(row => row.Season))].sort(); if (profileChart) profileChart.destroy(); profileChart = new Chart(document.getElementById("profile-history-chart"), { type: "line", data: { labels: seasons, datasets: [{ label: "Wins", data: seasons.map(season => weekly.filter(row => row.Season === season).reduce((sum, row) => sum + Number(row.Wins || 0), 0)), borderColor: colors[0], backgroundColor: colors[0] + "55", tension: .25 }, { label: "Average rank", data: seasons.map(season => { const rows = weekly.filter(row => row.Season === season); return rows.reduce((sum, row) => sum + Number(row.Rank || 0), 0) / rows.length; }), borderColor: colors[1], backgroundColor: colors[1] + "55", tension: .25, yAxisID: "rank" }] }, options: { responsive: true, maintainAspectRatio: false, scales: { x: { ticks: { color: "#91a0ae" }, grid: { color: "#2a3744" } }, y: { beginAtZero: true, ticks: { color: "#91a0ae" }, grid: { color: "#2a3744" } }, rank: { position: "right", reverse: true, ticks: { color: "#91a0ae" }, grid: { drawOnChartArea: false } } }, plugins: { legend: { labels: { color: "#e8eef5" } } } } }); }
 function renderProfileLegacy(name) {
   const overall = (tableData.overall || []).find(row => row.Name === name);
