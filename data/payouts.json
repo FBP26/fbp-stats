@@ -1,5 +1,5 @@
 {
-  "updatedAt": "2026-09-01T14:30:37+00:00",
+  "updatedAt": "2026-09-15T13:58:51+00:00",
   "source": {
     "spreadsheetId": "19LkATudJU7W7bsnBBNy7iCI68P3Nhbt10XIJ5Q7HRCA",
     "sheet": "payout",
@@ -60,7 +60,7 @@
         {
           "name": "DMac",
           "weeks": [
-            "",
+            "10",
             "",
             "",
             "",
@@ -80,46 +80,46 @@
             "",
             ""
           ],
-          "balance": "even"
+          "balance": "10"
         },
         {
           "name": "Sean",
           "weeks": [
-            "",
-            "",
-            "",
-            "",
-            "",
-            "",
-            "",
-            "",
-            "",
-            "",
-            "",
-            "",
-            "",
-            "",
-            "",
-            "",
-            "",
-            "",
-            ""
+            "paid",
+            "paid",
+            "paid",
+            "paid",
+            "paid",
+            "paid",
+            "paid",
+            "paid",
+            "paid",
+            "paid",
+            "paid",
+            "paid",
+            "paid",
+            "paid",
+            "paid",
+            "paid",
+            "paid",
+            "paid",
+            "paid"
           ],
           "balance": "even"
         },
         {
           "name": "Gary",
           "weeks": [
-            "",
-            "",
-            "",
-            "",
-            "",
-            "",
-            "",
-            "",
-            "",
-            "",
+            "paid",
+            "paid",
+            "paid",
+            "paid",
+            "paid",
+            "paid",
+            "paid",
+            "paid",
+            "paid",
+            "paid",
             "",
             "",
             "",
@@ -135,7 +135,7 @@
         {
           "name": "Nils",
           "weeks": [
-            "",
+            "10",
             "",
             "",
             "",
@@ -155,12 +155,12 @@
             "",
             ""
           ],
-          "balance": "560"
+          "balance": "570"
         },
         {
           "name": "Bo",
           "weeks": [
-            "",
+            "10",
             "",
             "",
             "",
@@ -180,12 +180,12 @@
             "",
             ""
           ],
-          "balance": "even"
+          "balance": "10"
         },
         {
           "name": "Thomas",
           "weeks": [
-            "",
+            "10",
             "",
             "",
             "",
@@ -205,7 +205,7 @@
             "",
             ""
           ],
-          "balance": "even"
+          "balance": "10"
         },
         {
           "name": "RJ",
@@ -260,7 +260,7 @@
         {
           "name": "JLew",
           "weeks": [
-            "",
+            "10",
             "",
             "",
             "",
@@ -280,30 +280,30 @@
             "",
             ""
           ],
-          "balance": "30"
+          "balance": "40"
         },
         {
           "name": "D Price",
           "weeks": [
-            "",
-            "",
-            "",
-            "",
-            "",
-            "",
-            "",
-            "",
-            "",
-            "",
-            "",
-            "",
-            "",
-            "",
-            "",
-            "",
-            "",
-            "",
-            ""
+            "paid",
+            "paid",
+            "paid",
+            "paid",
+            "paid",
+            "paid",
+            "paid",
+            "paid",
+            "paid",
+            "paid",
+            "paid",
+            "paid",
+            "paid",
+            "paid",
+            "paid",
+            "paid",
+            "paid",
+            "paid",
+            "paid"
           ],
           "balance": "even"
         },
@@ -311,31 +311,31 @@
           "name": "A Price",
           "weeks": [
             "paid",
-            "",
-            "",
-            "",
-            "",
-            "",
-            "",
-            "",
-            "",
-            "",
-            "",
-            "",
-            "",
-            "",
-            "",
-            "",
-            "",
-            "",
-            ""
+            "paid",
+            "paid",
+            "paid",
+            "paid",
+            "paid",
+            "paid",
+            "paid",
+            "paid",
+            "paid",
+            "paid",
+            "paid",
+            "paid",
+            "paid",
+            "paid",
+            "paid",
+            "paid",
+            "paid",
+            "paid"
           ],
-          "balance": "even"
+          "balance": "+10"
         },
         {
           "name": "Travis",
           "weeks": [
-            "",
+            "paid",
             "",
             "",
             "",
@@ -360,7 +360,7 @@
         {
           "name": "Ron",
           "weeks": [
-            "",
+            "10",
             "",
             "",
             "",
@@ -380,7 +380,7 @@
             "",
             ""
           ],
-          "balance": "even"
+          "balance": "10"
         },
         {
           "name": "Mike H",
@@ -410,9 +410,9 @@
         {
           "name": "Blake",
           "weeks": [
-            "",
-            "",
-            "",
+            "paid",
+            "paid",
+            "paid",
             "",
             "",
             "",
@@ -480,7 +480,7 @@
             "paid",
             "paid"
           ],
-          "balance": "+60"
+          "balance": "even"
         },
         {
           "name": "Brianna",
@@ -510,7 +510,7 @@
         {
           "name": "Pops",
           "weeks": [
-            "",
+            "10",
             "",
             "",
             "",
@@ -530,12 +530,12 @@
             "",
             ""
           ],
-          "balance": "even"
+          "balance": "10"
         },
         {
           "name": "Watts",
           "weeks": [
-            "",
+            "10",
             "",
             "",
             "",
@@ -555,12 +555,12 @@
             "",
             ""
           ],
-          "balance": "150"
+          "balance": "160"
         },
         {
           "name": "Barb",
           "weeks": [
-            "",
+            "10",
             "",
             "",
             "",
@@ -580,17 +580,17 @@
             "",
             ""
           ],
-          "balance": "even"
+          "balance": "10"
         },
         {
           "name": "DP",
           "weeks": [
-            "",
-            "",
-            "",
-            "",
-            "",
-            "",
+            "paid",
+            "paid",
+            "paid",
+            "paid",
+            "paid",
+            "paid",
             "",
             "",
             "",
@@ -655,30 +655,30 @@
             "paid",
             "paid"
           ],
-          "balance": "+620"
+          "balance": "+910"
         },
         {
-          "name": "Shaina",
+          "name": "Mel",
           "weeks": [
-            "",
-            "",
-            "",
-            "",
-            "",
-            "",
-            "",
-            "",
-            "",
-            "",
-            "",
-            "",
-            "",
-            "",
-            "",
-            "",
-            "",
-            "",
-            ""
+            "paid",
+            "paid",
+            "paid",
+            "paid",
+            "paid",
+            "paid",
+            "paid",
+            "paid",
+            "paid",
+            "paid",
+            "paid",
+            "paid",
+            "paid",
+            "paid",
+            "paid",
+            "paid",
+            "paid",
+            "paid",
+            "paid"
           ],
           "balance": "even"
         },
@@ -686,10 +686,10 @@
           "name": "DG",
           "weeks": [
             "paid",
-            "",
-            "",
-            "",
-            "",
+            "paid",
+            "paid",
+            "paid",
+            "paid",
             "",
             "",
             "",
@@ -760,7 +760,57 @@
         {
           "name": "Pond",
           "weeks": [
+            "paid",
+            "paid",
+            "paid",
+            "paid",
+            "paid",
+            "paid",
+            "paid",
+            "paid",
+            "paid",
+            "paid",
+            "paid",
+            "paid",
+            "paid",
+            "paid",
+            "paid",
+            "paid",
+            "paid",
+            "paid",
+            "paid"
+          ],
+          "balance": "even"
+        },
+        {
+          "name": "KP",
+          "weeks": [
+            "10",
             "",
+            "",
+            "",
+            "",
+            "",
+            "",
+            "",
+            "",
+            "",
+            "",
+            "",
+            "",
+            "",
+            "",
+            "",
+            "",
+            "",
+            ""
+          ],
+          "balance": "10"
+        },
+        {
+          "name": "Jon Campbell",
+          "weeks": [
+            "paid",
             "",
             "",
             "",
@@ -783,9 +833,9 @@
           "balance": "even"
         },
         {
-          "name": "KP",
+          "name": "Casey",
           "weeks": [
-            "",
+            "10",
             "",
             "",
             "",
@@ -805,7 +855,7 @@
             "",
             ""
           ],
-          "balance": "200"
+          "balance": "10"
         },
         {
           "name": "Tyler McBride",
@@ -881,31 +931,6 @@
             ""
           ],
           "balance": "370"
-        },
-        {
-          "name": "Jon Campbell",
-          "weeks": [
-            "",
-            "",
-            "",
-            "",
-            "",
-            "",
-            "",
-            "",
-            "",
-            "",
-            "",
-            "",
-            "",
-            "",
-            "",
-            "",
-            "",
-            "",
-            ""
-          ],
-          "balance": "even"
         }
       ],
       "championContribution": [
@@ -931,27 +956,27 @@
       ],
       "winner": "",
       "periodTotals": [
+        "290",
+        "140",
+        "140",
+        "130",
+        "130",
+        "120",
+        "110",
+        "110",
+        "110",
+        "110",
         "90",
-        "50",
-        "50",
-        "50",
-        "50",
-        "50",
-        "50",
-        "50",
-        "50",
-        "50",
-        "40",
-        "40",
-        "40",
-        "30",
-        "30",
-        "30",
-        "30",
-        "30",
-        "100"
+        "90",
+        "90",
+        "80",
+        "80",
+        "80",
+        "80",
+        "80",
+        "200"
       ],
-      "seasonTotal": "910"
+      "seasonTotal": "2260"
     },
     {
       "season": "2025-2026",
@@ -1177,7 +1202,7 @@
             "paid",
             "paid"
           ],
-          "balance": "+360"
+          "balance": "even"
         },
         {
           "name": "Buster",
@@ -1202,7 +1227,7 @@
             "paid",
             "paid"
           ],
-          "balance": "+130"
+          "balance": "even"
         },
         {
           "name": "JLew",
@@ -1402,7 +1427,7 @@
             "",
             "paid"
           ],
-          "balance": "+20"
+          "balance": "even"
         },
         {
           "name": "Bojane",
@@ -1427,7 +1452,7 @@
             "paid",
             "paid"
           ],
-          "balance": "+260"
+          "balance": "even"
         },
         {
           "name": "Brianna",
@@ -1602,7 +1627,7 @@
             "win",
             "paid"
           ],
-          "balance": "+820"
+          "balance": "even"
         },
         {
           "name": "Shaina",
@@ -1652,7 +1677,7 @@
             "paid",
             "paid"
           ],
-          "balance": "+10"
+          "balance": "even"
         },
         {
           "name": "OscarsOscars",
@@ -1732,77 +1757,27 @@
         {
           "name": "KP",
           "weeks": [
-            "10",
-            "10",
-            "10",
-            "10",
-            "10",
-            "10",
-            "10",
-            "10",
-            "10",
-            "10",
-            "10",
-            "10",
-            "10",
-            "10",
-            "10",
-            "10",
-            "10",
-            "10",
-            "20"
+            "paid",
+            "paid",
+            "paid",
+            "paid",
+            "paid",
+            "paid",
+            "paid",
+            "paid",
+            "paid",
+            "paid",
+            "paid",
+            "paid",
+            "paid",
+            "paid",
+            "paid",
+            "paid",
+            "paid",
+            "paid",
+            "paid"
           ],
-          "balance": "200"
-        },
-        {
-          "name": "Tyler McBride",
-          "weeks": [
-            "",
-            "",
-            "",
-            "",
-            "",
-            "",
-            "",
-            "",
-            "",
-            "",
-            "",
-            "",
-            "",
-            "",
-            "",
-            "",
-            "",
-            "",
-            ""
-          ],
-          "balance": "+80"
-        },
-        {
-          "name": "M Price",
-          "weeks": [
-            "",
-            "",
-            "",
-            "",
-            "",
-            "",
-            "",
-            "",
-            "",
-            "",
-            "",
-            "",
-            "",
-            "",
-            "",
-            "",
-            "",
-            "",
-            ""
-          ],
-          "balance": "+20"
+          "balance": "even"
         },
         {
           "name": "Divine1",
@@ -2099,7 +2074,7 @@
             "paid",
             "paid"
           ],
-          "balance": "+10"
+          "balance": "even"
         },
         {
           "name": "Thomas",
@@ -2149,7 +2124,7 @@
             "paid",
             "paid"
           ],
-          "balance": "+80"
+          "balance": "even"
         },
         {
           "name": "Buster",
@@ -2200,31 +2175,6 @@
             "paid"
           ],
           "balance": "paid"
-        },
-        {
-          "name": "M Price",
-          "weeks": [
-            "",
-            "",
-            "",
-            "",
-            "",
-            "",
-            "",
-            "",
-            "",
-            "",
-            "",
-            "",
-            "",
-            "",
-            "",
-            "",
-            "",
-            "",
-            ""
-          ],
-          "balance": "+20"
         },
         {
           "name": "D Price",
@@ -2499,7 +2449,7 @@
             "paid",
             "paid"
           ],
-          "balance": "+10"
+          "balance": "even"
         },
         {
           "name": "Barb",
@@ -2524,7 +2474,7 @@
             "paid",
             "paid"
           ],
-          "balance": "+80"
+          "balance": "even"
         },
         {
           "name": "DP",
@@ -2599,7 +2549,7 @@
             "paid",
             "paid"
           ],
-          "balance": "+240"
+          "balance": "even"
         },
         {
           "name": "Jon Campbell",
@@ -2699,7 +2649,7 @@
             "",
             "paid"
           ],
-          "balance": "+30"
+          "balance": "even"
         },
         {
           "name": "Nick C",
@@ -2775,31 +2725,6 @@
             "paid"
           ],
           "balance": "even"
-        },
-        {
-          "name": "Tyler McBride",
-          "weeks": [
-            "",
-            "",
-            "",
-            "",
-            "",
-            "",
-            "",
-            "",
-            "",
-            "",
-            "",
-            "",
-            "",
-            "",
-            "",
-            "",
-            "",
-            "",
-            ""
-          ],
-          "balance": "+80"
         }
       ],
       "championContribution": [
