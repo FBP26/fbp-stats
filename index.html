@@ -5350,7 +5350,7 @@ async function renderWeekLiveRace() {
   if (!weekLiveRaceFrames.length) {
     if (weekLiveRaceChart) weekLiveRaceChart.destroy();
     weekLiveRaceChart = null;
-    document.getElementById("week-live-race-time").textContent = weekLiveRaceUsesArchive() ? "No archived live snapshots prior to the 2026-2027 season." : "No game results for this week.";
+    document.getElementById("week-live-race-time").textContent = weekLiveRaceUsesArchive() ? "No archived live snapshots are available for this week." : "No game results for this week.";
     document.getElementById("week-live-race-headline").textContent = "";
     document.getElementById("week-live-race-leadership").innerHTML = "";
     return;
