@@ -3500,11 +3500,12 @@ function renderWebsiteLiveScenarioTools(data, baseAnalysis = null) {
   const exact = probabilities.scenariosEvaluated === probabilities.scenariosTotal;
   standings.innerHTML = `<h3>Projected standings</h3><div class="calculation-confidence ${exact ? "" : "estimated"}"><strong>${exact ? "Exact" : "Estimated"}</strong><span>${probabilities.scenariosEvaluated.toLocaleString()} of ${probabilities.scenariosTotal.toLocaleString()} remaining combinations</span></div><div class="live-feature-list">${projected.map((player, rank) => `<div class="live-superlative"><span>#${rank + 1}</span><strong>${websiteEscapeHtml(player.name)}</strong><span>${websiteProbabilityText(player.probability)} chance</span></div>`).join("")}</div>`;
   const analysis = Object.keys(websiteForcedOutcomes).length ? websiteContenderPaths(data, websiteForcedOutcomes) : baseAnalysis || websiteContenderPaths(data);
+  rooting.hidden = analysis.scenarios.variable.length > WEBSITE_EXACT_SCENARIO_GAME_LIMIT;
   if (!analysis.scenarios.variable.length) {
     rooting.innerHTML = `<h3>Rooting matrix</h3><p>Every remaining game is locked. Projected standings now show this exact finish.</p>`;
   } else if (analysis.scenarios.variable.length <= WEBSITE_EXACT_SCENARIO_GAME_LIMIT) {
     rooting.innerHTML = `<h3>Rooting matrix</h3><p>How each available result changes every contender's chance from the current baseline.</p><div class="analysis-table-wrap"><table class="rooting-table"><thead><tr><th>Contender</th>${analysis.scenarios.variable.flatMap(({ game }) => [game.underdog, game.favorite, ...(Number(game.spread) % 1 === 0 ? ["PUSH"] : [])]).map(outcome => `<th>${websiteEscapeHtml(String(outcome).toUpperCase())}</th>`).join("")}</tr></thead><tbody>${analysis.contenders.map(contender => `<tr><td><strong>${websiteEscapeHtml(contender.player.name)}</strong><br>${websiteProbabilityText(contender.probability * 100)}</td>${analysis.scenarios.variable.flatMap(({ game, index }) => [game.underdog, game.favorite, ...(Number(game.spread) % 1 === 0 ? ["PUSH"] : [])].map(outcome => websiteRootingCell(analysis, contender, index, outcome))).map(cell => `<td class="${cell.className}">${cell.label}</td>`).join("")}</tr>`).join("")}</tbody></table></div>`;
-  } else rooting.innerHTML = `<h3>Rooting matrix</h3><p>The matrix appears when six or fewer games remain; ${analysis.scenarios.variable.length} are unresolved.</p>`;
+  } else rooting.innerHTML = "";
   return analysis;
 }
 function renderWebsiteTiebreakSnapshot(data) {
