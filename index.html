@@ -707,7 +707,7 @@
 </head>
 <body>
 <div id="website-pull-refresh" class="pull-refresh" role="status" aria-live="polite"><span class="pull-refresh-icon" aria-hidden="true">↻</span><span class="pull-refresh-label">Pull to refresh</span></div>
-<header><nav id="nav"><button data-view="enter-picks">Enter Picks</button><button data-view="week-one">Week 1</button><button data-view="live-analysis">Race</button><button data-view="players">Players</button><button data-view="alltime">All Time</button><button data-view="season">Seasons</button><button data-view="weeks">Weeks</button><button data-view="games">Games</button><button data-view="streaks">Streaks</button><button data-view="teams">Teams</button><button data-view="names">Names</button><button data-view="payout">Payout</button><button data-view="faq">FAQ</button></nav></header>
+<header><nav id="nav"><button data-view="enter-picks">Enter Picks</button><button data-view="week-one">Week 1</button><button data-view="live-analysis">Live</button><button data-view="players">Players</button><button data-view="alltime">All Time</button><button data-view="season">Seasons</button><button data-view="weeks">Weeks</button><button data-view="games">Games</button><button data-view="streaks">Streaks</button><button data-view="teams">Teams</button><button data-view="names">Names</button><button data-view="payout">Payout</button><button data-view="faq">FAQ</button></nav></header>
 <aside id="website-install-help" class="install-help" hidden><div><strong>Add FBP to your Home Screen</strong><span id="website-install-copy"></span></div><button id="website-install-action" type="button" hidden>Install</button><button id="website-install-close" class="install-help-close" type="button" aria-label="Dismiss home-screen instructions">×</button></aside>
 <main>
   <section id="view-enter-picks" class="view">
@@ -720,8 +720,8 @@
     <div class="panel"><div id="week-one-status"></div><div id="week-one-table" style="overflow-x:auto"></div><p class="week-one-landscape-hint">Rotate to landscape for a better view</p></div>
   </section>
   <section id="view-live-analysis" class="view">
-    <section class="intro"><div><h2>Race</h2></div><p>Weekly standings, what-if outcomes, and paths to victory. A full refresh can take up to a minute.</p></section>
-    <div id="live-analysis-host" class="panel"><p id="live-analysis-refresh-status" class="analysis-note">Loading the latest race and scenarios...</p><section id="week-one-live-race" class="live-race"><div class="live-race-head"><div><h3>Loading Race</h3><p>Building the latest race and scenarios. This can take up to a minute.</p></div></div></section><div id="live-what-if" class="live-feature-grid"><section id="live-outcome-switchboard" class="live-feature"></section><section id="live-projected-standings" class="live-feature"></section><section id="live-rooting-matrix" class="live-feature wide"></section><section id="live-tiebreak-target" class="live-feature wide"></section></div><div id="week-one-scenarios" class="weekly-subview"></div><div id="week-one-sankey" class="weekly-subview"></div><div id="live-race-stories" class="live-feature-grid"><section id="live-turning-points" class="live-feature"></section><section id="live-lead-changes" class="live-feature"></section><section id="live-superlatives" class="live-feature wide"></section></div><div id="week-one-recap"></div></div>
+    <section class="intro"><div><h2>Live</h2></div><p>Weekly standings, what-if outcomes, and paths to victory. A full refresh can take up to a minute.</p></section>
+    <div id="live-analysis-host" class="panel"><p id="live-analysis-refresh-status" class="analysis-note">Loading the latest live standings and scenarios...</p><section id="week-one-live-race" class="live-race"><div class="live-race-head"><div><h3>Loading Live</h3><p>Building the latest race and scenarios. This can take up to a minute.</p></div></div></section><section id="live-tiebreak-target" class="live-feature wide"></section><div id="live-what-if" class="live-feature-grid"><section id="live-outcome-switchboard" class="live-feature"></section><section id="live-projected-standings" class="live-feature"></section><section id="live-rooting-matrix" class="live-feature wide"></section></div><div id="week-one-scenarios" class="weekly-subview"></div><div id="week-one-sankey" class="weekly-subview"></div><div id="live-race-stories" class="live-feature-grid"><section id="live-turning-points" class="live-feature"></section><section id="live-lead-changes" class="live-feature"></section><section id="live-superlatives" class="live-feature wide"></section></div><div id="week-one-recap"></div></div>
   </section>
   <section id="view-alltime" class="view">
     <section class="intro"><div><h2>All Time</h2></div><p>Seventeen seasons of results in one place: the career leaders, every champion, and how the long-timers built their records.</p></section>
@@ -1122,7 +1122,7 @@ let websiteActiveGames = WEBSITE_WEEK_ONE_GAMES;
 let websiteLiveRefreshTimer = null, websiteSelectedWeekPlayer = "";
 let websitePicksWeatherRefreshTimer = null;
 let websitePicksWeatherRefreshPending = false;
-const WEBSITE_PICKS_WEATHER_REFRESH_MS = 4 * 60 * 60 * 1000;
+const WEBSITE_PICKS_WEATHER_REFRESH_MS = 8 * 60 * 60 * 1000;
 const WEBSITE_PICKS_WEATHER_CACHE_KEY = "fbpPicksWeatherRefresh";
 const WEBSITE_PATH_DISPLAY_LIMIT = 50;
 const WEBSITE_SIMULATION_LIMIT = 4096;
@@ -2591,7 +2591,15 @@ function scheduleWebsitePicksWeatherRefresh(delay = WEBSITE_PICKS_WEATHER_REFRES
   clearTimeout(websitePicksWeatherRefreshTimer);
   websitePicksWeatherRefreshTimer = setTimeout(refreshWebsitePicksWeather, Math.max(1000, delay));
 }
+function websitePicksWeatherIsComplete() {
+  return websiteActiveGames.length > 0 && websiteActiveGames.every(game => ["POST", "FINAL", "COMPLETED"].includes(websiteGameStatus(game)));
+}
 function queueWebsitePicksWeatherRefresh(selection) {
+  if (websitePicksWeatherIsComplete()) {
+    clearTimeout(websitePicksWeatherRefreshTimer);
+    websitePicksWeatherRefreshTimer = null;
+    return;
+  }
   const lastWeatherRefresh = websiteWeatherRefreshState(selection);
   const weatherAge = Date.now() - lastWeatherRefresh;
   if (lastWeatherRefresh && weatherAge < WEBSITE_PICKS_WEATHER_REFRESH_MS) scheduleWebsitePicksWeatherRefresh(WEBSITE_PICKS_WEATHER_REFRESH_MS - weatherAge);
@@ -2601,7 +2609,7 @@ async function refreshWebsitePicksWeather() {
   clearTimeout(websitePicksWeatherRefreshTimer);
   websitePicksWeatherRefreshTimer = null;
   const host = document.getElementById("website-game-picks");
-  if (!host || !document.getElementById("view-enter-picks")?.classList.contains("active") || !websiteActiveGames.length || websitePicksWeatherRefreshPending) return;
+  if (!host || !document.getElementById("view-enter-picks")?.classList.contains("active") || !websiteActiveGames.length || websitePicksWeatherRefreshPending || websitePicksWeatherIsComplete()) return;
   const selection = websitePickSelection();
   const configKey = `${selection.phase}-${selection.season}-${selection.week}`;
   if (host.dataset.ready !== configKey) return;
@@ -2630,7 +2638,7 @@ async function refreshWebsitePicksWeather() {
     console.warn(`Weather refresh unavailable: ${error.message}`);
   } finally {
     websitePicksWeatherRefreshPending = false;
-    scheduleWebsitePicksWeatherRefresh();
+    if (!websitePicksWeatherIsComplete()) scheduleWebsitePicksWeatherRefresh();
   }
 }
 async function renderWebsitePicksForm() {
@@ -3190,7 +3198,7 @@ function renderWebsiteWeekRecap(data) {
   const final = (data.games || []).length && data.games.every(game => ["POST", "FINAL", "COMPLETED"].includes(websiteGameStatus(game)));
   if (!final || data.testMode || !(data.players || []).length) { host.innerHTML = ""; return; }
   const actual = Number(data.actualTiebreaker);
-  const score = player => Number(player.total ?? player.wins) || 0;
+  const score = player => Number(player.wins ?? player.total) || 0;
   const difference = player => Number.isFinite(actual) ? Math.abs(Number(player.tiebreaker) - actual) : Number.POSITIVE_INFINITY;
   const ordered = [...data.players].sort((left, right) => score(right) - score(left) || difference(left) - difference(right) || left.name.localeCompare(right.name));
   const winner = ordered[0];
@@ -3369,7 +3377,9 @@ function renderWebsiteRaceStories() {
   const timelineSummary = !leadership.reigns.length ? "Timeline begins when live-game snapshots arrive." : leadership.reigns.length > 1 ? `${leadership.reigns.length - 1} changes through this checkpoint.` : "One leader through this checkpoint.";
   timelineHost.innerHTML = `<h3>Lead-change timeline</h3><p>${timelineSummary}</p>${leadership.reigns.length ? `<div class="lead-change-timeline">${leadership.reigns.map((reign, index) => { const cause = reign.index ? websiteRaceStoryEvent(reign.index) : "Opened the live race in first"; return `<div class="lead-change" style="--runner-color:${websiteRaceColor(reign.name)}"><div><strong>${websiteEscapeHtml(reign.name)}</strong><span>${new Date(reign.start).toLocaleString([], { weekday: "short", hour: "numeric", minute: "2-digit" })} · ${websiteRaceDuration(reign.duration)}</span></div><span>${websiteEscapeHtml(index ? `Took first when ${cause}.` : cause)}</span></div>`; }).join("")}</div>` : ""}`;
   let biggestJump = null, biggestSwing = null;
+  const firstScoringCheckpoint = websiteRaceSnapshots.findIndex((snapshot, index) => index > 0 && websiteRaceCheckpointEvents(index).some(event => event.type === "score"));
   websiteRaceSnapshots.slice(1, websiteRaceFrame + 1).forEach((snapshot, offset) => {
+    const snapshotIndex = offset + 1;
     const previous = websiteRaceSnapshots[offset];
     const currentRank = new Map([...snapshot.players].sort((left, right) => Number(right[metric] || 0) - Number(left[metric] || 0)).map((player, rank) => [player.name, rank]));
     const previousRank = new Map([...previous.players].sort((left, right) => Number(right[metric] || 0) - Number(left[metric] || 0)).map((player, rank) => [player.name, rank]));
@@ -3377,8 +3387,8 @@ function renderWebsiteRaceStories() {
     snapshot.players.forEach(player => {
       const jump = previousRank.has(player.name) && currentRank.has(player.name) ? previousRank.get(player.name) - currentRank.get(player.name) : 0;
       const swing = Number(player[metric] || 0) - Number(previousValues.get(player.name) || 0);
-      if (!biggestJump || jump > biggestJump.value) biggestJump = { name: player.name, value: jump, from: previousRank.get(player.name) + 1, to: currentRank.get(player.name) + 1, snapshotIndex: offset + 1 };
-      if (!biggestSwing || Math.abs(swing) > Math.abs(biggestSwing.value)) biggestSwing = { name: player.name, value: swing, from: previousValues.get(player.name) || 0, to: Number(player[metric] || 0), snapshotIndex: offset + 1 };
+      if (snapshotIndex > firstScoringCheckpoint && (!biggestJump || jump > biggestJump.value)) biggestJump = { name: player.name, value: jump, from: previousRank.get(player.name) + 1, to: currentRank.get(player.name) + 1, snapshotIndex };
+      if (!biggestSwing || Math.abs(swing) > Math.abs(biggestSwing.value)) biggestSwing = { name: player.name, value: swing, from: previousValues.get(player.name) || 0, to: Number(player[metric] || 0), snapshotIndex };
     });
   });
   const topTime = [...leadership.totals.values()].sort((left, right) => right.duration - left.duration)[0];
@@ -3388,11 +3398,11 @@ function renderWebsiteRaceStories() {
     { label: "Wildest swing", name: biggestSwing?.name || "No swing yet", detail: biggestSwing ? `${websiteRaceStoryEvent(biggestSwing.snapshotIndex)} moved ${biggestSwing.name} from ${websiteProbabilityText(biggestSwing.from)} to ${websiteProbabilityText(biggestSwing.to)}.` : "Probabilities have held steady." },
     { label: "Most time on top", name: topTime?.name || "Not measured yet", detail: topTime ? `${topCause ? `${websiteRaceStoryEvent(topCause.index)} started a lead stint. ` : ""}${websiteRaceDuration(topTime.duration)} total across ${topReigns.length} stint${topReigns.length === 1 ? "" : "s"}.` : "Starts with live play." }
   ];
-  superlativeHost.innerHTML = `<h3>Live superlatives</h3><div class="live-superlatives">${cards.map(card => `<div class="live-superlative"><span>${card.label}</span><strong>${websiteEscapeHtml(card.name)}</strong><span>${websiteEscapeHtml(card.detail)}</span></div>`).join("")}</div>`;
+  superlativeHost.innerHTML = `<h3>Race leaders</h3><p>The biggest moves and longest lead across the week so far.</p><div class="live-superlatives">${cards.map(card => `<div class="live-superlative"><span>${card.label}</span><strong>${websiteEscapeHtml(card.name)}</strong><span>${websiteEscapeHtml(card.detail)}</span></div>`).join("")}</div>`;
 }
 function websiteRootingCell(analysis, contender, gameIndex, outcome) {
   const outcomeWeight = analysis.outcomeWeights.get(`${gameIndex}|${outcome}`) || 0;
-  if (!outcomeWeight || !analysis.totalWeight) return { label: "Neutral", className: "" };
+  if (!outcomeWeight || !analysis.totalWeight) return { label: "No clear edge", className: "" };
   const contribution = contender.paths.filter(path => path.outcomes[gameIndex] === outcome).reduce((sum, path) => sum + path.probabilityContribution, 0);
   const conditional = contribution / (outcomeWeight / analysis.totalWeight);
   const availableOutcomes = new Set(contender.paths.map(path => path.outcomes[gameIndex]));
@@ -3400,13 +3410,13 @@ function websiteRootingCell(analysis, contender, gameIndex, outcome) {
   const difference = (conditional - contender.probability) * 100;
   if (difference >= 1) return { label: `Helps +${difference.toFixed(0)}`, className: "rooting-help" };
   if (difference <= -1) return { label: `Hurts ${difference.toFixed(0)}`, className: "rooting-hurt" };
-  return { label: "Neutral", className: "" };
+  return { label: "No clear edge", className: "" };
 }
 function renderWebsiteLiveScenarioTools(data, baseAnalysis = null) {
-  const group = document.getElementById("live-what-if"), switchboard = document.getElementById("live-outcome-switchboard"), standings = document.getElementById("live-projected-standings"), rooting = document.getElementById("live-rooting-matrix"), tiebreak = document.getElementById("live-tiebreak-target");
-  if (!group || !switchboard || !standings || !rooting || !tiebreak) return;
+  const group = document.getElementById("live-what-if"), switchboard = document.getElementById("live-outcome-switchboard"), standings = document.getElementById("live-projected-standings"), rooting = document.getElementById("live-rooting-matrix");
+  if (!group || !switchboard || !standings || !rooting) return;
   const analysisData = websiteAnalysisData(data), scenarios = websiteScenarioOutcomes(analysisData);
-  if (!scenarios.variable.length) { group.hidden = true; [switchboard, standings, rooting, tiebreak].forEach(host => { host.innerHTML = ""; }); return null; }
+  if (!scenarios.variable.length) { group.hidden = true; [switchboard, standings, rooting].forEach(host => { host.innerHTML = ""; }); return null; }
   group.hidden = false;
   const context = `${data.season}-${data.week}-${websiteScenarioMode}`;
   if (group.dataset.context !== context) { websiteForcedOutcomes = {}; group.dataset.context = context; }
@@ -3425,23 +3435,27 @@ function renderWebsiteLiveScenarioTools(data, baseAnalysis = null) {
   } else if (analysis.scenarios.variable.length <= WEBSITE_EXACT_SCENARIO_GAME_LIMIT) {
     rooting.innerHTML = `<h3>Rooting matrix</h3><p>How each available result changes every contender's chance from the current baseline.</p><div class="analysis-table-wrap"><table class="rooting-table"><thead><tr><th>Contender</th>${analysis.scenarios.variable.flatMap(({ game }) => [game.underdog, game.favorite, ...(Number(game.spread) % 1 === 0 ? ["PUSH"] : [])]).map(outcome => `<th>${websiteEscapeHtml(String(outcome).toUpperCase())}</th>`).join("")}</tr></thead><tbody>${analysis.contenders.map(contender => `<tr><td><strong>${websiteEscapeHtml(contender.player.name)}</strong><br>${websiteProbabilityText(contender.probability * 100)}</td>${analysis.scenarios.variable.flatMap(({ game, index }) => [game.underdog, game.favorite, ...(Number(game.spread) % 1 === 0 ? ["PUSH"] : [])].map(outcome => websiteRootingCell(analysis, contender, index, outcome))).map(cell => `<td class="${cell.className}">${cell.label}</td>`).join("")}</tr>`).join("")}</tbody></table></div>`;
   } else rooting.innerHTML = `<h3>Rooting matrix</h3><p>The matrix appears when six or fewer games remain; ${analysis.scenarios.variable.length} are unresolved.</p>`;
-  const distribution = websiteTiebreakDistribution(analysisData), scale = value => Math.max(0, Math.min(100, (Number(value) - WEBSITE_TIEBREAK_MIN) * 100 / (WEBSITE_TIEBREAK_MAX - WEBSITE_TIEBREAK_MIN)));
-  const rangeRows = analysis.contenders.slice(0, 8).flatMap(contender => websiteTiebreakRouteGroups(contender).slice(0, 1).map(group => ({ name: contender.player.name, low: group.low, high: group.high })));
+  return analysis;
+}
+function renderWebsiteTiebreakSnapshot(data) {
+  const tiebreak = document.getElementById("live-tiebreak-target");
+  if (!tiebreak) return;
+  const analysisData = websiteAnalysisData(data), distribution = websiteTiebreakDistribution(analysisData), scale = value => Math.max(0, Math.min(100, (Number(value) - WEBSITE_TIEBREAK_MIN) * 100 / (WEBSITE_TIEBREAK_MAX - WEBSITE_TIEBREAK_MIN)));
   const projectedTotal = Math.round(distribution.mean), finalGame = analysisData.games.at(-1) || {}, finalStatus = websiteGameStatus(finalGame);
   const currentYards = analysisData.actualTiebreaker !== "" && Number.isFinite(Number(analysisData.actualTiebreaker)) ? Number(analysisData.actualTiebreaker) : null;
-  const isLive = ["IN", "LIVE", "IN_PROGRESS"].includes(finalStatus), gameLabel = [finalGame.away, finalGame.home].filter(Boolean).map(team => String(team).toUpperCase()).join("–");
-  const guaranteed = analysis.contenders.length === 1 && analysis.contenders[0].probability >= 1 - 1e-9, guaranteedContender = guaranteed ? analysis.contenders[0] : null;
-  const liveContext = isLive && currentYards != null ? `${gameLabel ? `${gameLabel} · ` : ""}${finalGame.statusText || "Live"} · Current net passing: <strong>${currentYards}</strong>. Projected finish: <strong>${projectedTotal}</strong>${distribution.deviation ? ` · likely band ${Math.round(distribution.mean - distribution.deviation)}–${Math.round(distribution.mean + distribution.deviation)}` : ""}.` : `Projected final-game net passing: <strong>${projectedTotal}</strong>${distribution.deviation ? ` · likely band ${Math.round(distribution.mean - distribution.deviation)}–${Math.round(distribution.mean + distribution.deviation)}` : " · final"}.`;
-  const currentMarker = isLive && currentYards != null ? `<span class="tiebreak-marker current" style="left:${scale(currentYards)}%"><span>Current · ${currentYards}</span></span>` : "";
-  const guessMarker = guaranteedContender ? `<span class="tiebreak-marker guess" style="left:${scale(guaranteedContender.player.tiebreaker)}%"><span>${websiteEscapeHtml(guaranteedContender.player.name)} · ${websiteEscapeHtml(guaranteedContender.player.tiebreaker)}</span></span>` : "";
-  const ranges = guaranteed ? "" : rangeRows.map(row => `<span class="tiebreak-range" style="left:${scale(row.low)}%;width:${Math.max(.4, scale(row.high) - scale(row.low))}%" title="${websiteEscapeHtml(`${row.name}: ${websiteYardRange(row.low, row.high)}`)}"></span>`).join("");
-  const clinched = guaranteedContender ? `<p class="tiebreak-clinched"><strong>${websiteEscapeHtml(guaranteedContender.player.name)} has clinched the week</strong> regardless of the final yardage. The ${websiteEscapeHtml(guaranteedContender.player.tiebreaker)} guess is shown for reference.</p>` : "";
-  const guesses = guaranteed ? "" : `<div class="tiebreak-guesses">${analysis.contenders.slice(0, 10).map(contender => `<span>${websiteEscapeHtml(contender.player.name)}: <strong>${websiteEscapeHtml(contender.player.tiebreaker)}</strong></span>`).join("")}</div>`;
-  tiebreak.innerHTML = `<h3>Tiebreak target strip</h3><p>${liveContext} ${guaranteedContender ? `The markers show the live total, projection, and ${websiteEscapeHtml(guaranteedContender.player.name)}'s guess.` : "Highlighted bars are active winning ranges."}</p><div class="tiebreak-strip">${ranges}${currentMarker}<span class="tiebreak-marker projected" style="left:${scale(projectedTotal)}%"><span>Projected · ${projectedTotal}</span></span>${guessMarker}</div>${clinched}${guesses}`;
-  return analysis;
+  const isLive = ["IN", "LIVE", "IN_PROGRESS"].includes(finalStatus), isFinal = ["POST", "FINAL", "COMPLETED"].includes(finalStatus), gameLabel = [finalGame.away, finalGame.home].filter(Boolean).map(team => String(team).toUpperCase()).join("–");
+  const guaranteedPlayer = (analysisData.players || []).find(player => parseFloat(player.winProbability || 0) >= 99.999);
+  const liveContext = isFinal && currentYards != null ? `Final-game net passing: <strong>${currentYards}</strong>.` : isLive && currentYards != null ? `${gameLabel ? `${gameLabel} · ` : ""}${finalGame.statusText || "Live"} · Current net passing: <strong>${currentYards}</strong>. Projected finish: <strong>${projectedTotal}</strong>${distribution.deviation ? ` · likely band ${Math.round(distribution.mean - distribution.deviation)}–${Math.round(distribution.mean + distribution.deviation)}` : ""}.` : `Projected final-game net passing: <strong>${projectedTotal}</strong>${distribution.deviation ? ` · likely band ${Math.round(distribution.mean - distribution.deviation)}–${Math.round(distribution.mean + distribution.deviation)}` : ""}.`;
+  const currentMarker = (isLive || isFinal) && currentYards != null ? `<span class="tiebreak-marker current" style="left:${scale(currentYards)}%"><span>${isFinal ? "Final" : "Current"} · ${currentYards}</span></span>` : "";
+  const projectedMarker = isFinal ? "" : `<span class="tiebreak-marker projected" style="left:${scale(projectedTotal)}%"><span>Projected · ${projectedTotal}</span></span>`;
+  const guessMarker = guaranteedPlayer ? `<span class="tiebreak-marker guess" style="left:${scale(guaranteedPlayer.tiebreaker)}%"><span>${websiteEscapeHtml(guaranteedPlayer.name)} · ${websiteEscapeHtml(guaranteedPlayer.tiebreaker)}</span></span>` : "";
+  const clinched = guaranteedPlayer ? `<p class="tiebreak-clinched"><strong>${websiteEscapeHtml(guaranteedPlayer.name)} ${isFinal ? "won" : "has clinched"} the week</strong>${isFinal ? "." : " regardless of the final yardage."} The ${websiteEscapeHtml(guaranteedPlayer.tiebreaker)} guess is shown for reference.</p>` : "";
+  const markerCopy = guaranteedPlayer ? `The markers show the ${isFinal ? "final total" : "live total, projection"}, and ${websiteEscapeHtml(guaranteedPlayer.name)}'s guess.` : `The markers show the ${isFinal ? "final total" : "live total and projection"}.`;
+  tiebreak.innerHTML = `<h3>Tiebreak snapshot</h3><p>${liveContext} ${markerCopy}</p><div class="tiebreak-strip">${currentMarker}${projectedMarker}${guessMarker}</div>${clinched}`;
 }
 function renderWebsiteLiveAnalysis(data) {
   renderWebsiteRace(data);
+  renderWebsiteTiebreakSnapshot(data);
   const analysis = websiteScenarioOutcomes(websiteAnalysisData(data)).variable.length ? websiteContenderPaths(data) : null;
   renderWebsiteLiveScenarioTools(data, analysis);
   renderWebsiteWeekRecap(data);
