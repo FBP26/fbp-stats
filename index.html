@@ -6900,8 +6900,10 @@ function populateWeeklyRankPlayers() {
 async function renderWeeklyRankView() {
   if (!websiteWeeks.length) return;
   const displaySelect = document.getElementById("weekly-rank-display");
+  const playerSelect = document.getElementById("weekly-rank-player");
   if (displaySelect && !displaySelect.querySelector('[value="recent5"]')) displaySelect.add(new Option("Latest 5 weeks", "recent5"), 0);
   if (displaySelect && !displaySelect.dataset.ready) { displaySelect.value = "recent5"; displaySelect.dataset.ready = "true"; }
+  if (playerSelect && !playerSelect.dataset.ready) { playerSelect.value = "all"; playerSelect.dataset.ready = "true"; }
   populateWeeklyRankPlayers();
   renderWeeklyRank();
 }
