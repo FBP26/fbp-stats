@@ -2688,23 +2688,31 @@ async function refreshWebsitePicksWeather() {
     if (!websitePicksWeatherIsComplete()) scheduleWebsitePicksWeatherRefresh();
   }
 }
-async function renderWebsitePicksForm() {
+function websiteSlateSignature(games) {
+  return JSON.stringify((games || []).map(({ gameId, kickoff, favorite, spread, underdog }) => ({ gameId, kickoff, favorite, spread, underdog })));
+}
+async function renderWebsitePicksForm(forceRefresh = false) {
   const host = document.getElementById("website-game-picks");
   if (!host) return;
   const initialSelection = websitePickSelection();
   const initialCacheKey = `${initialSelection.phase}-${initialSelection.season}-${initialSelection.week}`;
-  if (!initialSelection.testMode && !websiteStagedGamesCache.has(initialCacheKey)) {
-    try { await loadActiveRegularWeek(); } catch (error) { renderWebsiteGamesLoadError(host, error); return; }
+  if (!initialSelection.testMode) {
+    try { await loadActiveRegularWeek(forceRefresh); }
+    catch (error) {
+      if (!websiteStagedGamesCache.has(initialCacheKey)) { renderWebsiteGamesLoadError(host, error); return; }
+      console.warn(`Using saved active slate while offline: ${error.message}`);
+    }
   }
   const selection = websitePickSelection();
   const configKey = `${selection.phase}-${selection.season}-${selection.week}`;
-  if (host.dataset.ready === configKey) { queueWebsitePicksWeatherRefresh(selection); return; }
+  const cachedGames = websiteStagedGamesCache.get(configKey)?.games || [];
+  if (!forceRefresh && host.dataset.ready === configKey && websiteSlateSignature(websiteActiveGames) === websiteSlateSignature(cachedGames)) { queueWebsitePicksWeatherRefresh(selection); return; }
   host.dataset.ready = configKey;
   host.innerHTML = '<p class="website-instructions">Loading games...</p>';
   document.getElementById("website-test-notice").classList.toggle("active", selection.testMode);
   document.getElementById("website-week-name-label").textContent = `${selection.testMode ? "Preseason" : "Week"} ${selection.week} name`;
   try {
-    const stagedGames = await loadWebsiteStagedGames(selection);
+    const stagedGames = await loadWebsiteStagedGames(selection, forceRefresh);
     if (!stagedGames.length) throw new Error(`${selection.testMode ? "Preseason" : "Regular"} Week ${selection.week} has not been staged yet.`);
     websiteActiveGames = stagedGames;
     const finalGame = websiteActiveGames[websiteActiveGames.length - 1];
@@ -7094,13 +7102,12 @@ if (["week-one", "live-analysis"].includes(startupRoute) && !WEBSITE_SUBMISSIONS
   if (startupRoute === "enter-picks") {
     await renderWebsitePicksForm();
     resetWebsiteBestBet();
-    const slateSignature = games => JSON.stringify(games.map(({ gameId, kickoff, favorite, spread, underdog }) => ({ gameId, kickoff, favorite, spread, underdog })));
-    const renderedSlate = slateSignature(websiteActiveGames);
+    const renderedSlate = websiteSlateSignature(websiteActiveGames);
     startupRoutePending = false;
     try {
       const preseasonActive = await selectStagedPreseasonWeek();
       const refreshedGames = preseasonActive ? websiteDiscoveredPreseasonData?.games || [] : websiteStagedGamesCache.get(`REGULAR_SEASON-${websiteRegularSelection.season}-${websiteRegularSelection.week}`)?.games || [];
-      if (preseasonActive || slateSignature(refreshedGames) !== renderedSlate) {
+      if (preseasonActive || websiteSlateSignature(refreshedGames) !== renderedSlate) {
         document.getElementById("website-game-picks").dataset.ready = "";
         await renderWebsitePicksForm();
       }
@@ -7126,6 +7133,12 @@ if (["week-one", "live-analysis"].includes(startupRoute) && !WEBSITE_SUBMISSIONS
       .then(registration => registration.update())
       .catch(error => console.warn(`App install support failed: ${error.message}`)));
   }
+  const refreshVisiblePicks = () => {
+    if (!document.hidden && document.getElementById("view-enter-picks")?.classList.contains("active")) renderWebsitePicksForm(true);
+  };
+  window.addEventListener("pageshow", event => { if (event.persisted) refreshVisiblePicks(); });
+  window.addEventListener("online", refreshVisiblePicks);
+  document.addEventListener("visibilitychange", refreshVisiblePicks);
   {
     const installHelp = document.getElementById("website-install-help"), installCopy = document.getElementById("website-install-copy"), installAction = document.getElementById("website-install-action");
     const standalone = matchMedia("(display-mode: standalone)").matches || navigator.standalone === true;
