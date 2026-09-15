@@ -1176,6 +1176,9 @@ function setRaceFrameBadge(prefix, label, headline = "") {
   if (!wrap) return;
   let badge = wrap.querySelector(".race-frame-badge");
   if (!badge) { badge = document.createElement("div"); badge.className = "race-frame-badge"; wrap.append(badge); }
+  const rankView = Chart.getChart(canvas)?.$historicalRacingRank;
+  badge.style.left = rankView ? "52px" : "";
+  badge.style.right = rankView ? "auto" : "";
   badge.innerHTML = `${websiteEscapeHtml(label)}${headline ? `<small>${websiteEscapeHtml(headline)}</small>` : ""}`;
   badge.classList.remove("flash");
   void badge.offsetWidth;
@@ -1198,6 +1201,50 @@ function observeRaceAutoplay(element, context, start) {
 function racePointValue(point) { return Number(point && typeof point === "object" ? point.y : point); }
 function racePointStyle(context, data) { const current = racePointValue(data[context.dataIndex]), previous = racePointValue(data[context.dataIndex - 1]); return context.dataIndex && Number.isFinite(current) && Number.isFinite(previous) && current !== previous ? "triangle" : "circle"; }
 function racePointRotation(context, data, reverse = false) { const current = racePointValue(data[context.dataIndex]), previous = racePointValue(data[context.dataIndex - 1]); return (reverse ? current > previous : current < previous) ? 180 : 0; }
+function historicalRaceUsesRank(prefix) { return document.getElementById(`${prefix}-view`)?.value === "rank"; }
+function historicalRaceRank(frame, player, metric, eligible = () => true) {
+  const ranked = [...(frame?.players || [])].filter(eligible).sort((left, right) => Number(right[metric]) - Number(left[metric]) || Number(right.wins || 0) - Number(left.wins || 0) || left.name.localeCompare(right.name));
+  const index = ranked.findIndex(candidate => candidate.name === player.name);
+  return index < 0 ? null : index + 1;
+}
+function configureHistoricalRaceDisplay(chart, prefix, metric, playerCount, scaleControlId) {
+  const rankView = historicalRaceUsesRank(prefix), scaleControl = document.getElementById(scaleControlId), yAxis = chart.options.scales.y;
+  chart.$historicalRacingRank = rankView;
+  chart.options.layout.padding.right = rankView ? (matchMedia("(max-width: 620px)").matches ? 78 : 118) : 0;
+  chart.options.plugins.legend.display = !rankView;
+  if (rankView) {
+    if (scaleControl) scaleControl.disabled = true;
+    yAxis.beginAtZero = false;
+    yAxis.min = 1;
+    yAxis.max = Math.max(2, playerCount);
+    yAxis.reverse = true;
+    yAxis.title.text = "Racing rank";
+    yAxis.ticks.callback = value => `#${value}`;
+    yAxis.ticks.stepSize = 1;
+    return;
+  }
+  if (scaleControl) scaleControl.disabled = false;
+  yAxis.reverse = false;
+  yAxis.ticks.stepSize = undefined;
+  setHistoricalRaceScale(chart, metric, scaleControlId);
+}
+Chart.register({
+  id: "historicalRaceEndpointLabels",
+  afterDatasetsDraw(chart) {
+    if (!chart.$historicalRacingRank || !chart.chartArea) return;
+    const context = chart.ctx;
+    context.save();
+    context.font = `bold ${matchMedia("(max-width: 620px)").matches ? 9 : 10}px Arial`;
+    context.textBaseline = "middle";
+    chart.data.datasets.forEach((dataset, datasetIndex) => {
+      const points = chart.getDatasetMeta(datasetIndex).data, point = points[points.length - 1], rank = dataset.data[dataset.data.length - 1];
+      if (!point || !Number.isFinite(rank)) return;
+      context.fillStyle = dataset.borderColor;
+      context.fillText(`${dataset.label}  #${rank}`, point.x + 7, point.y);
+    });
+    context.restore();
+  }
+});
 let websiteCoverTrendKey = "", websiteCoverTrendChart = null;
 function websiteUsesIntentionalTooltips() { return true; }
 function hideIntentionalChartTooltips(exceptCanvas = null) {
@@ -4392,11 +4439,12 @@ function showAllTimeRaceFrame(index) {
   const players = [...field].sort((left, right) => Number(right[metric]) - Number(left[metric]) || right.wins - left.wins || left.name.localeCompare(right.name)).slice(0, fieldLimit);
   if (allTimeRaceSelectedPlayer && !players.some(player => player.name === allTimeRaceSelectedPlayer)) allTimeRaceSelectedPlayer = "";
   allTimeRaceChart.data.labels = visibleFrames.map(item => item.label);
-  allTimeRaceChart.data.datasets = players.map(player => { const focused = allTimeRaceSelectedPlayer === player.name, dimmed = allTimeRaceSelectedPlayer && !focused, color = dimmed ? websiteRaceColor(player.name, .18) : websiteRaceColor(player.name), data = visibleFrames.map(item => { const value = item.players.find(candidate => candidate.name === player.name); return value && eligible(value) ? value[metric] : null; }); return { label: player.name, data, borderColor: color, backgroundColor: websiteRaceColor(player.name, dimmed ? .04 : .2), borderWidth: focused ? 4 : dimmed ? 1 : 2, pointRadius: 0, pointHitRadius: 10, pointHoverRadius: 4, tension: .18, spanGaps: true }; });
+  const rankView = historicalRaceUsesRank("alltime-race");
+  allTimeRaceChart.data.datasets = players.map(player => { const focused = allTimeRaceSelectedPlayer === player.name, dimmed = allTimeRaceSelectedPlayer && !focused, color = dimmed ? websiteRaceColor(player.name, .18) : websiteRaceColor(player.name), data = visibleFrames.map(item => { const value = item.players.find(candidate => candidate.name === player.name); return !value || !eligible(value) ? null : rankView ? historicalRaceRank(item, value, metric, eligible) : value[metric]; }); return { label: player.name, data, borderColor: color, backgroundColor: websiteRaceColor(player.name, dimmed ? .04 : .2), borderWidth: focused ? 4 : dimmed ? 1 : 2, pointRadius: context => rankView && context.dataIndex === data.length - 1 ? 4 : 0, pointHitRadius: 10, pointHoverRadius: 4, tension: .18, spanGaps: true }; });
   allTimeRaceChart.data.datasets.forEach((dataset, datasetIndex) => allTimeRaceChart.setDatasetVisibility(datasetIndex, true));
   allTimeRaceChart.options.scales.y.title.text = metric === "wins" ? "Cumulative total wins including Best Bets" : metric === "winPct" ? "Cumulative win % · minimum 100 weeks played" : "Cumulative wins minus losses";
-  setHistoricalRaceScale(allTimeRaceChart, metric, "alltime-race-scale");
-  allTimeRaceChart.options.scales.y.ticks.callback = metric === "winPct" ? value => `${value}%` : value => value;
+  configureHistoricalRaceDisplay(allTimeRaceChart, "alltime-race", metric, players.length, "alltime-race-scale");
+  if (!rankView) allTimeRaceChart.options.scales.y.ticks.callback = metric === "winPct" ? value => `${value}%` : value => value;
   allTimeRaceChart.update();
   document.getElementById("alltime-race-time").textContent = `${frame.label} · ${allTimeRaceFrame - firstVisibleFrame + 1}/${allTimeRaceFrames.length - firstVisibleFrame}`;
   document.getElementById("alltime-race-headline").textContent = historicalRaceCheckpointHeadline(allTimeRaceFrames, allTimeRaceFrame, metric, eligible);
@@ -4431,6 +4479,7 @@ function renderAllTimeRace() {
   if (!stepSelect.querySelector('[value="season"]')) stepSelect.add(new Option("Every season", "season"));
   ["season", "week", "game"].forEach(value => stepSelect.append(stepSelect.querySelector(`[value="${value}"]`)));
   if (!document.getElementById("alltime-race-field")) metricSelect.closest("label")?.insertAdjacentHTML("afterend", '<label>Field<select id="alltime-race-field"><option value="top10">Top 10</option><option value="all">All players</option></select></label>');
+  if (!document.getElementById("alltime-race-view")) document.getElementById("alltime-race-field")?.closest("label")?.insertAdjacentHTML("afterend", '<label>Display<select id="alltime-race-view"><option value="values">Values</option><option value="rank">Racing rank</option></select></label>');
   if (!document.getElementById("alltime-race-previous")) document.getElementById("alltime-race-play")?.insertAdjacentHTML("beforebegin", '<button id="alltime-race-previous" class="live-race-step" type="button" title="Previous frame" aria-label="Previous frame">‹</button>');
   if (!document.getElementById("alltime-race-next")) document.getElementById("alltime-race-play")?.insertAdjacentHTML("afterend", '<button id="alltime-race-next" class="live-race-step" type="button" title="Next frame" aria-label="Next frame">›</button>');
   if (!document.getElementById("alltime-race-scale")) document.getElementById("alltime-race-field")?.closest("label")?.insertAdjacentHTML("afterend", '<label class="race-scale-label">Scale<select id="alltime-race-scale"><option value="standard">Standard 0–100%</option><option value="zoom">Zoom to field</option></select></label>');
@@ -4442,7 +4491,7 @@ function renderAllTimeRace() {
     playback.className = "race-playback-group";
     controls.insertBefore(filters, status);
     controls.insertBefore(playback, status);
-    [metricSelect, document.getElementById("alltime-race-field"), stepSelect, document.getElementById("alltime-race-scale")].forEach(select => filters.append(select.closest("label")));
+    [metricSelect, document.getElementById("alltime-race-field"), document.getElementById("alltime-race-view"), stepSelect, document.getElementById("alltime-race-scale")].forEach(select => filters.append(select.closest("label")));
     [document.getElementById("alltime-race-previous"), document.getElementById("alltime-race-play"), document.getElementById("alltime-race-next")].forEach(element => playback.append(element));
   }
   const wrap = canvas.closest(".chart-wrap");
@@ -4471,6 +4520,7 @@ function renderAllTimeRace() {
   const refreshAllTimeRace = () => { stopAllTimeRace(); allTimeRaceSelectedPlayer = ""; assignWebsiteRaceColors(allTimeRaceFrames, document.getElementById("alltime-race-metric")?.value || "wins"); startFilteredAllTimeRace(); };
   document.getElementById("alltime-race-metric").onchange = refreshAllTimeRace;
   document.getElementById("alltime-race-field").onchange = refreshAllTimeRace;
+  document.getElementById("alltime-race-view").onchange = refreshAllTimeRace;
   document.getElementById("alltime-race-scale").onchange = refreshAllTimeRace;
   document.getElementById("alltime-race-step").onchange = () => { document.getElementById("alltime-race-scale").value = stepSelect.value === "game" ? "standard" : "zoom"; renderAllTimeRace(); startFilteredAllTimeRace(); };
   document.getElementById("alltime-race-previous").onclick = () => { stopAllTimeRace(); showAllTimeRaceFrame(allTimeRaceFrame - 1); };
@@ -5110,7 +5160,7 @@ function ensureSeasonLiveRacePanel() {
   if (existing) return existing;
   const raceAnchor = document.getElementById("season-top-chart")?.closest(".chart-wrap");
   if (!raceAnchor) return null;
-  raceAnchor.insertAdjacentHTML("afterend", '<p class="analysis-note">Watch every player’s cumulative line unfold after each archived game or at the end of each week. Best Bet results are included.</p><div class="explorer-controls race-controls"><div class="race-filter-group"><label>Race by<select id="season-live-race-metric"><option value="winPct" selected>Win percentage</option><option value="wins">Total wins</option><option value="gap">Gap behind leader</option></select></label><label>Field<select id="season-live-race-field"><option value="top10">Top 10</option><option value="all">All players</option></select></label><label>Advance by<select id="season-live-race-step"><option value="week">Every week</option><option value="game">Every game</option></select></label><label class="race-scale-label">Scale<select id="season-live-race-scale"><option value="standard">Standard 0–100%</option><option value="zoom">Zoom to field</option></select></label></div><div class="race-playback-group"><button id="season-live-race-play" type="button">Play race</button><button id="season-live-race-restart" type="button">Restart</button><label>Speed<select id="season-live-race-speed"><option value="900">0.75x</option><option value="550" selected>1x</option><option value="250">2x</option></select></label></div><div class="live-race-status" hidden><output id="season-live-race-time" class="live-race-time" aria-live="polite">Loading race...</output><output id="season-live-race-headline" class="live-race-headline" aria-live="polite"></output></div></div><div class="chart-wrap wide-chart race-chart-wrap"><canvas id="season-live-race-chart"></canvas></div>');
+  raceAnchor.insertAdjacentHTML("afterend", '<p class="analysis-note">Watch every player’s cumulative line unfold after each archived game or at the end of each week. Best Bet results are included.</p><div class="explorer-controls race-controls"><div class="race-filter-group"><label>Race by<select id="season-live-race-metric"><option value="winPct" selected>Win percentage</option><option value="wins">Total wins</option><option value="gap">Gap behind leader</option></select></label><label>Field<select id="season-live-race-field"><option value="top10">Top 10</option><option value="all">All players</option></select></label><label>Display<select id="season-live-race-view"><option value="values">Values</option><option value="rank">Racing rank</option></select></label><label>Advance by<select id="season-live-race-step"><option value="week">Every week</option><option value="game">Every game</option></select></label><label class="race-scale-label">Scale<select id="season-live-race-scale"><option value="standard">Standard 0–100%</option><option value="zoom">Zoom to field</option></select></label></div><div class="race-playback-group"><button id="season-live-race-play" type="button">Play race</button><button id="season-live-race-restart" type="button">Restart</button><label>Speed<select id="season-live-race-speed"><option value="900">0.75x</option><option value="550" selected>1x</option><option value="250">2x</option></select></label></div><div class="live-race-status" hidden><output id="season-live-race-time" class="live-race-time" aria-live="polite">Loading race...</output><output id="season-live-race-headline" class="live-race-headline" aria-live="polite"></output></div></div><div class="chart-wrap wide-chart race-chart-wrap"><canvas id="season-live-race-chart"></canvas></div>');
   const chart = document.getElementById("season-live-race-chart"), wrap = chart.closest(".chart-wrap");
   document.getElementById("season-live-race-play")?.insertAdjacentHTML("beforebegin", '<button id="season-live-race-previous" class="live-race-step" type="button" title="Previous frame" aria-label="Previous frame">‹</button>');
   document.getElementById("season-live-race-play")?.insertAdjacentHTML("afterend", '<button id="season-live-race-next" class="live-race-step" type="button" title="Next frame" aria-label="Next frame">›</button>');
@@ -5128,10 +5178,13 @@ function showSeasonLiveRaceFrame(index) {
   const players = [...frame.players].sort((left, right) => Number(right[metric]) - Number(left[metric]) || right.wins - left.wins || left.name.localeCompare(right.name)).slice(0, fieldLimit);
   if (seasonLiveRaceSelectedPlayer && !players.some(player => player.name === seasonLiveRaceSelectedPlayer)) seasonLiveRaceSelectedPlayer = "";
   seasonLiveRaceChart.data.labels = visibleFrames.map(item => item.label);
-  seasonLiveRaceChart.data.datasets = players.map(player => { const focused = seasonLiveRaceSelectedPlayer === player.name, dimmed = seasonLiveRaceSelectedPlayer && !focused, color = dimmed ? websiteRaceColor(player.name, .18) : websiteRaceColor(player.name), data = visibleFrames.map(item => item.players.find(candidate => candidate.name === player.name)?.[metric] ?? null); return { label: player.name, data, borderColor: color, backgroundColor: websiteRaceColor(player.name, dimmed ? .04 : .2), borderWidth: focused ? 4 : dimmed ? 1 : 2, pointRadius: 0, pointHoverRadius: 0, pointHitRadius: 8, tension: .18, spanGaps: true }; });
-  setHistoricalRaceScale(seasonLiveRaceChart, metric, "season-live-race-scale");
-  seasonLiveRaceChart.options.scales.y.title.text = metric === "winPct" ? "Cumulative win percentage" : metric === "gap" ? "Cumulative wins behind leader" : "Cumulative wins including Best Bet wins";
-  seasonLiveRaceChart.options.scales.y.ticks.callback = metric === "winPct" ? value => `${value}%` : metric === "gap" ? value => value === 0 ? "Leader" : `${Math.abs(value)} back` : value => value;
+  const rankView = historicalRaceUsesRank("season-live-race");
+  seasonLiveRaceChart.data.datasets = players.map(player => { const focused = seasonLiveRaceSelectedPlayer === player.name, dimmed = seasonLiveRaceSelectedPlayer && !focused, color = dimmed ? websiteRaceColor(player.name, .18) : websiteRaceColor(player.name), data = visibleFrames.map(item => { const value = item.players.find(candidate => candidate.name === player.name); return !value ? null : rankView ? historicalRaceRank(item, value, metric) : value[metric]; }); return { label: player.name, data, borderColor: color, backgroundColor: websiteRaceColor(player.name, dimmed ? .04 : .2), borderWidth: focused ? 4 : dimmed ? 1 : 2, pointRadius: context => rankView && context.dataIndex === data.length - 1 ? 4 : 0, pointHoverRadius: 4, pointHitRadius: 8, tension: .18, spanGaps: true }; });
+  configureHistoricalRaceDisplay(seasonLiveRaceChart, "season-live-race", metric, players.length, "season-live-race-scale");
+  if (!rankView) {
+    seasonLiveRaceChart.options.scales.y.title.text = metric === "winPct" ? "Cumulative win percentage" : metric === "gap" ? "Cumulative wins behind leader" : "Cumulative wins including Best Bet wins";
+    seasonLiveRaceChart.options.scales.y.ticks.callback = metric === "winPct" ? value => `${value}%` : metric === "gap" ? value => value === 0 ? "Leader" : `${Math.abs(value)} back` : value => value;
+  }
   seasonLiveRaceChart.update();
   document.getElementById("season-live-race-time").textContent = `${frame.label} · ${seasonLiveRaceFrame + 1}/${seasonLiveRaceFrames.length}`;
   document.getElementById("season-live-race-headline").textContent = historicalRaceCheckpointHeadline(seasonLiveRaceFrames, seasonLiveRaceFrame, metric);
@@ -5168,6 +5221,7 @@ function renderSeasonLiveRace() {
   const refreshSeasonLiveRace = () => { stopSeasonLiveRace(); seasonLiveRaceSelectedPlayer = ""; assignWebsiteRaceColors(seasonLiveRaceFrames, document.getElementById("season-live-race-metric")?.value || "winPct"); startFilteredSeasonLiveRace(); };
   document.getElementById("season-live-race-metric").onchange = refreshSeasonLiveRace;
   document.getElementById("season-live-race-field").onchange = refreshSeasonLiveRace;
+  document.getElementById("season-live-race-view").onchange = refreshSeasonLiveRace;
   document.getElementById("season-live-race-scale").onchange = refreshSeasonLiveRace;
   document.getElementById("season-live-race-step").onchange = () => { document.getElementById("season-live-race-scale").value = document.getElementById("season-live-race-step").value === "game" ? "standard" : "zoom"; renderSeasonLiveRace(); startFilteredSeasonLiveRace(); };
   document.getElementById("season-live-race-previous").onclick = () => { stopSeasonLiveRace(); showSeasonLiveRaceFrame(seasonLiveRaceFrame - 1); };
@@ -5188,7 +5242,7 @@ function ensureWeekLiveRacePanel() {
   if (existing) return existing;
   const raceAnchor = document.getElementById("week-chart")?.closest(".chart-wrap");
   if (!raceAnchor) return null;
-  raceAnchor.insertAdjacentHTML("afterend", '<h3 style="margin:28px 0 8px;color:var(--accent);font:11px Arial,sans-serif;letter-spacing:1px;text-transform:uppercase">Full-field week race</h3><p class="analysis-note">Replay final game results or the archived five-minute live race. Best Bet results are included in game-result mode.</p><div class="explorer-controls race-controls"><div class="race-filter-group"><label>Timeline<select id="week-live-race-timeline"><option value="games">Game results</option></select></label><label>Race by<select id="week-live-race-metric"></select></label><label>Field<select id="week-live-race-field"><option value="top10">Top 10</option><option value="all">All players</option></select></label><label class="race-scale-label">Scale<select id="week-live-race-scale"><option value="standard">Standard 0–100%</option><option value="zoom">Zoom to field</option></select></label></div><div class="race-playback-group"><button id="week-live-race-play" type="button">Play race</button><button id="week-live-race-restart" type="button">Restart</button><label>Speed<select id="week-live-race-speed"><option value="900">0.75x</option><option value="550" selected>1x</option><option value="250">2x</option></select></label></div><div class="live-race-status" hidden><output id="week-live-race-time" class="live-race-time" aria-live="polite">Loading race...</output><output id="week-live-race-headline" class="live-race-headline" aria-live="polite"></output></div></div><div class="chart-wrap wide-chart race-chart-wrap"><canvas id="week-live-race-chart"></canvas></div>');
+  raceAnchor.insertAdjacentHTML("afterend", '<h3 style="margin:28px 0 8px;color:var(--accent);font:11px Arial,sans-serif;letter-spacing:1px;text-transform:uppercase">Full-field week race</h3><p class="analysis-note">Replay final game results or the archived five-minute live race. Best Bet results are included in game-result mode.</p><div class="explorer-controls race-controls"><div class="race-filter-group"><label>Advance by<select id="week-live-race-timeline"><option value="games">Every game</option><option value="live">Live snapshots</option></select></label><label>Race by<select id="week-live-race-metric"></select></label><label>Field<select id="week-live-race-field"><option value="top10">Top 10</option><option value="all">All players</option></select></label><label>Display<select id="week-live-race-view"><option value="values">Values</option><option value="rank">Racing rank</option></select></label><label class="race-scale-label">Scale<select id="week-live-race-scale"><option value="standard">Standard 0–100%</option><option value="zoom">Zoom to field</option></select></label></div><div class="race-playback-group"><button id="week-live-race-play" type="button">Play race</button><button id="week-live-race-restart" type="button">Restart</button><label>Speed<select id="week-live-race-speed"><option value="900">0.75x</option><option value="550" selected>1x</option><option value="250">2x</option></select></label></div><div class="live-race-status" hidden><output id="week-live-race-time" class="live-race-time" aria-live="polite">Loading race...</output><output id="week-live-race-headline" class="live-race-headline" aria-live="polite"></output></div></div><div class="chart-wrap wide-chart race-chart-wrap"><canvas id="week-live-race-chart"></canvas></div>');
   const chart = document.getElementById("week-live-race-chart"), wrap = chart.closest(".chart-wrap");
   document.getElementById("week-live-race-play")?.insertAdjacentHTML("beforebegin", '<button id="week-live-race-previous" class="live-race-step" type="button" title="Previous frame" aria-label="Previous frame">‹</button>');
   document.getElementById("week-live-race-play")?.insertAdjacentHTML("afterend", '<button id="week-live-race-next" class="live-race-step" type="button" title="Next frame" aria-label="Next frame">›</button>');
@@ -5247,10 +5301,13 @@ function showWeekLiveRaceFrame(index) {
   const players = [...frame.players].sort((left, right) => Number(right[metric]) - Number(left[metric]) || right.wins - left.wins || left.name.localeCompare(right.name)).slice(0, fieldLimit);
   if (weekLiveRaceSelectedPlayer && !players.some(player => player.name === weekLiveRaceSelectedPlayer)) weekLiveRaceSelectedPlayer = "";
   weekLiveRaceChart.data.labels = visibleFrames.map(item => item.label);
-  weekLiveRaceChart.data.datasets = players.map((player, paletteIndex) => { const focused = weekLiveRaceSelectedPlayer === player.name, dimmed = weekLiveRaceSelectedPlayer && !focused, color = dimmed ? websiteRaceColor(player.name, .18, paletteIndex) : websiteRaceColor(player.name, 1, paletteIndex), data = visibleFrames.map(item => item.players.find(candidate => player.playerId ? candidate.playerId === player.playerId : candidate.name === player.name)?.[metric] ?? null); return { label: player.name, data, borderColor: color, backgroundColor: dimmed ? websiteRaceColor(player.name, .04, paletteIndex) : websiteRaceColor(player.name, .2, paletteIndex), borderWidth: focused ? 4 : dimmed ? 1 : 2, pointRadius: 0, pointHitRadius: 10, pointHoverRadius: 4, tension: .18, spanGaps: true }; });
-  setHistoricalRaceScale(weekLiveRaceChart, metric, "week-live-race-scale");
-  weekLiveRaceChart.options.scales.y.title.text = metric === "winProbability" ? "Win probability" : metric === "winPct" ? weekLiveRaceUsesArchive() ? "Live win percentage" : "Cumulative win percentage" : metric === "pathsToVictory" ? "Paths to victory" : metric === "gap" ? weekLiveRaceUsesArchive() ? "Win-probability points behind leader" : "Cumulative wins behind leader" : metric === "timeOnTop" ? "Cumulative time on top" : "Cumulative wins including Best Bet wins";
-  weekLiveRaceChart.options.scales.y.ticks.callback = ["winPct", "winProbability"].includes(metric) ? value => `${value}%` : metric === "gap" ? value => value === 0 ? "Leader" : `${Math.abs(value)} back` : metric === "timeOnTop" ? value => websiteRaceDuration(value) : value => value;
+  const rankView = historicalRaceUsesRank("week-live-race");
+  weekLiveRaceChart.data.datasets = players.map((player, paletteIndex) => { const focused = weekLiveRaceSelectedPlayer === player.name, dimmed = weekLiveRaceSelectedPlayer && !focused, color = dimmed ? websiteRaceColor(player.name, .18, paletteIndex) : websiteRaceColor(player.name, 1, paletteIndex), data = visibleFrames.map(item => { const value = item.players.find(candidate => player.playerId ? candidate.playerId === player.playerId : candidate.name === player.name); return !value ? null : rankView ? historicalRaceRank(item, value, metric) : value[metric]; }); return { label: player.name, data, borderColor: color, backgroundColor: dimmed ? websiteRaceColor(player.name, .04, paletteIndex) : websiteRaceColor(player.name, .2, paletteIndex), borderWidth: focused ? 4 : dimmed ? 1 : 2, pointRadius: context => rankView && context.dataIndex === data.length - 1 ? 4 : 0, pointHitRadius: 10, pointHoverRadius: 4, tension: .18, spanGaps: true }; });
+  configureHistoricalRaceDisplay(weekLiveRaceChart, "week-live-race", metric, players.length, "week-live-race-scale");
+  if (!rankView) {
+    weekLiveRaceChart.options.scales.y.title.text = metric === "winProbability" ? "Win probability" : metric === "winPct" ? weekLiveRaceUsesArchive() ? "Live win percentage" : "Cumulative win percentage" : metric === "pathsToVictory" ? "Paths to victory" : metric === "gap" ? weekLiveRaceUsesArchive() ? "Win-probability points behind leader" : "Cumulative wins behind leader" : metric === "timeOnTop" ? "Cumulative time on top" : "Cumulative wins including Best Bet wins";
+    weekLiveRaceChart.options.scales.y.ticks.callback = ["winPct", "winProbability"].includes(metric) ? value => `${value}%` : metric === "gap" ? value => value === 0 ? "Leader" : `${Math.abs(value)} back` : metric === "timeOnTop" ? value => websiteRaceDuration(value) : value => value;
+  }
   weekLiveRaceChart.update();
   document.getElementById("week-live-race-time").textContent = `${frame.label} · ${weekLiveRaceFrame + 1}/${weekLiveRaceFrames.length}`;
   const leader = players[0];
@@ -5272,8 +5329,7 @@ async function renderWeekLiveRace() {
   const canvas = ensureWeekLiveRacePanel(), season = document.getElementById("week-season")?.value, week = document.getElementById("week-choice")?.value;
   if (!canvas || !season || !week) return;
   const timeline = document.getElementById("week-live-race-timeline"), timelineContext = `${season}|${week}`;
-  if (timeline.dataset.context !== timelineContext) { timeline.value = "games"; timeline.querySelector('[value="live"]')?.remove(); timeline.dataset.context = timelineContext; }
-  if (String(season) >= "2026-2027" && !timeline.querySelector('[value="live"]')) loadWeekLiveRaceArchive(season, week).then(snapshots => { if (timeline.dataset.context === timelineContext && snapshots.length && !timeline.querySelector('[value="live"]')) timeline.add(new Option("Archived live snapshots", "live")); }).catch(() => {});
+  if (timeline.dataset.context !== timelineContext) { timeline.value = "games"; timeline.dataset.context = timelineContext; }
   configureWeekLiveRaceMetrics();
   if (!weekLiveRaceUsesArchive() && (!websiteGames.length || !websitePicks.length)) { loadDrilldown().then(renderWeekLiveRace); return; }
   stopWeekLiveRace();
@@ -5369,6 +5425,7 @@ async function renderWeekLiveRace() {
   const refreshWeekLiveRace = () => { stopWeekLiveRace(); clearWeekLiveRaceInteraction(); assignWebsiteRaceColors(weekLiveRaceFrames, document.getElementById("week-live-race-metric")?.value || "winPct"); startFilteredWeekLiveRace(); };
   document.getElementById("week-live-race-metric").onchange = refreshWeekLiveRace;
   document.getElementById("week-live-race-field").onchange = refreshWeekLiveRace;
+  document.getElementById("week-live-race-view").onchange = refreshWeekLiveRace;
   document.getElementById("week-live-race-scale").onchange = refreshWeekLiveRace;
   document.getElementById("week-live-race-timeline").onchange = async () => { weekLiveRaceSelectedPlayer = ""; await renderWeekLiveRace(); startFilteredWeekLiveRace(); };
   document.getElementById("week-live-race-previous").onclick = () => { stopWeekLiveRace(); showWeekLiveRaceFrame(weekLiveRaceFrame - 1); };
