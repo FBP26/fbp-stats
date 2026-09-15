@@ -2642,6 +2642,8 @@ function websitePicksWeatherIsComplete() {
   return websiteActiveGames.length > 0 && websiteActiveGames.every(game => ["POST", "FINAL", "COMPLETED"].includes(websiteGameStatus(game)));
 }
 function queueWebsitePicksWeatherRefresh(selection) {
+  const missingRecords = websiteActiveGames.some(game => !game.awayTeam?.record || !game.homeTeam?.record);
+  if (missingRecords) { refreshWebsitePicksWeather(); return; }
   if (websitePicksWeatherIsComplete()) {
     clearTimeout(websitePicksWeatherRefreshTimer);
     websitePicksWeatherRefreshTimer = null;
