@@ -761,6 +761,26 @@ const releasePicksReady = async (payload: JsonObject, env: Env): Promise<Respons
   return json({ ok: result.failed === 0, ...result }, result.failed ? 502 : 200, env.CORS_ORIGIN);
 };
 
+const listNotificationSubscribers = async (payload: JsonObject, env: Env): Promise<Response> => {
+  if (!env.EMAIL_RELAY_SECRET?.trim() || cleanText(payload.secret, 200) !== env.EMAIL_RELAY_SECRET.trim()) {
+    return json({ ok: false, error: "Unauthorized." }, 401, env.CORS_ORIGIN);
+  }
+  const subscriptions = await env.DB.prepare(
+    `SELECT player_name, destination, status
+     FROM notification_subscriptions
+     WHERE channel = 'email' AND status IN ('active', 'pending')
+     ORDER BY CASE status WHEN 'active' THEN 0 ELSE 1 END, player_name COLLATE NOCASE, destination COLLATE NOCASE`,
+  ).all();
+  return json({
+    ok: true,
+    subscribers: subscriptions.results.map((subscription) => ({
+      email: String(subscription.destination || ""),
+      playerName: String(subscription.player_name || "") === "FBP pool" ? "" : String(subscription.player_name || ""),
+      status: String(subscription.status || ""),
+    })),
+  }, 200, env.CORS_ORIGIN);
+};
+
 const handleAnalytics = async (payload: JsonObject, env: Env): Promise<Response> => {
   const event = cleanText(payload.event, 30);
   const allowedEvents = new Set(["page_view", "picks_started", "submission"]);
@@ -1003,6 +1023,7 @@ const storeRaceSnapshot = async (payload: JsonObject, env: Env): Promise<Respons
 const handlePost = async (request: Request, env: Env): Promise<Response> => {
   const payload = await parsePayload(request);
   const action = cleanText(payload.action, 50);
+  if (action === "notification-subscribers") return listNotificationSubscribers(payload, env);
   if (action === "release-picks-ready") return releasePicksReady(payload, env);
   if (action === "log-visit") return handleAnalytics(payload, env);
   if (action === "subscribe-notifications") return subscribeNotifications(request, payload, env);
