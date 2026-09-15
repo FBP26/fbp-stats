@@ -459,10 +459,15 @@
   .rooting-table th { color: var(--muted); text-transform: uppercase; }
   .rooting-help { color: var(--positive); }
   .rooting-hurt { color: var(--danger); }
-  .tiebreak-strip { position: relative; height: 72px; margin-top: 12px; border-block: 1px solid var(--border); background: linear-gradient(90deg, #18232d, #202c38); }
+  .tiebreak-strip { position: relative; height: 86px; margin-top: 12px; border-block: 1px solid var(--border); background: linear-gradient(90deg, #18232d, #202c38); }
   .tiebreak-range { position: absolute; top: 14px; height: 20px; border: 1px solid var(--accent-2); background: #54d6b233; }
   .tiebreak-marker { position: absolute; top: 7px; width: 1px; height: 42px; background: var(--accent); }
   .tiebreak-marker span { position: absolute; top: 44px; left: 50%; color: var(--muted); font: 9px Arial, sans-serif; white-space: nowrap; transform: translateX(-50%); }
+  .tiebreak-marker.current { top: 21px; height: 28px; background: var(--accent-2); }
+  .tiebreak-marker.current span { top: -18px; color: var(--accent-2); }
+  .tiebreak-marker.guess { top: 13px; height: 36px; background: #8eb8ff; }
+  .tiebreak-marker.guess span { top: 54px; color: #8eb8ff; }
+  .tiebreak-clinched { margin-top: 10px; color: var(--text); }
   .tiebreak-guesses { display: flex; flex-wrap: wrap; gap: 5px 12px; margin-top: 9px; color: var(--muted); font: 10px Arial, sans-serif; }
   @media (max-width: 760px) { .live-feature-grid { grid-template-columns: 1fr; } .live-feature.wide { grid-column: auto; } .live-superlatives { grid-template-columns: 1fr; } .lead-change { grid-template-columns: 82px minmax(0, 1fr); } .outcome-game { grid-template-columns: minmax(0, 1fr) repeat(3, 52px); } .turning-point { grid-template-columns: 76px minmax(0, 1fr); } }
   .scenario-subrow td:first-child { padding-left: 22px; color: var(--muted); }
@@ -1857,8 +1862,9 @@ function websiteTiebreakDistribution(data) {
     return { mean: currentYards, deviation: 0 };
   }
   if (Number.isFinite(currentYards) && data.actualTiebreaker !== "" && ["IN", "LIVE", "IN_PROGRESS"].includes(status)) {
-    const period = Math.max(1, Math.min(4, Number(game.period) || 1));
-    const clockParts = String(game.clock || "15:00").split(":").map(Number);
+    const statusTime = String(game.statusText || "").match(/\b([1-4])(?:st|nd|rd|th)?\s+(?:(?:quarter|qtr)\s+)?(\d{1,2}:\d{2})\b/i);
+    const period = Math.max(1, Math.min(4, Number(game.period) || Number(statusTime?.[1]) || 1));
+    const clockParts = String(game.clock || statusTime?.[2] || "15:00").split(":").map(Number);
     const secondsInPeriod = Math.max(0, Math.min(900, (clockParts[0] || 0) * 60 + (clockParts[1] || 0)));
     const remainingFraction = Math.max(0, ((4 - period) * 900 + secondsInPeriod) / 3600);
     return {
@@ -3421,8 +3427,17 @@ function renderWebsiteLiveScenarioTools(data, baseAnalysis = null) {
   } else rooting.innerHTML = `<h3>Rooting matrix</h3><p>The matrix appears when six or fewer games remain; ${analysis.scenarios.variable.length} are unresolved.</p>`;
   const distribution = websiteTiebreakDistribution(analysisData), scale = value => Math.max(0, Math.min(100, (Number(value) - WEBSITE_TIEBREAK_MIN) * 100 / (WEBSITE_TIEBREAK_MAX - WEBSITE_TIEBREAK_MIN)));
   const rangeRows = analysis.contenders.slice(0, 8).flatMap(contender => websiteTiebreakRouteGroups(contender).slice(0, 1).map(group => ({ name: contender.player.name, low: group.low, high: group.high })));
-  const projectedTotal = Math.round(distribution.mean);
-  tiebreak.innerHTML = `<h3>Tiebreak target strip</h3><p>Projected final-game net passing: <strong>${projectedTotal}</strong>${distribution.deviation ? ` · likely band ${Math.round(distribution.mean - distribution.deviation)}–${Math.round(distribution.mean + distribution.deviation)}` : " · final"}. Highlighted bars are active winning ranges.</p><div class="tiebreak-strip">${rangeRows.map(row => `<span class="tiebreak-range" style="left:${scale(row.low)}%;width:${Math.max(.4, scale(row.high) - scale(row.low))}%" title="${websiteEscapeHtml(`${row.name}: ${websiteYardRange(row.low, row.high)}`)}"></span>`).join("")}<span class="tiebreak-marker" style="left:${scale(projectedTotal)}%"><span>${projectedTotal}</span></span></div><div class="tiebreak-guesses">${analysis.contenders.slice(0, 10).map(contender => `<span>${websiteEscapeHtml(contender.player.name)}: <strong>${websiteEscapeHtml(contender.player.tiebreaker)}</strong></span>`).join("")}</div>`;
+  const projectedTotal = Math.round(distribution.mean), finalGame = analysisData.games.at(-1) || {}, finalStatus = websiteGameStatus(finalGame);
+  const currentYards = analysisData.actualTiebreaker !== "" && Number.isFinite(Number(analysisData.actualTiebreaker)) ? Number(analysisData.actualTiebreaker) : null;
+  const isLive = ["IN", "LIVE", "IN_PROGRESS"].includes(finalStatus), gameLabel = [finalGame.away, finalGame.home].filter(Boolean).map(team => String(team).toUpperCase()).join("–");
+  const guaranteed = analysis.contenders.length === 1 && analysis.contenders[0].probability >= 1 - 1e-9, guaranteedContender = guaranteed ? analysis.contenders[0] : null;
+  const liveContext = isLive && currentYards != null ? `${gameLabel ? `${gameLabel} · ` : ""}${finalGame.statusText || "Live"} · Current net passing: <strong>${currentYards}</strong>. Projected finish: <strong>${projectedTotal}</strong>${distribution.deviation ? ` · likely band ${Math.round(distribution.mean - distribution.deviation)}–${Math.round(distribution.mean + distribution.deviation)}` : ""}.` : `Projected final-game net passing: <strong>${projectedTotal}</strong>${distribution.deviation ? ` · likely band ${Math.round(distribution.mean - distribution.deviation)}–${Math.round(distribution.mean + distribution.deviation)}` : " · final"}.`;
+  const currentMarker = isLive && currentYards != null ? `<span class="tiebreak-marker current" style="left:${scale(currentYards)}%"><span>Current · ${currentYards}</span></span>` : "";
+  const guessMarker = guaranteedContender ? `<span class="tiebreak-marker guess" style="left:${scale(guaranteedContender.player.tiebreaker)}%"><span>${websiteEscapeHtml(guaranteedContender.player.name)} · ${websiteEscapeHtml(guaranteedContender.player.tiebreaker)}</span></span>` : "";
+  const ranges = guaranteed ? "" : rangeRows.map(row => `<span class="tiebreak-range" style="left:${scale(row.low)}%;width:${Math.max(.4, scale(row.high) - scale(row.low))}%" title="${websiteEscapeHtml(`${row.name}: ${websiteYardRange(row.low, row.high)}`)}"></span>`).join("");
+  const clinched = guaranteedContender ? `<p class="tiebreak-clinched"><strong>${websiteEscapeHtml(guaranteedContender.player.name)} has clinched the week</strong> regardless of the final yardage. The ${websiteEscapeHtml(guaranteedContender.player.tiebreaker)} guess is shown for reference.</p>` : "";
+  const guesses = guaranteed ? "" : `<div class="tiebreak-guesses">${analysis.contenders.slice(0, 10).map(contender => `<span>${websiteEscapeHtml(contender.player.name)}: <strong>${websiteEscapeHtml(contender.player.tiebreaker)}</strong></span>`).join("")}</div>`;
+  tiebreak.innerHTML = `<h3>Tiebreak target strip</h3><p>${liveContext} ${guaranteedContender ? `The markers show the live total, projection, and ${websiteEscapeHtml(guaranteedContender.player.name)}'s guess.` : "Highlighted bars are active winning ranges."}</p><div class="tiebreak-strip">${ranges}${currentMarker}<span class="tiebreak-marker projected" style="left:${scale(projectedTotal)}%"><span>Projected · ${projectedTotal}</span></span>${guessMarker}</div>${clinched}${guesses}`;
   return analysis;
 }
 function renderWebsiteLiveAnalysis(data) {
