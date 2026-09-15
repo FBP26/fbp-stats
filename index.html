@@ -3898,7 +3898,7 @@ function seasonStandings(season) {
   const rows = websiteWeeks.filter(row => row.season === season && row.competition === "regular");
   const byPlayer = {};
   rows.forEach(row => {
-    const player = byPlayer[row.playerId] = byPlayer[row.playerId] || { playerId: row.playerId, name: row.name, wins: 0, losses: 0, weeks: 0, weeksWon: 0, money: 0, seasonRank: row.seasonRank, weekMap: {} };
+    const player = byPlayer[row.playerId] = byPlayer[row.playerId] || { playerId: row.playerId, name: row.name, wins: 0, losses: 0, weeks: 0, weeksWon: 0, money: 0, seasonRank: row.seasonRank, seasonComplete: Boolean(row.seasonComplete), weekMap: {} };
     player.wins += Number(row.displayWins || 0);
     player.losses += Number(row.displayLosses || 0);
     player.weeks += 1;
@@ -3926,8 +3926,9 @@ function renderSeason(resetPlayer = false) {
   const weeks = seasonWeekList(season);
   if (!standings.length) return;
   const champion = standings[0];
+  const seasonComplete = standings.some(player => player.seasonComplete);
   document.getElementById("season-summary").innerHTML = [
-    ["Champion", champion.name],
+    [seasonComplete ? "Champion" : "Current leader", champion.name],
     ["Record", `${champion.wins}-${champion.losses}`],
     ["Win %", `${(champion.winPct * 100).toFixed(1)}%`],
     ["Weeks won", champion.weeksWon]
@@ -4345,7 +4346,7 @@ function renderAllTimePickCharts() {
   };
   renderTeamTable();
   const seasonWeeks = [...new Set(websiteWeeks.filter(row => row.competition === "regular").map(row => row.week))].sort((a, b) => Number(a) - Number(b));
-  const seasonWeekRows = websiteSeasons.map(item => { const champs = websiteWeeks.filter(row => row.season === item.seasonId && row.competition === "regular" && Number(row.seasonRank) === 1); const byPlayer = new Map(); champs.forEach(row => { const entry = byPlayer.get(row.playerId) || { name: row.name, wins: 0, losses: 0 }; entry.wins += Number(row.displayWins || 0); entry.losses += Number(row.displayLosses || 0); byPlayer.set(row.playerId, entry); }); const champ = [...byPlayer.values()].sort((a, b) => b.wins / (b.wins + b.losses) - a.wins / (a.wins + a.losses))[0]; return { season: item.seasonId, name: champ?.name || "", wins: champ?.wins || 0, losses: champ?.losses || 0, values: [champ ? Number((champ.wins / (champ.wins + champ.losses) * 100).toFixed(1)) : null] }; });
+  const seasonWeekRows = websiteSeasons.filter(item => websiteWeeks.some(row => row.season === item.seasonId && row.competition === "regular" && row.seasonComplete)).map(item => { const champs = websiteWeeks.filter(row => row.season === item.seasonId && row.competition === "regular" && row.seasonComplete && Number(row.seasonRank) === 1); const byPlayer = new Map(); champs.forEach(row => { const entry = byPlayer.get(row.playerId) || { name: row.name, wins: 0, losses: 0 }; entry.wins += Number(row.displayWins || 0); entry.losses += Number(row.displayLosses || 0); byPlayer.set(row.playerId, entry); }); const champ = [...byPlayer.values()].sort((a, b) => b.wins / (b.wins + b.losses) - a.wins / (a.wins + a.losses))[0]; return { season: item.seasonId, name: champ?.name || "", wins: champ?.wins || 0, losses: champ?.losses || 0, values: [champ ? Number((champ.wins / (champ.wins + champ.losses) * 100).toFixed(1)) : null] }; });
   if (allTimeSeasonWeeksChart) allTimeSeasonWeeksChart.destroy();
   const podiumColors = seasonWeekRows.map((row, index) => { const rank = [...seasonWeekRows].sort((a, b) => b.values[0] - a.values[0]).findIndex(item => item.season === row.season); return rank === 0 ? "#d4af37bb" : rank === 1 ? "#c0c0c0bb" : rank === 2 ? "#cd7f32bb" : "#8ca7ffbb"; });
   allTimeSeasonWeeksChart = new Chart(document.getElementById("alltime-season-weeks-chart"), { type: "bar", data: { labels: seasonWeekRows.map(row => row.season), datasets: [{ label: "Champion win %", data: seasonWeekRows.map(row => row.values[0]), barText: seasonWeekRows.map(row => ({ name: row.name, pct: `${row.values[0]}%` })), backgroundColor: podiumColors, borderColor: podiumColors.map(color => color.slice(0, 7)), borderWidth: 1 }] }, options: { responsive: true, maintainAspectRatio: false, scales: { x: { ticks: { color: "#91a0ae", maxRotation: 60, minRotation: 45, autoSkip: false }, grid: { color: "#2a3744" } }, y: { beginAtZero: false, ticks: { color: "#91a0ae", callback: value => value + "%" }, grid: { color: "#2a3744" } } }, plugins: { legend: { display: false }, title: { display: false }, tooltip: { callbacks: { title: context => seasonWeekRows[context[0].dataIndex].season, label: context => { const row = seasonWeekRows[context.dataIndex]; return [`Champion: ${row.name}`, `Record: ${row.wins}-${row.losses}`, `Win %: ${row.values[0]}%`]; } } } } } });
