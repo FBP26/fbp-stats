@@ -2696,10 +2696,12 @@ async function renderWebsitePicksForm(forceRefresh = false) {
   if (!host) return;
   const initialSelection = websitePickSelection();
   const initialCacheKey = `${initialSelection.phase}-${initialSelection.season}-${initialSelection.week}`;
+  let useCachedSlate = false;
   if (!initialSelection.testMode) {
     try { await loadActiveRegularWeek(forceRefresh); }
     catch (error) {
       if (!websiteStagedGamesCache.has(initialCacheKey)) { renderWebsiteGamesLoadError(host, error); return; }
+      useCachedSlate = true;
       console.warn(`Using saved active slate while offline: ${error.message}`);
     }
   }
@@ -2712,7 +2714,7 @@ async function renderWebsitePicksForm(forceRefresh = false) {
   document.getElementById("website-test-notice").classList.toggle("active", selection.testMode);
   document.getElementById("website-week-name-label").textContent = `${selection.testMode ? "Preseason" : "Week"} ${selection.week} name`;
   try {
-    const stagedGames = await loadWebsiteStagedGames(selection, forceRefresh);
+    const stagedGames = await loadWebsiteStagedGames(selection, forceRefresh && !useCachedSlate);
     if (!stagedGames.length) throw new Error(`${selection.testMode ? "Preseason" : "Regular"} Week ${selection.week} has not been staged yet.`);
     websiteActiveGames = stagedGames;
     const finalGame = websiteActiveGames[websiteActiveGames.length - 1];
