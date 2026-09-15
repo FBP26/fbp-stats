@@ -1,5 +1,5 @@
 {
-  "updatedAt": "2026-09-15T13:58:51+00:00",
+  "updatedAt": "2026-09-15T15:14:01+00:00",
   "source": {
     "spreadsheetId": "19LkATudJU7W7bsnBBNy7iCI68P3Nhbt10XIJ5Q7HRCA",
     "sheet": "payout",
@@ -355,7 +355,7 @@
             "",
             ""
           ],
-          "balance": "30"
+          "balance": "even"
         },
         {
           "name": "Ron",
@@ -635,7 +635,7 @@
         {
           "name": "Mac",
           "weeks": [
-            "paid",
+            "win",
             "paid",
             "paid",
             "paid",
@@ -1324,10 +1324,10 @@
             "paid",
             "paid",
             "paid",
-            "10",
-            "20"
+            "paid",
+            "paid"
           ],
-          "balance": "30"
+          "balance": "even"
         },
         {
           "name": "Ron",
