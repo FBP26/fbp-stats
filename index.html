@@ -438,8 +438,9 @@
   .turning-point { display: grid; grid-template-columns: 92px minmax(0, 1fr); gap: 10px; width: 100%; padding: 8px 9px; border: 1px solid var(--border); border-radius: 4px; background: #121920; color: var(--text); font: 11px/1.4 Arial, sans-serif; text-align: left; cursor: pointer; }
   .turning-point:hover, .turning-point:focus-visible { border-color: var(--accent); }
   .turning-point time { color: var(--accent-2); font-family: Consolas, monospace; }
-  .lead-change-timeline { display: flex; gap: 3px; min-height: 42px; margin-top: 10px; overflow-x: auto; padding-bottom: 4px; }
-  .lead-change { flex: 1 0 110px; padding: 7px; border-top: 3px solid var(--runner-color); background: #121920; font: 10px/1.35 Arial, sans-serif; }
+  .lead-change-timeline { display: grid; gap: 0; margin: 10px 0 0 7px; border-left: 2px solid #52606d; }
+  .lead-change { position: relative; display: grid; grid-template-columns: minmax(90px, 130px) minmax(0, 1fr); gap: 10px; padding: 8px 9px 8px 16px; border-bottom: 1px solid var(--border); background: #121920; font: 10px/1.35 Arial, sans-serif; }
+  .lead-change::before { position: absolute; top: 12px; left: -7px; width: 10px; height: 10px; border: 2px solid #121920; border-radius: 50%; background: var(--runner-color); content: ""; }
   .lead-change strong, .live-superlative strong { display: block; color: var(--text); }
   .lead-change span, .live-superlative span { color: var(--muted); }
   .live-superlatives { display: grid; grid-template-columns: repeat(3, minmax(0, 1fr)); gap: 7px; margin-top: 10px; }
@@ -463,7 +464,7 @@
   .tiebreak-marker { position: absolute; top: 7px; width: 1px; height: 42px; background: var(--accent); }
   .tiebreak-marker span { position: absolute; top: 44px; left: 50%; color: var(--muted); font: 9px Arial, sans-serif; white-space: nowrap; transform: translateX(-50%); }
   .tiebreak-guesses { display: flex; flex-wrap: wrap; gap: 5px 12px; margin-top: 9px; color: var(--muted); font: 10px Arial, sans-serif; }
-  @media (max-width: 760px) { .live-feature-grid { grid-template-columns: 1fr; } .live-feature.wide { grid-column: auto; } .live-superlatives { grid-template-columns: 1fr; } .outcome-game { grid-template-columns: minmax(0, 1fr) repeat(3, 52px); } .turning-point { grid-template-columns: 76px minmax(0, 1fr); } }
+  @media (max-width: 760px) { .live-feature-grid { grid-template-columns: 1fr; } .live-feature.wide { grid-column: auto; } .live-superlatives { grid-template-columns: 1fr; } .lead-change { grid-template-columns: 82px minmax(0, 1fr); } .outcome-game { grid-template-columns: minmax(0, 1fr) repeat(3, 52px); } .turning-point { grid-template-columns: 76px minmax(0, 1fr); } }
   .scenario-subrow td:first-child { padding-left: 22px; color: var(--muted); }
   .scenario-chance { color: var(--accent-2); white-space: nowrap; }
   .analysis-note { margin: 0 0 10px; color: var(--muted); font: 11px Arial, sans-serif; }
@@ -701,7 +702,7 @@
 </head>
 <body>
 <div id="website-pull-refresh" class="pull-refresh" role="status" aria-live="polite"><span class="pull-refresh-icon" aria-hidden="true">↻</span><span class="pull-refresh-label">Pull to refresh</span></div>
-<header><nav id="nav"><button data-view="enter-picks">Enter Picks</button><button data-view="week-one">Week 1</button><button data-view="live-analysis">Live</button><button data-view="players">Players</button><button data-view="alltime">All Time</button><button data-view="season">Seasons</button><button data-view="weeks">Weeks</button><button data-view="games">Games</button><button data-view="streaks">Streaks</button><button data-view="teams">Teams</button><button data-view="names">Names</button><button data-view="payout">Payout</button><button data-view="faq">FAQ</button></nav></header>
+<header><nav id="nav"><button data-view="enter-picks">Enter Picks</button><button data-view="week-one">Week 1</button><button data-view="live-analysis">Race</button><button data-view="players">Players</button><button data-view="alltime">All Time</button><button data-view="season">Seasons</button><button data-view="weeks">Weeks</button><button data-view="games">Games</button><button data-view="streaks">Streaks</button><button data-view="teams">Teams</button><button data-view="names">Names</button><button data-view="payout">Payout</button><button data-view="faq">FAQ</button></nav></header>
 <aside id="website-install-help" class="install-help" hidden><div><strong>Add FBP to your Home Screen</strong><span id="website-install-copy"></span></div><button id="website-install-action" type="button" hidden>Install</button><button id="website-install-close" class="install-help-close" type="button" aria-label="Dismiss home-screen instructions">×</button></aside>
 <main>
   <section id="view-enter-picks" class="view">
@@ -714,8 +715,8 @@
     <div class="panel"><div id="week-one-status"></div><div id="week-one-table" style="overflow-x:auto"></div><p class="week-one-landscape-hint">Rotate to landscape for a better view</p></div>
   </section>
   <section id="view-live-analysis" class="view">
-    <section class="intro"><div><h2>Live</h2></div><p>Weekly race, recap, and paths to victory. A full refresh can take up to a minute.</p></section>
-    <div id="live-analysis-host" class="panel"><p id="live-analysis-refresh-status" class="analysis-note">Loading the latest race and scenarios...</p><section id="week-one-live-race" class="live-race"><div class="live-race-head"><div><h3>Loading Live</h3><p>Building the latest race and scenarios. This can take up to a minute.</p></div></div></section><div id="live-race-stories" class="live-feature-grid"><section id="live-turning-points" class="live-feature"></section><section id="live-lead-changes" class="live-feature"></section><section id="live-superlatives" class="live-feature wide"></section></div><div id="live-what-if" class="live-feature-grid"><section id="live-outcome-switchboard" class="live-feature"></section><section id="live-projected-standings" class="live-feature"></section><section id="live-rooting-matrix" class="live-feature wide"></section><section id="live-tiebreak-target" class="live-feature wide"></section></div><div id="week-one-recap"></div><div id="week-one-scenarios" class="weekly-subview"></div><div id="week-one-sankey" class="weekly-subview"></div></div>
+    <section class="intro"><div><h2>Race</h2></div><p>Weekly standings, what-if outcomes, and paths to victory. A full refresh can take up to a minute.</p></section>
+    <div id="live-analysis-host" class="panel"><p id="live-analysis-refresh-status" class="analysis-note">Loading the latest race and scenarios...</p><section id="week-one-live-race" class="live-race"><div class="live-race-head"><div><h3>Loading Race</h3><p>Building the latest race and scenarios. This can take up to a minute.</p></div></div></section><div id="live-what-if" class="live-feature-grid"><section id="live-outcome-switchboard" class="live-feature"></section><section id="live-projected-standings" class="live-feature"></section><section id="live-rooting-matrix" class="live-feature wide"></section><section id="live-tiebreak-target" class="live-feature wide"></section></div><div id="week-one-scenarios" class="weekly-subview"></div><div id="week-one-sankey" class="weekly-subview"></div><div id="live-race-stories" class="live-feature-grid"><section id="live-turning-points" class="live-feature"></section><section id="live-lead-changes" class="live-feature"></section><section id="live-superlatives" class="live-feature wide"></section></div><div id="week-one-recap"></div></div>
   </section>
   <section id="view-alltime" class="view">
     <section class="intro"><div><h2>All Time</h2></div><p>Seventeen seasons of results in one place: the career leaders, every champion, and how the long-timers built their records.</p></section>
@@ -723,7 +724,44 @@
   </section>
   <section id="view-season" class="view">
     <section class="intro"><div><h2>Seasons</h2></div><p>Every player's week-by-week run through a season, where they finished, and how the full field moved behind the leader.</p></section>
-    <div class="panel"><div class="explorer-controls"><label>Season<select id="season-choice"></select></label></div><div id="season-summary" class="summary"></div><div class="chart-wrap wide-chart"><canvas id="season-top-chart"></canvas></div><div id="season-notes" class="record-grid" style="margin-top:18px"></div><h3 style="margin:28px 0 8px;color:var(--accent);font:11px Arial,sans-serif;letter-spacing:1px;text-transform:uppercase">Weeks</h3><div class="grid-legend"><span><i style="background:#8a6d1f"></i>Won the week</span><span><i style="background:#1e5c3a"></i>Top 5</span><span><i style="background:#26405e"></i>Top 10</span><span><i style="background:#151c24"></i>Outside top 10</span><span><i style="background:#1b2530"></i>Did not play</span><span style="color:#4a6070">Cell shows wins that week</span></div><div id="season-weeks-grid" style="overflow-x:auto;margin-bottom:4px"></div><h3 style="margin:28px 0 8px;color:var(--accent);font:11px Arial,sans-serif;letter-spacing:1px;text-transform:uppercase">Standings</h3><div id="season-table"></div><hr class="chart-divider"><div class="explorer-controls" style="margin-top:24px"><label>Race metric<select id="season-race-metric"><option value="pct">Win percentage</option><option value="wins">Total wins</option></select></label></div><div class="chart-wrap wide-chart race-chart-wrap"><canvas id="season-race-chart"></canvas></div><h3 style="margin:28px 0 8px;color:var(--accent);font:11px Arial,sans-serif;letter-spacing:1px;text-transform:uppercase">Money</h3><div class="chart-wrap wide-chart race-chart-wrap"><canvas id="season-money-chart"></canvas></div><h3 style="margin:28px 0 8px;color:var(--accent);font:11px Arial,sans-serif;letter-spacing:1px;text-transform:uppercase">Consistency</h3><div class="chart-wrap wide-chart"><canvas id="season-consistency-chart"></canvas></div><h3 style="margin:28px 0 8px;color:var(--accent);font:11px Arial,sans-serif;letter-spacing:1px;text-transform:uppercase">Head to head</h3><div class="grid-legend"><span>Weeks each player finished ahead of the other, top 8 only</span><span><i style="background:#8a6d1f"></i>Dominant</span><span><i style="background:#1e5c3a"></i>Winning</span><span><i style="background:#26405e"></i>Losing</span><span><i style="background:#151c24"></i>Dominated</span></div><div id="season-h2h" style="overflow-x:auto;margin-bottom:4px"></div><h3 style="margin:28px 0 8px;color:var(--accent);font:11px Arial,sans-serif;letter-spacing:1px;text-transform:uppercase">Best bet accuracy</h3><div class="chart-wrap wide-chart"><canvas id="season-bb-chart"></canvas></div><div class="grid-legend" style="margin-top:14px"><span><i style="background:#1e5c3a"></i>Best bet hit</span><span><i style="background:#6b1f1f"></i>Best bet missed</span><span><i style="background:#4a4a20"></i>Push (counts as a miss)</span><span><i style="background:#1b2530"></i>No best bet</span></div><div id="season-bb-grid" style="overflow-x:auto;margin-bottom:4px"></div><h3 style="margin:28px 0 8px;color:var(--accent);font:11px Arial,sans-serif;letter-spacing:1px;text-transform:uppercase">Tiebreakers</h3><div class="grid-legend"><span>The tiebreaker is net passing yards in the last game of the week · lower miss is better</span></div><div class="chart-wrap wide-chart race-chart-wrap"><canvas id="season-tb-chart"></canvas></div><div class="grid-legend" style="margin-top:14px"><span>Each week shows the guess and how many yards off it was</span><span><i style="background:#8a6d1f"></i>Exact</span><span><i style="background:#1e5c3a"></i>Within 10</span><span><i style="background:#26405e"></i>Within 50</span><span><i style="background:#151c24"></i>Further off</span></div><div id="season-tb-grid" style="overflow-x:auto;margin-bottom:4px"></div><h3 style="margin:28px 0 8px;color:var(--accent);font:11px Arial,sans-serif;letter-spacing:1px;text-transform:uppercase">Team picks</h3><div class="chart-wrap wide-chart"><canvas id="season-teams-chart"></canvas></div><h3 style="margin:28px 0 8px;color:var(--accent);font:11px Arial,sans-serif;letter-spacing:1px;text-transform:uppercase">Contrarian index</h3><div class="chart-wrap wide-chart"><canvas id="season-contrarian-chart"></canvas></div><div class="explorer-controls" style="margin-top:28px"><label>Player<select id="season-player"></select></label></div><h3 style="margin:24px 0 10px">Week by week</h3><div class="grid-legend"><span><i style="background:#d4af37"></i>Won the week</span><span><i style="background:#238b68"></i>Top 5</span><span><i style="background:#3f6fb5"></i>Top 10</span><span><i style="background:#4c5a68"></i>Outside top 10</span><span style="color:#4a6070">Bars are games won that week</span></div><div class="chart-wrap wide-chart race-chart-wrap" style="margin-top:12px"><canvas id="season-player-chart"></canvas></div></div>
+    <div class="panel">
+      <div class="explorer-controls"><label>Season<select id="season-choice"></select></label></div>
+      <div id="season-summary" class="summary"></div>
+      <div class="chart-wrap wide-chart"><canvas id="season-top-chart"></canvas></div>
+      <div id="season-notes" class="record-grid" style="margin-top:18px"></div>
+      <h3 style="margin:28px 0 8px;color:var(--accent);font:11px Arial,sans-serif;letter-spacing:1px;text-transform:uppercase">Weeks</h3>
+      <div class="grid-legend"><span><i style="background:#8a6d1f"></i>Won the week</span><span><i style="background:#1e5c3a"></i>Top 5</span><span><i style="background:#26405e"></i>Top 10</span><span><i style="background:#151c24"></i>Outside top 10</span><span><i style="background:#1b2530"></i>Did not play</span><span style="color:#4a6070">Cell shows wins that week</span></div>
+      <div id="season-weeks-grid" style="overflow-x:auto;margin-bottom:4px"></div>
+      <h3 style="margin:28px 0 8px;color:var(--accent);font:11px Arial,sans-serif;letter-spacing:1px;text-transform:uppercase">Standings</h3>
+      <div id="season-table"></div>
+      <hr class="chart-divider">
+      <div class="explorer-controls" style="margin-top:24px"><label>Race metric<select id="season-race-metric"><option value="pct">Win percentage</option><option value="wins">Total wins</option></select></label></div>
+      <div class="chart-wrap wide-chart race-chart-wrap"><canvas id="season-race-chart"></canvas></div>
+      <h3 style="margin:28px 0 8px;color:var(--accent);font:11px Arial,sans-serif;letter-spacing:1px;text-transform:uppercase">Money</h3>
+      <div class="chart-wrap wide-chart race-chart-wrap"><canvas id="season-money-chart"></canvas></div>
+      <h3 style="margin:28px 0 8px;color:var(--accent);font:11px Arial,sans-serif;letter-spacing:1px;text-transform:uppercase">Consistency</h3>
+      <div class="chart-wrap wide-chart"><canvas id="season-consistency-chart"></canvas></div>
+      <h3 style="margin:28px 0 8px;color:var(--accent);font:11px Arial,sans-serif;letter-spacing:1px;text-transform:uppercase">Head to head</h3>
+      <div class="grid-legend"><span>Weeks each player finished ahead of the other, top 8 only</span><span><i style="background:#8a6d1f"></i>Dominant</span><span><i style="background:#1e5c3a"></i>Winning</span><span><i style="background:#26405e"></i>Losing</span><span><i style="background:#151c24"></i>Dominated</span></div>
+      <div id="season-h2h" style="overflow-x:auto;margin-bottom:4px"></div>
+      <h3 style="margin:28px 0 8px;color:var(--accent);font:11px Arial,sans-serif;letter-spacing:1px;text-transform:uppercase">Best bet accuracy</h3>
+      <div class="chart-wrap wide-chart"><canvas id="season-bb-chart"></canvas></div>
+      <div class="grid-legend" style="margin-top:14px"><span><i style="background:#1e5c3a"></i>Best bet hit</span><span><i style="background:#6b1f1f"></i>Best bet missed</span><span><i style="background:#4a4a20"></i>Push (counts as a miss)</span><span><i style="background:#1b2530"></i>No best bet</span></div>
+      <div id="season-bb-grid" style="overflow-x:auto;margin-bottom:4px"></div>
+      <h3 style="margin:28px 0 8px;color:var(--accent);font:11px Arial,sans-serif;letter-spacing:1px;text-transform:uppercase">Tiebreakers</h3>
+      <div class="grid-legend"><span>The tiebreaker is net passing yards in the last game of the week · lower miss is better</span></div>
+      <div class="chart-wrap wide-chart race-chart-wrap"><canvas id="season-tb-chart"></canvas></div>
+      <div class="grid-legend" style="margin-top:14px"><span>Each week shows the guess and how many yards off it was</span><span><i style="background:#8a6d1f"></i>Exact</span><span><i style="background:#1e5c3a"></i>Within 10</span><span><i style="background:#26405e"></i>Within 50</span><span><i style="background:#151c24"></i>Further off</span></div>
+      <div id="season-tb-grid" style="overflow-x:auto;margin-bottom:4px"></div>
+      <h3 style="margin:28px 0 8px;color:var(--accent);font:11px Arial,sans-serif;letter-spacing:1px;text-transform:uppercase">Team picks</h3>
+      <div class="chart-wrap wide-chart"><canvas id="season-teams-chart"></canvas></div>
+      <h3 style="margin:28px 0 8px;color:var(--accent);font:11px Arial,sans-serif;letter-spacing:1px;text-transform:uppercase">Contrarian index</h3>
+      <div class="chart-wrap wide-chart"><canvas id="season-contrarian-chart"></canvas></div>
+      <div class="explorer-controls" style="margin-top:28px"><label>Player<select id="season-player"></select></label></div>
+      <h3 style="margin:24px 0 10px">Week by week</h3>
+      <div class="grid-legend"><span><i style="background:#d4af37"></i>Won the week</span><span><i style="background:#238b68"></i>Top 5</span><span><i style="background:#3f6fb5"></i>Top 10</span><span><i style="background:#4c5a68"></i>Outside top 10</span><span style="color:#4a6070">Bars are games won that week</span></div>
+      <div class="chart-wrap wide-chart race-chart-wrap" style="margin-top:12px"><canvas id="season-player-chart"></canvas></div>
+    </div>
   </section>
   <section id="view-payout" class="view">
     <section class="intro"><div><h2>Payout</h2></div><p>Weeks played, payment status, and current balances.</p></section>
@@ -1097,9 +1135,28 @@ const websiteProbabilityCache = new Map();
 let websiteRaceSnapshots = [], websiteRaceContext = "", websiteRaceAutoplayContext = "", websiteRaceFrame = 0, websiteRaceTimer = null, websiteRaceRows = new Map(), websiteRacePlaybackRequested = false, websiteRaceLineChart = null, websiteRaceSelectedPlayer = "", websiteRacePassesRemaining = 0, websiteRaceLiveNow = false;
 const RACE_FRAME_DELAY = 1400;
 const WEBSITE_RACE_MAX_PLAYBACK_MS = 60000;
-function websiteRacePlaybackDelay() {
+function websiteRaceActiveGameCount(snapshot) {
+  return (snapshot?.gameState || []).filter(game => ["IN", "IN_PROGRESS", "LIVE"].includes(websiteGameStatus(game))).length;
+}
+function websiteRaceFrameWeight(snapshot) {
+  const activeGames = websiteRaceActiveGameCount(snapshot);
+  return activeGames ? Math.sqrt(activeGames) : .6;
+}
+function websiteRaceTimelinePositions(snapshots = websiteRaceSnapshots) {
+  let position = 0;
+  return snapshots.map((snapshot, index) => {
+    if (index) position += websiteRaceFrameWeight(snapshot);
+    return position;
+  });
+}
+function websiteRacePlaybackDelay(frameIndex = websiteRaceFrame) {
   const transitions = Math.max(1, websiteRaceSnapshots.length - 1);
-  return Math.min(RACE_FRAME_DELAY, Math.max(100, Math.floor(WEBSITE_RACE_MAX_PLAYBACK_MS / transitions)));
+  const targetDuration = Math.min(WEBSITE_RACE_MAX_PLAYBACK_MS, transitions * RACE_FRAME_DELAY);
+  const weights = websiteRaceSnapshots.slice(1).map(websiteRaceFrameWeight);
+  const totalWeight = weights.reduce((sum, weight) => sum + weight, 0) || transitions;
+  const delays = weights.map(weight => Math.max(80, Math.min(2400, targetDuration * weight / totalWeight)));
+  const scale = Math.min(1, targetDuration / delays.reduce((sum, delay) => sum + delay, 0));
+  return Math.max(1, Math.floor(delays[Math.min(delays.length - 1, frameIndex)] * scale));
 }
 function historicalRacePlayback(scope, unit, frameCount, baselineFrameCount) {
   const durationMultiplier = scope === "alltime" ? unit === "season" ? 1 : unit === "week" ? 2 : 3 : scope === "season" ? unit === "week" ? 1 : 2 : unit === "game" ? 1 : 2;
@@ -1267,9 +1324,9 @@ function websiteRaceHasLiveGame(snapshot) {
 }
 function websiteRaceLeadershipAnalysis() {
   const metric = "winProbability";
-  const snapshots = websiteRaceSnapshots.slice(0, websiteRaceFrame + 1).filter(snapshot => snapshot.probabilityModel === "website");
-  const timestamps = snapshots.map(snapshot => new Date(snapshot.timestamp).getTime());
-  const intervals = snapshots.map((snapshot, index) => {
+  const snapshots = websiteRaceSnapshots.slice(0, websiteRaceFrame + 1).map((snapshot, sourceIndex) => ({ snapshot, sourceIndex })).filter(item => item.snapshot.probabilityModel === "website");
+  const timestamps = snapshots.map(item => new Date(item.snapshot.timestamp).getTime());
+  const intervals = snapshots.map(({ snapshot, sourceIndex }, index) => {
     if (!websiteRaceHasLiveGame(snapshot)) return null;
     const ranked = [...snapshot.players].sort((left, right) => Number(right[metric] || 0) - Number(left[metric] || 0) || left.name.localeCompare(right.name));
     const topValue = Number(ranked[0]?.[metric] || 0);
@@ -1277,7 +1334,7 @@ function websiteRaceLeadershipAnalysis() {
     const hasNext = Number.isFinite(timestamps[index + 1]);
     const end = hasNext ? timestamps[index + 1] : websiteRaceFrame === websiteRaceSnapshots.length - 1 && websiteRaceLiveNow ? Date.now() : timestamps[index];
     const duration = hasNext ? end - timestamps[index] : Math.min(10 * 60 * 1000, end - timestamps[index]);
-    return leaderNames.length && Number.isFinite(duration) && duration > 0 ? { name: leaderNames.join(" + "), duration, index, start: timestamps[index], end } : null;
+    return leaderNames.length && Number.isFinite(duration) && duration > 0 ? { name: leaderNames.join(" + "), duration, index: sourceIndex, start: timestamps[index], end } : null;
   }).filter(Boolean);
   const totals = new Map(), reigns = [];
   intervals.forEach(interval => {
@@ -1409,8 +1466,8 @@ function websiteRaceCheckpointEvents(snapshotIndex) {
     const awayScore = websiteRaceScore(game.awayScore), homeScore = websiteRaceScore(game.homeScore);
     const priorAway = websiteRaceScore(prior?.awayScore), priorHome = websiteRaceScore(prior?.homeScore);
     const moment = websiteRaceGameMoment(game);
-    if (prior && Number.isFinite(awayScore) && Number.isFinite(priorAway) && awayScore > priorAway) { const points = awayScore - priorAway; events.push({ type: "score", points, short: `${away} +${points}`, headline: `${away} ${websiteRaceScoreAction(points)}. ${away} ${awayScore} - ${home} ${homeScore}`, lines: [`${away} ${websiteRaceScoreAction(points)}`, `Score: ${away} ${awayScore}, ${home} ${homeScore}`, moment].filter(Boolean) }); }
-    if (prior && Number.isFinite(homeScore) && Number.isFinite(priorHome) && homeScore > priorHome) { const points = homeScore - priorHome; events.push({ type: "score", points, short: `${home} +${points}`, headline: `${home} ${websiteRaceScoreAction(points)}. ${away} ${awayScore} - ${home} ${homeScore}`, lines: [`${home} ${websiteRaceScoreAction(points)}`, `Score: ${away} ${awayScore}, ${home} ${homeScore}`, moment].filter(Boolean) }); }
+    if (prior && Number.isFinite(awayScore) && Number.isFinite(priorAway) && awayScore > priorAway) { const points = awayScore - priorAway; events.push({ type: "score", points, team: away, opponent: home, teamScore: awayScore, opponentScore: homeScore, moment, short: `${away} +${points}`, headline: `${away} ${websiteRaceScoreAction(points)}. ${away} ${awayScore} - ${home} ${homeScore}`, lines: [`${away} ${websiteRaceScoreAction(points)}`, `Score: ${away} ${awayScore}, ${home} ${homeScore}`, moment].filter(Boolean) }); }
+    if (prior && Number.isFinite(homeScore) && Number.isFinite(priorHome) && homeScore > priorHome) { const points = homeScore - priorHome; events.push({ type: "score", points, team: home, opponent: away, teamScore: homeScore, opponentScore: awayScore, moment, short: `${home} +${points}`, headline: `${home} ${websiteRaceScoreAction(points)}. ${away} ${awayScore} - ${home} ${homeScore}`, lines: [`${home} ${websiteRaceScoreAction(points)}`, `Score: ${away} ${awayScore}, ${home} ${homeScore}`, moment].filter(Boolean) }); }
     const status = websiteGameStatus(game), priorStatus = websiteGameStatus(prior);
     if (prior && status !== priorStatus) {
       if (["IN_PROGRESS", "LIVE"].includes(status)) events.push({ type: "status", short: `${away}–${home} kickoff`, lines: [`${away}–${home} kicked off`] });
@@ -1458,7 +1515,7 @@ function renderWebsiteRaceLineChart(animate = true) {
     websiteRaceLineChart = null;
     return;
   }
-  const metric = websiteRaceMetric(), shownSnapshots = websiteRaceSnapshots.slice(0, websiteRaceFrame + 1);
+  const metric = websiteRaceMetric(), shownSnapshots = websiteRaceSnapshots.slice(0, websiteRaceFrame + 1), timelinePositions = websiteRaceTimelinePositions(websiteRaceSnapshots);
   let names = [...new Set(websiteRaceSnapshots.flatMap(snapshot => snapshot.players.map(player => player.name)))];
   if ((document.getElementById("website-race-field")?.value || "top10") === "top10") names = [...websiteRaceSnapshots[websiteRaceFrame].players].sort((left, right) => Number(right[metric] || 0) - Number(left[metric] || 0) || left.name.localeCompare(right.name)).slice(0, 10).map(player => player.name);
   if (websiteRaceSelectedPlayer && !names.includes(websiteRaceSelectedPlayer)) websiteRaceSelectedPlayer = "";
@@ -1470,7 +1527,7 @@ function renderWebsiteRaceLineChart(animate = true) {
       const ranked = [...snapshot.players].sort((left, right) => Number(right[metric] || 0) - Number(left[metric] || 0) || left.name.localeCompare(right.name));
       const rank = ranked.findIndex(player => player.name === name), player = ranked[rank];
       const value = Number(player?.[metric] || 0);
-      return rank < 0 ? null : { x: index, y: rank + 1, snapshotIndex: index, metricValue: value };
+      return rank < 0 ? null : { x: timelinePositions[index], y: rank + 1, snapshotIndex: index, metricValue: value };
     }).filter(Boolean);
     return { label: name, data, borderColor: displayColor, backgroundColor: displayColor, borderWidth: websiteRaceSelectedPlayer === name ? 4 : selected ? 2 : 1, tension: .24, spanGaps: true, pointRadius: context => context.dataIndex === data.length - 1 ? 6 : context.dataIndex === 0 ? 4 : selected ? 1.5 : 0, pointStyle: context => racePointStyle(context, data), pointRotation: context => racePointRotation(context, data, true), pointHoverRadius: 8, pointBackgroundColor: context => context.dataIndex === 0 && data.length > 1 ? "#0f171e" : displayColor, pointBorderColor: displayColor, pointBorderWidth: 2 };
   });
@@ -1498,17 +1555,20 @@ function renderWebsiteRaceLineChart(animate = true) {
     }
   };
   const data = { datasets };
+  const frameAtPosition = value => timelinePositions.slice(0, websiteRaceFrame + 1).reduce((nearest, position, index) => Math.abs(position - value) < Math.abs(timelinePositions[nearest] - value) ? index : nearest, 0);
   const options = { responsive: true, maintainAspectRatio: false, animation: animate ? { duration: 520 } : false, layout: { padding: { top: 42, right: compactLandscape ? 80 : 118 } }, interaction: { mode: "nearest", intersect: false }, onClick: (event, elements) => { const name = elements[0] ? websiteRaceLineChart.data.datasets[elements[0].datasetIndex].label : ""; websiteRaceSelectedPlayer = websiteRaceSelectedPlayer === name ? "" : name; renderWebsiteRaceLineChart(false); }, scales: { x: { type: "linear", min: 0, max: Math.max(1, websiteRaceFrame), grid: { color: "#2a374466" }, ticks: { color: "#91a0ae", maxTicksLimit: 7, callback: value => { const snapshot = websiteRaceSnapshots[Math.round(Number(value))]; return snapshot ? new Date(snapshot.timestamp).toLocaleTimeString([], { hour: "numeric", minute: "2-digit" }) : ""; } }, title: { display: true, text: "Race checkpoints", color: "#91a0ae" } }, y: { min: 1, max: Math.max(2, names.length), reverse: true, grid: { color: "#2a3744" }, ticks: { color: "#91a0ae", stepSize: 1, callback: value => `#${value}` }, title: { display: true, text: "Rank", color: "#91a0ae" } } }, plugins: { legend: { display: false }, tooltip: { displayColors: false, padding: 6, cornerRadius: 4, caretSize: 5, borderColor: "#52606d", borderWidth: 1, titleFont: { size: 9, weight: "normal" }, bodyFont: { size: 10 }, titleMarginBottom: 3, bodySpacing: 1, callbacks: { title: items => { const snapshot = websiteRaceSnapshots[items[0]?.raw?.snapshotIndex]; return snapshot ? new Date(snapshot.timestamp).toLocaleString([], { weekday: "short", hour: "numeric", minute: "2-digit", second: "2-digit" }) : ""; }, label: context => { const value = context.raw.metricValue, formatted = metric === "winProbability" || metric === "winPercent" ? websiteProbabilityText(value) : value.toLocaleString(); return [context.dataset.label, `Rank #${context.parsed.y}`, `${websiteRaceMetricLabel(metric)}: ${formatted}`]; }, afterLabel: context => websiteRaceCheckpointChanges(context.raw.snapshotIndex) } } } };
+  options.scales.x.max = Math.max(1, timelinePositions[websiteRaceFrame]);
+  options.scales.x.title.text = "Weighted game timeline";
   options.scales.x.ticks.callback = value => {
-    const snapshot = websiteRaceSnapshots[Math.round(Number(value))];
+    const snapshot = websiteRaceSnapshots[frameAtPosition(Number(value))];
     return snapshot ? new Date(snapshot.timestamp).toLocaleString([], { weekday: "short", hour: "numeric", minute: "2-digit" }) : "";
   };
   options.onClick = event => {
     const chart = websiteRaceLineChart;
     if (!chart?.chartArea || event.x < chart.chartArea.left || event.x > chart.chartArea.right || event.y < chart.chartArea.top || event.y > chart.chartArea.bottom) return;
-    const frame = Math.max(0, Math.min(websiteRaceFrame, Math.round(chart.scales.x.getValueForPixel(event.x))));
+    const frame = frameAtPosition(chart.scales.x.getValueForPixel(event.x));
     const nearest = chart.data.datasets.map((dataset, datasetIndex) => {
-      const pointIndex = dataset.data.findIndex(point => point.x === frame);
+      const pointIndex = dataset.data.findIndex(point => point.snapshotIndex === frame);
       const point = pointIndex >= 0 ? chart.getDatasetMeta(datasetIndex).data[pointIndex] : null;
       return point ? { name: dataset.label, distance: Math.abs(point.y - event.y) } : null;
     }).filter(Boolean).sort((left, right) => left.distance - right.distance)[0];
@@ -1878,6 +1938,7 @@ function websiteConditionalProbabilities(data, forced = {}, calculationLimit = W
   const indexes = scenarios.total <= calculationLimit ? Array.from({ length: scenarios.total }, (value, index) => index) : websiteSampleScenarioIndexes(scenarios.total, Math.min(calculationLimit, WEBSITE_SIMULATION_LIMIT));
   const totals = new Array(data.players.length).fill(0);
   const pathCounts = new Array(data.players.length).fill(0);
+  const representativeScenarioIndexes = new Array(data.players.length).fill(null);
   const shareCache = new Map();
   let totalWeight = 0;
   indexes.forEach(index => {
@@ -1886,11 +1947,15 @@ function websiteConditionalProbabilities(data, forced = {}, calculationLimit = W
     totalWeight += weight;
     websiteScenarioShares(data, outcomes, shareCache).shares.forEach((share, playerIndex) => {
       totals[playerIndex] += share * weight;
-      if (share > 0) pathCounts[playerIndex] += 1;
+      if (share > 0) {
+        pathCounts[playerIndex] += 1;
+        if (representativeScenarioIndexes[playerIndex] == null) representativeScenarioIndexes[playerIndex] = index;
+      }
     });
   });
   const probabilities = totals.map(total => totalWeight ? total * 100 / totalWeight : 0);
   probabilities.pathCounts = pathCounts;
+  probabilities.representativeScenarioIndexes = representativeScenarioIndexes;
   probabilities.scenariosEvaluated = indexes.length;
   probabilities.scenariosTotal = scenarios.total;
   return probabilities;
@@ -1970,14 +2035,18 @@ function websiteContenderPaths(data, forced = {}) {
   const scenarios = websiteScenarioOutcomes(analysisData, forced);
   const indexes = websiteSampleScenarioIndexes(scenarios.total, WEBSITE_SIMULATION_LIMIT);
   const contenders = analysisData.players.map(player => ({ player, probability: 0, paths: [] }));
-  const outcomeWeights = new Map();
+  const outcomeWeights = new Map(), evaluatedPaths = [];
   let totalWeight = 0;
-  indexes.forEach(pathIndex => {
+  const evaluatedIndexes = new Set();
+  const evaluatePath = pathIndex => {
+    if (evaluatedIndexes.has(pathIndex)) return;
+    evaluatedIndexes.add(pathIndex);
     const outcomes = scenarios.outcomeAt(pathIndex);
     const weight = scenarios.weightOf(outcomes);
     totalWeight += weight;
     scenarios.variable.forEach(({ index }) => { const key = `${index}|${outcomes[index]}`; outcomeWeights.set(key, (outcomeWeights.get(key) || 0) + weight); });
     const result = websiteScenarioShares(analysisData, outcomes);
+    evaluatedPaths.push({ outcomes, weight, winners: result.winners });
     result.winners.forEach(winner => {
       const contenderIndex = analysisData.players.findIndex(player => player.name === winner.name);
       if (contenderIndex < 0 || winner.share <= 0) return;
@@ -1992,12 +2061,18 @@ function websiteContenderPaths(data, forced = {}) {
         tiedWith: result.winners.filter(other => other.name !== winner.name).map(other => other.name)
       });
     });
+  };
+  indexes.forEach(evaluatePath);
+  const probabilities = websiteCachedConditionalProbabilities(data, forced);
+  contenders.forEach((contender, index) => {
+    if (Number(probabilities[index] || 0) > 0 && !contender.paths.length) evaluatePath(probabilities.representativeScenarioIndexes?.[index]);
   });
   contenders.forEach(contender => {
     contender.probability = totalWeight ? contender.probability / totalWeight : 0;
     contender.paths.forEach(path => { path.probabilityContribution = totalWeight ? path.weight * path.share / totalWeight : 0; });
   });
-  return { analysisData, scenarios, indexes, totalWeight, outcomeWeights, contenders: contenders.filter(contender => contender.probability > 0).sort((left, right) => right.probability - left.probability) };
+  contenders.forEach((contender, index) => { contender.probability = Number(probabilities[index] || 0) / 100; });
+  return { analysisData, scenarios, indexes: [...evaluatedIndexes], totalWeight, outcomeWeights, evaluatedPaths, probabilities, contenders: contenders.filter(contender => contender.probability > 0).sort((left, right) => right.probability - left.probability) };
 }
 function websiteJoinNames(values) {
   if (values.length < 2) return values[0] || "";
@@ -2128,12 +2203,21 @@ function websiteScenarioIncorrectCount(analysis, contender, path) {
     return count + (outcome !== "PUSH" && contender.player.picks[index] !== outcome ? 1 : 0);
   }, 0);
 }
-function renderWebsiteScenarioBreakdown(data, analysis = websiteContenderPaths(data)) {
+function renderWebsiteScenarioBreakdown(data, analysis = null) {
   const host = document.getElementById("week-one-scenarios");
   if (!host) return;
+  analysis ||= websiteContenderPaths(data);
   const unresolvedGames = analysis.scenarios.variable.length;
   if (unresolvedGames > WEBSITE_EXACT_SCENARIO_GAME_LIMIT) {
-    host.innerHTML = `<h3 class="compact-live-title">Scenarios</h3><p class="analysis-note">Exact scenarios appear when six or fewer games remain. With ${unresolvedGames} unresolved games, use What each contender needs for generalized must-have results and the highest chances to win.</p>`;
+    const exact = analysis.probabilities.scenariosEvaluated === analysis.probabilities.scenariosTotal;
+    const rows = analysis.contenders.map(contender => {
+      const routes = contender.paths.slice().sort((left, right) => right.probabilityContribution - left.probabilityContribution || websiteScenarioIncorrectCount(analysis, contender, left) - websiteScenarioIncorrectCount(analysis, contender, right)).slice(0, 3).map((path, index) => {
+        const result = path.low == null || path.high == null ? "Wins outright" : `Tiebreak · ${websiteYardRange(path.low, path.high)} net passing yards`;
+        return `<tr class="scenario-subrow"><td>Route ${index + 1}</td><td class="scenario-chance">${websiteProbabilityText(path.probabilityContribution * 100)}</td><td>${websiteScenarioOutcomeText(analysis, contender, path)}</td><td>${result}</td></tr>`;
+      }).join("");
+      return `<tr class="scenario-player-row"><td><strong>${websiteEscapeHtml(contender.player.name)}</strong></td><td><strong>${websiteProbabilityText(contender.probability * 100)}</strong></td><td colspan="2"><strong>${contender.paths.length.toLocaleString()} winning routes in the structural sample</strong></td></tr>${routes}`;
+    }).join("");
+    host.innerHTML = `<h3 class="compact-live-title">Scenarios</h3><p class="analysis-note">${exact ? "Exact" : "Estimated"} win chances use ${analysis.probabilities.scenariosEvaluated.toLocaleString()} of ${analysis.probabilities.scenariosTotal.toLocaleString()} possible combinations across ${unresolvedGames} games. The three strongest routes per contender come from a ${analysis.indexes.length.toLocaleString()}-route structural sample that includes every remaining game; route weights describe that sample, not the exact overall chance.</p><div class="analysis-table-wrap"><table class="analysis-table"><thead><tr><th>Player / route</th><th>Sample weight</th><th>Representative outcomes</th><th>Result</th></tr></thead><tbody>${rows || '<tr><td colspan="4">No winning scenarios remain.</td></tr>'}</tbody></table></div>`;
     return;
   }
   const rows = analysis.contenders.map(contender => {
@@ -2174,15 +2258,46 @@ function renderWebsiteContenderPaths(data) {
   };
   renderWebsiteScenarioBreakdown(data, analysis);
 }
-function renderWebsitePersonalizedSankey(data) {
+function renderWebsiteCompressedSankey(host, analysis) {
+  const { scenarios, evaluatedPaths } = analysis, edges = new Map(), labels = { start: "Current field" };
+  let totalWeight = 0;
+  const outcomeLabel = (game, outcome) => outcome === "PUSH" ? `${String(game.favorite).toUpperCase()}/${String(game.underdog).toUpperCase()} push` : `${String(outcome).toUpperCase()} covers`;
+  const addEdge = (from, to, flow, beneficiaries = []) => {
+    const key = `${from}|${to}`, edge = edges.get(key) || { from, to, flow: 0, beneficiaries: new Set() };
+    edge.flow += flow;
+    beneficiaries.forEach(name => edge.beneficiaries.add(name));
+    edges.set(key, edge);
+  };
+  evaluatedPaths.forEach(({ outcomes, weight, winners }) => {
+    const beneficiaries = winners.filter(winner => winner.share > 0).map(winner => winner.name);
+    totalWeight += weight;
+    let from = "start";
+    scenarios.variable.forEach(({ game, index }, depth) => {
+      const to = `g${depth}:${outcomes[index]}`;
+      labels[to] = `G${index + 1} · ${outcomeLabel(game, outcomes[index])}`;
+      addEdge(from, to, weight, beneficiaries);
+      from = to;
+    });
+    winners.forEach(winner => {
+      if (winner.share <= 0) return;
+      const to = `winner:${winner.name}`;
+      labels[to] = winner.name;
+      addEdge(from, to, weight * winner.share, [winner.name]);
+    });
+  });
+  const chartEdges = [...edges.values()].map(edge => ({ from: edge.from, to: edge.to, flow: totalWeight ? edge.flow / totalWeight : 0, beneficiaries: [...edge.beneficiaries] }));
+  const width = Math.max(1000, scenarios.variable.length * 145);
+  host.innerHTML = `<h3 class="compact-live-title">Possibility flow</h3><p class="analysis-note">All ${scenarios.variable.length} remaining games and every available cover/push outcome are shown. Widths are estimated from ${evaluatedPaths.length.toLocaleString()} representative routes, and paths merge at each game so a full slate stays readable; the final column shows possible winners.</p><div class="sankey-wrap" style="min-width:${width}px"><canvas id="week-one-sankey-chart"></canvas></div>`;
+  if (websiteSankeyChart) websiteSankeyChart.destroy();
+  websiteSankeyChart = new Chart(document.getElementById("week-one-sankey-chart"), { type: "sankey", data: { datasets: [{ data: chartEdges, labels, colorFrom: context => context.dataset.data[context.dataIndex].from === "start" ? "#54d6b2" : "#ffb454", colorTo: context => context.dataset.data[context.dataIndex].to.startsWith("winner:") ? "#54d6b2" : "#ffb454", colorMode: "gradient", borderWidth: 0 }] }, options: { responsive: true, maintainAspectRatio: false, color: "#e8eef5", layout: { padding: { right: 120 } }, plugins: { legend: { display: false }, tooltip: { callbacks: { label: context => [`${websiteProbabilityText(context.raw.flow * 100)} flow`, ...(context.raw.beneficiaries.length ? ["Can lead to:", ...context.raw.beneficiaries] : [])] } } } } });
+}
+function renderWebsitePersonalizedSankey(data, analysis = null) {
   const host = document.getElementById("week-one-sankey");
   if (!host || !(data.players || []).length) return;
   const analysisData = websiteAnalysisData(data);
   const scenarios = websiteScenarioOutcomes(analysisData);
   if (scenarios.variable.length > WEBSITE_EXACT_SCENARIO_GAME_LIMIT) {
-    host.innerHTML = "";
-    if (websiteSankeyChart) websiteSankeyChart.destroy();
-    websiteSankeyChart = null;
+    renderWebsiteCompressedSankey(host, analysis || websiteContenderPaths(data));
     return;
   }
   const indexes = websiteSampleScenarioIndexes(scenarios.total, WEBSITE_SIMULATION_LIMIT);
@@ -3191,6 +3306,47 @@ function websiteWriteCurrentWeekCache(data) {
   try { localStorage.setItem(WEBSITE_CURRENT_WEEK_CACHE_KEY, JSON.stringify({ storedAt: Date.now(), data })); }
   catch (error) { console.warn(`Current Week could not be cached: ${error.message}`); }
 }
+function websiteRaceStoryMoment(moment) {
+  const match = String(moment || "").match(/^Q(\d+)\s+(.+)$/);
+  if (!match) return moment || "";
+  const period = Number(match[1]), ordinal = period === 1 ? "1st" : period === 2 ? "2nd" : period === 3 ? "3rd" : `${period}th`;
+  return `${ordinal} qtr ${match[2]}`;
+}
+function websiteRaceStoryEvent(snapshotIndex) {
+  const events = websiteRaceCheckpointEvents(snapshotIndex);
+  const event = events.filter(item => item.type === "score").sort((left, right) => right.points - left.points)[0] || events[0];
+  if (!event) return "the race probabilities changed";
+  if (event.type !== "score") return String(event.lines?.[0] || event.short || "the game state changed").replace(/[.]$/, "");
+  const moment = websiteRaceStoryMoment(event.moment);
+  return `${event.team} ${websiteRaceScoreAction(event.points)}. ${event.team} ${event.teamScore} - ${event.opponent} ${event.opponentScore}${moment ? `. ${moment}` : ""}`;
+}
+function websiteRaceRankState(snapshot, metric = "winProbability") {
+  const ordered = [...(snapshot?.players || [])].sort((left, right) => Number(right[metric] || 0) - Number(left[metric] || 0) || left.name.localeCompare(right.name));
+  const ranks = new Map(ordered.map((player, index) => [player.name, 1 + ordered.findIndex(candidate => Number(candidate[metric] || 0) === Number(player[metric] || 0))]));
+  const topValue = Number(ordered[0]?.[metric] || 0);
+  return { ordered, ranks, leaders: ordered.filter(player => Number(player[metric] || 0) === topValue).map(player => player.name) };
+}
+function websiteRacePlayerStory(snapshotIndex, metric = "winProbability") {
+  const current = websiteRaceRankState(websiteRaceSnapshots[snapshotIndex], metric), previous = websiteRaceRankState(websiteRaceSnapshots[snapshotIndex - 1], metric);
+  if (!current.ordered.length) return "The race order changed";
+  let playerStory = "";
+  if (current.leaders.length === 1 && (previous.leaders.length !== 1 || previous.leaders[0] !== current.leaders[0])) {
+    const name = current.leaders[0], priorRank = previous.ranks.get(name);
+    playerStory = `${name} ${priorRank > 1 ? "jumped" : "moved"} into sole first place`;
+  } else if (current.leaders.join("|") !== previous.leaders.join("|")) {
+    playerStory = `${websiteJoinNames(current.leaders)} moved into a tie for first`;
+  } else {
+    const climb = current.ordered.map(player => ({ name: player.name, from: previous.ranks.get(player.name), to: current.ranks.get(player.name) })).filter(player => Number.isFinite(player.from)).sort((left, right) => (right.from - right.to) - (left.from - left.to))[0];
+    if (climb && climb.from > climb.to) playerStory = `${climb.name} jumped ${climb.from - climb.to} spot${climb.from - climb.to === 1 ? "" : "s"} to #${climb.to}`;
+    else {
+      const priorValues = new Map(previous.ordered.map(player => [player.name, Number(player[metric] || 0)]));
+      const swing = current.ordered.map(player => ({ name: player.name, from: priorValues.get(player.name), to: Number(player[metric] || 0) })).filter(player => Number.isFinite(player.from)).sort((left, right) => Math.abs(right.to - right.from) - Math.abs(left.to - left.from))[0];
+      const direction = swing?.to >= swing?.from ? "rose" : "fell";
+      playerStory = swing ? `${swing.name}'s win probability ${direction} from ${websiteProbabilityText(swing.from)} to ${websiteProbabilityText(swing.to)}` : "The race order changed";
+    }
+  }
+  return `${playerStory} when ${websiteRaceStoryEvent(snapshotIndex)}.`;
+}
 function renderWebsiteRaceStories() {
   const turningHost = document.getElementById("live-turning-points"), timelineHost = document.getElementById("live-lead-changes"), superlativeHost = document.getElementById("live-superlatives");
   if (!turningHost || !timelineHost || !superlativeHost || websiteRaceSnapshots.length < 2) {
@@ -3201,11 +3357,11 @@ function renderWebsiteRaceStories() {
   }
   const metric = "winProbability";
   const important = [...websiteRaceImportantCheckpointIndexes(websiteRaceFrame + 1, metric, 6)].sort((left, right) => left - right);
-  turningHost.innerHTML = `<h3>Turning points</h3><p>The biggest score-driven shifts in the race. Select one to jump to that checkpoint.</p><div class="live-feature-list">${important.map(index => { const stamp = new Date(websiteRaceSnapshots[index].timestamp); return `<button class="turning-point" type="button" data-race-frame="${index}"><time>${websiteEscapeHtml(stamp.toLocaleString([], { weekday: "short", hour: "numeric", minute: "2-digit" }))}</time><span>${websiteEscapeHtml(websiteRaceCheckpointHeadline(index) || "Race order changed")}</span></button>`; }).join("") || '<p>No score-driven turning point has been saved yet.</p>'}</div>`;
+  turningHost.innerHTML = `<h3>Turning points</h3><p>The player moves caused by the biggest scoring swings. Select one to jump to that checkpoint.</p><div class="live-feature-list">${important.map(index => { const stamp = new Date(websiteRaceSnapshots[index].timestamp); return `<button class="turning-point" type="button" data-race-frame="${index}"><time>${websiteEscapeHtml(stamp.toLocaleString([], { weekday: "short", hour: "numeric", minute: "2-digit" }))}</time><span>${websiteEscapeHtml(websiteRacePlayerStory(index, metric))}</span></button>`; }).join("") || '<p>No score-driven turning point has been saved yet.</p>'}</div>`;
   turningHost.querySelectorAll("[data-race-frame]").forEach(button => { button.onclick = () => { stopWebsiteRace(); showWebsiteRaceFrame(Number(button.dataset.raceFrame), false); document.getElementById("week-one-live-race")?.scrollIntoView({ behavior: "smooth", block: "start" }); }; });
   const leadership = websiteRaceLeadershipAnalysis();
   const timelineSummary = !leadership.reigns.length ? "Timeline begins when live-game snapshots arrive." : leadership.reigns.length > 1 ? `${leadership.reigns.length - 1} changes through this checkpoint.` : "One leader through this checkpoint.";
-  timelineHost.innerHTML = `<h3>Lead-change timeline</h3><p>${timelineSummary}</p>${leadership.reigns.length ? `<div class="lead-change-timeline">${leadership.reigns.map(reign => `<div class="lead-change" style="--runner-color:${websiteRaceColor(reign.name)}"><strong>${websiteEscapeHtml(reign.name)}</strong><span>${websiteRaceDuration(reign.duration)} · ${new Date(reign.start).toLocaleTimeString([], { hour: "numeric", minute: "2-digit" })}</span></div>`).join("")}</div>` : ""}`;
+  timelineHost.innerHTML = `<h3>Lead-change timeline</h3><p>${timelineSummary}</p>${leadership.reigns.length ? `<div class="lead-change-timeline">${leadership.reigns.map((reign, index) => { const cause = reign.index ? websiteRaceStoryEvent(reign.index) : "Opened the live race in first"; return `<div class="lead-change" style="--runner-color:${websiteRaceColor(reign.name)}"><div><strong>${websiteEscapeHtml(reign.name)}</strong><span>${new Date(reign.start).toLocaleTimeString([], { hour: "numeric", minute: "2-digit" })} · ${websiteRaceDuration(reign.duration)}</span></div><span>${websiteEscapeHtml(index ? `Took first when ${cause}.` : cause)}</span></div>`; }).join("")}</div>` : ""}`;
   let biggestJump = null, biggestSwing = null;
   websiteRaceSnapshots.slice(1, websiteRaceFrame + 1).forEach((snapshot, offset) => {
     const previous = websiteRaceSnapshots[offset];
@@ -3215,15 +3371,16 @@ function renderWebsiteRaceStories() {
     snapshot.players.forEach(player => {
       const jump = previousRank.has(player.name) && currentRank.has(player.name) ? previousRank.get(player.name) - currentRank.get(player.name) : 0;
       const swing = Number(player[metric] || 0) - Number(previousValues.get(player.name) || 0);
-      if (!biggestJump || jump > biggestJump.value) biggestJump = { name: player.name, value: jump };
-      if (!biggestSwing || Math.abs(swing) > Math.abs(biggestSwing.value)) biggestSwing = { name: player.name, value: swing };
+      if (!biggestJump || jump > biggestJump.value) biggestJump = { name: player.name, value: jump, from: previousRank.get(player.name) + 1, to: currentRank.get(player.name) + 1, snapshotIndex: offset + 1 };
+      if (!biggestSwing || Math.abs(swing) > Math.abs(biggestSwing.value)) biggestSwing = { name: player.name, value: swing, from: previousValues.get(player.name) || 0, to: Number(player[metric] || 0), snapshotIndex: offset + 1 };
     });
   });
   const topTime = [...leadership.totals.values()].sort((left, right) => right.duration - left.duration)[0];
+  const topReigns = leadership.reigns.filter(reign => reign.name === topTime?.name), topCause = topReigns.find(reign => reign.index);
   const cards = [
-    { label: "Biggest climb", name: biggestJump?.value > 0 ? biggestJump.name : "No climb yet", detail: biggestJump?.value > 0 ? `Up ${biggestJump.value} places in one update` : "Ranks have held steady" },
-    { label: "Wildest swing", name: biggestSwing?.name || "No swing yet", detail: biggestSwing ? `${biggestSwing.value >= 0 ? "+" : ""}${biggestSwing.value.toFixed(1)} probability points` : "Probabilities have held steady" },
-    { label: "Most time on top", name: topTime?.name || "Not measured yet", detail: topTime ? websiteRaceDuration(topTime.duration) : "Starts with live play" }
+    { label: "Biggest climb", name: biggestJump?.value > 0 ? biggestJump.name : "No climb yet", detail: biggestJump?.value > 0 ? `${websiteRaceStoryEvent(biggestJump.snapshotIndex)} sent ${biggestJump.name} from #${biggestJump.from} to #${biggestJump.to}.` : "Ranks have held steady." },
+    { label: "Wildest swing", name: biggestSwing?.name || "No swing yet", detail: biggestSwing ? `${websiteRaceStoryEvent(biggestSwing.snapshotIndex)} moved ${biggestSwing.name} from ${websiteProbabilityText(biggestSwing.from)} to ${websiteProbabilityText(biggestSwing.to)}.` : "Probabilities have held steady." },
+    { label: "Most time on top", name: topTime?.name || "Not measured yet", detail: topTime ? `${topCause ? `${websiteRaceStoryEvent(topCause.index)} started a lead stint. ` : ""}${websiteRaceDuration(topTime.duration)} total across ${topReigns.length} stint${topReigns.length === 1 ? "" : "s"}.` : "Starts with live play." }
   ];
   superlativeHost.innerHTML = `<h3>Live superlatives</h3><div class="live-superlatives">${cards.map(card => `<div class="live-superlative"><span>${card.label}</span><strong>${websiteEscapeHtml(card.name)}</strong><span>${websiteEscapeHtml(card.detail)}</span></div>`).join("")}</div>`;
 }
@@ -3239,11 +3396,11 @@ function websiteRootingCell(analysis, contender, gameIndex, outcome) {
   if (difference <= -1) return { label: `Hurts ${difference.toFixed(0)}`, className: "rooting-hurt" };
   return { label: "Neutral", className: "" };
 }
-function renderWebsiteLiveScenarioTools(data) {
+function renderWebsiteLiveScenarioTools(data, baseAnalysis = null) {
   const group = document.getElementById("live-what-if"), switchboard = document.getElementById("live-outcome-switchboard"), standings = document.getElementById("live-projected-standings"), rooting = document.getElementById("live-rooting-matrix"), tiebreak = document.getElementById("live-tiebreak-target");
   if (!group || !switchboard || !standings || !rooting || !tiebreak) return;
   const analysisData = websiteAnalysisData(data), scenarios = websiteScenarioOutcomes(analysisData);
-  if (!scenarios.variable.length) { group.hidden = true; [switchboard, standings, rooting, tiebreak].forEach(host => { host.innerHTML = ""; }); return; }
+  if (!scenarios.variable.length) { group.hidden = true; [switchboard, standings, rooting, tiebreak].forEach(host => { host.innerHTML = ""; }); return null; }
   group.hidden = false;
   const context = `${data.season}-${data.week}-${websiteScenarioMode}`;
   if (group.dataset.context !== context) { websiteForcedOutcomes = {}; group.dataset.context = context; }
@@ -3256,7 +3413,7 @@ function renderWebsiteLiveScenarioTools(data) {
   if (!projected.length && projectedPlayers.length) projected.push(projectedPlayers[0]);
   const exact = probabilities.scenariosEvaluated === probabilities.scenariosTotal;
   standings.innerHTML = `<h3>Projected standings</h3><div class="calculation-confidence ${exact ? "" : "estimated"}"><strong>${exact ? "Exact" : "Estimated"}</strong><span>${probabilities.scenariosEvaluated.toLocaleString()} of ${probabilities.scenariosTotal.toLocaleString()} remaining combinations</span></div><div class="live-feature-list">${projected.map((player, rank) => `<div class="live-superlative"><span>#${rank + 1}</span><strong>${websiteEscapeHtml(player.name)}</strong><span>${websiteProbabilityText(player.probability)} chance</span></div>`).join("")}</div>`;
-  const analysis = websiteContenderPaths(data, websiteForcedOutcomes);
+  const analysis = Object.keys(websiteForcedOutcomes).length ? websiteContenderPaths(data, websiteForcedOutcomes) : baseAnalysis || websiteContenderPaths(data);
   if (!analysis.scenarios.variable.length) {
     rooting.innerHTML = `<h3>Rooting matrix</h3><p>Every remaining game is locked. Projected standings now show this exact finish.</p>`;
   } else if (analysis.scenarios.variable.length <= WEBSITE_EXACT_SCENARIO_GAME_LIMIT) {
@@ -3266,13 +3423,15 @@ function renderWebsiteLiveScenarioTools(data) {
   const rangeRows = analysis.contenders.slice(0, 8).flatMap(contender => websiteTiebreakRouteGroups(contender).slice(0, 1).map(group => ({ name: contender.player.name, low: group.low, high: group.high })));
   const projectedTotal = Math.round(distribution.mean);
   tiebreak.innerHTML = `<h3>Tiebreak target strip</h3><p>Projected final-game net passing: <strong>${projectedTotal}</strong>${distribution.deviation ? ` · likely band ${Math.round(distribution.mean - distribution.deviation)}–${Math.round(distribution.mean + distribution.deviation)}` : " · final"}. Highlighted bars are active winning ranges.</p><div class="tiebreak-strip">${rangeRows.map(row => `<span class="tiebreak-range" style="left:${scale(row.low)}%;width:${Math.max(.4, scale(row.high) - scale(row.low))}%" title="${websiteEscapeHtml(`${row.name}: ${websiteYardRange(row.low, row.high)}`)}"></span>`).join("")}<span class="tiebreak-marker" style="left:${scale(projectedTotal)}%"><span>${projectedTotal}</span></span></div><div class="tiebreak-guesses">${analysis.contenders.slice(0, 10).map(contender => `<span>${websiteEscapeHtml(contender.player.name)}: <strong>${websiteEscapeHtml(contender.player.tiebreaker)}</strong></span>`).join("")}</div>`;
+  return analysis;
 }
 function renderWebsiteLiveAnalysis(data) {
   renderWebsiteRace(data);
-  renderWebsiteLiveScenarioTools(data);
+  const analysis = websiteScenarioOutcomes(websiteAnalysisData(data)).variable.length ? websiteContenderPaths(data) : null;
+  renderWebsiteLiveScenarioTools(data, analysis);
   renderWebsiteWeekRecap(data);
-  renderWebsiteScenarioBreakdown(data);
-  renderWebsitePersonalizedSankey(data);
+  renderWebsiteScenarioBreakdown(data, analysis);
+  renderWebsitePersonalizedSankey(data, analysis);
 }
 function websiteRenderCachedLive() {
   const cached = websiteReadCurrentWeekCache();
