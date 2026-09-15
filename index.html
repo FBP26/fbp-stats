@@ -2669,6 +2669,9 @@ async function refreshWebsitePicksWeather() {
       const refreshed = refreshedGames.find(candidate => websiteGamesMatch(game, candidate));
       if (!refreshed) return game;
       const updated = websiteMergeGameContext(game, refreshed);
+      const choices = rows[index]?.querySelectorAll(".website-team-choice");
+      if (choices?.[0]) choices[0].outerHTML = websiteTeamChoice(updated, updated.favorite || updated.away);
+      if (choices?.[1]) choices[1].outerHTML = websiteTeamChoice(updated, updated.underdog || updated.home);
       const context = rows[index]?.querySelector(".website-game-context");
       const contextHtml = websiteGameContext(updated);
       if (context) context.outerHTML = contextHtml;
@@ -2689,7 +2692,7 @@ async function refreshWebsitePicksWeather() {
   }
 }
 function websiteSlateSignature(games) {
-  return JSON.stringify((games || []).map(({ gameId, kickoff, favorite, spread, underdog }) => ({ gameId, kickoff, favorite, spread, underdog })));
+  return JSON.stringify((games || []).map(({ gameId, kickoff, favorite, spread, underdog, awayTeam, homeTeam }) => ({ gameId, kickoff, favorite, spread, underdog, awayRecord: awayTeam?.record || "", homeRecord: homeTeam?.record || "" })));
 }
 async function renderWebsitePicksForm(forceRefresh = false) {
   const host = document.getElementById("website-game-picks");
