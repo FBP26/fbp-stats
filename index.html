@@ -2707,6 +2707,9 @@ async function renderWebsitePicksForm() {
     const stagedGames = await loadWebsiteStagedGames(selection);
     if (!stagedGames.length) throw new Error(`${selection.testMode ? "Preseason" : "Regular"} Week ${selection.week} has not been staged yet.`);
     websiteActiveGames = stagedGames;
+    const finalGame = websiteActiveGames[websiteActiveGames.length - 1];
+    const tiebreakMatchup = [finalGame.away || finalGame.favorite, finalGame.home || finalGame.underdog].filter(Boolean).map(team => String(team).toUpperCase()).join(" vs ");
+    document.getElementById("website-tiebreaker").parentElement.childNodes[0].textContent = `Tiebreaker · total net passing yards${tiebreakMatchup ? ` (${tiebreakMatchup})` : ""}`;
     const groups = [];
     websiteActiveGames.forEach((game, index) => { const previous = websiteActiveGames[index - 1]; if (!previous || previous.time !== game.time) groups.push({ time: game.time, games: [] }); groups[groups.length - 1].games.push({ game, index }); });
     const linesReady = websiteActiveGames.every(game => game.favorite && game.underdog && game.spread !== "" && game.spread != null);
