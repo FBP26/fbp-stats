@@ -636,15 +636,26 @@ const picksReadySummary = (games: JsonObject[], weekNumber: unknown): string => 
   return `${games.length} games and their point spreads are posted for Week ${weekNumber} and will not change.\n\n${gameLines.join("\n").trimEnd()}`;
 };
 
-const dispatchWeekNotifications = async (env: Env, week: Record<string, unknown>): Promise<void> => {
-  if (!env.EMAIL_RELAY_URL?.trim() || !env.EMAIL_RELAY_SECRET?.trim()) return;
+interface NotificationDispatchResult {
+  sent: number;
+  skipped: number;
+  failed: number;
+}
+
+const dispatchWeekNotifications = async (
+  env: Env,
+  week: Record<string, unknown>,
+  onlyEvents?: Set<NotificationEvent>,
+): Promise<NotificationDispatchResult> => {
+  const result = { sent: 0, skipped: 0, failed: 0 };
+  if (!env.EMAIL_RELAY_URL?.trim() || !env.EMAIL_RELAY_SECRET?.trim()) return result;
   const games = await getWeekConfig(env.DB, Number(week.id));
-  const eventSet = new Set(scheduledNotificationEvents(new Date(), games, String(week.status)));
+  const eventSet = onlyEvents || new Set(scheduledNotificationEvents(new Date(), games, String(week.status)));
   const current = await buildCurrentWeek(env.DB, week);
   const players = Array.isArray(current.players) ? current.players as JsonObject[] : [];
   const hasStarted = games.some((game) => ["LIVE", "FINAL"].includes(String(game.state)));
-  if (hasStarted && players.length) eventSet.add("firstPlace");
-  if (!eventSet.size) return;
+  if (!onlyEvents && hasStarted && players.length) eventSet.add("firstPlace");
+  if (!eventSet.size) return result;
   const subscriptions = await env.DB.prepare(
     "SELECT * FROM notification_subscriptions WHERE status = 'active' AND channel = 'email' AND manage_token IS NOT NULL",
   ).all();
@@ -654,7 +665,7 @@ const dispatchWeekNotifications = async (env: Env, week: Record<string, unknown>
     const followed = players.find((player) => String(player.name).toLowerCase() === followedName.toLowerCase());
     const rank = followed ? players.indexOf(followed) + 1 : 0;
     const subscriptionEvents = new Set(eventSet);
-    if (picksDueReminderIsEligible(new Date(), games, String(week.status), Number(subscription.picks_due_minutes) || 60)) subscriptionEvents.add("picksDue");
+    if (!onlyEvents && picksDueReminderIsEligible(new Date(), games, String(week.status), Number(subscription.picks_due_minutes) || 60)) subscriptionEvents.add("picksDue");
     for (const event of subscriptionEvents) {
       if (!Number(subscription[notificationPreferenceColumns[event]])) continue;
       if (event === "picksDue" && (followed || followedName === "FBP pool")) continue;
@@ -668,7 +679,10 @@ const dispatchWeekNotifications = async (env: Env, week: Record<string, unknown>
         const prior = await env.DB.prepare(
           "SELECT status FROM notification_deliveries WHERE subscription_id = ? AND deduplication_key = ?",
         ).bind(subscription.id, deduplicationKey).first<{ status: string }>();
-        if (prior?.status !== "failed") continue;
+        if (prior?.status !== "failed") {
+          result.skipped += 1;
+          continue;
+        }
         await env.DB.prepare(
           "UPDATE notification_deliveries SET status = 'queued', error_message = NULL WHERE subscription_id = ? AND deduplication_key = ?",
         ).bind(subscription.id, deduplicationKey).run();
@@ -686,8 +700,65 @@ const dispatchWeekNotifications = async (env: Env, week: Record<string, unknown>
       await env.DB.prepare(
         "UPDATE notification_deliveries SET status = ?, sent_at = ?, error_message = ? WHERE subscription_id = ? AND deduplication_key = ?",
       ).bind(sent ? "sent" : "failed", sent ? new Date().toISOString() : null, sent ? null : "Email relay rejected the message.", subscription.id, deduplicationKey).run();
+      if (sent) result.sent += 1;
+      else result.failed += 1;
     }
   }
+  return result;
+};
+
+const syncApprovedStagedWeek = async (payload: JsonObject, env: Env): Promise<Record<string, unknown>> => {
+  const season = Number(payload.season), weekNumber = Number(payload.week);
+  if (!Number.isInteger(season) || !Number.isInteger(weekNumber) || weekNumber < 1 || weekNumber > 18) {
+    throw new Error("A valid regular-season season and week are required.");
+  }
+  const games = Array.isArray(payload.games) ? payload.games as JsonObject[] : [];
+  if (!games.length || games.length > 16) throw new Error("The staged slate must contain between 1 and 16 games.");
+  const normalizedGames = games.map((game, index) => {
+    const externalId = cleanText(game.gameId || game.externalId, 100);
+    const kickoff = cleanText(game.kickoff || game.startTime, 100);
+    const favorite = cleanText(game.favorite, 20);
+    const underdog = cleanText(game.underdog, 20);
+    const home = cleanText(game.home || (game.homeTeam as JsonObject | undefined)?.abbreviation, 20);
+    const away = cleanText(game.away || (game.awayTeam as JsonObject | undefined)?.abbreviation, 20);
+    const spread = Number(game.spread);
+    if (!externalId || !kickoff || !Number.isFinite(Date.parse(kickoff)) || !favorite || !underdog || !home || !away || !Number.isFinite(spread)) {
+      throw new Error(`Game ${index + 1} is missing a valid ID, kickoff, matchup, or spread.`);
+    }
+    return { externalId, kickoff, favorite, underdog, home, away, spread, metadata: JSON.stringify(game) };
+  });
+  const existing = await findWeek(env.DB, season, weekNumber, "REGULAR_SEASON");
+  if (existing) {
+    const submissions = await env.DB.prepare("SELECT COUNT(*) AS count FROM submissions WHERE week_id = ? AND superseded_at IS NULL")
+      .bind(existing.id).first<{ count: number }>();
+    if (Number(submissions?.count)) throw new Error("The staged week already has picks and cannot be replaced by an approval link.");
+  }
+  await env.DB.prepare(
+    "UPDATE weeks SET status = 'finalized', finalized_at = COALESCE(finalized_at, CURRENT_TIMESTAMP) WHERE phase = 'REGULAR_SEASON' AND status IN ('staged', 'open', 'live', 'finalizing') AND NOT (season = ? AND week = ?)",
+  ).bind(season, weekNumber).run();
+  await env.DB.prepare(
+    "INSERT INTO weeks (season, week, phase, status) VALUES (?, ?, 'REGULAR_SEASON', 'staged') ON CONFLICT (season, week, phase) DO UPDATE SET status = 'staged', finalized_at = NULL",
+  ).bind(season, weekNumber).run();
+  const staged = await findWeek(env.DB, season, weekNumber, "REGULAR_SEASON");
+  if (!staged) throw new Error("The staged week could not be synchronized.");
+  await env.DB.prepare("DELETE FROM games WHERE week_id = ?").bind(staged.id).run();
+  const statements: D1PreparedStatement[] = [];
+  normalizedGames.forEach((game, index) => {
+    statements.push(env.DB.prepare(
+      "INSERT INTO games (week_id, game_index, external_id, kickoff_at, favorite, underdog, spread, home_team, away_team, metadata_json) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?)",
+    ).bind(staged.id, index, game.externalId, game.kickoff, game.favorite, game.underdog, game.spread, game.home, game.away, game.metadata));
+  });
+  await env.DB.batch(statements);
+  return staged;
+};
+
+const releasePicksReady = async (payload: JsonObject, env: Env): Promise<Response> => {
+  if (!env.EMAIL_RELAY_SECRET?.trim() || cleanText(payload.secret, 200) !== env.EMAIL_RELAY_SECRET.trim()) {
+    return json({ ok: false, error: "Unauthorized." }, 401, env.CORS_ORIGIN);
+  }
+  const week = await syncApprovedStagedWeek(payload, env);
+  const result = await dispatchWeekNotifications(env, week, new Set<NotificationEvent>(["picksReady"]));
+  return json({ ok: result.failed === 0, ...result }, result.failed ? 502 : 200, env.CORS_ORIGIN);
 };
 
 const handleAnalytics = async (payload: JsonObject, env: Env): Promise<Response> => {
@@ -932,6 +1003,7 @@ const storeRaceSnapshot = async (payload: JsonObject, env: Env): Promise<Respons
 const handlePost = async (request: Request, env: Env): Promise<Response> => {
   const payload = await parsePayload(request);
   const action = cleanText(payload.action, 50);
+  if (action === "release-picks-ready") return releasePicksReady(payload, env);
   if (action === "log-visit") return handleAnalytics(payload, env);
   if (action === "subscribe-notifications") return subscribeNotifications(request, payload, env);
   if (action === "update-notifications") return updateNotificationPreferences(payload, env);

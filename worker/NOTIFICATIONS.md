@@ -16,7 +16,6 @@ Player subscriptions include a missing-picks reminder. It defaults to one hour b
 
 The five-minute Worker schedule evaluates alerts at these points:
 
-- Picks ready: once all games and point spreads are posted and locked.
 - Picks due: at the subscriber's selected lead time before the week's earliest kickoff, skipped after that player submits.
 - First place: the first check where the followed player is ranked first after play begins.
 - Early games: after every Sunday game starting before 4 PM Eastern is final.
@@ -25,6 +24,8 @@ The five-minute Worker schedule evaluates alerts at these points:
 - Weekly result: after the week is finalized.
 
 Because checks run every five minutes, delivery can occur up to about five minutes after a condition becomes true.
+
+The picks-ready alert is deliberately excluded from the schedule. When Yahoo has every line, the owner receives a private setup-approval email. Its button opens a confirmation page before staging the week. After staging, a second private email asks the owner to review the website; its separately confirmed button synchronizes the staged slate to D1 and dispatches the picks-ready alert exactly once per subscriber. Approval links expire after 72 hours, and the Worker endpoint requires the shared relay secret.
 
 Preview all alert messages without sending:
 

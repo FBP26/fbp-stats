@@ -38,7 +38,7 @@ test("scheduled events combine the late window with the pre-SNF alert", () => {
     { kickoff: "2026-09-15T00:15:00Z", state: "PREGAME", spread: 1.5 },
   ];
   assert.deepEqual(scheduledNotificationEvents(now, games, "live"), ["earlyWindow", "beforeSnf"]);
-  assert.deepEqual(scheduledNotificationEvents(now, games, "staged"), ["picksReady", "earlyWindow", "beforeSnf"]);
+  assert.deepEqual(scheduledNotificationEvents(now, games, "staged"), ["earlyWindow", "beforeSnf"]);
   assert.deepEqual(scheduledNotificationEvents(now, games.map((game, index) => index ? game : { ...game, spread: "" }), "staged"), ["earlyWindow", "beforeSnf"]);
   assert.deepEqual(scheduledNotificationEvents(now, games.map((game, index) => index === 1 ? { ...game, state: "LIVE" } : game), "live"), ["earlyWindow"]);
 });
