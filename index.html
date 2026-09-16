@@ -3510,6 +3510,23 @@ function websiteRootingCell(analysis, contender, gameIndex, outcome) {
   if (difference <= -1) return { label: `Hurts ${difference.toFixed(0)}`, className: "rooting-hurt" };
   return { label: "No clear edge", className: "" };
 }
+function websiteClinchedPlayer(data) {
+  if (data.players.length < 2 || !data.games.some(game => ["IN", "LIVE", "IN_PROGRESS", "POST", "FINAL", "COMPLETED"].includes(websiteGameStatus(game)))) return null;
+  const unresolved = data.games.map((game, index) => ({ game, index })).filter(({ index }) => websiteGameWinner(data, index) === null);
+  return data.players.find(candidate => data.players.every(opponent => {
+    if (opponent === candidate) return true;
+    const maximumOpponentGain = unresolved.reduce((gain, { game, index }) => {
+      const outcomes = [game.favorite, game.underdog, "PUSH"];
+      return gain + Math.max(...outcomes.map(outcome => {
+        if (outcome === "PUSH") return 0;
+        const opponentPoints = opponent.picks[index] === outcome ? 1 + (opponent.bestBet === outcome ? 1 : 0) : 0;
+        const candidatePoints = candidate.picks[index] === outcome ? 1 + (candidate.bestBet === outcome ? 1 : 0) : 0;
+        return opponentPoints - candidatePoints;
+      }));
+    }, 0);
+    return Number(candidate.wins || 0) > Number(opponent.wins || 0) + maximumOpponentGain;
+  })) || null;
+}
 function renderWebsiteLiveScenarioTools(data, baseAnalysis = null) {
   const group = document.getElementById("live-what-if"), switchboard = document.getElementById("live-outcome-switchboard"), standings = document.getElementById("live-projected-standings"), rooting = document.getElementById("live-rooting-matrix");
   if (!group || !switchboard || !standings || !rooting) return;
@@ -3539,18 +3556,17 @@ function renderWebsiteLiveScenarioTools(data, baseAnalysis = null) {
 function renderWebsiteTiebreakSnapshot(data) {
   const tiebreak = document.getElementById("live-tiebreak-target");
   if (!tiebreak) return;
-  const analysisData = websiteAnalysisData(data), distribution = websiteTiebreakDistribution(analysisData), scale = value => Math.max(0, Math.min(100, (Number(value) - WEBSITE_TIEBREAK_MIN) * 100 / (WEBSITE_TIEBREAK_MAX - WEBSITE_TIEBREAK_MIN)));
-  const projectedTotal = Math.round(distribution.mean), finalGame = analysisData.games.at(-1) || {}, finalStatus = websiteGameStatus(finalGame);
+  const analysisData = websiteAnalysisData(data), scale = value => Math.max(0, Math.min(100, (Number(value) - WEBSITE_TIEBREAK_MIN) * 100 / (WEBSITE_TIEBREAK_MAX - WEBSITE_TIEBREAK_MIN)));
+  const finalGame = analysisData.games.at(-1) || {}, finalStatus = websiteGameStatus(finalGame);
   const currentYards = analysisData.actualTiebreaker !== "" && Number.isFinite(Number(analysisData.actualTiebreaker)) ? Number(analysisData.actualTiebreaker) : null;
   const isLive = ["IN", "LIVE", "IN_PROGRESS"].includes(finalStatus), isFinal = ["POST", "FINAL", "COMPLETED"].includes(finalStatus), gameLabel = [finalGame.away, finalGame.home].filter(Boolean).map(team => String(team).toUpperCase()).join("–");
-  const guaranteedPlayer = (analysisData.players || []).find(player => parseFloat(player.winProbability || 0) >= 99.999);
-  const liveContext = isFinal && currentYards != null ? `Final-game net passing: <strong>${currentYards}</strong>.` : isLive && currentYards != null ? `${gameLabel ? `${gameLabel} · ` : ""}${finalGame.statusText || "Live"} · Current net passing: <strong>${currentYards}</strong>. Projected finish: <strong>${projectedTotal}</strong>${distribution.deviation ? ` · likely band ${Math.round(distribution.mean - distribution.deviation)}–${Math.round(distribution.mean + distribution.deviation)}` : ""}.` : `Projected final-game net passing: <strong>${projectedTotal}</strong>${distribution.deviation ? ` · likely band ${Math.round(distribution.mean - distribution.deviation)}–${Math.round(distribution.mean + distribution.deviation)}` : ""}.`;
+  const guaranteedPlayer = isFinal ? analysisData.players.find(player => parseFloat(player.winProbability || 0) >= 99.999) : websiteClinchedPlayer(analysisData);
+  const liveContext = isFinal && currentYards != null ? `Final-game net passing: <strong>${currentYards}</strong>.` : isLive && currentYards != null ? `${gameLabel ? `${gameLabel} · ` : ""}${finalGame.statusText || "Live"} · Current net passing: <strong>${currentYards}</strong>.` : `${gameLabel ? `${gameLabel} · ` : ""}Final-game net passing will break a tie.`;
   const currentMarker = (isLive || isFinal) && currentYards != null ? `<span class="tiebreak-marker current" style="left:${scale(currentYards)}%"><span>${isFinal ? "Final" : "Current"} · ${currentYards}</span></span>` : "";
-  const projectedMarker = isFinal ? "" : `<span class="tiebreak-marker projected" style="left:${scale(projectedTotal)}%"><span>Projected · ${projectedTotal}</span></span>`;
   const guessMarker = guaranteedPlayer ? `<span class="tiebreak-marker guess" style="left:${scale(guaranteedPlayer.tiebreaker)}%"><span>${websiteEscapeHtml(guaranteedPlayer.name)} · ${websiteEscapeHtml(guaranteedPlayer.tiebreaker)}</span></span>` : "";
   const clinched = guaranteedPlayer ? `<p class="tiebreak-clinched"><strong>${websiteEscapeHtml(guaranteedPlayer.name)} ${isFinal ? "won" : "has clinched"} the week</strong>${isFinal ? "." : " regardless of the final yardage."} The ${websiteEscapeHtml(guaranteedPlayer.tiebreaker)} guess is shown for reference.</p>` : "";
-  const markerCopy = guaranteedPlayer ? `The markers show the ${isFinal ? "final total" : "live total, projection"}, and ${websiteEscapeHtml(guaranteedPlayer.name)}'s guess.` : `The markers show the ${isFinal ? "final total" : "live total and projection"}.`;
-  tiebreak.innerHTML = `<h3>Tiebreak snapshot</h3><p>${liveContext} ${markerCopy}</p><div class="tiebreak-strip">${currentMarker}${projectedMarker}${guessMarker}</div>${clinched}`;
+  const markerCopy = currentMarker && guessMarker ? ` The markers show the ${isFinal ? "final" : "current"} total and ${websiteEscapeHtml(guaranteedPlayer.name)}'s guess.` : guessMarker ? ` The marker shows ${websiteEscapeHtml(guaranteedPlayer.name)}'s guess.` : currentMarker ? ` The marker shows the ${isFinal ? "final" : "current"} total.` : "";
+  tiebreak.innerHTML = `<h3>Tiebreak snapshot</h3><p>${liveContext}${markerCopy}</p>${currentMarker || guessMarker ? `<div class="tiebreak-strip">${currentMarker}${guessMarker}</div>` : ""}${clinched}`;
 }
 function renderWebsiteLiveAnalysis(data) {
   renderWebsiteRace(data);
