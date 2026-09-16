@@ -116,7 +116,7 @@
   #website-week-name-label { visibility: hidden; }
   #website-picks-form label:has(#website-tiebreaker) { font-size: 0; }
   #website-picks-form label:has(#website-tiebreaker)::before { content: "Tiebreaker · total net passing yards"; font: 11px Arial, sans-serif; letter-spacing: .8px; text-transform: uppercase; }
-  #website-picks-form label.tiebreak-matchup-ready::before { content: attr(data-tiebreak-label); }
+  #website-picks-form label.tiebreak-matchup-ready:has(#website-tiebreaker)::before { content: attr(data-tiebreak-label); }
   #website-picks-form .website-identity-controls { grid-template-columns: 1fr !important; }
   #view-enter-picks .notification-settings { margin: 14px 0 0; }
   #view-enter-picks .website-notification-row { margin-top: 14px; }
@@ -718,7 +718,7 @@
 </head>
 <body>
 <div id="website-pull-refresh" class="pull-refresh" role="status" aria-live="polite"><span class="pull-refresh-icon" aria-hidden="true">↻</span><span class="pull-refresh-label">Pull to refresh</span></div>
-<header><nav id="nav"><button data-view="enter-picks">Enter Picks</button><button data-view="week-one">Current Week</button><button data-view="live-analysis">Live</button><button data-view="players">Players</button><button data-view="alltime">All Time</button><button data-view="season">Seasons</button><button data-view="weeks">Weeks</button><button data-view="games">Games</button><button data-view="streaks">Streaks</button><button data-view="teams">Teams</button><button data-view="names">Names</button><button data-view="payout">Payout</button><button data-view="faq">FAQ</button></nav></header>
+<header><nav id="nav"><button data-view="enter-picks">Enter Picks</button><button data-view="week-one">Week 2</button><button data-view="live-analysis">Live</button><button data-view="players">Players</button><button data-view="alltime">All Time</button><button data-view="season">Seasons</button><button data-view="weeks">Weeks</button><button data-view="games">Games</button><button data-view="streaks">Streaks</button><button data-view="teams">Teams</button><button data-view="names">Names</button><button data-view="payout">Payout</button><button data-view="faq">FAQ</button></nav></header>
 <aside id="website-install-help" class="install-help" hidden><div><strong>Add FBP to your Home Screen</strong><span id="website-install-copy"></span></div><button id="website-install-action" type="button" hidden>Install</button><button id="website-install-close" class="install-help-close" type="button" aria-label="Dismiss home-screen instructions">×</button></aside>
 <main>
   <section id="view-enter-picks" class="view">
@@ -2462,6 +2462,8 @@ try {
     websiteEntrySelection = { testMode: false, ...websiteRegularSelection };
     websiteStagedGamesCache.set(`REGULAR_SEASON-${websiteRegularSelection.season}-${websiteRegularSelection.week}`, { games: cachedSlate.games, storedAt: Date.now() });
     websiteActiveRegularWeekLoadedAt = 0;
+    updateWebsiteWeekLabels(websiteEntrySelection);
+    updateWebsiteTiebreakLabel(cachedSlate.games);
   }
 } catch (error) { console.warn(`Saved active slate unavailable: ${error.message}`); }
 function notificationPlayerValidation(value) {
@@ -2568,6 +2570,14 @@ function updateWebsiteWeekLabels(selection) {
   document.getElementById("website-view-week-one").textContent = `View ${weekLabel}`;
   document.getElementById("website-entry-context").textContent = selection.testMode ? `${weekLabel} rehearsal · results stay out of season records` : `${weekLabel} · ${seasonLabel}`;
 }
+function updateWebsiteTiebreakLabel(games) {
+  const finalGame = games?.at(-1);
+  const matchup = finalGame ? [finalGame.away || finalGame.favorite, finalGame.home || finalGame.underdog].filter(Boolean).map(team => String(team).toUpperCase()).join(" vs ") : "";
+  const label = document.getElementById("website-tiebreaker")?.parentElement;
+  if (!label || !matchup) return;
+  label.dataset.tiebreakLabel = `Tiebreaker · total net passing yards (${matchup})`;
+  label.classList.add("tiebreak-matchup-ready");
+}
 async function loadActiveRegularWeek(forceRefresh = false) {
   if (!WEBSITE_SUBMISSIONS_ENDPOINT) return websiteRegularSelection;
   if (!forceRefresh && websiteActiveRegularWeekLoadedAt && Date.now() - websiteActiveRegularWeekLoadedAt < 5 * 60 * 1000) return websiteRegularSelection;
@@ -2587,6 +2597,7 @@ async function loadActiveRegularWeek(forceRefresh = false) {
     }
     websiteActiveRegularWeekLoadedAt = Date.now();
     updateWebsiteWeekLabels(websiteEntrySelection);
+    if (data.games?.length) updateWebsiteTiebreakLabel(data.games);
     return websiteRegularSelection;
   })().finally(() => { websiteActiveRegularWeekPromise = null; });
   return websiteActiveRegularWeekPromise;
@@ -2736,11 +2747,7 @@ async function renderWebsitePicksForm(forceRefresh = false) {
     const stagedGames = await loadWebsiteStagedGames(selection, forceRefresh && !useCachedSlate);
     if (!stagedGames.length) throw new Error(`${selection.testMode ? "Preseason" : "Regular"} Week ${selection.week} has not been staged yet.`);
     websiteActiveGames = stagedGames;
-    const finalGame = websiteActiveGames[websiteActiveGames.length - 1];
-    const tiebreakMatchup = [finalGame.away || finalGame.favorite, finalGame.home || finalGame.underdog].filter(Boolean).map(team => String(team).toUpperCase()).join(" vs ");
-    const tiebreakLabel = document.getElementById("website-tiebreaker").parentElement;
-    tiebreakLabel.dataset.tiebreakLabel = `Tiebreaker · total net passing yards${tiebreakMatchup ? ` (${tiebreakMatchup})` : ""}`;
-    tiebreakLabel.classList.add("tiebreak-matchup-ready");
+    updateWebsiteTiebreakLabel(websiteActiveGames);
     const groups = [];
     websiteActiveGames.forEach((game, index) => { const previous = websiteActiveGames[index - 1]; if (!previous || previous.time !== game.time) groups.push({ time: game.time, games: [] }); groups[groups.length - 1].games.push({ game, index }); });
     const linesReady = websiteActiveGames.every(game => game.favorite && game.underdog && game.spread !== "" && game.spread != null);
