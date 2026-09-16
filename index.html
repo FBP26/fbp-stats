@@ -113,6 +113,9 @@
   #view-week-one .intro { display: none; }
   #view-enter-picks .website-entry-context { font-size: 14px; font-weight: bold; }
   #website-week-name-label { visibility: hidden; }
+  #website-picks-form label:has(#website-tiebreaker) { font-size: 0; }
+  #website-picks-form label:has(#website-tiebreaker)::before { content: "Tiebreaker · total net passing yards"; font: 11px Arial, sans-serif; letter-spacing: .8px; text-transform: uppercase; }
+  #website-picks-form label.tiebreak-matchup-ready::before { content: attr(data-tiebreak-label); }
   #website-picks-form .website-identity-controls { grid-template-columns: 1fr !important; }
   #view-enter-picks .notification-settings { margin: 14px 0 0; }
   #view-enter-picks .website-notification-row { margin-top: 14px; }
@@ -2734,7 +2737,9 @@ async function renderWebsitePicksForm(forceRefresh = false) {
     websiteActiveGames = stagedGames;
     const finalGame = websiteActiveGames[websiteActiveGames.length - 1];
     const tiebreakMatchup = [finalGame.away || finalGame.favorite, finalGame.home || finalGame.underdog].filter(Boolean).map(team => String(team).toUpperCase()).join(" vs ");
-    document.getElementById("website-tiebreaker").parentElement.childNodes[0].textContent = `Tiebreaker · total net passing yards${tiebreakMatchup ? ` (${tiebreakMatchup})` : ""}`;
+    const tiebreakLabel = document.getElementById("website-tiebreaker").parentElement;
+    tiebreakLabel.dataset.tiebreakLabel = `Tiebreaker · total net passing yards${tiebreakMatchup ? ` (${tiebreakMatchup})` : ""}`;
+    tiebreakLabel.classList.add("tiebreak-matchup-ready");
     const groups = [];
     websiteActiveGames.forEach((game, index) => { const previous = websiteActiveGames[index - 1]; if (!previous || previous.time !== game.time) groups.push({ time: game.time, games: [] }); groups[groups.length - 1].games.push({ game, index }); });
     const linesReady = websiteActiveGames.every(game => game.favorite && game.underdog && game.spread !== "" && game.spread != null);
