@@ -434,8 +434,7 @@ function renderTeams() {
   websitePicks.forEach(pick => {
     const game = buildTeamsAnalytics().gameById.get(pick.gameId);
     if (!game || (season !== "all" && game.season !== season) || !pick.pick) return;
-    const row = affinity.get(pick.playerId) || { player: pick.name || websitePlayers.find(player => player.playerId === pick.playerId)?.name || pick.playerId, totalPicks: 0, picks: 0, wins: 0, losses: 0, pushes: 0, bestBets: 0, bestBetWins: 0, bestBetLosses: 0, bestBetPushes: 0, against: 0, againstWins: 0, againstLosses: 0, againstPushes: 0 };
-    row.totalPicks += 1;
+    const row = affinity.get(pick.playerId) || { player: pick.name || websitePlayers.find(player => player.playerId === pick.playerId)?.name || pick.playerId, picks: 0, wins: 0, losses: 0, pushes: 0, bestBets: 0, bestBetWins: 0, bestBetLosses: 0, bestBetPushes: 0, against: 0, againstWins: 0, againstLosses: 0, againstPushes: 0 };
     const picked = String(pick.pick || "").toUpperCase();
     const teams = [game.favorite, game.underdog].map(value => String(value || "").toUpperCase());
     if (picked === selectedTeam) {
@@ -451,14 +450,14 @@ function renderTeams() {
   });
   const affinityRows = [...affinity.values()].filter(row => row.picks || row.against || row.bestBets).map(row => ({
     ...row,
-    affinityPct: row.totalPicks ? row.picks / row.totalPicks : 0,
+    affinityPct: row.picks + row.against ? row.picks / (row.picks + row.against) : 0,
     record: record(row.wins, row.losses, row.pushes), winPct: teamRate(row.wins, row.losses),
     bestBetRecord: record(row.bestBetWins, row.bestBetLosses, row.bestBetPushes), bestBetPct: teamRate(row.bestBetWins, row.bestBetLosses),
     againstRecord: record(row.againstWins, row.againstLosses, row.againstPushes), againstPct: teamRate(row.againstWins, row.againstLosses)
   })).sort((left, right) => right.picks - left.picks || right.affinityPct - left.affinityPct);
   document.getElementById("teams-affinity-title").textContent = `${selectedTeam} Player Affinity and Bet Against`;
   renderSortableTeamsSheet(document.getElementById("teams-affinity-table"), affinityRows, [
-    { key: "player", label: "Player", value: row => row.player }, { key: "picks", label: "Picked", value: row => row.picks }, { key: "affinityPct", label: "Pick share", value: row => row.affinityPct, html: row => teamsRateCell(row.affinityPct, pct(row.affinityPct)) },
+    { key: "player", label: "Player", value: row => row.player }, { key: "picks", label: "Picked", value: row => row.picks }, { key: "affinityPct", label: "For vs against", value: row => row.affinityPct, html: row => teamsRateCell(row.affinityPct, pct(row.affinityPct)) },
     { key: "winPct", label: "Pick ATS", value: row => row.winPct, html: row => teamsRateCell(row.winPct, `${row.record} · ${pct(row.winPct)}`) }, { key: "bestBets", label: "Best Bets", value: row => row.bestBets }, { key: "bestBetPct", label: "BB ATS", value: row => row.bestBetPct, html: row => teamsRateCell(row.bestBetPct, `${row.bestBetRecord} · ${pct(row.bestBetPct)}`) },
     { key: "against", label: "Against", value: row => row.against }, { key: "againstPct", label: "Against ATS", value: row => row.againstPct, html: row => teamsRateCell(row.againstPct, `${row.againstRecord} · ${pct(row.againstPct)}`) }
   ], "picks");

@@ -101,11 +101,18 @@
   .website-side.right .website-team-choice { grid-template-columns: minmax(0, 1fr) 38px; grid-template-areas: "name logo" "record logo"; }
   .website-side input { position: absolute; opacity: 0; pointer-events: none; }
   .website-spread { display: flex; align-items: center; justify-content: center; color: var(--accent-2); font: bold 13px Arial, sans-serif; text-align: center; width: 48px; min-height: 28px; }
+  @media (min-width: 1700px) {
+    #view-enter-picks .website-side { font-size: 18px; }
+    #view-enter-picks .website-team-choice { grid-template-columns: 62px minmax(0, 1fr); column-gap: 12px; }
+    #view-enter-picks .website-side.right .website-team-choice { grid-template-columns: minmax(0, 1fr) 62px; }
+    #view-enter-picks .website-team-logo { width: 62px; height: 62px; }
+  }
   .website-instructions { margin: 0 0 18px; color: var(--muted); font: 13px/1.55 Arial, sans-serif; }
   .website-entry-context { margin: 0 0 14px; color: var(--accent); font: 12px/1.5 Arial, sans-serif; }
   #view-enter-picks .intro { display: none; }
   #view-week-one .intro { display: none; }
   #view-enter-picks .website-entry-context { font-size: 14px; font-weight: bold; }
+  #website-week-name-label { visibility: hidden; }
   #website-picks-form .website-identity-controls { grid-template-columns: 1fr !important; }
   #view-enter-picks .notification-settings { margin: 14px 0 0; }
   #view-enter-picks .website-notification-row { margin-top: 14px; }
@@ -707,7 +714,7 @@
 </head>
 <body>
 <div id="website-pull-refresh" class="pull-refresh" role="status" aria-live="polite"><span class="pull-refresh-icon" aria-hidden="true">↻</span><span class="pull-refresh-label">Pull to refresh</span></div>
-<header><nav id="nav"><button data-view="enter-picks">Enter Picks</button><button data-view="week-one">Week 1</button><button data-view="live-analysis">Live</button><button data-view="players">Players</button><button data-view="alltime">All Time</button><button data-view="season">Seasons</button><button data-view="weeks">Weeks</button><button data-view="games">Games</button><button data-view="streaks">Streaks</button><button data-view="teams">Teams</button><button data-view="names">Names</button><button data-view="payout">Payout</button><button data-view="faq">FAQ</button></nav></header>
+<header><nav id="nav"><button data-view="enter-picks">Enter Picks</button><button data-view="week-one">Current Week</button><button data-view="live-analysis">Live</button><button data-view="players">Players</button><button data-view="alltime">All Time</button><button data-view="season">Seasons</button><button data-view="weeks">Weeks</button><button data-view="games">Games</button><button data-view="streaks">Streaks</button><button data-view="teams">Teams</button><button data-view="names">Names</button><button data-view="payout">Payout</button><button data-view="faq">FAQ</button></nav></header>
 <aside id="website-install-help" class="install-help" hidden><div><strong>Add FBP to your Home Screen</strong><span id="website-install-copy"></span></div><button id="website-install-action" type="button" hidden>Install</button><button id="website-install-close" class="install-help-close" type="button" aria-label="Dismiss home-screen instructions">×</button></aside>
 <main>
   <section id="view-enter-picks" class="view">
@@ -846,7 +853,8 @@ if (websiteLaunchUrl.searchParams.has("app-refresh")) {
   websiteLaunchUrl.searchParams.delete("app-refresh");
   history.replaceState(null, "", websiteLaunchUrl);
 }
-const requestedRoute = websiteFaqReloadOpensMap ? "map" : standaloneAppLaunch && websiteRoutes.includes(savedStartupRoute) ? savedStartupRoute : location.hash.slice(1);
+const requestedRouteValue = websiteFaqReloadOpensMap ? "map" : standaloneAppLaunch && websiteRoutes.includes(savedStartupRoute) ? savedStartupRoute : location.hash.slice(1);
+const requestedRoute = requestedRouteValue === "current-week" ? "week-one" : requestedRouteValue;
 const requestedStartupRoute = requestedRoute === "weekly-rank" ? "weeks" : websiteRoutes.includes(requestedRoute) ? requestedRoute : "week-one";
 let websiteRefreshInstallHelp = () => {};
 if (location.hash === "#weekly-rank") history.replaceState(null, "", "#weeks");
@@ -2053,7 +2061,7 @@ function renderWebsitePaths(data) {
   const scenarios = websiteScenarioOutcomes(analysisData);
   const indexes = websiteSampleScenarioIndexes(scenarios.total, WEBSITE_PATH_DISPLAY_LIMIT);
   const rows = indexes.map((pathIndex, rowIndex) => { const outcomes = scenarios.outcomeAt(pathIndex); const result = websiteScenarioShares(analysisData, outcomes); const winners = result.winners.map(winner => `${winner.name} ${(winner.share * 100).toFixed(1)}% · ${winner.range}`).join(" / "); const remaining = scenarios.variable.map(({ game, index }) => `${outcomes[index] === "PUSH" ? "Push" : outcomes[index]} over ${outcomes[index] === game.favorite ? game.underdog : game.favorite}`).join(" / ") || "All games complete"; return `<tr><td>${rowIndex + 1}</td><td>${winners}</td><td>${remaining}</td></tr>`; });
-  host.innerHTML = `<h3 class="compact-live-title">Winning paths</h3><div class="path-controls"><label>Scenario<select id="website-path-mode"><option value="current">Current slate</option><option value="preview-three">Preview 3 games remaining</option></select></label></div><p class="analysis-note">Live games use the current ATS leader as a provisional result and can flip on refresh. Tiebreak chances start with a 453-yard historical forecast, then condition on current net passing and contract as the game clock runs out. Showing ${indexes.length} of ${scenarios.total.toLocaleString()} paths; display is capped at ${WEBSITE_PATH_DISPLAY_LIMIT}.</p><div class="analysis-table-wrap"><table class="analysis-table"><thead><tr><th>Path</th><th>Winner · tiebreak range</th><th>Remaining outcomes</th></tr></thead><tbody>${rows.join("")}</tbody></table></div>`;
+  host.innerHTML = `<h3 class="compact-live-title">Winning paths</h3><div class="path-controls"><label>Scenario<select id="website-path-mode"><option value="current">Current slate</option><option value="preview-three">Preview 3 games remaining</option></select></label></div><p class="analysis-note">Live games use the current ATS leader as a provisional result and can flip on refresh. Tiebreak chances begin with a broad likely range, then condition on current net passing and contract as the game clock runs out. Showing ${indexes.length} of ${scenarios.total.toLocaleString()} paths; display is capped at ${WEBSITE_PATH_DISPLAY_LIMIT}.</p><div class="analysis-table-wrap"><table class="analysis-table"><thead><tr><th>Path</th><th>Winner · tiebreak range</th><th>Remaining outcomes</th></tr></thead><tbody>${rows.join("")}</tbody></table></div>`;
   const mode = document.getElementById("website-path-mode");
   mode.value = websiteScenarioMode;
   mode.onchange = () => { websiteScenarioMode = mode.value; renderWebsitePaths(data); renderWebsiteSankey(data); };
@@ -2717,7 +2725,9 @@ async function renderWebsitePicksForm(forceRefresh = false) {
   host.dataset.ready = configKey;
   host.innerHTML = '<p class="website-instructions">Loading games...</p>';
   document.getElementById("website-test-notice").classList.toggle("active", selection.testMode);
-  document.getElementById("website-week-name-label").textContent = `${selection.testMode ? "Preseason" : "Week"} ${selection.week} name`;
+  const weekNameLabel = document.getElementById("website-week-name-label");
+  weekNameLabel.textContent = `${selection.testMode ? "Preseason" : "Week"} ${selection.week} name`;
+  weekNameLabel.style.visibility = "visible";
   try {
     const stagedGames = await loadWebsiteStagedGames(selection, forceRefresh && !useCachedSlate);
     if (!stagedGames.length) throw new Error(`${selection.testMode ? "Preseason" : "Regular"} Week ${selection.week} has not been staged yet.`);
@@ -3905,7 +3915,7 @@ function percentFormatter(cell) { const v = cell.getValue(); if (v === "" || v =
 function isMoneyColumn(name) { return /money|won\s*\$|streak.*money/i.test(name) && !/won during|weeks during/i.test(name); }
 function isPercentColumn(name) { return /^%$|win\s*%|%\s*won/i.test(name); }
 function buildColumns(columns, rows) { return columns.map(col => { const sample = rows.find(r => r[col] !== "" && r[col] != null); const value = sample && sample[col]; const numeric = value !== undefined && value !== "" && !isNaN(parseFloat(String(value).replace(/[$,%]/g, ""))); const def = { title: col, field: col, headerFilter: true, headerFilterPlaceholder: "filter...", sorter: numeric ? "number" : "string" }; if (isMoneyColumn(col)) def.formatter = moneyFormatter; else if (isPercentColumn(col)) def.formatter = percentFormatter; return def; }); }
-function showView(view) { if (view === "alltime" && startupRoutePending) return; if (view !== "season") stopSeasonLiveRace(); if (view !== "weeks") stopWeekLiveRace(); document.querySelectorAll(".view").forEach(section => section.classList.toggle("active", section.id === `view-${view}`)); document.querySelectorAll("#nav button[data-view]").forEach(btn => btn.classList.toggle("active", btn.dataset.view === view)); history.replaceState(null, "", `#${view}`); if (websiteRoutes.includes(view) && view !== "picks-confirmation") localStorage.setItem("fbpLastView", view); websiteRefreshInstallHelp(view); websiteTrackEvent("page_view", view); }
+function showView(view) { if (view === "alltime" && startupRoutePending) return; if (view !== "season") stopSeasonLiveRace(); if (view !== "weeks") stopWeekLiveRace(); document.querySelectorAll(".view").forEach(section => section.classList.toggle("active", section.id === `view-${view}`)); document.querySelectorAll("#nav button[data-view]").forEach(btn => btn.classList.toggle("active", btn.dataset.view === view)); history.replaceState(null, "", `#${view === "week-one" ? "current-week" : view}`); if (websiteRoutes.includes(view) && view !== "picks-confirmation") localStorage.setItem("fbpLastView", view); websiteRefreshInstallHelp(view); websiteTrackEvent("page_view", view); }
 function renderProfile(name) { const overall = (tableData.overall || []).find(row => row.Name === name); const money = (tableData.money_won || []).find(row => row.Name === name); const weekly = dashboard.filter(row => row.Name === name); document.getElementById("profile-name").textContent = name || "Choose a player"; if (!overall) { document.getElementById("profile-stats").innerHTML = ""; return; } const stats = [["Wins", overall.Wins], ["Losses", overall.Losses], ["Win percentage", (Number(overall["%"] || 0) * 100).toFixed(2) + "%"], ["Plus/minus", overall["Plus/Minus"]], ["Total money won", "$" + Number(money?.["Total Money Won"] || 0).toLocaleString()], ["Weeks won", money?.["Weeks Won"] || 0]]; document.getElementById("profile-stats").innerHTML = stats.map(([label, value]) => `<div><span>${label}</span><strong>${value}</strong></div>`).join(""); const seasons = [...new Set(weekly.map(row => row.Season))].sort(); if (profileChart) profileChart.destroy(); profileChart = new Chart(document.getElementById("profile-history-chart"), { type: "line", data: { labels: seasons, datasets: [{ label: "Wins", data: seasons.map(season => weekly.filter(row => row.Season === season).reduce((sum, row) => sum + Number(row.Wins || 0), 0)), borderColor: colors[0], backgroundColor: colors[0] + "55", tension: .25 }, { label: "Average rank", data: seasons.map(season => { const rows = weekly.filter(row => row.Season === season); return rows.reduce((sum, row) => sum + Number(row.Rank || 0), 0) / rows.length; }), borderColor: colors[1], backgroundColor: colors[1] + "55", tension: .25, yAxisID: "rank" }] }, options: { responsive: true, maintainAspectRatio: false, scales: { x: { ticks: { color: "#91a0ae" }, grid: { color: "#2a3744" } }, y: { beginAtZero: true, ticks: { color: "#91a0ae" }, grid: { color: "#2a3744" } }, rank: { position: "right", reverse: true, ticks: { color: "#91a0ae" }, grid: { drawOnChartArea: false } } }, plugins: { legend: { labels: { color: "#e8eef5" } } } } }); }
 function renderProfileLegacy(name) {
   const overall = (tableData.overall || []).find(row => row.Name === name);
@@ -6763,7 +6773,7 @@ function initViews() {
   document.getElementById("week-choice").onchange = () => { renderWeek(); renderWeekLiveRace(); };
   document.getElementById("weekly-rank-player").onchange = renderWeeklyRank;
   document.getElementById("weekly-rank-display").onchange = renderWeeklyRank;
-  const requested = location.hash.slice(1);
+  const requested = location.hash.slice(1) === "current-week" ? "week-one" : location.hash.slice(1);
   const target = websiteRoutes.includes(requested) ? requested : requestedStartupRoute;
   if (!document.getElementById(`view-${target}`)?.classList.contains("active")) showView(target);
 }
@@ -7063,9 +7073,10 @@ function initializeWebsiteFilterPersistence() {
   })).observe(document.body, { childList: true, subtree: true });
 }
 initializeWebsiteFilterPersistence();
-const initialRoute = location.hash.slice(1);
+const initialRoute = location.hash.slice(1) === "current-week" ? "week-one" : location.hash.slice(1);
 const startupRoute = requestedStartupRoute;
-if (initialRoute !== startupRoute) history.replaceState(null, "", `#${startupRoute}`);
+const startupHashRoute = startupRoute === "week-one" ? "current-week" : startupRoute;
+if (location.hash.slice(1) !== startupHashRoute) history.replaceState(null, "", `#${startupHashRoute}`);
 const entryForm = document.getElementById("website-picks-form");
 const notificationRow = document.querySelector("#view-enter-picks .website-notification-row");
 const notificationSettings = document.querySelector("#view-enter-picks .notification-settings");
@@ -7093,7 +7104,6 @@ if (tiebreaker) {
   tiebreaker.addEventListener("input", validateTiebreaker);
   tiebreaker.addEventListener("change", validateTiebreaker);
 }
-updateWebsiteWeekLabels(websiteEntrySelection);
 showView(startupRoute);
 if (startupRoute === "week-one") websiteRenderCachedCurrentWeek();
 if (["week-one", "live-analysis"].includes(startupRoute) && !WEBSITE_SUBMISSIONS_ENDPOINT) {
