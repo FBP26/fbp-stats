@@ -99,12 +99,13 @@
   .website-side:has(input:checked) .website-team-record { color: #f7e7a0; }
   .website-side.right { justify-content: flex-end; text-align: right; }
   .website-side.right .website-team-choice { grid-template-columns: minmax(0, 1fr) 38px; grid-template-areas: "name logo" "record logo"; }
-  .website-side input { position: absolute; opacity: 0; pointer-events: none; }
+  .website-side input { position: absolute; width: 1px; height: 1px; margin: 0; opacity: 0; pointer-events: none; }
   .website-spread { display: flex; align-items: center; justify-content: center; color: var(--accent-2); font: bold 13px Arial, sans-serif; text-align: center; width: 48px; min-height: 28px; }
   @media (min-width: 1700px) {
-    #view-enter-picks .website-side { font-size: 18px; }
-    #view-enter-picks .website-team-choice { grid-template-columns: 62px minmax(0, 1fr); column-gap: 12px; }
-    #view-enter-picks .website-side.right .website-team-choice { grid-template-columns: minmax(0, 1fr) 62px; }
+    #view-enter-picks .website-side { justify-content: flex-end; font-size: 18px; }
+    #view-enter-picks .website-side.right { justify-content: flex-start; }
+    #view-enter-picks .website-team-choice { flex: 0 1 auto; grid-template-columns: 62px max-content; column-gap: 12px; width: auto; max-width: 100%; }
+    #view-enter-picks .website-side.right .website-team-choice { grid-template-columns: max-content 62px; }
     #view-enter-picks .website-team-logo { width: 62px; height: 62px; }
   }
   .website-instructions { margin: 0 0 18px; color: var(--muted); font: 13px/1.55 Arial, sans-serif; }
