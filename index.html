@@ -2909,14 +2909,14 @@ async function loadConfirmationProbability(submission) {
     const normalizedName = String(submission.name).trim().toLowerCase();
     let field = data.players || [];
     let player = field.find(row => String(row.name).trim().toLowerCase() === normalizedName);
-    if (!player?.winProbability) {
-      const liveData = { ...data, games: (data.games || []).map(game => ({ ...game })), players: field.map(row => ({ ...row, picks: [...(row.picks || [])] })) };
-      if (!player) liveData.players.push({ name: submission.name.trim(), weekName: submission.weekName, picks: submission.picks.map(pick => String(pick || "").toUpperCase()), bestBet: String(submission.bestBet || "").toUpperCase(), tiebreaker: submission.tiebreaker, wins: 0, losses: 0, total: 0, winPercent: "" });
-      websitePreparePlayers(liveData);
-      field = liveData.players;
-      player = field.find(row => String(row.name).trim().toLowerCase() === normalizedName);
-    }
-    if (!player?.winProbability) throw new Error("The live field calculation returned no probability.");
+    // Server-provided winProbability/pathsToVictory can be the placeholder string "0", which is truthy in JS;
+    // always recompute locally with the exact client model instead of trusting that placeholder.
+    const liveData = { ...data, games: (data.games || []).map(game => ({ ...game })), players: field.map(row => ({ ...row, picks: [...(row.picks || [])] })) };
+    if (!player) liveData.players.push({ name: submission.name.trim(), weekName: submission.weekName, picks: submission.picks.map(pick => String(pick || "").toUpperCase()), bestBet: String(submission.bestBet || "").toUpperCase(), tiebreaker: submission.tiebreaker, wins: 0, losses: 0, total: 0, winPercent: "" });
+    websitePreparePlayers(liveData);
+    field = liveData.players;
+    player = field.find(row => String(row.name).trim().toLowerCase() === normalizedName);
+    if (!player) throw new Error("The live field calculation returned no probability.");
     const probability = parseFloat(String(player.winProbability).replace("%", ""));
     const probabilityRank = 1 + field.filter(row => parseFloat(String(row.winProbability || "0").replace("%", "")) > probability).length;
     const tied = field.filter(row => parseFloat(String(row.winProbability || "0").replace("%", "")) === probability).length > 1;
