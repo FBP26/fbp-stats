@@ -90,7 +90,7 @@
   .website-team-logo { grid-area: logo; width: 38px; height: 38px; object-fit: contain; }
   .website-team-name { grid-area: name; overflow: hidden; font-weight: bold; text-overflow: ellipsis; white-space: nowrap; }
   .website-team-abbreviation { display: none; grid-area: name; font-weight: bold; }
-  .website-team-record { grid-area: record; color: var(--muted); font-size: 11px; }
+  .website-team-record { grid-area: record; color: var(--muted); font-size: 13px; }
   .website-mobile-venue { display: none; grid-area: venue; overflow: hidden; color: var(--muted); font-size: 8px; font-weight: normal; text-overflow: ellipsis; white-space: nowrap; }
   .website-home-marker { color: var(--muted); font-size: .8em; font-weight: normal; }
   .website-side:hover .website-team-choice { background: var(--panel-2); border-color: var(--border); }
@@ -101,11 +101,11 @@
   .website-side.right .website-team-choice { grid-template-columns: minmax(0, 1fr) 38px; grid-template-areas: "name logo" "record logo"; }
   .website-side input { position: absolute; width: 1px; height: 1px; margin: 0; opacity: 0; pointer-events: none; }
   .website-spread { display: flex; align-items: center; justify-content: center; color: var(--accent-2); font: bold 13px Arial, sans-serif; text-align: center; width: 48px; min-height: 28px; }
-  @media (min-width: 1700px) {
+  @media (min-width: 561px) {
     #view-enter-picks .website-side { justify-content: flex-end; font-size: 18px; }
     #view-enter-picks .website-side.right { justify-content: flex-start; }
-    #view-enter-picks .website-team-choice { flex: 0 1 auto; grid-template-columns: 62px max-content; column-gap: 12px; width: auto; max-width: 100%; }
-    #view-enter-picks .website-side.right .website-team-choice { grid-template-columns: max-content 62px; }
+    #view-enter-picks .website-team-choice { flex: 0 1 auto; grid-template-columns: 62px minmax(0, max-content); column-gap: 12px; width: auto; max-width: 100%; min-width: 0; }
+    #view-enter-picks .website-side.right .website-team-choice { grid-template-columns: minmax(0, max-content) 62px; }
     #view-enter-picks .website-team-logo { width: 62px; height: 62px; }
   }
   .website-instructions { margin: 0 0 18px; color: var(--muted); font: 13px/1.55 Arial, sans-serif; }
@@ -339,7 +339,7 @@
   }
   #loading { color: var(--muted); font: 13px Arial, sans-serif; }
   @media (max-width: 850px) { .workspace, .profile-grid, .profile-charts, .week-name-profile, .week-name-columns, .week-name-facts, .behavior-grid, .name-demographic-grid, .name-connection-grid, .name-dossier-grid { grid-template-columns: 1fr; } .week-name-summary { grid-template-columns: 1fr; } .behavior-summary { grid-template-columns: repeat(2, minmax(0, 1fr)); } .week-name-summary > div { border-top: 1px solid var(--border); border-left: 0; } .week-name-summary > div:first-child { border-top: 0; } .name-dossier-grid .week-name-fact, .name-dossier-grid .week-name-fact:nth-child(4), .name-dossier-grid .week-name-fact:nth-child(5) { grid-column: auto; } .name-demographic-grid > div, .name-connection-grid > div, .name-demographic-grid > div:nth-child(2), .name-connection-grid > div:nth-child(2) { border-top: 1px solid #2a374466; } .name-demographic-grid > div:first-child, .name-connection-grid > div:first-child { border-top: 0; } .week-name-thread { grid-template-columns: 1fr; gap: 5px; } .week-name-fact:nth-child(2) { border-top: 1px solid #2a374466; } .record-grid { grid-template-columns: repeat(2, 1fr); } .intro { display: block; } .intro p { margin-top: 14px; } }
-  @media (max-width: 560px) { main { padding: 18px 10px 44px; } .summary { grid-template-columns: repeat(2, 1fr); } .record-grid { grid-template-columns: 1fr; } .panel-head { align-items: start; flex-direction: column; } .explorer-controls, .path-controls { grid-template-columns: 1fr; } #view-games .explorer-controls, #view-weeks .explorer-controls { max-width: none; } #view-enter-picks .intro { margin-bottom: 12px; } #view-enter-picks .panel { padding: 8px; } #view-enter-picks .website-instructions { margin-bottom: 10px; font-size: 11px; line-height: 1.35; } #website-picks-form .website-identity-controls { grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 6px; } .website-notification-row { align-items: flex-start; flex-direction: column; gap: 5px; } .website-game-group legend { padding-top: 4px; } .website-game-row { padding: 1px 0 2px; } .website-matchup { grid-template-columns: minmax(0, 1fr) 36px minmax(0, 1fr); gap: 1px; } .website-side { min-height: 34px; padding: 2px 0; font-size: 11px; } .website-team-choice { grid-template-columns: 22px minmax(0, 1fr); grid-template-areas: "logo name" "logo record" "logo venue"; column-gap: 4px; padding: 3px; } .website-side.right .website-team-choice { grid-template-columns: minmax(0, 1fr) 22px; grid-template-areas: "name logo" "record logo" "venue logo"; } .website-team-logo { width: 22px; height: 22px; } .website-team-name { display: none; } .website-team-abbreviation, .website-team-record, .website-mobile-venue { display: block; } .website-team-record { overflow: hidden; font-size: 8px; line-height: 1; text-overflow: ellipsis; white-space: nowrap; } .website-side.right .website-team-record, .website-side.right .website-mobile-venue { text-align: right; } .website-context-venue { display: none; } .website-game-context-neutral .website-context-venue { display: inline; } .website-game-context { padding: 0 2px 1px; overflow: hidden; font-size: 8px; line-height: 1.1; text-overflow: ellipsis; white-space: nowrap; } .website-spread { width: 36px; min-height: 24px; font-size: 11px; } }
+  @media (max-width: 560px) { main { padding: 18px 10px 44px; } .summary { grid-template-columns: repeat(2, 1fr); } .record-grid { grid-template-columns: 1fr; } .panel-head { align-items: start; flex-direction: column; } .explorer-controls, .path-controls { grid-template-columns: 1fr; } #view-games .explorer-controls, #view-weeks .explorer-controls { max-width: none; } #view-enter-picks .intro { margin-bottom: 12px; } #view-enter-picks .panel { padding: 8px; } #view-enter-picks .website-instructions { margin-bottom: 10px; font-size: 11px; line-height: 1.35; } #website-picks-form .website-identity-controls { grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 6px; } .website-notification-row { align-items: flex-start; flex-direction: column; gap: 5px; } .website-game-group legend { padding-top: 4px; } .website-game-row { padding: 1px 0 2px; } .website-matchup { grid-template-columns: minmax(0, 1fr) 40px minmax(0, 1fr); gap: 3px; } .website-side { min-height: 46px; padding: 4px 0; font-size: 12px; } .website-team-choice { grid-template-columns: 32px minmax(0, 1fr); grid-template-areas: "logo name" "logo record" "logo venue"; column-gap: 6px; padding: 4px; } .website-side.right .website-team-choice { grid-template-columns: minmax(0, 1fr) 32px; grid-template-areas: "name logo" "record logo" "venue logo"; } .website-team-logo { width: 32px; height: 32px; } .website-team-name { display: none; } .website-team-abbreviation, .website-team-record, .website-mobile-venue { display: block; } .website-team-record { overflow: hidden; font-size: 10px; line-height: 1.2; text-overflow: ellipsis; white-space: nowrap; } .website-side.right .website-team-record, .website-side.right .website-mobile-venue { text-align: right; } .website-context-venue { display: none; } .website-game-context-neutral .website-context-venue { display: inline; } .website-game-context { padding: 0 2px 1px; overflow: hidden; font-size: 8px; line-height: 1.1; text-overflow: ellipsis; white-space: nowrap; } .website-spread { width: 40px; min-height: 26px; font-size: 11px; } }
   .picks-grid { border-collapse: collapse; font: 11px Arial, sans-serif; }
   .picks-grid th, .picks-grid td { padding: 2px 5px; border: 1px solid var(--border); text-align: center; vertical-align: middle; white-space: nowrap; }
   #week-one-table .picks-grid tbody tr { cursor: pointer; }
@@ -675,11 +675,11 @@
     .website-best-bet-code { display: block; font-size: 12px; }
     .website-game-group legend { padding-top: 3px; }
     .website-game-row { padding: 0 0 1px; }
-    .website-matchup { grid-template-columns: minmax(0, 1fr) 34px minmax(0, 1fr); gap: 0; }
-    .website-side { min-height: 32px; padding: 1px 0; }
-    .website-team-choice { grid-template-columns: 21px minmax(0, 1fr); grid-template-areas: "logo name" "logo record"; column-gap: 3px; padding: 2px 3px; }
-    .website-side.right .website-team-choice { grid-template-columns: minmax(0, 1fr) 21px; grid-template-areas: "name logo" "record logo"; }
-    .website-team-logo { width: 21px; height: 21px; }
+    .website-matchup { grid-template-columns: minmax(0, 1fr) 40px minmax(0, 1fr); gap: 3px; }
+    .website-side { min-height: 46px; padding: 4px 0; }
+    .website-team-choice { grid-template-columns: 32px minmax(0, 1fr); grid-template-areas: "logo name" "logo record"; column-gap: 6px; padding: 4px; }
+    .website-side.right .website-team-choice { grid-template-columns: minmax(0, 1fr) 32px; grid-template-areas: "name logo" "record logo"; }
+    .website-team-logo { width: 32px; height: 32px; }
     .website-mobile-venue { display: none !important; }
     .website-game-context { display: flex; flex-wrap: wrap; justify-content: center; gap: 2px 6px; align-items: center; padding: 1px 3px 3px; overflow: visible; font-size: 8px; line-height: 1.1; text-align: center; white-space: normal; }
     .website-game-context > span::before, .website-context-location { display: none; content: none; }
