@@ -3094,7 +3094,7 @@ async function sendWebsitePickConfirmationEmail(confirmationEmailToken) {
   const payload = { action: "send-pick-confirmation-email", confirmationEmailToken, confirmationText: websiteConfirmationEmailText() };
   for (let attempt = 0; attempt < 2; attempt++) {
     try {
-      const response = await fetch(WEBSITE_SUBMISSIONS_ENDPOINT, { method: "POST", headers: { "Content-Type": "text/plain;charset=utf-8" }, body: JSON.stringify(payload), signal: AbortSignal.timeout(20000) });
+      const response = await fetch(WEBSITE_SUBMISSIONS_ENDPOINT, { method: "POST", keepalive: true, headers: { "Content-Type": "text/plain;charset=utf-8" }, body: JSON.stringify(payload), signal: AbortSignal.timeout(20000) });
       const result = await response.json();
       if (response.ok && result.ok) return true;
     } catch (error) { console.warn(`Confirmation email attempt ${attempt + 1} failed:`, error); }
