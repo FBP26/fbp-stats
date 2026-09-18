@@ -489,13 +489,13 @@
   .tiebreak-ranges { margin-top: 14px; }
   .tiebreak-ranges h4 { margin: 0 0 4px; color: var(--accent); font: 11px Arial, sans-serif; letter-spacing: .5px; text-transform: uppercase; }
   .tiebreak-ranges p { margin: 0 0 8px; color: var(--muted); font: 11px/1.45 Arial, sans-serif; }
-  .tiebreak-range-bar { position: relative; display: flex; min-height: 48px; border: 1px solid var(--border); border-radius: 4px; overflow: hidden; }
-  .tiebreak-range-segment { position: relative; display: flex; min-width: 0; flex-direction: column; align-items: center; justify-content: center; gap: 1px; padding: 4px 3px; border-left: 1px solid #0006; background: var(--runner-color); color: #0b1015; font: 700 10px Arial, sans-serif; text-align: center; }
-  .tiebreak-range-segment:first-child { border-left: 0; }
-  .tiebreak-range-segment strong, .tiebreak-range-segment small { overflow: hidden; max-width: 100%; text-overflow: ellipsis; white-space: nowrap; }
+  .tiebreak-range-bar { position: relative; display: flex; flex-direction: column-reverse; height: 360px; border: 1px solid var(--border); border-radius: 4px; overflow: hidden; }
+  .tiebreak-range-segment { position: relative; display: flex; min-height: 0; flex-direction: row; align-items: center; justify-content: space-between; gap: 6px; padding: 3px 10px; border-top: 1px solid #0006; background: var(--runner-color); color: #0b1015; font: 700 10px Arial, sans-serif; text-align: left; }
+  .tiebreak-range-segment:last-child { border-top: 0; }
+  .tiebreak-range-segment strong, .tiebreak-range-segment small { overflow: hidden; max-width: 60%; text-overflow: ellipsis; white-space: nowrap; }
   .tiebreak-range-segment small { font-weight: 400; opacity: .85; }
-  .tiebreak-range-segment.split { min-width: 3px; background: repeating-linear-gradient(45deg, var(--runner-color) 0 3px, #fff9 3px 6px); }
-  .tiebreak-range-current { position: absolute; top: -3px; bottom: -3px; width: 2px; background: #fff; box-shadow: 0 0 0 1px #000a; }
+  .tiebreak-range-segment.split { min-height: 3px; background: repeating-linear-gradient(45deg, var(--runner-color) 0 3px, #fff9 3px 6px); }
+  .tiebreak-range-current { position: absolute; left: -3px; right: -3px; height: 2px; background: #fff; box-shadow: 0 0 0 1px #000a; }
   .tiebreak-range-legend { display: flex; flex-wrap: wrap; gap: 5px 12px; margin-top: 8px; }
   .tiebreak-range-legend-item { display: inline-flex; align-items: center; gap: 5px; color: var(--text); font: 10px Arial, sans-serif; }
   .tiebreak-range-legend-item i { display: inline-block; width: 9px; height: 9px; border-radius: 2px; background: var(--runner-color); }
@@ -3638,7 +3638,7 @@ function renderWebsiteTiebreakSnapshot(data, analysis) {
   if (!rangeIntro && segments.length) rangeIntro = shown.length < eligible.length ? `Top ${shown.length} of ${eligible.length} contenders still able to win the pool` : `Every remaining contender${shown.length === 1 ? "" : "s"} still able to win the pool`;
   let rangesHtml = "";
   if (segments.length) {
-    const VISUAL_FLOOR = 200, VISUAL_CEILING = 700;
+    const VISUAL_FLOOR = 0, VISUAL_CEILING = 700;
     const shares = segments.map((segment, index) => {
       const visualLow = index === 0 ? Math.max(segment.low, VISUAL_FLOOR) : segment.low;
       const visualHigh = index === segments.length - 1 ? Math.min(segment.high, VISUAL_CEILING) : segment.high;
@@ -3662,7 +3662,7 @@ function renderWebsiteTiebreakSnapshot(data, analysis) {
       return `<span class="tiebreak-range-segment${segment.split ? " split" : ""}" style="--runner-color:${websiteRaceColor(segment.names[0])};flex:${share}" title="${websiteEscapeHtml(segment.split ? `${label} split` : label)} · ${websiteEscapeHtml(rangeText)}${segment.split ? "" : ` (${width.toLocaleString()} totals)`}">${wide ? `<strong>${websiteEscapeHtml(label)}</strong><small>${websiteEscapeHtml(rangeText)}</small>` : ""}</span>`;
     }).join("");
     const legendHtml = legend.length ? `<div class="tiebreak-range-legend">${legend.map(item => `<span class="tiebreak-range-legend-item"><i style="--runner-color:${item.color}"></i>${websiteEscapeHtml(item.label)} <small>${websiteEscapeHtml(item.rangeText)}</small></span>`).join("")}</div>` : "";
-    rangesHtml = `<div class="tiebreak-ranges"><h4>Who owns which tiebreak range</h4><p>${rangeIntro}, by which final net-passing total would decide the tiebreak in their favor.</p><div class="tiebreak-range-bar">${barHtml}${currentYards != null ? `<span class="tiebreak-range-current" style="left:${scale(currentYards)}%" title="Current total · ${currentYards}"></span>` : ""}</div>${legendHtml}</div>`;
+    rangesHtml = `<div class="tiebreak-ranges"><h4>Who owns which tiebreak range</h4><p>${rangeIntro}, by which final net-passing total would decide the tiebreak in their favor.</p><div class="tiebreak-range-bar">${barHtml}${currentYards != null ? `<span class="tiebreak-range-current" style="bottom:${scale(currentYards)}%" title="Current total · ${currentYards}"></span>` : ""}</div>${legendHtml}</div>`;
   }
   tiebreak.innerHTML = `<h3>Tiebreak snapshot</h3><p>${liveContext}${markerCopy}</p>${currentMarker || guessMarker ? `<div class="tiebreak-strip">${currentMarker}${guessMarker}</div>` : ""}${clinched}${rangesHtml}`;
 }
