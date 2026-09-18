@@ -489,17 +489,19 @@
   .tiebreak-ranges { margin-top: 14px; }
   .tiebreak-ranges h4 { margin: 0 0 4px; color: var(--accent); font: 11px Arial, sans-serif; letter-spacing: .5px; text-transform: uppercase; }
   .tiebreak-ranges p { margin: 0 0 8px; color: var(--muted); font: 11px/1.45 Arial, sans-serif; }
-  .tiebreak-range-bar { position: relative; display: flex; flex-direction: column-reverse; height: 360px; border: 1px solid var(--border); border-radius: 4px; overflow: hidden; }
+  .tiebreak-ranges-row { display: flex; align-items: stretch; gap: 14px; }
+  .tiebreak-range-bar { position: relative; display: flex; flex-direction: column-reverse; flex: none; width: 210px; border: 1px solid var(--border); border-radius: 4px; overflow: hidden; }
   .tiebreak-range-segment { position: relative; display: flex; min-height: 0; flex-direction: row; align-items: center; justify-content: space-between; gap: 6px; padding: 3px 10px; border-top: 1px solid #0006; background: var(--runner-color); color: #0b1015; font: 700 10px Arial, sans-serif; text-align: left; }
   .tiebreak-range-segment:last-child { border-top: 0; }
   .tiebreak-range-segment strong, .tiebreak-range-segment small { overflow: hidden; max-width: 60%; text-overflow: ellipsis; white-space: nowrap; }
   .tiebreak-range-segment small { font-weight: 400; opacity: .85; }
-  .tiebreak-range-segment.split { min-height: 3px; background: repeating-linear-gradient(45deg, var(--runner-color) 0 3px, #fff9 3px 6px); }
-  .tiebreak-range-current { position: absolute; left: -3px; right: -3px; height: 2px; background: #fff; box-shadow: 0 0 0 1px #000a; }
-  .tiebreak-range-legend { display: flex; flex-wrap: wrap; gap: 5px 12px; margin-top: 8px; }
-  .tiebreak-range-legend-item { display: inline-flex; align-items: center; gap: 5px; color: var(--text); font: 10px Arial, sans-serif; }
-  .tiebreak-range-legend-item i { display: inline-block; width: 9px; height: 9px; border-radius: 2px; background: var(--runner-color); }
-  .tiebreak-range-legend-item small { color: var(--muted); }
+  .tiebreak-range-segment.split { background: repeating-linear-gradient(45deg, var(--runner-color) 0 3px, #fff9 3px 6px); font-size: 9px; padding: 1px 8px; }
+  .tiebreak-yards-axis { position: relative; flex: none; width: 30px; }
+  .tiebreak-yards-tick { position: absolute; left: 0; right: 0; transform: translateY(50%); color: var(--muted); font: 9px Arial, sans-serif; text-align: right; }
+  .tiebreak-live-gauge { position: relative; flex: none; width: 56px; border: 1px solid var(--border); border-radius: 4px; background: linear-gradient(180deg, #18232d, #202c38); }
+  .tiebreak-gauge-track { position: absolute; left: 50%; top: 0; bottom: 0; width: 2px; background: var(--border); transform: translateX(-50%); }
+  .tiebreak-gauge-marker { position: absolute; left: 50%; transform: translate(-50%, 50%); display: flex; flex-direction: column; align-items: center; gap: 2px; font-size: 18px; line-height: 1; }
+  .tiebreak-gauge-marker small { font: 700 9px Arial, sans-serif; color: var(--accent-2); white-space: nowrap; }
   @media (max-width: 760px) { .live-feature-grid { grid-template-columns: 1fr; } .live-feature.wide { grid-column: auto; } #live-what-if.live-feature-grid { grid-template-columns: repeat(2, minmax(0, 1fr)); } #live-what-if .live-feature.wide { grid-column: 1 / -1; } .live-superlatives { grid-template-columns: 1fr; } .lead-change { grid-template-columns: 82px minmax(0, 1fr); } .turning-point { grid-template-columns: 76px minmax(0, 1fr); } }
   .scenario-subrow td:first-child { padding-left: 22px; color: var(--muted); }
   .scenario-chance { color: var(--accent-2); white-space: nowrap; }
@@ -3638,16 +3640,15 @@ function renderWebsiteTiebreakSnapshot(data, analysis) {
   if (!rangeIntro && segments.length) rangeIntro = shown.length < eligible.length ? `Top ${shown.length} of ${eligible.length} contenders still able to win the pool` : `Every remaining contender${shown.length === 1 ? "" : "s"} still able to win the pool`;
   let rangesHtml = "";
   if (segments.length) {
-    const VISUAL_FLOOR = 0, VISUAL_CEILING = 700;
+    const VISUAL_FLOOR = 0, VISUAL_CEILING = 700, BASE_HEIGHT = 340, SEGMENT_MIN_PX = 30, SPLIT_PX = 20;
     const shares = segments.map((segment, index) => {
       const visualLow = index === 0 ? Math.max(segment.low, VISUAL_FLOOR) : segment.low;
       const visualHigh = index === segments.length - 1 ? Math.min(segment.high, VISUAL_CEILING) : segment.high;
       return Math.sqrt(Math.max(1, visualHigh - visualLow + 1));
     });
     const totalShare = shares.reduce((sum, value) => sum + value, 0) || 1;
-    const legend = [];
     const rangeLabel = (segment, index) => {
-      if (segment.split) return `${websiteJoinNames(segment.lowNames)} / ${websiteJoinNames(segment.highNames)} split at ${segment.low}`;
+      if (segment.split) return `split at ${segment.low}`;
       if (index === 0) return `${segment.high} and lower`;
       if (index === segments.length - 1) return `${segment.low} and up`;
       return `${segment.low}–${segment.high}`;
@@ -3656,13 +3657,17 @@ function renderWebsiteTiebreakSnapshot(data, analysis) {
       const width = segment.high - segment.low + 1;
       const label = segment.split ? `${websiteJoinNames(segment.lowNames)} / ${websiteJoinNames(segment.highNames)}` : websiteJoinNames(segment.names);
       const rangeText = rangeLabel(segment, index);
-      const share = shares[index];
-      const wide = share / totalShare >= .12;
-      if (!wide) legend.push({ label: segment.split ? `${label} split` : label, rangeText, color: websiteRaceColor(segment.names[0]) });
-      return `<span class="tiebreak-range-segment${segment.split ? " split" : ""}" style="--runner-color:${websiteRaceColor(segment.names[0])};flex:${share}" title="${websiteEscapeHtml(segment.split ? `${label} split` : label)} · ${websiteEscapeHtml(rangeText)}${segment.split ? "" : ` (${width.toLocaleString()} totals)`}">${wide ? `<strong>${websiteEscapeHtml(label)}</strong><small>${websiteEscapeHtml(rangeText)}</small>` : ""}</span>`;
+      const heightPx = segment.split ? SPLIT_PX : Math.max(SEGMENT_MIN_PX, Math.round(shares[index] / totalShare * BASE_HEIGHT));
+      const titleText = segment.split ? `${label} ${rangeText}` : `${label} · ${rangeText} (${width.toLocaleString()} totals)`;
+      return `<span class="tiebreak-range-segment${segment.split ? " split" : ""}" style="--runner-color:${websiteRaceColor(segment.names[0])};height:${heightPx}px" title="${websiteEscapeHtml(titleText)}"><strong>${websiteEscapeHtml(label)}</strong><small>${websiteEscapeHtml(rangeText)}</small></span>`;
     }).join("");
-    const legendHtml = legend.length ? `<div class="tiebreak-range-legend">${legend.map(item => `<span class="tiebreak-range-legend-item"><i style="--runner-color:${item.color}"></i>${websiteEscapeHtml(item.label)} <small>${websiteEscapeHtml(item.rangeText)}</small></span>`).join("")}</div>` : "";
-    rangesHtml = `<div class="tiebreak-ranges"><h4>Who owns which tiebreak range</h4><p>${rangeIntro}, by which final net-passing total would decide the tiebreak in their favor.</p><div class="tiebreak-range-bar">${barHtml}${currentYards != null ? `<span class="tiebreak-range-current" style="bottom:${scale(currentYards)}%" title="Current total · ${currentYards}"></span>` : ""}</div>${legendHtml}</div>`;
+    const GAUGE_MAX = VISUAL_CEILING;
+    const gaugeValue = currentYards != null ? currentYards : 0;
+    const gaugePct = Math.max(0, Math.min(100, gaugeValue / GAUGE_MAX * 100));
+    const axisHtml = [0, 100, 200, 300, 400, 500, 600, 700].map(yards => `<span class="tiebreak-yards-tick" style="bottom:${yards / GAUGE_MAX * 100}%">${yards}</span>`).join("");
+    const gaugeTitle = `${gameLabel ? `${gameLabel} · ` : ""}${isFinal ? "Final" : isLive ? "Live" : "Not started"} net passing · ${gaugeValue}`;
+    const gaugeHtml = `<div class="tiebreak-live-gauge" title="${websiteEscapeHtml(gaugeTitle)}"><span class="tiebreak-gauge-track"></span><span class="tiebreak-gauge-marker" style="bottom:${gaugePct}%">\uD83C\uDFC8<small>${gaugeValue}</small></span></div>`;
+    rangesHtml = `<div class="tiebreak-ranges"><h4>Who owns which tiebreak range</h4><p>${rangeIntro}, by which final net-passing total would decide the tiebreak in their favor.</p><div class="tiebreak-ranges-row"><div class="tiebreak-range-bar">${barHtml}</div><div class="tiebreak-yards-axis">${axisHtml}</div>${gaugeHtml}</div></div>`;
   }
   tiebreak.innerHTML = `<h3>Tiebreak snapshot</h3><p>${liveContext}${markerCopy}</p>${currentMarker || guessMarker ? `<div class="tiebreak-strip">${currentMarker}${guessMarker}</div>` : ""}${clinched}${rangesHtml}`;
 }
