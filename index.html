@@ -456,11 +456,13 @@
   .lead-change span, .live-superlative span { color: var(--muted); }
   .live-superlatives { display: grid; grid-template-columns: repeat(3, minmax(0, 1fr)); gap: 7px; margin-top: 10px; }
   .live-superlative { min-width: 0; padding: 9px; border-left: 3px solid var(--accent-2); background: #121920; font: 11px/1.4 Arial, sans-serif; }
-  .outcome-game { display: grid; grid-template-columns: minmax(0, 1fr) repeat(3, minmax(62px, auto)); gap: 5px; align-items: center; padding: 7px 0; border-top: 1px solid var(--border); }
+  .outcome-game { display: grid; grid-template-columns: minmax(0, 1fr) auto minmax(0, 1fr); gap: 5px; align-items: center; padding: 7px 0; border-top: 1px solid var(--border); }
   .outcome-game:first-child { border-top: 0; }
-  .outcome-game > span { overflow: hidden; color: var(--muted); font: 11px Arial, sans-serif; text-overflow: ellipsis; white-space: nowrap; }
-  .outcome-game button, .outcome-reset { min-height: 32px; border: 1px solid var(--border); border-radius: 4px; background: #121920; color: var(--text); padding: 5px 8px; font: 10px Arial, sans-serif; cursor: pointer; }
-  .outcome-game button.selected { border-color: var(--accent); background: #4a3c10; color: #fff1b8; }
+  .outcome-team, .outcome-reset { min-height: 32px; border: 1px solid var(--border); border-radius: 4px; background: #121920; color: var(--text); padding: 5px 4px; font: 700 11px Arial, sans-serif; cursor: pointer; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+  .outcome-team.selected { border-color: var(--accent); background: #4a3c10; color: #fff1b8; }
+  .outcome-spread { display: flex; align-items: center; justify-content: center; min-width: 32px; padding: 5px 6px; color: var(--muted); font: 10px Arial, sans-serif; white-space: nowrap; }
+  button.outcome-spread { border: 1px solid var(--border); border-radius: 4px; background: #121920; cursor: pointer; }
+  button.outcome-spread.selected { border-color: var(--accent); background: #4a3c10; color: #fff1b8; }
   .outcome-reset { margin-top: 9px; }
   .calculation-confidence { display: inline-flex; align-items: center; gap: 6px; margin-bottom: 10px; padding: 5px 8px; border: 1px solid var(--border); color: var(--muted); font: 10px Arial, sans-serif; }
   .calculation-confidence strong { color: var(--positive); text-transform: uppercase; }
@@ -480,7 +482,7 @@
   .tiebreak-marker.guess span { top: 54px; color: #8eb8ff; }
   .tiebreak-clinched { margin-top: 10px; color: var(--text); }
   .tiebreak-guesses { display: flex; flex-wrap: wrap; gap: 5px 12px; margin-top: 9px; color: var(--muted); font: 10px Arial, sans-serif; }
-  @media (max-width: 760px) { .live-feature-grid { grid-template-columns: 1fr; } .live-feature.wide { grid-column: auto; } .live-superlatives { grid-template-columns: 1fr; } .lead-change { grid-template-columns: 82px minmax(0, 1fr); } .outcome-game { grid-template-columns: minmax(0, 1fr) repeat(3, 52px); } .turning-point { grid-template-columns: 76px minmax(0, 1fr); } }
+  @media (max-width: 760px) { .live-feature-grid { grid-template-columns: 1fr; } .live-feature.wide { grid-column: auto; } #live-what-if.live-feature-grid { grid-template-columns: repeat(2, minmax(0, 1fr)); } #live-what-if .live-feature.wide { grid-column: 1 / -1; } .live-superlatives { grid-template-columns: 1fr; } .lead-change { grid-template-columns: 82px minmax(0, 1fr); } .turning-point { grid-template-columns: 76px minmax(0, 1fr); } }
   .scenario-subrow td:first-child { padding-left: 22px; color: var(--muted); }
   .scenario-chance { color: var(--accent-2); white-space: nowrap; }
   .analysis-note { margin: 0 0 10px; color: var(--muted); font: 11px Arial, sans-serif; }
@@ -3535,7 +3537,7 @@ function renderWebsiteLiveScenarioTools(data, baseAnalysis = null) {
   group.hidden = false;
   const context = `${data.season}-${data.week}-${websiteScenarioMode}`;
   if (group.dataset.context !== context) { websiteForcedOutcomes = {}; group.dataset.context = context; }
-  switchboard.innerHTML = `<h3>Outcome switchboard</h3><p>Lock any remaining result to see how the projected finish changes.</p><div class="live-feature-list">${scenarios.variable.map(({ game, index }) => { const outcomes = [game.underdog, game.favorite, ...(Number(game.spread) % 1 === 0 ? ["PUSH"] : [])]; return `<div class="outcome-game"><span>${websiteEscapeHtml(`${String(game.favorite).toUpperCase()} ${game.spread} ${String(game.underdog).toUpperCase()}`)}</span>${outcomes.map(outcome => `<button type="button" data-game-index="${index}" data-outcome="${websiteEscapeHtml(outcome)}" class="${websiteForcedOutcomes[index] === outcome ? "selected" : ""}">${websiteEscapeHtml(outcome === "PUSH" ? "Push" : String(outcome).toUpperCase())}</button>`).join("")}</div>`; }).join("")}</div><button id="outcome-switchboard-reset" class="outcome-reset" type="button">Reset outcomes</button>`;
+  switchboard.innerHTML = `<h3>Outcome switchboard</h3><p>Lock any remaining result to see how the projected finish changes.</p><div class="live-feature-list">${scenarios.variable.map(({ game, index }) => { const pushable = Number(game.spread) % 1 === 0; const spreadCell = pushable ? `<button type="button" data-game-index="${index}" data-outcome="PUSH" class="outcome-spread${websiteForcedOutcomes[index] === "PUSH" ? " selected" : ""}">${websiteEscapeHtml(game.spread)}</button>` : `<span class="outcome-spread">${websiteEscapeHtml(game.spread)}</span>`; return `<div class="outcome-game"><button type="button" data-game-index="${index}" data-outcome="${websiteEscapeHtml(game.favorite)}" class="outcome-team${websiteForcedOutcomes[index] === game.favorite ? " selected" : ""}">${websiteEscapeHtml(teamDisplay(game.favorite, game))}</button>${spreadCell}<button type="button" data-game-index="${index}" data-outcome="${websiteEscapeHtml(game.underdog)}" class="outcome-team${websiteForcedOutcomes[index] === game.underdog ? " selected" : ""}">${websiteEscapeHtml(teamDisplay(game.underdog, game))}</button></div>`; }).join("")}</div><button id="outcome-switchboard-reset" class="outcome-reset" type="button">Reset outcomes</button>`;
   switchboard.querySelectorAll("[data-game-index]").forEach(button => { button.onclick = () => { const index = Number(button.dataset.gameIndex), outcome = button.dataset.outcome; if (websiteForcedOutcomes[index] === outcome) delete websiteForcedOutcomes[index]; else websiteForcedOutcomes[index] = outcome; renderWebsiteLiveScenarioTools(data); }; });
   document.getElementById("outcome-switchboard-reset").onclick = () => { websiteForcedOutcomes = {}; renderWebsiteLiveScenarioTools(data); };
   const probabilities = websiteCachedConditionalProbabilities(data, websiteForcedOutcomes);
