@@ -489,13 +489,18 @@
   .tiebreak-ranges { margin-top: 14px; }
   .tiebreak-ranges h4 { margin: 0 0 4px; color: var(--accent); font: 11px Arial, sans-serif; letter-spacing: .5px; text-transform: uppercase; }
   .tiebreak-ranges p { margin: 0 0 8px; color: var(--muted); font: 11px/1.45 Arial, sans-serif; }
-  .tiebreak-ranges-row { display: flex; align-items: stretch; gap: 14px; }
+  .tiebreak-ranges-row { display: flex; align-items: stretch; gap: 10px; }
+  .tiebreak-range-callouts { position: relative; flex: none; }
+  .tiebreak-callout-label { position: absolute; left: 0; right: 14px; transform: translateY(50%); display: flex; align-items: baseline; gap: 4px; color: var(--text); font: 700 9px Arial, sans-serif; white-space: nowrap; overflow: hidden; }
+  .tiebreak-callout-label i { display: inline-block; width: 7px; height: 7px; border-radius: 2px; flex: none; }
+  .tiebreak-callout-label small { font-weight: 400; color: var(--muted); overflow: hidden; text-overflow: ellipsis; }
+  .tiebreak-callout-lines { position: absolute; inset: 0; width: 100%; height: 100%; }
+  .tiebreak-callout-lines line { stroke: var(--border); stroke-width: 1; }
   .tiebreak-range-bar { position: relative; display: flex; flex-direction: column-reverse; flex: none; width: 210px; border: 1px solid var(--border); border-radius: 4px; overflow: hidden; }
-  .tiebreak-range-segment { position: relative; display: flex; min-height: 0; flex-direction: row; align-items: center; justify-content: space-between; gap: 6px; padding: 3px 10px; border-top: 1px solid #0006; background: var(--runner-color); color: #0b1015; font: 700 10px Arial, sans-serif; text-align: left; }
+  .tiebreak-range-segment { position: relative; display: flex; min-height: 0; flex-direction: row; align-items: center; justify-content: space-between; gap: 6px; padding: 0 10px; border-top: 1px solid #0006; color: #0b1015; font: 700 10px Arial, sans-serif; text-align: left; }
   .tiebreak-range-segment:last-child { border-top: 0; }
   .tiebreak-range-segment strong, .tiebreak-range-segment small { overflow: hidden; max-width: 60%; text-overflow: ellipsis; white-space: nowrap; }
   .tiebreak-range-segment small { font-weight: 400; opacity: .85; }
-  .tiebreak-range-segment.split { background: repeating-linear-gradient(45deg, var(--runner-color) 0 3px, #fff9 3px 6px); font-size: 9px; padding: 1px 8px; }
   .tiebreak-yards-axis { position: relative; flex: none; width: 30px; }
   .tiebreak-yards-tick { position: absolute; left: 0; right: 0; transform: translateY(50%); color: var(--muted); font: 9px Arial, sans-serif; text-align: right; }
   .tiebreak-live-gauge { position: relative; flex: none; width: 56px; border: 1px solid var(--border); border-radius: 4px; background: linear-gradient(180deg, #18232d, #202c38); }
@@ -3640,36 +3645,67 @@ function renderWebsiteTiebreakSnapshot(data, analysis) {
   if (!rangeIntro && segments.length) rangeIntro = shown.length < eligible.length ? `Top ${shown.length} of ${eligible.length} contenders still able to win the pool` : `Every remaining contender${shown.length === 1 ? "" : "s"} still able to win the pool`;
   let rangesHtml = "";
   if (segments.length) {
-    const VISUAL_FLOOR = 0, VISUAL_CEILING = 700, BASE_HEIGHT = 340, SEGMENT_MIN_PX = 30, SPLIT_PX = 20;
-    const shares = segments.map((segment, index) => {
-      const visualLow = index === 0 ? Math.max(segment.low, VISUAL_FLOOR) : segment.low;
-      const visualHigh = index === segments.length - 1 ? Math.min(segment.high, VISUAL_CEILING) : segment.high;
-      return Math.sqrt(Math.max(1, visualHigh - visualLow + 1));
-    });
-    const totalShare = shares.reduce((sum, value) => sum + value, 0) || 1;
+    const VISUAL_FLOOR = 0, VISUAL_CEILING = 700, TOTAL_BAR_PX = 420, INLINE_MIN_PX = 24, SPLIT_MIN_PX = 2, LABEL_GAP_PX = 15, CALLOUT_LABEL_PX = 116, CALLOUT_LINE_PX = 14;
+    const totalVisualSpan = VISUAL_CEILING - VISUAL_FLOOR + 1;
     const rangeLabel = (segment, index) => {
-      if (segment.split) return `split at ${segment.low}`;
+      if (segment.split) return "split";
       if (index === 0) return `${segment.high} and lower`;
       if (index === segments.length - 1) return `${segment.low} and up`;
       return `${segment.low}–${segment.high}`;
     };
-    const barHtml = segments.map((segment, index) => {
+    const rangeTitle = (segment, index) => segment.split ? `split at ${segment.low}` : rangeLabel(segment, index);
+    let colorCursor = -1;
+    const segmentColors = segments.map(segment => {
+      if (segment.split) return null;
+      colorCursor += 1;
+      const [hue, saturation, lightness] = WEBSITE_RACE_TOP_COLORS[colorCursor % WEBSITE_RACE_TOP_COLORS.length];
+      return `hsl(${hue} ${saturation}% ${lightness}% / 1)`;
+    });
+    segments.forEach((segment, index) => {
+      if (segment.split) segmentColors[index] = { isSplit: true, low: segmentColors[index - 1] || segmentColors[0], high: segmentColors[index + 1] || segmentColors[0] };
+    });
+    const colorCss = index => { const color = segmentColors[index]; return color && color.isSplit ? `repeating-linear-gradient(45deg, ${color.low} 0 3px, ${color.high} 3px 6px)` : color; };
+    let cursorPx = 0;
+    const laidOut = segments.map((segment, index) => {
+      const visualLow = index === 0 ? Math.max(segment.low, VISUAL_FLOOR) : segment.low;
+      const visualHigh = index === segments.length - 1 ? Math.min(segment.high, VISUAL_CEILING) : segment.high;
+      const span = Math.max(0, visualHigh - visualLow + 1);
+      const heightPx = segment.split ? SPLIT_MIN_PX : Math.max(.5, span / totalVisualSpan * TOTAL_BAR_PX);
+      const bottomPx = cursorPx;
+      cursorPx += heightPx;
+      return { segment, index, heightPx, centerPx: bottomPx + heightPx / 2 };
+    });
+    const barHtml = laidOut.map(({ segment, index, heightPx }) => {
       const width = segment.high - segment.low + 1;
       const label = segment.split ? `${websiteJoinNames(segment.lowNames)} / ${websiteJoinNames(segment.highNames)}` : websiteJoinNames(segment.names);
       const rangeText = rangeLabel(segment, index);
-      const heightPx = segment.split ? SPLIT_PX : Math.max(SEGMENT_MIN_PX, Math.round(shares[index] / totalShare * BASE_HEIGHT));
-      const titleText = segment.split ? `${label} ${rangeText}` : `${label} · ${rangeText} (${width.toLocaleString()} totals)`;
-      return `<span class="tiebreak-range-segment${segment.split ? " split" : ""}" style="--runner-color:${websiteRaceColor(segment.names[0])};height:${heightPx}px" title="${websiteEscapeHtml(titleText)}"><strong>${websiteEscapeHtml(label)}</strong><small>${websiteEscapeHtml(rangeText)}</small></span>`;
+      const inline = !segment.split && heightPx >= INLINE_MIN_PX;
+      const titleText = segment.split ? `${label} ${rangeTitle(segment, index)}` : `${label} · ${rangeTitle(segment, index)} (${width.toLocaleString()} totals)`;
+      return `<span class="tiebreak-range-segment${segment.split ? " split" : ""}" style="background:${colorCss(index)};height:${heightPx.toFixed(2)}px" title="${websiteEscapeHtml(titleText)}">${inline ? `<strong>${websiteEscapeHtml(label)}</strong><small>${websiteEscapeHtml(rangeText)}</small>` : ""}</span>`;
     }).join("");
+    let prevLabelY = -Infinity;
+    const callouts = laidOut.filter(({ segment, heightPx }) => segment.split || heightPx < INLINE_MIN_PX).map(item => {
+      const labelY = Math.max(item.centerPx, prevLabelY + LABEL_GAP_PX);
+      prevLabelY = labelY;
+      return { ...item, labelY };
+    });
+    const calloutLabelsHtml = callouts.map(({ segment, index, labelY }) => {
+      const label = segment.split ? `${websiteJoinNames(segment.lowNames)} / ${websiteJoinNames(segment.highNames)}` : websiteJoinNames(segment.names);
+      const rangeText = rangeLabel(segment, index);
+      return `<span class="tiebreak-callout-label" style="bottom:${labelY}px"><i style="background:${colorCss(index)}"></i>${websiteEscapeHtml(label)} <small>${websiteEscapeHtml(rangeText)}</small></span>`;
+    }).join("");
+    const calloutLinesHtml = callouts.map(({ centerPx, labelY }) => `<line x1="${CALLOUT_LABEL_PX}" y1="${TOTAL_BAR_PX - labelY}" x2="${CALLOUT_LABEL_PX + CALLOUT_LINE_PX}" y2="${TOTAL_BAR_PX - centerPx}" />`).join("");
+    const calloutsHtml = callouts.length ? `<div class="tiebreak-range-callouts" style="width:${CALLOUT_LABEL_PX + CALLOUT_LINE_PX}px">${calloutLabelsHtml}<svg class="tiebreak-callout-lines" viewBox="0 0 ${CALLOUT_LABEL_PX + CALLOUT_LINE_PX} ${TOTAL_BAR_PX}" preserveAspectRatio="none">${calloutLinesHtml}</svg></div>` : "";
     const GAUGE_MAX = VISUAL_CEILING;
     const gaugeValue = currentYards != null ? currentYards : 0;
     const gaugePct = Math.max(0, Math.min(100, gaugeValue / GAUGE_MAX * 100));
     const axisHtml = [0, 100, 200, 300, 400, 500, 600, 700].map(yards => `<span class="tiebreak-yards-tick" style="bottom:${yards / GAUGE_MAX * 100}%">${yards}</span>`).join("");
     const gaugeTitle = `${gameLabel ? `${gameLabel} · ` : ""}${isFinal ? "Final" : isLive ? "Live" : "Not started"} net passing · ${gaugeValue}`;
     const gaugeHtml = `<div class="tiebreak-live-gauge" title="${websiteEscapeHtml(gaugeTitle)}"><span class="tiebreak-gauge-track"></span><span class="tiebreak-gauge-marker" style="bottom:${gaugePct}%">\uD83C\uDFC8<small>${gaugeValue}</small></span></div>`;
-    rangesHtml = `<div class="tiebreak-ranges"><h4>Who owns which tiebreak range</h4><p>${rangeIntro}, by which final net-passing total would decide the tiebreak in their favor.</p><div class="tiebreak-ranges-row"><div class="tiebreak-range-bar">${barHtml}</div><div class="tiebreak-yards-axis">${axisHtml}</div>${gaugeHtml}</div></div>`;
+    const gameNote = gameLabel ? ` The chart on the right tracks ${websiteEscapeHtml(gameLabel)}'s live net passing.` : "";
+    rangesHtml = `<div class="tiebreak-ranges"><h4>Who owns which tiebreak range</h4><p>${rangeIntro}, by which final net-passing total would decide the tiebreak in their favor.${gameNote}</p><div class="tiebreak-ranges-row">${calloutsHtml}<div class="tiebreak-range-bar" style="height:${TOTAL_BAR_PX}px">${barHtml}</div><div class="tiebreak-yards-axis">${axisHtml}</div>${gaugeHtml}</div></div>`;
   }
-  tiebreak.innerHTML = `<h3>Tiebreak snapshot</h3><p>${liveContext}${markerCopy}</p>${currentMarker || guessMarker ? `<div class="tiebreak-strip">${currentMarker}${guessMarker}</div>` : ""}${clinched}${rangesHtml}`;
+  tiebreak.innerHTML = `<p>${liveContext}${markerCopy}</p>${currentMarker || guessMarker ? `<div class="tiebreak-strip">${currentMarker}${guessMarker}</div>` : ""}${clinched}${rangesHtml}`;
 }
 function renderWebsiteLiveAnalysis(data) {
   renderWebsiteRace(data);
