@@ -3613,8 +3613,8 @@ function renderWebsiteTiebreakSnapshot(data, analysis) {
   const clinched = guaranteedPlayer ? `<p class="tiebreak-clinched"><strong>${websiteEscapeHtml(guaranteedPlayer.name)} ${isFinal ? "won" : "has clinched"} the week</strong>${isFinal ? "." : " regardless of the final yardage."} The ${websiteEscapeHtml(guaranteedPlayer.tiebreaker)} guess is shown for reference.</p>` : "";
   const markerCopy = currentMarker && guessMarker ? ` The markers show the ${isFinal ? "final" : "current"} total and ${websiteEscapeHtml(guaranteedPlayer.name)}'s guess.` : guessMarker ? ` The marker shows ${websiteEscapeHtml(guaranteedPlayer.name)}'s guess.` : currentMarker ? ` The marker shows the ${isFinal ? "final" : "current"} total.` : "";
   const unresolvedCount = analysis?.scenarios?.variable?.length ?? 0;
-  const anyGameResolved = analysisData.games.some((game, index) => websiteGameWinner(analysisData, index) !== null);
-  const useWinsLeaders = !isFinal && anyGameResolved && unresolvedCount > WEBSITE_EXACT_SCENARIO_GAME_LIMIT;
+  const anyWinsRecorded = analysisData.players.some(player => (Number(player.wins) || 0) > 0);
+  const useWinsLeaders = !isFinal && anyWinsRecorded && unresolvedCount > WEBSITE_EXACT_SCENARIO_GAME_LIMIT;
   let eligible = [], rangeIntro = "";
   if (useWinsLeaders) {
     const topWins = Math.max(0, ...analysisData.players.map(player => Number(player.wins) || 0));
