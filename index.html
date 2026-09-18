@@ -486,6 +486,15 @@
   .tiebreak-marker.guess span { top: 54px; color: #8eb8ff; }
   .tiebreak-clinched { margin-top: 10px; color: var(--text); }
   .tiebreak-guesses { display: flex; flex-wrap: wrap; gap: 5px 12px; margin-top: 9px; color: var(--muted); font: 10px Arial, sans-serif; }
+  .tiebreak-ranges { margin-top: 14px; }
+  .tiebreak-ranges h4 { margin: 0 0 4px; color: var(--accent); font: 11px Arial, sans-serif; letter-spacing: .5px; text-transform: uppercase; }
+  .tiebreak-ranges p { margin: 0 0 8px; color: var(--muted); font: 11px/1.45 Arial, sans-serif; }
+  .tiebreak-range-bar { position: relative; display: flex; min-height: 48px; border: 1px solid var(--border); border-radius: 4px; overflow: hidden; }
+  .tiebreak-range-segment { position: relative; display: flex; min-width: 0; flex-direction: column; align-items: center; justify-content: center; gap: 1px; padding: 4px 3px; border-left: 1px solid #0006; background: var(--runner-color); color: #0b1015; font: 700 10px Arial, sans-serif; text-align: center; }
+  .tiebreak-range-segment:first-child { border-left: 0; }
+  .tiebreak-range-segment strong, .tiebreak-range-segment small { overflow: hidden; max-width: 100%; text-overflow: ellipsis; white-space: nowrap; }
+  .tiebreak-range-segment small { font-weight: 400; opacity: .85; }
+  .tiebreak-range-current { position: absolute; top: -3px; bottom: -3px; width: 2px; background: #fff; box-shadow: 0 0 0 1px #000a; }
   @media (max-width: 760px) { .live-feature-grid { grid-template-columns: 1fr; } .live-feature.wide { grid-column: auto; } #live-what-if.live-feature-grid { grid-template-columns: repeat(2, minmax(0, 1fr)); } #live-what-if .live-feature.wide { grid-column: 1 / -1; } .live-superlatives { grid-template-columns: 1fr; } .lead-change { grid-template-columns: 82px minmax(0, 1fr); } .turning-point { grid-template-columns: 76px minmax(0, 1fr); } }
   .scenario-subrow td:first-child { padding-left: 22px; color: var(--muted); }
   .scenario-chance { color: var(--accent-2); white-space: nowrap; }
@@ -739,7 +748,7 @@
   </section>
   <section id="view-live-analysis" class="view">
     <section class="intro"><div><h2>Live</h2></div><p>Weekly standings, what-if outcomes, and paths to victory. A full refresh can take up to a minute.</p></section>
-    <div id="live-analysis-host" class="panel"><p id="live-analysis-refresh-status" class="analysis-note">Loading the latest live standings and scenarios...</p><section id="week-one-live-race" class="live-race"><div class="live-race-head"><div><h3>Loading Live</h3><p>Building the latest race and scenarios. This can take up to a minute.</p></div></div></section><section id="live-tiebreak-target" class="live-feature wide"></section><div id="live-what-if" class="live-feature-grid"><section id="live-outcome-switchboard" class="live-feature"></section><section id="live-projected-standings" class="live-feature"></section><section id="live-rooting-matrix" class="live-feature wide"></section></div><div id="week-one-scenarios" class="weekly-subview"></div><div id="week-one-sankey" class="weekly-subview"></div><div id="live-race-stories" class="live-feature-grid"><section id="live-turning-points" class="live-feature"></section><section id="live-lead-changes" class="live-feature"></section><section id="live-superlatives" class="live-feature wide"></section></div><div id="week-one-recap"></div></div>
+    <div id="live-analysis-host" class="panel"><p id="live-analysis-refresh-status" class="analysis-note">Loading the latest live standings and scenarios...</p><section id="week-one-live-race" class="live-race"><div class="live-race-head"><div><h3>Loading Live</h3><p>Building the latest race and scenarios. This can take up to a minute.</p></div></div></section><div id="live-what-if" class="live-feature-grid"><section id="live-outcome-switchboard" class="live-feature"></section><section id="live-projected-standings" class="live-feature"></section><section id="live-rooting-matrix" class="live-feature wide"></section></div><section id="live-tiebreak-target" class="live-feature wide"></section><div id="week-one-scenarios" class="weekly-subview"></div><div id="week-one-sankey" class="weekly-subview"></div><div id="live-race-stories" class="live-feature-grid"><section id="live-turning-points" class="live-feature"></section><section id="live-lead-changes" class="live-feature"></section><section id="live-superlatives" class="live-feature wide"></section></div><div id="week-one-recap"></div></div>
   </section>
   <section id="view-alltime" class="view">
     <section class="intro"><div><h2>All Time</h2></div><p>Seventeen seasons of results in one place: the career leaders, every champion, and how the long-timers built their records.</p></section>
@@ -3565,7 +3574,28 @@ function renderWebsiteLiveScenarioTools(data, baseAnalysis = null) {
   } else rooting.innerHTML = "";
   return analysis;
 }
-function renderWebsiteTiebreakSnapshot(data) {
+function websiteTiebreakRangeSegments(players) {
+  const groups = new Map();
+  players.forEach(player => {
+    const guess = Number(player.tiebreaker);
+    if (!Number.isFinite(guess)) return;
+    const key = Math.round(guess * 1000) / 1000;
+    if (!groups.has(key)) groups.set(key, { guess: key, names: [] });
+    groups.get(key).names.push(player.name);
+  });
+  const sorted = [...groups.values()].sort((left, right) => left.guess - right.guess);
+  if (!sorted.length) return [];
+  const segments = [];
+  let start = WEBSITE_TIEBREAK_MIN;
+  sorted.forEach((group, index) => {
+    const next = sorted[index + 1];
+    const high = next ? Math.floor((group.guess + next.guess) / 2) : WEBSITE_TIEBREAK_MAX;
+    segments.push({ names: group.names, guess: group.guess, low: start, high: Math.max(start, high) });
+    start = high + 1;
+  });
+  return segments;
+}
+function renderWebsiteTiebreakSnapshot(data, analysis) {
   const tiebreak = document.getElementById("live-tiebreak-target");
   if (!tiebreak) return;
   const analysisData = websiteAnalysisData(data), scale = value => Math.max(0, Math.min(100, (Number(value) - WEBSITE_TIEBREAK_MIN) * 100 / (WEBSITE_TIEBREAK_MAX - WEBSITE_TIEBREAK_MIN)));
@@ -3578,13 +3608,18 @@ function renderWebsiteTiebreakSnapshot(data) {
   const guessMarker = guaranteedPlayer ? `<span class="tiebreak-marker guess" style="left:${scale(guaranteedPlayer.tiebreaker)}%"><span>${websiteEscapeHtml(guaranteedPlayer.name)} · ${websiteEscapeHtml(guaranteedPlayer.tiebreaker)}</span></span>` : "";
   const clinched = guaranteedPlayer ? `<p class="tiebreak-clinched"><strong>${websiteEscapeHtml(guaranteedPlayer.name)} ${isFinal ? "won" : "has clinched"} the week</strong>${isFinal ? "." : " regardless of the final yardage."} The ${websiteEscapeHtml(guaranteedPlayer.tiebreaker)} guess is shown for reference.</p>` : "";
   const markerCopy = currentMarker && guessMarker ? ` The markers show the ${isFinal ? "final" : "current"} total and ${websiteEscapeHtml(guaranteedPlayer.name)}'s guess.` : guessMarker ? ` The marker shows ${websiteEscapeHtml(guaranteedPlayer.name)}'s guess.` : currentMarker ? ` The marker shows the ${isFinal ? "final" : "current"} total.` : "";
-  tiebreak.innerHTML = `<h3>Tiebreak snapshot</h3><p>${liveContext}${markerCopy}</p>${currentMarker || guessMarker ? `<div class="tiebreak-strip">${currentMarker}${guessMarker}</div>` : ""}${clinched}`;
+  const eligible = !isFinal && analysis?.contenders?.length > 1 ? analysis.contenders.map(contender => contender.player) : [];
+  const shown = eligible.slice(0, 10);
+  const segments = shown.length > 1 ? websiteTiebreakRangeSegments(shown) : [];
+  const totalWidth = WEBSITE_TIEBREAK_MAX - WEBSITE_TIEBREAK_MIN + 1;
+  const rangesHtml = segments.length ? `<div class="tiebreak-ranges"><h4>Who owns which tiebreak range</h4><p>${shown.length < eligible.length ? `Top ${shown.length} of ${eligible.length}` : `Every remaining`} contender${shown.length === 1 ? "" : "s"} still able to win the pool, by which final net-passing total would decide the tiebreak in their favor.</p><div class="tiebreak-range-bar">${segments.map(segment => { const width = segment.high - segment.low + 1; const label = websiteJoinNames(segment.names); const wide = width / totalWidth >= .05; return `<span class="tiebreak-range-segment" style="--runner-color:${websiteRaceColor(segment.names[0])};flex:${width}" title="${websiteEscapeHtml(label)} · ${segment.low}–${segment.high} (${width.toLocaleString()} totals)">${wide ? `<strong>${websiteEscapeHtml(label)}</strong><small>${segment.low}–${segment.high}</small>` : ""}</span>`; }).join("")}${currentYards != null ? `<span class="tiebreak-range-current" style="left:${scale(currentYards)}%" title="Current total · ${currentYards}"></span>` : ""}</div></div>` : "";
+  tiebreak.innerHTML = `<h3>Tiebreak snapshot</h3><p>${liveContext}${markerCopy}</p>${currentMarker || guessMarker ? `<div class="tiebreak-strip">${currentMarker}${guessMarker}</div>` : ""}${clinched}${rangesHtml}`;
 }
 function renderWebsiteLiveAnalysis(data) {
   renderWebsiteRace(data);
-  renderWebsiteTiebreakSnapshot(data);
   const analysis = websiteScenarioOutcomes(websiteAnalysisData(data)).variable.length ? websiteContenderPaths(data) : null;
   renderWebsiteLiveScenarioTools(data, analysis);
+  renderWebsiteTiebreakSnapshot(data, analysis);
   renderWebsiteWeekRecap(data);
   renderWebsiteScenarioBreakdown(data, analysis);
   renderWebsitePersonalizedSankey(data, analysis);
