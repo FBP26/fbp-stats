@@ -464,6 +464,10 @@
   button.outcome-spread { border: 1px solid var(--border); border-radius: 4px; background: #121920; cursor: pointer; }
   button.outcome-spread.selected { border-color: var(--accent); background: #4a3c10; color: #fff1b8; }
   .outcome-reset { margin-top: 9px; }
+  .submission-status-group { margin-bottom: 18px; }
+  .submission-status-group h3 { margin: 0 0 8px; color: var(--accent); font: 11px Arial, sans-serif; letter-spacing: .7px; text-transform: uppercase; }
+  .submission-status-list { display: grid; grid-template-columns: repeat(auto-fill, minmax(120px, 1fr)); gap: 6px; margin: 0; padding: 0; list-style: none; }
+  .submission-status-list li { padding: 6px 8px; border: 1px solid var(--border); border-radius: 4px; background: #121920; color: var(--text); font: 11px Arial, sans-serif; }
   .calculation-confidence { display: inline-flex; align-items: center; gap: 6px; margin-bottom: 10px; padding: 5px 8px; border: 1px solid var(--border); color: var(--muted); font: 10px Arial, sans-serif; }
   .calculation-confidence strong { color: var(--positive); text-transform: uppercase; }
   .calculation-confidence.estimated strong { color: var(--accent); }
@@ -844,22 +848,27 @@
       <section id="fbp-map-visitor-report" class="fbp-map-report" aria-live="polite" hidden></section>
     </div>
   </section>
+  <section id="view-submission-status" class="view">
+    <section class="intro"><div><h2>Missing picks</h2></div><p>Who has played this season and who has not submitted the current week's picks yet.</p></section>
+    <div class="panel" id="submission-status-panel"><p class="analysis-note">Loading submission status...</p></div>
+  </section>
 </main>
 <script>
 document.getElementById("profile-best-bet-chart")?.closest(".profile-chart")?.before(document.getElementById("profile-team-chart")?.closest(".profile-chart"));
 const DATA_DIR = "./data";
 const WEBSITE_WEEK_HISTORY_VERSION = "20260903-literal-none";
-const websiteRoutes = ["enter-picks", "week-one", "live-analysis", "picks-confirmation", "alltime", "season", "payout", "streaks", "weeks", "weekly-rank", "games", "players", "names", "teams", "map", "faq"];
+const websiteRoutes = ["enter-picks", "week-one", "live-analysis", "picks-confirmation", "alltime", "season", "payout", "streaks", "weeks", "weekly-rank", "games", "players", "names", "teams", "map", "faq", "submission-status"];
 const standaloneAppLaunch = matchMedia("(display-mode: standalone)").matches || navigator.standalone === true;
 const savedStartupRoute = localStorage.getItem("fbpLastView");
 const websiteNavigationType = performance.getEntriesByType("navigation")[0]?.type;
 const websiteLaunchUrl = new URL(location.href);
 const websiteFaqReloadOpensMap = location.hash === "#faq" && (websiteLaunchUrl.searchParams.has("app-refresh") || websiteNavigationType === "reload" || performance.navigation?.type === 1);
+const websitePlayersReloadOpensSubmissionStatus = location.hash === "#players" && (websiteLaunchUrl.searchParams.has("app-refresh") || websiteNavigationType === "reload" || performance.navigation?.type === 1);
 if (websiteLaunchUrl.searchParams.has("app-refresh")) {
   websiteLaunchUrl.searchParams.delete("app-refresh");
   history.replaceState(null, "", websiteLaunchUrl);
 }
-const requestedRouteValue = websiteFaqReloadOpensMap ? "map" : standaloneAppLaunch && websiteRoutes.includes(savedStartupRoute) ? savedStartupRoute : location.hash.slice(1);
+const requestedRouteValue = websitePlayersReloadOpensSubmissionStatus ? "submission-status" : websiteFaqReloadOpensMap ? "map" : standaloneAppLaunch && websiteRoutes.includes(savedStartupRoute) ? savedStartupRoute : location.hash.slice(1);
 const requestedRoute = requestedRouteValue === "current-week" ? "week-one" : requestedRouteValue;
 const requestedStartupRoute = requestedRoute === "weekly-rank" ? "weeks" : websiteRoutes.includes(requestedRoute) ? requestedRoute : "week-one";
 let websiteRefreshInstallHelp = () => {};
@@ -6768,6 +6777,21 @@ function synchronizePlayerFilters(source) {
   });
   synchronizingPlayerFilters = false;
 }
+async function renderSubmissionStatus() {
+  const host = document.getElementById("submission-status-panel");
+  if (!host || !WEBSITE_SUBMISSIONS_ENDPOINT) return;
+  host.innerHTML = `<p class="analysis-note">Loading submission status...</p>`;
+  try {
+    const separator = WEBSITE_SUBMISSIONS_ENDPOINT.includes("?") ? "&" : "?";
+    const response = await fetch(`${WEBSITE_SUBMISSIONS_ENDPOINT}${separator}action=season-status`, { signal: AbortSignal.timeout(20000) });
+    const status = await response.json();
+    if (!response.ok || !status.ok) throw new Error(status.error || "Submission status is unavailable.");
+    const list = (names, empty) => names.length ? `<ul class="submission-status-list">${names.map(name => `<li>${websiteEscapeHtml(name)}</li>`).join("")}</ul>` : `<p class="analysis-note">${websiteEscapeHtml(empty)}</p>`;
+    host.innerHTML = `<div class="submission-status-group"><h3>Not yet submitted Week ${status.week} (${status.notYetSubmittedCurrentWeek.length})</h3>${list(status.notYetSubmittedCurrentWeek, "Everyone who played an earlier week has submitted this week.")}</div><div class="submission-status-group"><h3>Submitted Week ${status.week} (${status.submittedCurrentWeek.length})</h3>${list(status.submittedCurrentWeek, "No one has submitted this week yet.")}</div><div class="submission-status-group"><h3>Played this season (${status.playedThisSeason.length})</h3>${list(status.playedThisSeason, "No submissions recorded this season yet.")}</div>`;
+  } catch (error) {
+    host.innerHTML = `<p class="analysis-note">Could not load submission status: ${websiteEscapeHtml(error.message)}</p>`;
+  }
+}
 function initViews() {
   document.addEventListener("change", event => {
     if (synchronizedPlayerFilterIds.includes(event.target.id)) synchronizePlayerFilters(event.target);
@@ -7057,7 +7081,7 @@ document.getElementById("notification-preferences-form")?.addEventListener("subm
 initializeNotificationPreferences();
 let historicalInitializationPromise = null;
 function startHistoricalInitialization() {
-  if (!historicalInitializationPromise) historicalInitializationPromise = init().then(async () => { applyHistoricalLabels(); populateWeekSeasons(); populateSeasonChoices(); if (location.hash === "#weeks") { await loadDrilldown(); renderWinnerContributions(true); renderPicksGrid(); setTimeout(() => { orientWeekChart(); addGamePushMarkers(); }, 0); } if (location.hash === "#map") initFbpMap(); if (websiteLastWeekData) renderWebsiteWeekRecap(websiteLastWeekData); });
+  if (!historicalInitializationPromise) historicalInitializationPromise = init().then(async () => { applyHistoricalLabels(); populateWeekSeasons(); populateSeasonChoices(); if (location.hash === "#weeks") { await loadDrilldown(); renderWinnerContributions(true); renderPicksGrid(); setTimeout(() => { orientWeekChart(); addGamePushMarkers(); }, 0); } if (location.hash === "#map") initFbpMap(); if (location.hash === "#submission-status") renderSubmissionStatus(); if (websiteLastWeekData) renderWebsiteWeekRecap(websiteLastWeekData); });
   return historicalInitializationPromise;
 }
 if (requestedStartupRoute !== "week-one") startHistoricalInitialization();
