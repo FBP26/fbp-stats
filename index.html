@@ -494,6 +494,7 @@
   .tiebreak-range-segment:first-child { border-left: 0; }
   .tiebreak-range-segment strong, .tiebreak-range-segment small { overflow: hidden; max-width: 100%; text-overflow: ellipsis; white-space: nowrap; }
   .tiebreak-range-segment small { font-weight: 400; opacity: .85; }
+  .tiebreak-range-segment.split { min-width: 3px; background: repeating-linear-gradient(45deg, var(--runner-color) 0 3px, #fff9 3px 6px); }
   .tiebreak-range-current { position: absolute; top: -3px; bottom: -3px; width: 2px; background: #fff; box-shadow: 0 0 0 1px #000a; }
   .tiebreak-range-legend { display: flex; flex-wrap: wrap; gap: 5px 12px; margin-top: 8px; }
   .tiebreak-range-legend-item { display: inline-flex; align-items: center; gap: 5px; color: var(--text); font: 10px Arial, sans-serif; }
@@ -3593,9 +3594,17 @@ function websiteTiebreakRangeSegments(players) {
   let start = WEBSITE_TIEBREAK_MIN;
   sorted.forEach((group, index) => {
     const next = sorted[index + 1];
-    const high = next ? Math.floor((group.guess + next.guess) / 2) : WEBSITE_TIEBREAK_MAX;
-    segments.push({ names: group.names, guess: group.guess, low: start, high: Math.max(start, high) });
-    start = high + 1;
+    if (!next) { segments.push({ names: group.names, low: start, high: WEBSITE_TIEBREAK_MAX }); return; }
+    const midpoint = (group.guess + next.guess) / 2;
+    const exactSplit = Number.isInteger(midpoint) && midpoint > start;
+    const high = exactSplit ? midpoint - 1 : Math.floor(midpoint);
+    if (high >= start) segments.push({ names: group.names, low: start, high });
+    if (exactSplit) {
+      segments.push({ lowNames: group.names, highNames: next.names, names: [...group.names, ...next.names], low: midpoint, high: midpoint, split: true });
+      start = midpoint + 1;
+    } else {
+      start = high + 1;
+    }
   });
   return segments;
 }
@@ -3629,18 +3638,30 @@ function renderWebsiteTiebreakSnapshot(data, analysis) {
   if (!rangeIntro && segments.length) rangeIntro = shown.length < eligible.length ? `Top ${shown.length} of ${eligible.length} contenders still able to win the pool` : `Every remaining contender${shown.length === 1 ? "" : "s"} still able to win the pool`;
   let rangesHtml = "";
   if (segments.length) {
-    const shares = segments.map(segment => Math.sqrt(segment.high - segment.low + 1));
+    const VISUAL_FLOOR = 200, VISUAL_CEILING = 700;
+    const shares = segments.map((segment, index) => {
+      const visualLow = index === 0 ? Math.max(segment.low, VISUAL_FLOOR) : segment.low;
+      const visualHigh = index === segments.length - 1 ? Math.min(segment.high, VISUAL_CEILING) : segment.high;
+      return Math.sqrt(Math.max(1, visualHigh - visualLow + 1));
+    });
     const totalShare = shares.reduce((sum, value) => sum + value, 0) || 1;
     const legend = [];
+    const rangeLabel = (segment, index) => {
+      if (segment.split) return `${websiteJoinNames(segment.lowNames)} / ${websiteJoinNames(segment.highNames)} split at ${segment.low}`;
+      if (index === 0) return `${segment.high} and lower`;
+      if (index === segments.length - 1) return `${segment.low} and up`;
+      return `${segment.low}–${segment.high}`;
+    };
     const barHtml = segments.map((segment, index) => {
       const width = segment.high - segment.low + 1;
-      const label = websiteJoinNames(segment.names);
+      const label = segment.split ? `${websiteJoinNames(segment.lowNames)} / ${websiteJoinNames(segment.highNames)}` : websiteJoinNames(segment.names);
+      const rangeText = rangeLabel(segment, index);
       const share = shares[index];
       const wide = share / totalShare >= .12;
-      if (!wide) legend.push({ label, low: segment.low, high: segment.high, color: websiteRaceColor(segment.names[0]) });
-      return `<span class="tiebreak-range-segment" style="--runner-color:${websiteRaceColor(segment.names[0])};flex:${share}" title="${websiteEscapeHtml(label)} · ${segment.low}–${segment.high} (${width.toLocaleString()} totals)">${wide ? `<strong>${websiteEscapeHtml(label)}</strong><small>${segment.low}–${segment.high}</small>` : ""}</span>`;
+      if (!wide) legend.push({ label: segment.split ? `${label} split` : label, rangeText, color: websiteRaceColor(segment.names[0]) });
+      return `<span class="tiebreak-range-segment${segment.split ? " split" : ""}" style="--runner-color:${websiteRaceColor(segment.names[0])};flex:${share}" title="${websiteEscapeHtml(segment.split ? `${label} split` : label)} · ${websiteEscapeHtml(rangeText)}${segment.split ? "" : ` (${width.toLocaleString()} totals)`}">${wide ? `<strong>${websiteEscapeHtml(label)}</strong><small>${websiteEscapeHtml(rangeText)}</small>` : ""}</span>`;
     }).join("");
-    const legendHtml = legend.length ? `<div class="tiebreak-range-legend">${legend.map(item => `<span class="tiebreak-range-legend-item"><i style="--runner-color:${item.color}"></i>${websiteEscapeHtml(item.label)} <small>${item.low}–${item.high}</small></span>`).join("")}</div>` : "";
+    const legendHtml = legend.length ? `<div class="tiebreak-range-legend">${legend.map(item => `<span class="tiebreak-range-legend-item"><i style="--runner-color:${item.color}"></i>${websiteEscapeHtml(item.label)} <small>${websiteEscapeHtml(item.rangeText)}</small></span>`).join("")}</div>` : "";
     rangesHtml = `<div class="tiebreak-ranges"><h4>Who owns which tiebreak range</h4><p>${rangeIntro}, by which final net-passing total would decide the tiebreak in their favor.</p><div class="tiebreak-range-bar">${barHtml}${currentYards != null ? `<span class="tiebreak-range-current" style="left:${scale(currentYards)}%" title="Current total · ${currentYards}"></span>` : ""}</div>${legendHtml}</div>`;
   }
   tiebreak.innerHTML = `<h3>Tiebreak snapshot</h3><p>${liveContext}${markerCopy}</p>${currentMarker || guessMarker ? `<div class="tiebreak-strip">${currentMarker}${guessMarker}</div>` : ""}${clinched}${rangesHtml}`;
