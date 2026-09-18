@@ -3608,11 +3608,23 @@ function renderWebsiteTiebreakSnapshot(data, analysis) {
   const guessMarker = guaranteedPlayer ? `<span class="tiebreak-marker guess" style="left:${scale(guaranteedPlayer.tiebreaker)}%"><span>${websiteEscapeHtml(guaranteedPlayer.name)} · ${websiteEscapeHtml(guaranteedPlayer.tiebreaker)}</span></span>` : "";
   const clinched = guaranteedPlayer ? `<p class="tiebreak-clinched"><strong>${websiteEscapeHtml(guaranteedPlayer.name)} ${isFinal ? "won" : "has clinched"} the week</strong>${isFinal ? "." : " regardless of the final yardage."} The ${websiteEscapeHtml(guaranteedPlayer.tiebreaker)} guess is shown for reference.</p>` : "";
   const markerCopy = currentMarker && guessMarker ? ` The markers show the ${isFinal ? "final" : "current"} total and ${websiteEscapeHtml(guaranteedPlayer.name)}'s guess.` : guessMarker ? ` The marker shows ${websiteEscapeHtml(guaranteedPlayer.name)}'s guess.` : currentMarker ? ` The marker shows the ${isFinal ? "final" : "current"} total.` : "";
-  const eligible = !isFinal && analysis?.contenders?.length > 1 ? analysis.contenders.map(contender => contender.player) : [];
+  const unresolvedCount = analysis?.scenarios?.variable?.length ?? 0;
+  const anyGameResolved = analysisData.games.some((game, index) => websiteGameWinner(analysisData, index) !== null);
+  const useWinsLeaders = !isFinal && anyGameResolved && unresolvedCount > WEBSITE_EXACT_SCENARIO_GAME_LIMIT;
+  let eligible = [], rangeIntro = "";
+  if (useWinsLeaders) {
+    const ranked = [...analysisData.players].sort((left, right) => (Number(right.wins) || 0) - (Number(left.wins) || 0) || (Number(left.losses) || 0) - (Number(right.losses) || 0));
+    const topWins = Number(ranked[0]?.wins) || 0, topLosses = Number(ranked[0]?.losses) || 0;
+    eligible = ranked.filter(player => (Number(player.wins) || 0) === topWins && (Number(player.losses) || 0) === topLosses);
+    rangeIntro = `Current leader${eligible.length === 1 ? "" : "s"} at ${topWins}-${topLosses} so far this week`;
+  } else if (!isFinal && analysis?.contenders?.length > 1) {
+    eligible = analysis.contenders.map(contender => contender.player);
+  }
   const shown = eligible.slice(0, 10);
   const segments = shown.length > 1 ? websiteTiebreakRangeSegments(shown) : [];
   const totalWidth = WEBSITE_TIEBREAK_MAX - WEBSITE_TIEBREAK_MIN + 1;
-  const rangesHtml = segments.length ? `<div class="tiebreak-ranges"><h4>Who owns which tiebreak range</h4><p>${shown.length < eligible.length ? `Top ${shown.length} of ${eligible.length}` : `Every remaining`} contender${shown.length === 1 ? "" : "s"} still able to win the pool, by which final net-passing total would decide the tiebreak in their favor.</p><div class="tiebreak-range-bar">${segments.map(segment => { const width = segment.high - segment.low + 1; const label = websiteJoinNames(segment.names); const wide = width / totalWidth >= .05; return `<span class="tiebreak-range-segment" style="--runner-color:${websiteRaceColor(segment.names[0])};flex:${width}" title="${websiteEscapeHtml(label)} · ${segment.low}–${segment.high} (${width.toLocaleString()} totals)">${wide ? `<strong>${websiteEscapeHtml(label)}</strong><small>${segment.low}–${segment.high}</small>` : ""}</span>`; }).join("")}${currentYards != null ? `<span class="tiebreak-range-current" style="left:${scale(currentYards)}%" title="Current total · ${currentYards}"></span>` : ""}</div></div>` : "";
+  if (!rangeIntro && segments.length) rangeIntro = shown.length < eligible.length ? `Top ${shown.length} of ${eligible.length} contenders still able to win the pool` : `Every remaining contender${shown.length === 1 ? "" : "s"} still able to win the pool`;
+  const rangesHtml = segments.length ? `<div class="tiebreak-ranges"><h4>Who owns which tiebreak range</h4><p>${rangeIntro}, by which final net-passing total would decide the tiebreak in their favor.</p><div class="tiebreak-range-bar">${segments.map(segment => { const width = segment.high - segment.low + 1; const label = websiteJoinNames(segment.names); const share = Math.sqrt(width); const wide = width / totalWidth >= .05; return `<span class="tiebreak-range-segment" style="--runner-color:${websiteRaceColor(segment.names[0])};flex:${share}" title="${websiteEscapeHtml(label)} · ${segment.low}–${segment.high} (${width.toLocaleString()} totals)">${wide ? `<strong>${websiteEscapeHtml(label)}</strong><small>${segment.low}–${segment.high}</small>` : ""}</span>`; }).join("")}${currentYards != null ? `<span class="tiebreak-range-current" style="left:${scale(currentYards)}%" title="Current total · ${currentYards}"></span>` : ""}</div></div>` : "";
   tiebreak.innerHTML = `<h3>Tiebreak snapshot</h3><p>${liveContext}${markerCopy}</p>${currentMarker || guessMarker ? `<div class="tiebreak-strip">${currentMarker}${guessMarker}</div>` : ""}${clinched}${rangesHtml}`;
 }
 function renderWebsiteLiveAnalysis(data) {
