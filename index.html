@@ -507,7 +507,20 @@
   .tiebreak-gauge-track { position: absolute; left: 50%; top: 0; bottom: 0; width: 2px; background: var(--border); transform: translateX(-50%); }
   .tiebreak-gauge-marker { position: absolute; left: 50%; transform: translate(-50%, 50%); display: flex; flex-direction: column; align-items: center; gap: 2px; font-size: 18px; line-height: 1; }
   .tiebreak-gauge-marker small { font: 700 9px Arial, sans-serif; color: var(--accent-2); white-space: nowrap; }
-  @media (max-width: 760px) { .live-feature-grid { grid-template-columns: 1fr; } .live-feature.wide { grid-column: auto; } #live-what-if.live-feature-grid { grid-template-columns: repeat(2, minmax(0, 1fr)); } #live-what-if .live-feature.wide { grid-column: 1 / -1; } .live-superlatives { grid-template-columns: 1fr; } .lead-change { grid-template-columns: 82px minmax(0, 1fr); } .turning-point { grid-template-columns: 76px minmax(0, 1fr); } }
+  .tiebreak-scenario-grid { display: grid; grid-template-columns: repeat(3, minmax(0, 1fr)); gap: 8px; margin-top: 10px; }
+  .tiebreak-scenario-card { min-width: 0; padding: 10px; border: 1px solid var(--border); border-radius: 5px; background: var(--panel-2); }
+  .tiebreak-scenario-card h5 { margin: 0 0 6px; color: var(--accent); font: 700 10px Arial, sans-serif; text-transform: uppercase; letter-spacing: .4px; }
+  .tiebreak-scenario-card strong, .tiebreak-scenario-card small { display: block; color: var(--text); font: 700 11px/1.3 Arial, sans-serif; }
+  .tiebreak-scenario-card small { margin-top: 4px; color: var(--muted); font-size: 10px; font-weight: 400; }
+  .tiebreak-scenario-card.guaranteed { border-color: #54d6b2; background: #54d6b214; }
+  .tiebreak-scenario-card.range { border-color: #8eb8ff; }
+  .tiebreak-scenario-bar { display: flex; height: 28px; margin-top: 10px; overflow: hidden; border: 1px solid var(--border); border-radius: 4px; background: #18232d; }
+  .tiebreak-scenario-bar span { display: flex; min-width: 2px; align-items: center; justify-content: center; overflow: hidden; padding: 0 3px; background: #54d6b2; color: #0b1015; font: 700 8px Arial, sans-serif; white-space: nowrap; }
+  .tiebreak-scenario-bar span:nth-child(2n) { background: #8eb8ff; }
+  .tiebreak-scenario-bar span:nth-child(3n) { background: #f6c85f; }
+  .tiebreak-scenario-bar small { display: none; }
+  .tiebreak-scenario-axis { display: flex; justify-content: space-between; margin-top: 3px; color: var(--muted); font: 9px Arial, sans-serif; }
+  @media (max-width: 760px) { .live-feature-grid { grid-template-columns: 1fr; } .live-feature.wide { grid-column: auto; } #live-what-if.live-feature-grid { grid-template-columns: repeat(2, minmax(0, 1fr)); } #live-what-if .live-feature.wide { grid-column: 1 / -1; } .live-superlatives { grid-template-columns: 1fr; } .lead-change { grid-template-columns: 82px minmax(0, 1fr); } .turning-point { grid-template-columns: 76px minmax(0, 1fr); } .tiebreak-scenario-grid { grid-template-columns: 1fr; } }
   .scenario-subrow td:first-child { padding-left: 22px; color: var(--muted); }
   .scenario-chance { color: var(--accent-2); white-space: nowrap; }
   .analysis-note { margin: 0 0 10px; color: var(--muted); font: 11px Arial, sans-serif; }
@@ -3644,7 +3657,7 @@ function renderWebsiteTiebreakSnapshot(data, analysis) {
   const segments = shown.length > 1 ? websiteTiebreakRangeSegments(shown) : [];
   if (!rangeIntro && segments.length) rangeIntro = shown.length < eligible.length ? `Top ${shown.length} of ${eligible.length} contenders still able to win the pool` : `Every remaining contender${shown.length === 1 ? "" : "s"} still able to win the pool`;
   let rangesHtml = "";
-  if (segments.length) {
+  if (segments.length && unresolvedCount === 1) {
     const VISUAL_FLOOR = 0, VISUAL_CEILING = 700, TOTAL_BAR_PX = 420, INLINE_MIN_PX = 24, SPLIT_MIN_PX = 2, LABEL_GAP_PX = 15, CALLOUT_LABEL_PX = 116, CALLOUT_LINE_PX = 14;
     const totalVisualSpan = VISUAL_CEILING - VISUAL_FLOOR + 1;
     const rangeLabel = (segment, index) => {
@@ -3704,6 +3717,21 @@ function renderWebsiteTiebreakSnapshot(data, analysis) {
     const gaugeHtml = `<div class="tiebreak-live-gauge" title="${websiteEscapeHtml(gaugeTitle)}"><span class="tiebreak-gauge-track"></span><span class="tiebreak-gauge-marker" style="bottom:${gaugePct}%">\uD83C\uDFC8<small>${gaugeValue}</small></span></div>`;
     const gameNote = gameLabel ? ` The chart on the right tracks ${websiteEscapeHtml(gameLabel)}'s live net passing.` : "";
     rangesHtml = `<div class="tiebreak-ranges"><h4>Who owns which tiebreak range</h4><p>${rangeIntro}, by which final net-passing total would decide the tiebreak in their favor.${gameNote}</p><div class="tiebreak-ranges-row">${calloutsHtml}<div class="tiebreak-range-bar" style="height:${TOTAL_BAR_PX}px">${barHtml}</div><div class="tiebreak-yards-axis">${axisHtml}</div>${gaugeHtml}</div></div>`;
+  }
+  if (unresolvedCount === 1 && finalGame.favorite && finalGame.underdog) {
+    const finalIndex = analysisData.games.length - 1;
+    const outcomes = [finalGame.favorite, finalGame.underdog, ...(Number(finalGame.spread) % 1 === 0 ? ["PUSH"] : [])];
+    const scenarioCards = outcomes.map(outcome => {
+      const scores = analysisData.players.map(player => (Number(player.wins) || 0) + (player.picks?.[finalIndex] === outcome ? 1 + (player.bestBet === outcome ? 1 : 0) : 0));
+      const topScore = Math.max(...scores);
+      const leaders = analysisData.players.filter((player, index) => scores[index] === topScore);
+      const outcomeLabel = outcome === "PUSH" ? "The game is a push" : `${String(outcome).toUpperCase()} wins`;
+      if (leaders.length === 1) return `<article class="tiebreak-scenario-card guaranteed"><h5>${websiteEscapeHtml(outcomeLabel)}</h5><strong>${websiteEscapeHtml(leaders[0].name)} wins regardless of the final yards</strong><small>Projected score: ${topScore} wins</small></article>`;
+      const scenarioSegments = websiteTiebreakRangeSegments(leaders);
+      const scenarioBar = scenarioSegments.map(segment => { const width = Math.max(0, segment.high - segment.low + 1) / 1201 * 100; const label = segment.split ? `${websiteJoinNames(segment.lowNames)} / ${websiteJoinNames(segment.highNames)}` : websiteJoinNames(segment.names); const range = segment.split ? `split at ${segment.low}` : `${segment.low}–${segment.high}`; return `<span style="width:${width.toFixed(3)}%" title="${websiteEscapeHtml(`${label}: ${range}`)}"><strong>${websiteEscapeHtml(label)}</strong><small>${websiteEscapeHtml(range)}</small></span>`; }).join("");
+      return `<article class="tiebreak-scenario-card range"><h5>${websiteEscapeHtml(outcomeLabel)}</h5><strong>${leaders.map(player => websiteEscapeHtml(player.name)).join(" vs ")}</strong><small>${topScore} wins each · tiebreak ranges</small><div class="tiebreak-scenario-bar">${scenarioBar}</div><div class="tiebreak-scenario-axis"><span>0</span><span>700</span></div></article>`;
+    }).join("");
+    rangesHtml = `<div class="tiebreak-ranges"><h4>Final-game tiebreak scenarios</h4><p>Only the final game's result determines which comparison applies. Each card isolates that outcome instead of combining unrelated contenders.</p><div class="tiebreak-scenario-grid">${scenarioCards}</div></div>`;
   }
   tiebreak.innerHTML = `<p>${liveContext}${markerCopy}</p>${currentMarker || guessMarker ? `<div class="tiebreak-strip">${currentMarker}${guessMarker}</div>` : ""}${clinched}${rangesHtml}`;
 }
