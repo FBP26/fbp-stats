@@ -514,6 +514,16 @@
   .tiebreak-scenario-card small { margin-top: 4px; color: var(--muted); font-size: 10px; font-weight: 400; }
   .tiebreak-scenario-card.guaranteed { border-color: #54d6b2; background: #54d6b214; }
   .tiebreak-scenario-card.range { border-color: #8eb8ff; }
+  .tiebreak-scenario-field-row { display: flex; align-items: stretch; gap: 6px; margin-top: 10px; height: 260px; }
+  .tiebreak-scenario-field { position: relative; display: flex; flex: 1; flex-direction: column-reverse; overflow: hidden; border: 2px solid #d7e9c2; border-radius: 5px; background: repeating-linear-gradient(to top, #2f7d45 0, #2f7d45 35px, #3b8f50 35px, #3b8f50 37px); box-shadow: inset 0 0 0 1px #174d2b; }
+  .tiebreak-scenario-field::before { content: ""; position: absolute; inset: 0; pointer-events: none; background: repeating-linear-gradient(to top, transparent 0, transparent 49px, #d7e9c299 49px, #d7e9c299 51px); }
+  .tiebreak-scenario-segment { position: relative; z-index: 1; display: flex; min-height: 3px; align-items: center; justify-content: center; overflow: hidden; padding: 0 4px; border-top: 1px solid #0b351c99; color: #0b1015; font: 700 8px Arial, sans-serif; text-align: center; }
+  .tiebreak-scenario-segment:nth-child(odd) { background: #54d6b2cc; }
+  .tiebreak-scenario-segment:nth-child(even) { background: #8eb8ffcc; }
+  .tiebreak-field-football { position: absolute; z-index: 3; left: 50%; display: flex; flex-direction: column; align-items: center; color: #fff; font-size: 22px; line-height: 1; transform: translate(-50%, 50%); filter: drop-shadow(0 1px 2px #06130a); }
+  .tiebreak-field-football small { margin-top: 2px; color: #fff; font: 700 9px Arial, sans-serif; white-space: nowrap; }
+  .tiebreak-scenario-axis { position: relative; flex: none; width: 28px; color: var(--muted); font: 9px Arial, sans-serif; }
+  .tiebreak-scenario-axis span { position: absolute; right: 0; transform: translateY(50%); }
   .tiebreak-scenario-bar { display: flex; height: 28px; margin-top: 10px; overflow: hidden; border: 1px solid var(--border); border-radius: 4px; background: #18232d; }
   .tiebreak-scenario-bar span { display: flex; min-width: 2px; align-items: center; justify-content: center; overflow: hidden; padding: 0 3px; background: #54d6b2; color: #0b1015; font: 700 8px Arial, sans-serif; white-space: nowrap; }
   .tiebreak-scenario-bar span:nth-child(2n) { background: #8eb8ff; }
@@ -3726,10 +3736,12 @@ function renderWebsiteTiebreakSnapshot(data, analysis) {
       const topScore = Math.max(...scores);
       const leaders = analysisData.players.filter((player, index) => scores[index] === topScore);
       const outcomeLabel = outcome === "PUSH" ? "The game is a push" : `${String(outcome).toUpperCase()} wins`;
-      if (leaders.length === 1) return `<article class="tiebreak-scenario-card guaranteed"><h5>${websiteEscapeHtml(outcomeLabel)}</h5><strong>${websiteEscapeHtml(leaders[0].name)} wins regardless of the final yards</strong><small>Projected score: ${topScore} wins</small></article>`;
+      const FIELD_MAX = 700;
+      const fieldFootball = currentYards != null ? `<span class="tiebreak-field-football" style="bottom:${Math.max(0, Math.min(100, currentYards / FIELD_MAX * 100))}%">\uD83C\uDFC8<small>${currentYards}</small></span>` : "";
+      if (leaders.length === 1) return `<article class="tiebreak-scenario-card guaranteed"><h5>${websiteEscapeHtml(outcomeLabel)}</h5><strong>${websiteEscapeHtml(leaders[0].name)} wins regardless of the final yards</strong><small>Projected score: ${topScore} wins</small><div class="tiebreak-scenario-field-row"><div class="tiebreak-scenario-field"><span class="tiebreak-scenario-segment" style="height:100%">${websiteEscapeHtml(leaders[0].name)}</span>${fieldFootball}</div><div class="tiebreak-scenario-axis"><span style="bottom:0%">0</span><span style="bottom:28.57%">200</span><span style="bottom:57.14%">400</span><span style="bottom:85.71%">600</span><span style="bottom:100%">700</span></div></div></article>`;
       const scenarioSegments = websiteTiebreakRangeSegments(leaders);
-      const scenarioBar = scenarioSegments.map(segment => { const width = Math.max(0, segment.high - segment.low + 1) / 1201 * 100; const label = segment.split ? `${websiteJoinNames(segment.lowNames)} / ${websiteJoinNames(segment.highNames)}` : websiteJoinNames(segment.names); const range = segment.split ? `split at ${segment.low}` : `${segment.low}–${segment.high}`; return `<span style="width:${width.toFixed(3)}%" title="${websiteEscapeHtml(`${label}: ${range}`)}"><strong>${websiteEscapeHtml(label)}</strong><small>${websiteEscapeHtml(range)}</small></span>`; }).join("");
-      return `<article class="tiebreak-scenario-card range"><h5>${websiteEscapeHtml(outcomeLabel)}</h5><strong>${leaders.map(player => websiteEscapeHtml(player.name)).join(" vs ")}</strong><small>${topScore} wins each · tiebreak ranges</small><div class="tiebreak-scenario-bar">${scenarioBar}</div><div class="tiebreak-scenario-axis"><span>0</span><span>700</span></div></article>`;
+      const scenarioBar = scenarioSegments.map(segment => { const height = Math.max(0, segment.high - segment.low + 1) / 1201 * 100; const label = segment.split ? `${websiteJoinNames(segment.lowNames)} / ${websiteJoinNames(segment.highNames)}` : websiteJoinNames(segment.names); const range = segment.split ? `split at ${segment.low}` : `${segment.low}–${segment.high}`; return `<span class="tiebreak-scenario-segment" style="height:${height.toFixed(3)}%" title="${websiteEscapeHtml(`${label}: ${range}`)}">${websiteEscapeHtml(label)}</span>`; }).join("");
+      return `<article class="tiebreak-scenario-card range"><h5>${websiteEscapeHtml(outcomeLabel)}</h5><strong>${leaders.map(player => websiteEscapeHtml(player.name)).join(" vs ")}</strong><small>${topScore} wins each · tiebreak ranges</small><div class="tiebreak-scenario-field-row"><div class="tiebreak-scenario-field">${scenarioBar}${fieldFootball}</div><div class="tiebreak-scenario-axis"><span style="bottom:0%">0</span><span style="bottom:28.57%">200</span><span style="bottom:57.14%">400</span><span style="bottom:85.71%">600</span><span style="bottom:100%">700</span></div></div></article>`;
     }).join("");
     rangesHtml = `<div class="tiebreak-ranges"><h4>Final-game tiebreak scenarios</h4><p>Only the final game's result determines which comparison applies. Each card isolates that outcome instead of combining unrelated contenders.</p><div class="tiebreak-scenario-grid">${scenarioCards}</div></div>`;
   }
