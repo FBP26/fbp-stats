@@ -1569,6 +1569,15 @@ function websiteRaceGameKey(game) {
   return String(game?.gameId || `${game?.away || "away"}|${game?.home || "home"}`);
 }
 function websiteGameStatus(game) { return String(game?.espnStatus || game?.status || game?.state || "").toUpperCase(); }
+function websiteCurrentTiebreaker(data) {
+  const actual = Number(data?.actualTiebreaker);
+  if (data?.actualTiebreaker !== "" && Number.isFinite(actual)) return actual;
+  const finalGame = data?.games?.at(-1) || {}, status = websiteGameStatus(finalGame);
+  if (!["IN", "LIVE", "IN_PROGRESS", "POST", "FINAL", "COMPLETED"].includes(status)) return null;
+  const liveTotal = finalGame.combinedNetPassingYards ?? finalGame.netPassingYards;
+  const current = Number(liveTotal);
+  return liveTotal !== "" && liveTotal != null && Number.isFinite(current) ? current : null;
+}
 function websiteRaceGameMoment(game) {
   const period = Number(game?.period || 0), clock = String(game?.clock || "").trim();
   if (period && clock) return `Q${period} ${clock}`;
@@ -3653,7 +3662,7 @@ function renderWebsiteTiebreakSnapshot(data, analysis) {
   if (!tiebreak) return;
   const analysisData = websiteAnalysisData(data), scale = value => Math.max(0, Math.min(100, (Number(value) - WEBSITE_TIEBREAK_MIN) * 100 / (WEBSITE_TIEBREAK_MAX - WEBSITE_TIEBREAK_MIN)));
   const finalGame = analysisData.games.at(-1) || {}, finalStatus = websiteGameStatus(finalGame);
-  const currentYards = analysisData.actualTiebreaker !== "" && Number.isFinite(Number(analysisData.actualTiebreaker)) ? Number(analysisData.actualTiebreaker) : null;
+  const currentYards = websiteCurrentTiebreaker(analysisData);
   const isLive = ["IN", "LIVE", "IN_PROGRESS"].includes(finalStatus), isFinal = ["POST", "FINAL", "COMPLETED"].includes(finalStatus), gameLabel = [finalGame.away, finalGame.home].filter(Boolean).map(team => String(team).toUpperCase()).join("–");
   const guaranteedPlayer = isFinal ? analysisData.players.find(player => parseFloat(player.winProbability || 0) >= 99.999) : websiteClinchedPlayer(analysisData);
   const liveContext = isFinal && currentYards != null ? `Final-game net passing: <strong>${currentYards}</strong>.` : isLive && currentYards != null ? `${gameLabel ? `${gameLabel} · ` : ""}${finalGame.statusText || "Live"} · Current net passing: <strong>${currentYards}</strong>.` : `${gameLabel ? `${gameLabel} · ` : ""}Final-game net passing will break a tie.`;
@@ -3859,7 +3868,8 @@ function renderWebsiteWeekOneGridClean(data) {
   const table = document.getElementById("week-one-table");
   if (data.loading) { table.innerHTML = '<p class="website-instructions">Loading this week\'s submissions...</p>'; return; }
   if (!rows.length) { table.innerHTML = '<p style="color:var(--muted)">No submissions yet.</p>'; return; }
-  const tiebreakDetail = data.actualTiebreaker !== "" && data.actualTiebreaker != null ? `<br><small>${data.actualTiebreaker}</small>` : "";
+  const currentTiebreaker = websiteCurrentTiebreaker(data);
+  const tiebreakDetail = currentTiebreaker != null ? `<br><small>${currentTiebreaker}</small>` : "";
   let html = `<table class="picks-grid"><thead><tr><th class="pg-player">Player</th><th class="pg-game pg-week-name">Week ${data.week ?? websiteRegularSelection.week} name</th><th class="pg-sum-hdr pg-w">W</th><th class="pg-sum-hdr pg-l">L</th><th class="pg-sum-hdr">Win%</th><th class="pg-sum-hdr">Prob</th><th class="pg-sum-hdr">Paths</th>`;
   data.favorites.forEach((favorite, index) => { html += `<th class="pg-game">${favorite}<br><small>${data.spreads[index]}</small><br>${data.underdogs[index]}</th>`; });
   html += `<th class="pg-bb-hdr">BB</th><th class="pg-sum-hdr">TB${tiebreakDetail}</th></tr></thead><tbody>`;
@@ -3940,7 +3950,16 @@ async function renderSelectedWebsiteWeek(activeWeekKnown = false, currentWeekReq
       table.dataset.instantWeek = "true";
       decorateWebsiteWeekOneHeaders(fallback);
     }
-    if (!activeWeekKnown) try { await loadActiveRegularWeek(); } catch (error) { console.warn(error.message); }
+    if (!activeWeekKnown && pendingCurrentWeek) {
+      try {
+        const prefetched = await pendingCurrentWeek;
+        if (prefetched?.ok) {
+          websiteRegularSelection = { season: Number(prefetched.season) || 2026, week: Number(prefetched.week) || 1, phase: "REGULAR_SEASON", staged: Boolean((prefetched.games || []).length) };
+          websiteEntrySelection = { testMode: false, ...websiteRegularSelection };
+          updateWebsiteWeekLabels(websiteEntrySelection);
+        }
+      } catch (error) { console.warn(error.message); }
+    }
     const active = websitePickSelection();
     document.querySelector("#view-week-one .intro h2").textContent = `Week ${active.week}`;
     document.querySelector("#view-week-one .intro p").textContent = `${active.season}-${active.season + 1} submissions and weekly standings.`;
