@@ -3401,7 +3401,8 @@ function renderWebsiteWeekRecap(data) {
     }
   });
   const lateStart = Math.max(0, gameWinners.length - 4);
-  const lateWins = gameWinners.slice(lateStart).reduce((total, gameWinner, offset) => total + (winner.picks[lateStart + offset] === gameWinner ? 1 + (winner.bestBet === gameWinner ? 1 : 0) : 0), 0);
+  const lateGames = gameWinners.slice(lateStart);
+  const lateCorrect = lateGames.filter((gameWinner, offset) => winner.picks[lateStart + offset] === gameWinner).length;
   const bestBetIndex = winner.picks.findIndex(pick => pick === winner.bestBet);
   const bestBetHit = bestBetIndex >= 0 && gameWinners[bestBetIndex] === winner.bestBet;
   const underdogWins = winner.picks.filter((pick, index) => pick === data.underdogs[index] && gameWinners[index] === pick).length;
@@ -3417,8 +3418,13 @@ function renderWebsiteWeekRecap(data) {
   const interruptionStory = leadInterrupted?.deficit
     ? `${leadInterrupted.leaders.join(" and ")} moved ${leadInterrupted.deficit} win${leadInterrupted.deficit === 1 ? "" : "s"} ahead after Game ${leadInterrupted.game}`
     : `${interruptionLeaders} pulled even after Game ${leadInterrupted?.game}`;
+  const finalGame = gameWinners.length;
+  const takeoverOnFinalGame = firstSoleLead && firstSoleLead.game === finalGame;
+  const reclaimOnFinalGame = reclaimedLead && reclaimedLead.game === finalGame;
   const journey = lastTrailing && firstSoleLead
-    ? `${winner.name} trailed ${trailingLeaders} by ${lastTrailing.deficit} win${lastTrailing.deficit === 1 ? "" : "s"} after Game ${lastTrailing.game}, then took sole possession of first after Game ${firstSoleLead.game}.${leadInterrupted && reclaimedLead ? ` ${interruptionStory}, but ${winner.name} reclaimed sole first after Game ${reclaimedLead.game} and held it through the finish.` : " The lead held through the finish."}`
+    ? `${winner.name} trailed ${trailingLeaders} by ${lastTrailing.deficit} win${lastTrailing.deficit === 1 ? "" : "s"} after Game ${lastTrailing.game}, then ${leadInterrupted && reclaimedLead
+        ? `took sole possession of first after Game ${firstSoleLead.game}. ${interruptionStory}, but ${winner.name} ${reclaimOnFinalGame ? "reclaimed sole first on the final game to win the pool." : `reclaimed sole first after Game ${reclaimedLead.game} and held it through the finish.`}`
+        : takeoverOnFinalGame ? "won the pool by taking sole possession of first on the final game." : `took sole possession of first after Game ${firstSoleLead.game}. The lead held through the finish.`}`
     : `${winner.name} never fell more than one win off the pace and held the lead through the finish.`;
   const tiebreakRange = tiedWinners.length === 1 ? websiteWinningTiebreakRange(winner, tiedOnWins, actual) : null;
   const tiebreakStory = Number.isFinite(actual) ? tiedOnWins.length > 1 && tiebreakRange
@@ -3435,6 +3441,7 @@ function renderWebsiteWeekRecap(data) {
   const rarity = tiebreakZ != null && tiebreakZ >= 2 ? `${actual} net passing yards was a genuine outlier, ${tiebreakZ.toFixed(1)} standard deviations from the historical average.` : Number.isFinite(actual) ? `${actual} net passing yards finished ${Math.abs(actual - WEBSITE_TIEBREAK_MEAN)} yards from the historical average of ${WEBSITE_TIEBREAK_MEAN}.` : "The final net-passing total was unavailable.";
   const currentSeason = Number(data.season || websiteRegularSelection.season);
   const currentWeek = Number(data.week || websiteRegularSelection.week);
+  const historicalDataReady = (websiteWeeks || []).length > 0;
   const winnerWeeks = (websiteWeeks || []).filter(row => row.competition === "regular" && Number(row.rank) === 1 && String(row.name || "").trim().toLowerCase() === String(winner.name).trim().toLowerCase());
   const currentWeekArchived = winnerWeeks.some(row => String(row.season) === `${currentSeason}-${currentSeason + 1}` && Number(row.week) === currentWeek);
   const priorWins = winnerWeeks.filter(row => String(row.season) !== `${currentSeason}-${currentSeason + 1}` || Number(row.week) !== currentWeek).sort((left, right) => String(left.season).localeCompare(String(right.season)) || Number(left.weekOrder) - Number(right.weekOrder));
@@ -3444,16 +3451,17 @@ function renderWebsiteWeekRecap(data) {
   const lastWin = priorWins[priorWins.length - 1];
   const regularPeriods = [...new Map((websiteWeeks || []).filter(row => row.competition === "regular").map(row => [`${row.season}|${row.week}`, row])).values()].sort((left, right) => String(left.season).localeCompare(String(right.season)) || Number(left.weekOrder) - Number(right.weekOrder));
   const weeksSinceLastWin = lastWin ? regularPeriods.filter(row => String(row.season) > String(lastWin.season) || String(row.season) === String(lastWin.season) && Number(row.weekOrder) > Number(lastWin.weekOrder)).length : null;
+  const moneyDataReady = Array.isArray(tableData.money_won) && tableData.money_won.length > 0;
   const priorMoney = Number((tableData.money_won || []).find(row => String(row.Name).trim().toLowerCase() === String(winner.name).trim().toLowerCase())?.["Total Money Won"] || 0);
   const estimatedPrize = Math.max(0, (data.players || []).length * 10 - 20) / tiedWinners.length;
-  const careerMoney = priorMoney + (currentWeekArchived ? 0 : estimatedPrize);
+  const careerMoney = moneyDataReady ? priorMoney + (currentWeekArchived ? 0 : estimatedPrize) : null;
   const facts = [
     `${winner.name} finished with ${score(winner)} wins and went ${winner.wins}-${winner.losses}.`,
     historicalPercentile != null ? `${winner.wins}-${winner.losses} is better than ${historicalPercentile}% of weekly winners all time.` : "Historical score comparison will appear after the archive data loads.",
-    `This is weekly win number ${careerWins} for ${winner.name}, ranking #${careerWinRank} all time.`,
-    lastWin ? `${winner.name}'s last weekly win was ${lastWin.season} Week ${lastWin.week}, ${weeksSinceLastWin} completed pool week${weeksSinceLastWin === 1 ? "" : "s"} ago.` : `This is ${winner.name}'s first archived weekly win.`,
-    careerMoney ? `${winner.name}'s career winnings rise to $${careerMoney.toLocaleString()}.` : "Career winnings were unavailable.",
-    lateWins ? `${lateWins} of the winner's wins came from the final four games.` : "The winner survived the final four games without adding another win.",
+    historicalDataReady ? `This is weekly win number ${careerWins} for ${winner.name}, ranking #${careerWinRank} all time.` : "Career weekly-win history will appear after the archive data loads.",
+    historicalDataReady ? (lastWin ? `${winner.name}'s last weekly win was ${lastWin.season} Week ${lastWin.week}, ${weeksSinceLastWin} completed pool week${weeksSinceLastWin === 1 ? "" : "s"} ago.` : `This is ${winner.name}'s first archived weekly win.`) : "",
+    careerMoney != null ? `${winner.name}'s career winnings rise to $${careerMoney.toLocaleString()}.` : "Career winnings will appear after the archive data loads.",
+    lateCorrect ? `${winner.name} went ${lateCorrect}-${lateGames.length - lateCorrect} over the final ${lateGames.length} games.` : "The winner survived the final four games without adding another win.",
     `${bestBetHit ? "The best bet hit" : "The best bet missed"}: ${String(winner.bestBet || "none").toUpperCase()}.`,
     underdogWins ? `${winner.name} picked ${underdogWins} winning underdog${underdogWins === 1 ? "" : "s"}.` : `${winner.name} won without a successful underdog pick.`,
     tiebreakStory,
@@ -3461,7 +3469,8 @@ function renderWebsiteWeekRecap(data) {
   ];
   const winnerNames = tiedWinners.map(player => player.name).join(" and ");
   const greeting = tiedWinners.length > 1 ? `Congratulations to ${winnerNames} on sharing Week ${websiteRegularSelection.week}!` : `Congratulations, ${winner.name}, on winning Week ${websiteRegularSelection.week}!`;
-  const draft = [greeting, "", journey, closeCall, `${winner.name} finished with ${score(winner)} wins, ${lateWins ? `including ${lateWins} from the last four games` : "and had already done enough before the closing stretch"}. ${bestBetHit ? `The ${String(winner.bestBet).toUpperCase()} Best Bet delivered the extra win.` : `The win held up even without help from the ${String(winner.bestBet || "").toUpperCase()} Best Bet.`}`, underdogWins ? `${winner.name} also picked ${underdogWins} winning underdog${underdogWins === 1 ? "" : "s"}.` : "", runnerUp && score(winner) !== score(runnerUp) ? tiebreakStory : "", "", historicalPercentile != null ? `${winner.wins}-${winner.losses} is better than ${historicalPercentile}% of weekly winners all time.` : "", `This is weekly win number ${careerWins} for ${winner.name}, ranking #${careerWinRank} all time.${lastWin ? ` The last one came in ${lastWin.season} Week ${lastWin.week}, ${weeksSinceLastWin} completed pool weeks ago.` : ""}`, careerMoney ? `Career winnings now stand at $${careerMoney.toLocaleString()}.` : "", "", "Great week and a well-earned win."].filter(line => line !== "").join("\n");
+  const winCountLine = historicalDataReady ? `This is weekly win number ${careerWins} for ${winner.name}, ranking #${careerWinRank} all time.${lastWin ? ` The last one came in ${lastWin.season} Week ${lastWin.week}, ${weeksSinceLastWin} completed pool weeks ago.` : ""}` : "Career weekly-win history will appear after the archive data loads.";
+  const draft = [greeting, "", journey, closeCall, `${winner.name} finished with ${score(winner)} wins, ${lateCorrect ? `going ${lateCorrect}-${lateGames.length - lateCorrect} over the last ${lateGames.length} games` : "and had already done enough before the closing stretch"}. ${bestBetHit ? `The ${String(winner.bestBet).toUpperCase()} Best Bet delivered the extra win.` : `The win held up even without help from the ${String(winner.bestBet || "").toUpperCase()} Best Bet.`}`, underdogWins ? `${winner.name} also picked ${underdogWins} winning underdog${underdogWins === 1 ? "" : "s"}.` : "", runnerUp && score(winner) !== score(runnerUp) ? tiebreakStory : "", "", historicalPercentile != null ? `${winner.wins}-${winner.losses} is better than ${historicalPercentile}% of weekly winners all time.` : "", winCountLine, careerMoney != null ? `Career winnings now stand at $${careerMoney.toLocaleString()}.` : "", "", "Great week and a well-earned win."].filter(line => line !== "").join("\n");
   host.innerHTML = `<section class="week-recap"><h3 class="compact-live-title">Week ${websiteRegularSelection.week} story</h3><div class="week-recap-grid"><div class="week-recap-item"><span>Winner</span><strong>${websiteEscapeHtml(winnerNames)} · ${score(winner)} wins</strong></div><div class="week-recap-item"><span>Decisive result</span><strong>${websiteEscapeHtml(decisiveResult)}</strong></div><div class="week-recap-item"><span>Journey</span><strong>${websiteEscapeHtml(journey)}</strong></div><div class="week-recap-item"><span>Came up just short</span><strong>${websiteEscapeHtml(closeCall)}</strong></div></div><h3 class="compact-live-title">Winner message draft</h3><div class="winner-draft">${websiteEscapeHtml(draft)}</div></section>`;
 }
 function decorateWebsiteWeekOneHeaders(data) { const headers = [...document.querySelectorAll("#week-one-table th.pg-game")].slice(1, 17); headers.forEach((header, index) => { const favorite = data.favorites[index]; const underdog = data.underdogs[index]; const favoriteScore = data.favoriteScores[index]; const underdogScore = data.underdogScores[index]; const game = (data.games || []).find(item => item.favorite?.toLowerCase() === favorite.toLowerCase() && item.underdog?.toLowerCase() === underdog.toLowerCase()); const gameStatus = String(game?.status || "").toUpperCase(); const started = ["IN_PROGRESS", "FINAL", "COMPLETED"].includes(gameStatus); const status = gameStatus === "IN_PROGRESS" ? game.statusText : ["FINAL", "COMPLETED"].includes(gameStatus) ? "Final" : ""; const spread = `<small class="pg-header-spread">${data.spreads[index]}</small>`; if (!started && game) { const kickoff = game.kickoffGroup || game.kickoff || game.statusText || ""; header.innerHTML = `${favorite}${spread}${underdog}${kickoff ? `<small class="pg-header-kickoff">${kickoff}</small>` : ""}`; return; } const score = value => `<span class="pg-header-score">${value === "" ? "-" : value}</span>`; header.innerHTML = `${favorite}${score(favoriteScore)}${spread}${score(underdogScore)}${underdog}${status ? `<small class="pg-header-kickoff">${status}</small>` : ""}`; }); }
