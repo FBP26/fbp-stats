@@ -3360,7 +3360,8 @@ function renderWebsiteWeekRecap(data) {
   websiteLastWeekData = data;
   const final = (data.games || []).length && data.games.every(game => ["POST", "FINAL", "COMPLETED"].includes(websiteGameStatus(game)));
   if (!final || data.testMode || !(data.players || []).length) { host.innerHTML = ""; return; }
-  const actual = Number(data.actualTiebreaker);
+  // Number("") is 0, not NaN, so a not-yet-synced tiebreaker must be excluded before converting.
+  const actual = data.actualTiebreaker !== "" && data.actualTiebreaker != null ? Number(data.actualTiebreaker) : NaN;
   const score = player => Number(player.wins ?? player.total) || 0;
   const difference = player => Number.isFinite(actual) ? Math.abs(Number(player.tiebreaker) - actual) : Number.POSITIVE_INFINITY;
   const ordered = [...data.players].sort((left, right) => score(right) - score(left) || difference(left) - difference(right) || left.name.localeCompare(right.name));
