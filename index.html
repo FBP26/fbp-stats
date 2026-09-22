@@ -516,8 +516,8 @@
   .tiebreak-scenario-card small { margin-top: 4px; color: var(--muted); font-size: 10px; font-weight: 400; }
   .tiebreak-scenario-card.guaranteed { border-color: #54d6b2; background: #54d6b214; }
   .tiebreak-scenario-card.range { border-color: #8eb8ff; }
-  .tiebreak-scenario-field-row { display: flex; align-items: stretch; gap: 6px; margin-top: 10px; height: 260px; }
-  .tiebreak-scenario-field { position: relative; display: flex; flex: 1; flex-direction: column-reverse; overflow: hidden; border: 2px solid #d7e9c2; border-radius: 5px; background: repeating-linear-gradient(to top, #2f7d45 0, #2f7d45 35px, #3b8f50 35px, #3b8f50 37px); box-shadow: inset 0 0 0 1px #174d2b; }
+  .tiebreak-scenario-field-row { display: flex; width: 100%; min-width: 0; align-items: stretch; gap: 6px; margin-top: 10px; height: 260px; }
+  .tiebreak-scenario-field { position: relative; display: flex; flex: 1 1 0; width: 100%; min-width: 0; flex-direction: column-reverse; overflow: hidden; border: 2px solid #d7e9c2; border-radius: 5px; background: repeating-linear-gradient(to top, #2f7d45 0, #2f7d45 35px, #3b8f50 35px, #3b8f50 37px); box-shadow: inset 0 0 0 1px #174d2b; }
   .tiebreak-scenario-field::before { content: ""; position: absolute; inset: 0; pointer-events: none; background: repeating-linear-gradient(to top, transparent 0, transparent 49px, #d7e9c299 49px, #d7e9c299 51px); }
   .tiebreak-scenario-segment { position: relative; z-index: 1; display: flex; min-height: 3px; align-items: center; justify-content: center; overflow: hidden; padding: 0 4px; border-top: 1px solid #0b351c99; color: #0b1015; font: 700 8px Arial, sans-serif; text-align: center; }
   .tiebreak-scenario-segment:nth-child(odd) { background: #9b78d1cc; }
@@ -532,7 +532,7 @@
   .tiebreak-scenario-bar span:nth-child(2n) { background: #8eb8ff; }
   .tiebreak-scenario-bar span:nth-child(3n) { background: #f6c85f; }
   .tiebreak-scenario-bar small { display: none; }
-  .tiebreak-scenario-axis { display: none; }
+  .tiebreak-scenario-axis { display: none !important; flex: 0 0 0; width: 0; }
   .tiebreak-center-field { position: relative; min-height: 260px; overflow: hidden; border: 2px solid #d7e9c2; border-radius: 5px; background: repeating-linear-gradient(to top, #2f7d45 0, #2f7d45 35px, #3b8f50 35px, #3b8f50 37px); box-shadow: inset 0 0 0 1px #174d2b; }
   .tiebreak-center-field::before { content: ""; position: absolute; inset: 0; background: repeating-linear-gradient(to top, transparent 0, transparent 49px, #d7e9c299 49px, #d7e9c299 51px); }
   .tiebreak-center-axis { position: absolute; inset: 0 -34px 0 auto; width: 30px; color: var(--muted); font: 9px Arial, sans-serif; }
