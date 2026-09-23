@@ -7245,7 +7245,7 @@ async function init() {
   websitePayouts = (await (await fetch(`${DATA_DIR}/payouts.json`)).json()).seasons || [];
   const players = [...new Set(dashboard.map(row => row.Name))].sort(), profileSelect = document.getElementById("profile-player"), namesSelect = document.getElementById("names-player");
   const notificationPlayers = document.getElementById("notification-player-options");
-  players.forEach(name => { profileSelect.add(new Option(name, name)); namesSelect.add(new Option(name, name)); notificationPlayers.append(new Option(name)); });
+  players.forEach(name => { profileSelect.add(new Option(name, name)); namesSelect.add(new Option(name, name)); if (![...notificationPlayers.options].some(option => option.value.toLowerCase() === name.toLowerCase())) notificationPlayers.append(new Option(name)); });
   const defaultPlayer = players.includes("RJ") ? "RJ" : players[0] || "";
   profileSelect.value = defaultPlayer;
   namesSelect.value = defaultPlayer;
