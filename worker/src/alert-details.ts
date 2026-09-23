@@ -113,9 +113,13 @@ export function nightPaths(feed: AlertFeed, name: string): { eligible: boolean; 
       feed.cards.forEach((card, cardIndex) => { if (card.picks[index] === winner) wins[cardIndex] += card.bestBet === winner ? 2 : 1; });
     });
     if (wins[playerIndex] !== Math.max(...wins)) continue;
+    const tied = feed.cards.filter((_, index) => index !== playerIndex && wins[index] === wins[playerIndex]);
+    const guess = feed.cards[playerIndex].tiebreaker;
+    const lower = Math.max(-Infinity, ...tied.filter(card => card.tiebreaker < guess).map(card => (guess + card.tiebreaker) / 2));
+    const upper = Math.min(Infinity, ...tied.filter(card => card.tiebreaker > guess).map(card => (guess + card.tiebreaker) / 2));
+    if (Math.ceil(lower) > Math.floor(upper)) continue;
     count++;
     if (examples.length < 12) {
-      const tied = feed.cards.filter((_, index) => index !== playerIndex && wins[index] === wins[playerIndex]);
       examples.push(`${descriptions.join(" + ") || "All games final"}: ${wins[playerIndex]} wins, ${tied.length ? `tied with ${tied.map(card => `${card.name} (guess ${card.tiebreaker})`).join(", ")}; final-game net passing decides: ${tiebreakNeed(feed.cards[playerIndex], tied)}` : "outright first"}.`);
     }
   }

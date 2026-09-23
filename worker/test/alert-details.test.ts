@@ -117,6 +117,13 @@ test("tiebreak guidance respects integer boundaries, decimals and identical gues
   assert.match(tiebreakNeed(feed.cards[1], [feed.cards[0]]), /426 or more yards; 425 yards ties/);
   assert.match(tiebreakNeed(feed.cards[0], [{ ...feed.cards[1], tiebreaker: 451 }]), /425 or fewer yards$/);
   assert.match(tiebreakNeed(feed.cards[0], [{ ...feed.cards[1], tiebreaker: 400 }]), /any total.*same guess.*shared result/);
+  const impossible: AlertFeed = { ...feed, cards: [
+    { ...feed.cards[0], tiebreaker: 400.1 },
+    { ...feed.cards[0], name: "Low", tiebreaker: 400 },
+    { ...feed.cards[0], name: "High", tiebreaker: 400.2 },
+  ] };
+  assert.equal(nightPaths(impossible, "Jim").eligible, false);
+  assert.equal(nightPaths(impossible, "Low").eligible, true);
 });
 test("shared-first entries and regaining first create distinct observed transitions", () => {
   const first = observeLeads(feed, null, "2026-09-14T00:30:00Z");
