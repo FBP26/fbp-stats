@@ -8,6 +8,28 @@
 <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent" />
 <meta name="apple-mobile-web-app-title" content="FBP" />
 <title>FBP</title>
+<script>
+(() => {
+  const key = "fbp-color-theme";
+  try { document.documentElement.dataset.theme = localStorage.getItem(key) === "light" ? "light" : "dark"; } catch {}
+  document.addEventListener("DOMContentLoaded", () => {
+    const toggle = document.getElementById("theme-toggle");
+    toggle.checked = document.documentElement.dataset.theme !== "light";
+    toggle.addEventListener("change", () => {
+      document.documentElement.dataset.theme = toggle.checked ? "dark" : "light";
+      try { localStorage.setItem(key, document.documentElement.dataset.theme); } catch {}
+      Object.values(window.Chart?.instances || {}).forEach(chart => chart.update("none"));
+    });
+    window.Chart?.register({ id: "pageTheme", beforeUpdate(chart) {
+      const style = getComputedStyle(document.documentElement);
+      const race = chart.canvas.closest(".live-race-line-wrap");
+      Object.values(chart.options.scales || {}).forEach(scale => { scale.ticks.color = race ? "#bdc9d2" : style.getPropertyValue("--muted"); scale.grid.color = race ? "#52616f" : style.getPropertyValue("--border"); });
+      if (chart.options.plugins.legend?.labels) chart.options.plugins.legend.labels.color = style.getPropertyValue("--text");
+    } });
+    Object.values(window.Chart?.instances || {}).forEach(chart => chart.update("none"));
+  });
+})();
+</script>
 <link rel="manifest" href="manifest.webmanifest?v=20260901-2" />
 <link rel="icon" href="icons/fbp-icon.svg" type="image/svg+xml" />
 <link rel="apple-touch-icon" sizes="180x180" href="icons/fbp-apple-touch.png?v=20260901-2" />
@@ -21,6 +43,21 @@
 <script src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js"></script>
 <script src="historical-ui.js?v=20260903-1"></script>
 <style>
+  :root { color-scheme: dark; }
+  :root[data-theme="light"] { color-scheme: light; --bg: #f5f7f8; --panel: #ffffff; --panel-2: #e9eef1; --border: #bac6cd; --text: #18262f; --muted: #52636e; --accent: #755600; --accent-2: #8a6200; --positive: #17683f; --positive-bg: #e0f1e6; --danger: #a72938; --danger-bg: #fae3e6; }
+  html .theme-switch { display: inline-flex; align-items: center; gap: 8px; padding: 8px 0; margin-right: 14px; color: var(--text); font: 12px Arial, sans-serif; text-transform: none; letter-spacing: 0; white-space: nowrap; cursor: pointer; }
+  html .theme-switch input { width: 34px; height: 20px; margin: 0; padding: 0; appearance: none; border: 1px solid var(--muted); border-radius: 12px; background: var(--panel-2); cursor: pointer; }
+  html .theme-switch input::before { content: ""; display: block; width: 14px; height: 14px; margin: 2px; border-radius: 50%; background: var(--text); transition: transform .15s; }
+  html .theme-switch input:checked::before { transform: translateX(14px); background: var(--accent); }
+  html .theme-switch input:focus-visible { outline: 2px solid var(--accent); outline-offset: 3px; }
+  html[data-theme="light"] body { background: linear-gradient(120deg, #eef3f5, var(--bg) 50%, #f5f6ee); }
+  html[data-theme="light"] :is(.teams-sheet th,.analysis-table th,.scenario-player-row td,.turning-point,.lead-change,.live-superlative,.outcome-team,.outcome-reset,button.outcome-spread,.submission-status-list li,.pg-game,.pg-round,.pg-sum-hdr,.weekly-rank-sheet th,.payout-table th,.payout-table thead th:first-child,.install-help,.profile-chart-tooltip,.game-cover-popover,.pull-refresh) { background: var(--panel-2); color: var(--text); }
+  html[data-theme="light"] :is(.tabulator-header,.tabulator-col,.tabulator-row.tabulator-row-even) { background: var(--panel-2) !important; }
+  html[data-theme="light"] .tabulator-row:hover { background: #dbe9e4 !important; }
+  html[data-theme="light"] :is(.website-side:has(input:checked) .website-team-choice,.website-best-bet-option:hover,.website-best-bet-option[aria-selected="true"],.website-best-bet-option.keyboard-active,.website-name-option:hover,.website-name-option.keyboard-active,.teams-team-option:hover,.teams-team-option[aria-selected="true"],.outcome-team.selected,button.outcome-spread.selected) { background: #fff0bc; color: #624700; }
+  html[data-theme="light"] .pg-bb-hdr { background: #e0f1e6; color: #17683f; }
+  html[data-theme="light"] .live-race-line-wrap { background: #18222c; }
+  html[data-theme="light"] #website-race-event-panel { background: var(--panel-2); color: var(--text); }
   :root { --bg: #0d1117; --panel: #171a1f; --panel-2: #20242a; --border: #3a3d42; --text: #f3f1e8; --muted: #aaa69b; --accent: #ffcf40; --accent-2: #e6a817; --positive: #39c982; --positive-bg: #123c2d; --danger: #ff6b6b; --danger-bg: #481f24; }
   * { box-sizing: border-box; }
   body { margin: 0; font-family: Georgia, "Times New Roman", serif; background: radial-gradient(circle at 85% 0%, #403514 0, transparent 34rem), var(--bg); color: var(--text); }
@@ -779,7 +816,7 @@
 </head>
 <body>
 <div id="website-pull-refresh" class="pull-refresh" role="status" aria-live="polite"><span class="pull-refresh-icon" aria-hidden="true">↻</span><span class="pull-refresh-label">Pull to refresh</span></div>
-<header><nav id="nav"><button data-view="enter-picks">Enter Picks</button><button data-view="week-one">Week 2</button><button data-view="live-analysis">Live</button><button data-view="players">Players</button><button data-view="alltime">All Time</button><button data-view="season">Seasons</button><button data-view="weeks">Weeks</button><button data-view="games">Games</button><button data-view="streaks">Streaks</button><button data-view="teams">Teams</button><button data-view="names">Names</button><button data-view="payout">Payout</button><button data-view="faq">FAQ</button></nav></header>
+<header><label class="theme-switch"><input id="theme-toggle" type="checkbox" role="switch" checked>Dark mode</label><nav id="nav"><button data-view="enter-picks">Enter Picks</button><button data-view="week-one">Week 3</button><button data-view="live-analysis">Live</button><button data-view="players">Players</button><button data-view="alltime">All Time</button><button data-view="season">Seasons</button><button data-view="weeks">Weeks</button><button data-view="games">Games</button><button data-view="streaks">Streaks</button><button data-view="teams">Teams</button><button data-view="names">Names</button><button data-view="payout">Payout</button><button data-view="faq">FAQ</button></nav></header>
 <aside id="website-install-help" class="install-help" hidden><div><strong>Add FBP to your Home Screen</strong><span id="website-install-copy"></span></div><button id="website-install-action" type="button" hidden>Install</button><button id="website-install-close" class="install-help-close" type="button" aria-label="Dismiss home-screen instructions">×</button></aside>
 <main>
   <section id="view-enter-picks" class="view">
@@ -1170,6 +1207,17 @@ function renderWebsiteBestBetPicker(teams, enabled) {
   updateWebsiteBestBetPicker();
 }
 function initializeWebsiteGamePickKeyboard(host) {
+  host.onclick = event => {
+    const label = event.target.closest("label.website-side");
+    const input = label?.querySelector('input[type="radio"]');
+    if (!input || input.disabled || event.target === input) return;
+    event.preventDefault();
+    input.checked = true;
+    input.dispatchEvent(new Event("change", { bubbles: true }));
+  };
+  const form = document.getElementById("website-picks-form");
+  form.addEventListener("input", websiteSavePickDraft);
+  form.addEventListener("change", websiteSavePickDraft);
   host.onkeydown = event => {
     const current = event.target.closest('input[type="radio"][name^="game-"]');
     if (!current || !["ArrowLeft", "ArrowRight", "ArrowUp", "ArrowDown"].includes(event.key)) return;
@@ -1775,7 +1823,7 @@ function renderWebsiteRace(data) {
   if (!host) return;
   const hasLiveData = (data.games || []).some(game => ["IN", "IN_PROGRESS", "LIVE", "POST", "FINAL", "COMPLETED"].includes(websiteGameStatus(game)));
   host.hidden = !hasLiveData;
-  if (!hasLiveData) { host.innerHTML = ""; return; }
+  if (!hasLiveData) { stopWebsiteRace(); host.innerHTML = ""; document.querySelectorAll("#live-race-stories > section").forEach(section => { section.innerHTML = ""; }); return; }
   stopWebsiteRace();
   if (websiteRaceLineChart) websiteRaceLineChart.destroy();
   websiteRaceLineChart = null;
@@ -1793,7 +1841,7 @@ function renderWebsiteRace(data) {
   const latestStored = snapshots[snapshots.length - 1];
   const currentSignature = websiteRaceSnapshotSignature(current);
   const latestSignature = websiteRaceSnapshotSignature(latestStored);
-  if (current.players.length && currentSignature !== latestSignature) snapshots.push(current);
+  if (!data.completedGameDate && current.players.length && currentSignature !== latestSignature) snapshots.push(current);
   websiteRaceContext = context;
   websiteRaceLiveNow = (data.games || []).some(game => ["IN", "IN_PROGRESS", "LIVE"].includes(websiteGameStatus(game)));
   websiteRaceSnapshots = snapshots.filter(snapshot => snapshot?.timestamp && Array.isArray(snapshot.players) && snapshot.players.length).slice(-360);
@@ -2535,7 +2583,7 @@ try {
   if (requestedRoute === "enter-picks" && cachedSelection?.staged && Array.isArray(cachedSlate.games) && cachedSlate.games.length) {
     websiteRegularSelection = { season: Number(cachedSelection.season), week: Number(cachedSelection.week), phase: "REGULAR_SEASON", staged: true };
     websiteEntrySelection = { testMode: false, ...websiteRegularSelection };
-    websiteStagedGamesCache.set(`REGULAR_SEASON-${websiteRegularSelection.season}-${websiteRegularSelection.week}`, { games: cachedSlate.games, storedAt: Date.now() });
+    websiteStagedGamesCache.set(`REGULAR_SEASON-${websiteRegularSelection.season}-${websiteRegularSelection.week}`, { games: cachedSlate.games, storedAt: cachedSlate.storedAt || 0 });
     websiteActiveRegularWeekLoadedAt = 0;
     updateWebsiteWeekLabels(websiteEntrySelection);
     updateWebsiteTiebreakLabel(cachedSlate.games);
@@ -2635,6 +2683,76 @@ async function saveNotificationPreferences(event) {
   finally { button.disabled = false; }
 }
 function websitePickSelection() { return websiteEntrySelection; }
+function websitePickDraftGameKey(game) {
+  return [game.away || game.favorite, game.home || game.underdog].map(team => String(team || "").toUpperCase()).sort().join("|");
+}
+const websitePickDrafts = new Map();
+function websiteSavePickDraft() {
+  const key = document.getElementById("website-game-picks")?.dataset.ready;
+  if (!key || !document.querySelector('#website-game-picks input[type="radio"]')) return;
+  const form = document.getElementById("website-picks-form");
+  const draft = { fields: Object.fromEntries(["website-picks-name", "website-week-name", "website-tiebreaker", "website-best-bet"].map(id => [id, document.getElementById(id).value])), picks: websiteActiveGames.map((game, index) => ({ game: websitePickDraftGameKey(game), team: form.elements[`game-${index + 1}`]?.value || "" })) };
+  websitePickDrafts.set(key, draft);
+  try { localStorage.setItem(`fbp-pick-draft:${key}`, JSON.stringify(draft)); } catch (error) { console.warn("Pick draft is preserved in this tab; device storage is unavailable."); }
+}
+function websiteRestorePickDraft(key) {
+  try {
+    let draft = websitePickDrafts.get(key);
+    if (!draft) { try { draft = JSON.parse(localStorage.getItem(`fbp-pick-draft:${key}`) || "null"); } catch (error) { return; } }
+    if (!draft) return;
+    for (const [id, value] of Object.entries(draft.fields || {})) {
+      if (["website-picks-name", "website-week-name", "website-tiebreaker", "website-best-bet"].includes(id)) document.getElementById(id).value = value;
+    }
+    websiteActiveGames.forEach((game, index) => {
+      const team = draft.picks?.find(pick => pick.game === websitePickDraftGameKey(game))?.team;
+      document.querySelectorAll(`#website-game-picks input[name="game-${index + 1}"]`).forEach(input => { input.checked = !input.disabled && input.value.toUpperCase() === String(team || "").toUpperCase(); });
+    });
+    updateWebsiteBestBetPicker();
+  } catch (error) { console.warn("Saved pick draft could not be restored."); }
+}
+function websiteClearPickDraft() {
+  const key = document.getElementById("website-game-picks")?.dataset.ready;
+  websitePickDrafts.delete(key);
+  websitePickShareLoadedAt = 0;
+  try { localStorage.removeItem(`fbp-pick-draft:${key}`); } catch (error) { console.warn("Saved draft could not be cleared."); }
+}
+function websiteRefreshMessage(viewId, loading = false, timestamp = null, failed = false) {
+  const view = document.getElementById(viewId);
+  if (!view) return;
+  let status = view.querySelector(".website-freshness");
+  if (!status) { status = document.createElement("p"); status.className = "website-freshness analysis-note"; status.setAttribute("role", "status"); view.prepend(status); }
+  if (timestamp && Number.isFinite(new Date(timestamp).getTime())) status.dataset.updatedAt = new Date(timestamp).toISOString();
+  const time = status.dataset.updatedAt ? new Date(status.dataset.updatedAt).toLocaleString("en-US", { timeZone: "America/New_York", month: "short", day: "numeric", hour: "numeric", minute: "2-digit", second: "2-digit", timeZoneName: "short" }) : "Not loaded yet";
+  status.textContent = `Last updated: ${time}.${loading ? " Loading the latest data; this may take up to 60 seconds." : failed ? " Refresh unavailable; showing saved data." : ""}`;
+}
+let websitePickShareData = null, websitePickSharePromise = null, websitePickShareLoadedAt = 0;
+function websiteGamePickShare(data, game) {
+  const normalize = value => String(value || "").trim().toUpperCase();
+  const teams = [game.favorite || game.away, game.underdog || game.home].map(normalize);
+  const index = (data.favorites || []).findIndex((team, offset) => teams.includes(normalize(team)) && teams.includes(normalize(data.underdogs?.[offset])));
+  const picks = index < 0 ? [] : (data.players || []).map(player => normalize(player.picks?.[index])).filter(team => teams.includes(team));
+  return { total: picks.length, counts: Object.fromEntries(teams.map(team => [team, picks.filter(pick => pick === team).length])) };
+}
+async function refreshWebsitePickShares() {
+  const selection = websitePickSelection(), key = `${selection.season}-${selection.week}`;
+  if (selection.testMode) return;
+  try {
+    if (!websitePickShareData || `${websitePickShareData.season}-${websitePickShareData.week}` !== key || Date.now() - websitePickShareLoadedAt > 60000) {
+      if (!websitePickSharePromise) websitePickSharePromise = fetchWebsiteCurrentWeek().then(data => { websitePickShareData = data; websitePickShareLoadedAt = Date.now(); return data; }).finally(() => { websitePickSharePromise = null; });
+      await websitePickSharePromise;
+    }
+    if (`${websitePickShareData.season}-${websitePickShareData.week}` !== key || key !== `${websitePickSelection().season}-${websitePickSelection().week}`) return;
+    document.querySelectorAll("#website-game-picks .website-game-row").forEach((row, index) => {
+      const share = websiteGamePickShare(websitePickShareData, websiteActiveGames[index]);
+      row.querySelectorAll(".website-side").forEach(label => {
+        const team = label.querySelector("input").value.toUpperCase();
+        let badge = label.querySelector(".website-pick-share");
+        if (!badge) { badge = document.createElement("span"); badge.className = "website-pick-share"; badge.style.cssText = "grid-column:1 / -1;font-size:11px;color:var(--muted)"; label.querySelector(".website-team-choice").append(badge); }
+        badge.textContent = share.total ? `${Math.round(share.counts[team] / share.total * 100)}% picked · ${share.counts[team]}/${share.total}` : "No submitted picks yet";
+      });
+    });
+  } catch (error) { console.warn("Pick percentages could not refresh."); }
+}
 function updateWebsiteWeekLabels(selection) {
   const seasonLabel = `${selection.season}-${selection.season + 1}`;
   const weekLabel = `${selection.testMode ? "Preseason Week" : "Week"} ${selection.week}`;
@@ -2770,8 +2888,11 @@ async function refreshWebsitePicksWeather() {
       if (!refreshed) return game;
       const updated = websiteMergeGameContext(game, refreshed);
       const choices = rows[index]?.querySelectorAll(".website-team-choice");
-      if (choices?.[0]) choices[0].outerHTML = websiteTeamChoice(updated, updated.favorite || updated.away);
-      if (choices?.[1]) choices[1].outerHTML = websiteTeamChoice(updated, updated.underdog || updated.home);
+      [updated.favorite || updated.away, updated.underdog || updated.home].forEach((team, side) => {
+        const record = choices?.[side]?.querySelector(".website-team-record");
+        const metadata = String(team).toUpperCase() === String(updated.away).toUpperCase() ? updated.awayTeam : updated.homeTeam;
+        if (record && metadata?.record) record.textContent = metadata.record;
+      });
       const context = rows[index]?.querySelector(".website-game-context");
       const contextHtml = websiteGameContext(updated);
       if (context) context.outerHTML = contextHtml;
@@ -2794,7 +2915,15 @@ async function refreshWebsitePicksWeather() {
 function websiteSlateSignature(games) {
   return JSON.stringify((games || []).map(({ gameId, kickoff, favorite, spread, underdog, awayTeam, homeTeam }) => ({ gameId, kickoff, favorite, spread, underdog, awayRecord: awayTeam?.record || "", homeRecord: homeTeam?.record || "" })));
 }
-async function renderWebsitePicksForm(forceRefresh = false) {
+let websitePicksRenderPromise = null;
+function renderWebsitePicksForm(forceRefresh = false) {
+  if (!websitePicksRenderPromise) {
+    websiteRefreshMessage("view-enter-picks", true);
+    websitePicksRenderPromise = renderWebsitePicksFormNow(forceRefresh).finally(() => { websitePicksRenderPromise = null; refreshWebsitePickShares(); });
+  }
+  return websitePicksRenderPromise;
+}
+async function renderWebsitePicksFormNow(forceRefresh = false) {
   const host = document.getElementById("website-game-picks");
   if (!host) return;
   const initialSelection = websitePickSelection();
@@ -2811,9 +2940,8 @@ async function renderWebsitePicksForm(forceRefresh = false) {
   const selection = websitePickSelection();
   const configKey = `${selection.phase}-${selection.season}-${selection.week}`;
   const cachedGames = websiteStagedGamesCache.get(configKey)?.games || [];
-  if (!forceRefresh && host.dataset.ready === configKey && websiteSlateSignature(websiteActiveGames) === websiteSlateSignature(cachedGames)) { queueWebsitePicksWeatherRefresh(selection); return; }
-  host.dataset.ready = configKey;
-  host.innerHTML = '<p class="website-instructions">Loading games...</p>';
+  if (!forceRefresh && host.dataset.ready === configKey && websiteSlateSignature(websiteActiveGames) === websiteSlateSignature(cachedGames)) { websiteRefreshMessage("view-enter-picks", false, websiteStagedGamesCache.get(configKey)?.storedAt, useCachedSlate); queueWebsitePicksWeatherRefresh(selection); return; }
+  if (!host.querySelector('input[type="radio"]')) host.innerHTML = '<p class="website-instructions">Loading games...</p>';
   document.getElementById("website-test-notice").classList.toggle("active", selection.testMode);
   const weekNameLabel = document.getElementById("website-week-name-label");
   weekNameLabel.textContent = `${selection.testMode ? "Preseason" : "Week"} ${selection.week} name`;
@@ -2821,6 +2949,11 @@ async function renderWebsitePicksForm(forceRefresh = false) {
   try {
     const stagedGames = await loadWebsiteStagedGames(selection, forceRefresh && !useCachedSlate);
     if (!stagedGames.length) throw new Error(`${selection.testMode ? "Preseason" : "Regular"} Week ${selection.week} has not been staged yet.`);
+    if (host.dataset.ready === configKey && host.querySelector('input[type="radio"]') && websiteSlateSignature(websiteActiveGames) === websiteSlateSignature(stagedGames)) { websiteRefreshMessage("view-enter-picks", false, websiteStagedGamesCache.get(configKey)?.storedAt, useCachedSlate); queueWebsitePicksWeatherRefresh(selection); return; }
+    websiteSavePickDraft();
+    const previousKey = host.dataset.ready;
+    if (previousKey && previousKey !== configKey) { document.getElementById("website-week-name").value = ""; document.getElementById("website-tiebreaker").value = ""; }
+    host.dataset.ready = configKey;
     websiteActiveGames = stagedGames;
     updateWebsiteTiebreakLabel(websiteActiveGames);
     const groups = [];
@@ -2834,11 +2967,15 @@ async function renderWebsitePicksForm(forceRefresh = false) {
     const bestBetTeams = linesReady ? websiteActiveGames.flatMap(game => [game.favorite, game.underdog]).sort((a, b) => websiteFormTeamName(a).localeCompare(websiteFormTeamName(b), undefined, { sensitivity: "base" })) : [];
     bestBetTeams.forEach(team => bestBet.add(new Option(websiteFormTeamName(team), team)));
     renderWebsiteBestBetPicker(bestBetTeams, linesReady);
+    websiteRestorePickDraft(configKey);
     bestBet.disabled = !linesReady;
     document.querySelector('#website-picks-form button[type="submit"]').disabled = !linesReady;
     document.getElementById("website-picks-status").textContent = linesReady ? "" : "Yahoo has not posted every spread yet. Matchups are available for review; picks open after the Tuesday refresh fills the lines.";
+    websiteRefreshMessage("view-enter-picks", false, websiteStagedGamesCache.get(configKey)?.storedAt, useCachedSlate);
     queueWebsitePicksWeatherRefresh(selection);
   } catch (error) {
+    websiteRefreshMessage("view-enter-picks", false, null, true);
+    if (host.querySelector('input[type="radio"]')) { document.getElementById("website-picks-status").textContent = "Refresh unavailable. Your selected picks are preserved; try again before submitting."; return; }
     websiteActiveGames = [];
     renderWebsiteGamesLoadError(host, error);
   }
@@ -3316,7 +3453,7 @@ document.getElementById("website-picks-form").onsubmit = async event => {
       status.textContent = "Those exact picks are already saved. The original submission was kept.";
       document.querySelector("#view-picks-confirmation .intro p").textContent = selection.testMode ? `Preseason Week ${selection.week} test` : `Week ${selection.week} · ${selection.season}-${selection.season + 1}`;
       await renderWebsiteConfirmation(original, { unchanged: true, submittedAt: original.submittedAt, identity: { status: "known", submittedName: original.name.trim(), suggestedName: "" } });
-      form.reset(); resetWebsiteBestBet(); showWebsiteConfirmation();
+      websiteClearPickDraft(); form.reset(); resetWebsiteBestBet(); showWebsiteConfirmation();
       return;
     }
     if (existing && !globalThis.confirm(`You already submitted for this week. Replace the original entry with changes to: ${comparison.changes.join(", ")}?`)) {
@@ -3333,7 +3470,7 @@ document.getElementById("website-picks-form").onsubmit = async event => {
     websiteTrackEvent("submission", "enter-picks");
     document.querySelector("#view-picks-confirmation .intro p").textContent = selection.testMode ? `Preseason Week ${selection.week} test` : `Week ${selection.week} · ${selection.season}-${selection.season + 1}`;
     const confirmationReady = renderWebsiteConfirmation(submission, result);
-    form.reset(); resetWebsiteBestBet(); showWebsiteConfirmation();
+    websiteClearPickDraft(); form.reset(); resetWebsiteBestBet(); showWebsiteConfirmation();
     await confirmationReady;
     if (!await sendWebsitePickConfirmationEmail(result.confirmationEmailToken)) console.warn("Picks were saved, but the combined admin confirmation email could not be verified.");
     websiteBestBetMismatchAttempts = 0; websiteBestBetMismatchSignature = ""; websiteApprovedNewPlayerName = "";
@@ -3469,10 +3606,10 @@ function renderWebsiteWeekRecap(data) {
     rarity
   ];
   const winnerNames = tiedWinners.map(player => player.name).join(" and ");
-  const greeting = tiedWinners.length > 1 ? `Congratulations to ${winnerNames} on sharing Week ${websiteRegularSelection.week}!` : `Congratulations, ${winner.name}, on winning Week ${websiteRegularSelection.week}!`;
+  const greeting = tiedWinners.length > 1 ? `Congratulations to ${winnerNames} on sharing Week ${currentWeek}!` : `Congratulations, ${winner.name}, on winning Week ${currentWeek}!`;
   const winCountLine = historicalDataReady ? `This is weekly win number ${careerWins} for ${winner.name}, ranking #${careerWinRank} all time.${lastWin ? ` The last one came in ${lastWin.season} Week ${lastWin.week}, ${weeksSinceLastWin} completed pool weeks ago.` : ""}` : "Career weekly-win history will appear after the archive data loads.";
   const draft = [greeting, "", journey, closeCall, `${winner.name} finished with ${score(winner)} wins, ${lateCorrect ? `going ${lateCorrect}-${lateGames.length - lateCorrect} over the last ${lateGames.length} games` : "and had already done enough before the closing stretch"}. ${bestBetHit ? `The ${String(winner.bestBet).toUpperCase()} Best Bet delivered the extra win.` : `The win held up even without help from the ${String(winner.bestBet || "").toUpperCase()} Best Bet.`}`, underdogWins ? `${winner.name} also picked ${underdogWins} winning underdog${underdogWins === 1 ? "" : "s"}.` : "", runnerUp && score(winner) !== score(runnerUp) ? tiebreakStory : "", "", historicalPercentile != null ? `${winner.wins}-${winner.losses} is better than ${historicalPercentile}% of weekly winners all time.` : "", winCountLine, careerMoney != null ? `Career winnings now stand at $${careerMoney.toLocaleString()}.` : "", "", "Great week and a well-earned win."].filter(line => line !== "").join("\n");
-  host.innerHTML = `<section class="week-recap"><h3 class="compact-live-title">Week ${websiteRegularSelection.week} story</h3><div class="week-recap-grid"><div class="week-recap-item"><span>Winner</span><strong>${websiteEscapeHtml(winnerNames)} · ${score(winner)} wins</strong></div><div class="week-recap-item"><span>Decisive result</span><strong>${websiteEscapeHtml(decisiveResult)}</strong></div><div class="week-recap-item"><span>Journey</span><strong>${websiteEscapeHtml(journey)}</strong></div><div class="week-recap-item"><span>Came up just short</span><strong>${websiteEscapeHtml(closeCall)}</strong></div></div><h3 class="compact-live-title">Winner message draft</h3><div class="winner-draft">${websiteEscapeHtml(draft)}</div></section>`;
+  host.innerHTML = `<section class="week-recap"><h3 class="compact-live-title">Week ${currentWeek} story</h3><div class="week-recap-grid"><div class="week-recap-item"><span>Winner</span><strong>${websiteEscapeHtml(winnerNames)} · ${score(winner)} wins</strong></div><div class="week-recap-item"><span>Decisive result</span><strong>${websiteEscapeHtml(decisiveResult)}</strong></div><div class="week-recap-item"><span>Journey</span><strong>${websiteEscapeHtml(journey)}</strong></div><div class="week-recap-item"><span>Came up just short</span><strong>${websiteEscapeHtml(closeCall)}</strong></div></div><h3 class="compact-live-title">Winner message draft</h3><div class="winner-draft">${websiteEscapeHtml(draft)}</div></section>`;
 }
 function decorateWebsiteWeekOneHeaders(data) { const headers = [...document.querySelectorAll("#week-one-table th.pg-game")].slice(1, 17); headers.forEach((header, index) => { const favorite = data.favorites[index]; const underdog = data.underdogs[index]; const favoriteScore = data.favoriteScores[index]; const underdogScore = data.underdogScores[index]; const game = (data.games || []).find(item => item.favorite?.toLowerCase() === favorite.toLowerCase() && item.underdog?.toLowerCase() === underdog.toLowerCase()); const gameStatus = String(game?.status || "").toUpperCase(); const started = ["IN_PROGRESS", "FINAL", "COMPLETED"].includes(gameStatus); const status = gameStatus === "IN_PROGRESS" ? game.statusText : ["FINAL", "COMPLETED"].includes(gameStatus) ? "Final" : ""; const spread = `<small class="pg-header-spread">${data.spreads[index]}</small>`; if (!started && game) { const kickoff = game.kickoffGroup || game.kickoff || game.statusText || ""; header.innerHTML = `${favorite}${spread}${underdog}${kickoff ? `<small class="pg-header-kickoff">${kickoff}</small>` : ""}`; return; } const score = value => `<span class="pg-header-score">${value === "" ? "-" : value}</span>`; header.innerHTML = `${favorite}${score(favoriteScore)}${spread}${score(underdogScore)}${underdog}${status ? `<small class="pg-header-kickoff">${status}</small>` : ""}`; }); }
 function renderWebsiteWeekOneGrid(data, source) { const rows = data.players || []; const status = document.getElementById("week-one-status"); const gamesFinal = (data.games || []).length ? data.games.filter(game => ["FINAL", "COMPLETED"].includes(String(game.status || "").toUpperCase())).length : (data.favoriteScores || []).filter((score, index) => score !== "" && data.underdogScores[index] !== "").length; status.innerHTML = [["Submissions", rows.length], ["Games final", gamesFinal], ["Source", source]].map(([label,value]) => `<div class="metric"><span>${label}</span><strong>${value}</strong></div>`).join(""); const table = document.getElementById("week-one-table"); if (!rows.length) { table.innerHTML = `<p style="color:var(--muted)">No Week 1 submissions yet.</p>`; return; } let html = '<table class="picks-grid"><thead><tr><th class="pg-player">Player</th><th class="pg-game">Week name</th>'; data.favorites.forEach((favorite, index) => { html += `<th class="pg-game">${favorite}<br><small>${data.spreads[index]}</small><br>${data.underdogs[index]}</th>`; }); html += `<th class="pg-bb-hdr">BB</th><th class="pg-sum-hdr">TB${data.actualTiebreaker ? `<br><small>${data.actualTiebreaker}</small>` : ""}</th><th class="pg-sum-hdr pg-w">W</th><th class="pg-sum-hdr pg-l">L</th><th class="pg-sum-hdr">Total</th><th class="pg-sum-hdr">Win%</th><th class="pg-sum-hdr">Prob</th><th class="pg-sum-hdr">Paths</th></tr></thead><tbody>`; rows.forEach(row => { html += `<tr><td class="pg-player">${row.name}</td><td class="pg-sum-cell">${row.weekName || ""}</td>`; row.picks.forEach((pick, index) => { html += `<td class="${websiteWeekOnePickClass(data, index, pick)}">${pick}</td>`; }); const bestBetIndex = row.picks.findIndex(pick => pick === row.bestBet); const bestBetClass = bestBetIndex < 0 ? "pg-bb-none" : websiteWeekOnePickClass(data, bestBetIndex, row.bestBet).replace("pg-pick", "pg-bb"); html += `<td class="${bestBetClass}">${row.bestBet || ""}</td><td class="pg-sum-cell">${row.tiebreaker || ""}</td><td class="pg-sum-cell pg-w">${row.wins || ""}</td><td class="pg-sum-cell pg-l">${row.losses || ""}</td><td class="pg-sum-cell">${row.total || ""}</td><td class="pg-sum-cell">${row.winPercent || ""}</td><td class="pg-sum-cell">${row.winProbability || ""}</td><td class="pg-sum-cell">${row.pathsToVictory || ""}</td></tr>`; }); table.innerHTML = html + '</tbody></table>'; }
@@ -3781,12 +3918,39 @@ function renderWebsiteTiebreakSnapshot(data, analysis) {
   const finalScenarioOnly = unresolvedCount === 1 && finalGame.favorite && finalGame.underdog;
   tiebreak.innerHTML = finalScenarioOnly ? rangesHtml : `<p>${liveContext}${markerCopy}</p>${currentMarker || guessMarker ? `<div class="tiebreak-strip">${currentMarker}${guessMarker}</div>` : ""}${clinched}${rangesHtml}`;
 }
+let websiteCompletedWeek = null, websiteCompletedWeekPromise = null, websiteCompletedWeekLoadedAt = 0;
+function websiteKeepCompletedWeek(previous, current, now = new Date()) {
+  if (!previous?.games?.length || Number(previous.season) !== Number(current.season) || Number(previous.week) !== Number(current.week) - 1) return false;
+  if (!previous.games.every(game => ["FINAL", "COMPLETED"].includes(websiteGameStatus(game)))) return false;
+  const finalDate = previous.completedGameDate;
+  if (!/^\d{4}-\d{2}-\d{2}$/.test(finalDate || "")) return false;
+  const cutoff = new Date(`${finalDate}T12:00:00Z`);
+  cutoff.setUTCDate(cutoff.getUTCDate() + (3 - cutoff.getUTCDay() + 7) % 7 + 1);
+  const easternDate = new Intl.DateTimeFormat("en-CA", { timeZone: "America/New_York", year: "numeric", month: "2-digit", day: "2-digit" }).format(now);
+  return easternDate >= finalDate && easternDate < cutoff.toISOString().slice(0, 10);
+}
+async function loadWebsiteCompletedWeek(current) {
+  if (websiteKeepCompletedWeek(websiteCompletedWeek, current)) return websiteCompletedWeek;
+  if (!websiteCompletedWeekPromise && Date.now() - websiteCompletedWeekLoadedAt < 60000) return null;
+  if (!websiteCompletedWeekPromise) websiteCompletedWeekPromise = fetch("data/latest-completed-week.json", { cache: "no-cache", signal: AbortSignal.timeout(20000) }).then(async response => {
+    if (!response.ok) return null;
+    const previous = await response.json();
+    if (!websiteKeepCompletedWeek(previous, current)) return null;
+    websitePreparePlayers(previous);
+    websiteCompletedWeek = previous;
+    return previous;
+  }).catch(error => { console.warn("Completed-week recap could not load."); return null; }).finally(() => { websiteCompletedWeekLoadedAt = Date.now(); websiteCompletedWeekPromise = null; });
+  return websiteCompletedWeekPromise;
+}
 function renderWebsiteLiveAnalysis(data) {
-  renderWebsiteRace(data);
+  const retained = websiteKeepCompletedWeek(websiteCompletedWeek, data) ? websiteCompletedWeek : null;
+  renderWebsiteRace(retained || data);
+  const raceHeading = document.querySelector("#week-one-live-race h3");
+  if (retained && raceHeading) raceHeading.textContent = `Week ${retained.week} final race · available through Wednesday 11:59 PM ET`;
   const analysis = websiteScenarioOutcomes(websiteAnalysisData(data)).variable.length ? websiteContenderPaths(data) : null;
   renderWebsiteLiveScenarioTools(data, analysis);
   renderWebsiteTiebreakSnapshot(data, analysis);
-  renderWebsiteWeekRecap(data);
+  renderWebsiteWeekRecap(retained || data);
   renderWebsiteScenarioBreakdown(data, analysis);
   renderWebsitePersonalizedSankey(data, analysis);
 }
@@ -3833,8 +3997,12 @@ async function renderWebsiteWeekOne(currentWeekRequest = null, currentRaceReques
     startWebsiteAnalytics();
     websitePreparePlayers(data);
     websiteWriteCurrentWeekCache(data);
+    websiteRefreshMessage("view-week-one", false, data.updatedAt || Date.now());
     if (liveView) {
       renderWebsiteLiveAnalysis(data);
+      loadWebsiteCompletedWeek(data).then(previous => {
+        if (previous && refreshGeneration === websiteLiveRefreshGeneration && document.getElementById("view-live-analysis").classList.contains("active")) renderWebsiteLiveAnalysis(data);
+      });
       const status = document.getElementById("live-analysis-refresh-status");
       status.hidden = !raceRequest;
       status.textContent = "Latest standings loaded. Loading race history...";
@@ -3854,11 +4022,12 @@ async function renderWebsiteWeekOne(currentWeekRequest = null, currentRaceReques
       status.hidden = true;
       if (!raceSnapshots.length || websiteRegularSelection.season !== Number(data.season) || websiteRegularSelection.week !== Number(data.week)) return;
       data.raceSnapshots = raceSnapshots;
-      renderWebsiteRace(data);
+      if (!websiteKeepCompletedWeek(websiteCompletedWeek, data)) renderWebsiteRace(data);
     });
     if (document.querySelector("#view-week-one.active, #view-live-analysis.active")) websiteLiveRefreshTimer = setTimeout(() => renderSelectedWebsiteWeek(true), 60000);
   } catch (error) {
     if (refreshGeneration !== websiteLiveRefreshGeneration) return;
+    websiteRefreshMessage("view-week-one", false, null, true);
     const table = document.getElementById("week-one-table"), hasCachedContent = table?.dataset.instantWeek === "true";
     if (!liveView && !hasExistingBoard && !hasCachedContent) document.getElementById("week-one-status").insertAdjacentHTML("afterend", `<p class="website-instructions website-current-week-error">The current week could not load: ${error.message}</p>`);
     if (liveView) {
@@ -3943,6 +4112,7 @@ function decorateWebsiteWeekOneHeadersLive(data) {
 renderWebsiteWeekOneGrid = function(data) { websiteSortPlayers(data.players || []); return renderWebsiteWeekOneGridClean(data); };
 decorateWebsiteWeekOneHeaders = decorateWebsiteWeekOneHeadersLive;
 async function renderSelectedWebsiteWeek(activeWeekKnown = false, currentWeekRequest = null) {
+  websiteRefreshMessage("view-week-one", true);
   clearTimeout(websiteLiveRefreshTimer);
   websiteLiveRefreshTimer = null;
   const refreshGeneration = ++websiteLiveRefreshGeneration;
@@ -4072,7 +4242,7 @@ async function refreshWebsiteApp() {
   }, { passive: true });
   document.addEventListener("touchcancel", () => { tracking = false; resetWebsitePullRefresh(); }, { passive: true });
 }
-document.addEventListener("click",event=>{const button=event.target.closest("#nav button[data-view]");if(!button)return;if(!document.getElementById(`view-${button.dataset.view}`)?.classList.contains("active"))showView(button.dataset.view);if(button.dataset.view==="enter-picks")setTimeout(()=>{renderWebsitePicksForm();resetWebsiteBestBet();},0);if(["week-one","live-analysis"].includes(button.dataset.view))setTimeout(renderSelectedWebsiteWeek,0);});
+document.addEventListener("click",event=>{const button=event.target.closest("#nav button[data-view]");if(!button)return;if(!document.getElementById(`view-${button.dataset.view}`)?.classList.contains("active"))showView(button.dataset.view);if(button.dataset.view==="enter-picks")setTimeout(()=>{renderWebsitePicksForm();},0);if(["week-one","live-analysis"].includes(button.dataset.view))setTimeout(renderSelectedWebsiteWeek,0);});
 document.getElementById("website-view-week-one")?.addEventListener("click",()=>{showView("week-one");renderSelectedWebsiteWeek();});
 let profileChart = null, profileMoneyChart = null, profilePlusMinusChart = null, profilePlacementChart = null, profileBestWeeksChart = null, profileRecentChart = null, profileBestBetChart = null, profileTeamChart = null, profileClubChart = null, profileBestGamesChart = null, profileSituationalChart = null, gamePicksTable = null, weekChart = null, weekTable = null, weekRaceChart = null, winnerContributionChart = null, weeklyRankChart = null, streakChart = null, streakTable = null, seasonTopChart = null, seasonTable = null, seasonRaceChart = null, seasonPlayerChart = null, seasonMoneyChart = null, seasonConsistencyChart = null, seasonBbChart = null, seasonTeamsChart = null, seasonContrarianChart = null, seasonTbChart = null, allTimeTopChart = null, allTimePlusMinusChart = null, allTimePlusMinusTrendChart = null, allTimeGamesChart = null, allTimeArcsChart = null, allTimeMoneyChart = null, allTimeTurnoutChart = null, allTimeStreakChart = null, allTimeTeamPicksChart = null, allTimeContrarianChart = null, allTimeSeasonWeeksChart = null, manifest = [], dashboard = [], tableData = {}, websiteWeeks = [], websitePlayoffRoundNames = [], websiteAwards = [], websiteSeasons = [], websitePlayers = [], websiteRecords = [], websiteStreaks = [], websiteGames = [], websitePicks = [], websitePayouts = [];
 let allTimeAttendanceChart = null, allTimeRaceChart = null, allTimeRaceFrames = [], allTimeRaceFrame = 0, allTimeRaceTimer = null, allTimeRaceSelectedPlayer = "", allTimeRacePassesRemaining = 0, allTimeRacePlayback = { delay: RACE_FRAME_DELAY, step: 1 };
@@ -7372,6 +7542,7 @@ if (tiebreaker) {
   tiebreaker.addEventListener("change", validateTiebreaker);
 }
 showView(startupRoute);
+if (["week-one", "enter-picks"].includes(startupRoute)) websiteRefreshMessage(`view-${startupRoute}`, true);
 if (startupRoute === "week-one") websiteRenderCachedCurrentWeek();
 if (["week-one", "live-analysis"].includes(startupRoute) && !WEBSITE_SUBMISSIONS_ENDPOINT) {
   const fallback = websiteWeekOneFallback();
@@ -7386,14 +7557,12 @@ if (["week-one", "live-analysis"].includes(startupRoute) && !WEBSITE_SUBMISSIONS
   if (startupRoute === "live-analysis") websiteRenderCachedLive();
   if (startupRoute === "enter-picks") {
     await renderWebsitePicksForm();
-    resetWebsiteBestBet();
     const renderedSlate = websiteSlateSignature(websiteActiveGames);
     startupRoutePending = false;
     try {
       const preseasonActive = await selectStagedPreseasonWeek();
       const refreshedGames = preseasonActive ? websiteDiscoveredPreseasonData?.games || [] : websiteStagedGamesCache.get(`REGULAR_SEASON-${websiteRegularSelection.season}-${websiteRegularSelection.week}`)?.games || [];
       if (preseasonActive || websiteSlateSignature(refreshedGames) !== renderedSlate) {
-        document.getElementById("website-game-picks").dataset.ready = "";
         await renderWebsitePicksForm();
       }
     } catch (error) { console.warn(`Active slate refresh failed: ${error.message}`); }
