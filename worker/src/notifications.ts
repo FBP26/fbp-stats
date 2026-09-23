@@ -108,7 +108,7 @@ export const scheduledNotificationEvents = (
     const milliseconds = Number(item.kickoff?.time) - now.getTime();
     return String(item.game.state) === "PREGAME" && milliseconds >= 0 && milliseconds <= 35 * 60 * 1000;
   };
-  if (sundayNight.some(beginsSoon) && late.length && [...early, ...late].every(final)) events.add("beforeSnf");
+  if (sundayNight.some(beginsSoon) && [...early, ...late].every(final)) events.add("beforeSnf");
   if (mondayNight.some(beginsSoon)) events.add("beforeMnf");
   return [...events];
 };

@@ -162,7 +162,7 @@
   #view-enter-picks .website-notification-row { margin-top: 14px; }
   .notification-form button, #website-picks-form > button, #website-view-week-one { min-height: 34px; padding: 7px 10px; border: 1px solid var(--border); border-radius: 5px; background: var(--panel-2); color: var(--text); font: 11px Arial, sans-serif; cursor: pointer; }
   .notification-form button:disabled, #website-picks-form > button:disabled { opacity: .55; cursor: not-allowed; }
-  .notification-settings { display: none; margin: 0 0 14px; border-block: 1px solid var(--border); }
+  .notification-settings { display: block; margin: 0 0 14px; border-block: 1px solid var(--border); }
   .notification-settings.notification-preview { display: block; }
   .notification-settings > summary { padding: 9px 0; color: var(--accent); font: bold 12px Arial, sans-serif; cursor: pointer; }
   .notification-form { display: grid; gap: 9px; max-width: 720px; padding: 1px 0 12px; }
@@ -174,7 +174,8 @@
   .notification-contact-note { display: block; margin-top: 3px; color: var(--muted); font: 10px/1.3 Arial, sans-serif; text-transform: none; letter-spacing: 0; }
   .notification-events { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 2px 14px; }
   .notification-events label { display: grid; grid-template-columns: 18px minmax(0, 1fr); align-items: start; gap: 6px; padding: 3px 0; color: var(--text); font: 12px/1.25 Arial, sans-serif; text-transform: none; letter-spacing: 0; }
-  .notification-reminder-time input[type="number"] { width: 58px; margin: 2px 2px 0 0; padding: 4px; }
+  .notification-reminder-time input[type="number"] { width: 76px; min-height: 40px; margin: 2px 2px 0 0; padding: 6px; }
+  .notification-reminder-time input[type="range"] { width: 100%; margin: 8px 0; }
   .notification-events small, .notification-note { display: block; color: var(--muted); font: 10px/1.25 Arial, sans-serif; }
   .notification-form button { justify-self: start; }
   .website-best-bet-field { position: relative; }
@@ -2603,19 +2604,16 @@ try {
 function notificationPlayerValidation(value) {
   const names = [...document.getElementById("notification-player-options").options].map(option => option.value).filter(Boolean);
   if (names.includes(value)) return { name: value, message: "" };
-  const trimmed = value.trim(), exactTrimmed = names.find(name => name === trimmed);
-  if (exactTrimmed && value !== trimmed) {
-    const location = value.endsWith(" ") ? "trailing" : "leading";
-    return { name: "", message: `Remove the ${location} space from the player name. Use "${exactTrimmed}".` };
-  }
+  const trimmed = value.trim().replace(/\s+/g, " ");
   const capitalizationMatch = names.find(name => name.toLowerCase() === trimmed.toLowerCase());
-  if (capitalizationMatch) return { name: "", message: `Player names must match exactly. Use "${capitalizationMatch}".` };
+  if (capitalizationMatch) return { name: capitalizationMatch, message: "" };
   return { name: "", message: `Choose an existing player from the list. "${trimmed || value}" is not a current player.` };
 }
 async function initializeNotificationPreferences() {
   const sms = document.getElementById("notification-sms-channel"), save = document.getElementById("notification-save"), status = document.getElementById("notification-status");
   const form = document.getElementById("notification-preferences-form");
   const playerInput = document.getElementById("notification-player"), playerLabel = document.getElementById("notification-player-label");
+  document.querySelector("#view-enter-picks .panel").append(document.querySelector(".notification-settings"));
   document.querySelector(".website-notification-row")?.remove();
   playerInput.required = true;
   playerInput.addEventListener("input", event => event.currentTarget.setCustomValidity(""));
@@ -2624,30 +2622,42 @@ async function initializeNotificationPreferences() {
   contactGrid.insertBefore(emailLabel, playerLabel);
   playerInput.setAttribute("aria-describedby", "notification-contact-note");
   playerInput.insertAdjacentHTML("afterend", '<small id="notification-contact-note" class="notification-contact-note">Used for your Current Week updates and picks reminder.</small>');
-  form.elements.picksReady.closest("label").querySelector("small").textContent = "A new week is ready for picks.";
+  form.elements.picksReady.closest("label").querySelector("span").firstChild.textContent = "Spreads locked";
+  form.elements.picksReady.closest("label").querySelector("small").textContent = "The reviewed slate is ready and spreads will not change.";
   const eventCopy = {
-    firstPlace: "Current Week update when you move into 1st place.",
+    firstPlace: "When you move into or tie for first, with the score changes and your previous rank.",
     earlyWindow: "Current Week position and highlights after the 1 PM games.",
-    beforeSnf: "Current standings after the Sunday afternoon games, before Sunday Night Football.",
-    beforeMnf: "Current Week position, highlights, paths, and pivotal MNF scenarios.",
+    beforeSnf: "Only if still in contention: the results you need before Sunday Night Football.",
+    beforeMnf: "Only if still in contention: the results you need before Monday Night Football.",
     weeklyResult: "Weekly winner, your finish, and highlights."
   };
   Object.entries(eventCopy).forEach(([name, copy]) => form.elements[name]?.closest("label")?.querySelector("small")?.replaceChildren(copy));
   form.elements.lateWindow?.closest("label")?.remove();
+  form.elements.earlyWindow?.closest("label")?.remove();
+  form.elements.weeklyResult?.closest("label")?.remove();
   const summary = document.querySelector(".notification-settings > summary");
-  if (summary) summary.textContent = "Email alert preferences";
-  status.textContent = "We'll email you a verification link to confirm the address. Alerts start only after you open it, and every email includes a stop link.";
+  if (summary) summary.textContent = "Email alerts";
+  status.textContent = "Verify your email to activate alerts. Every alert includes Open FBP and Stop notifications buttons.";
   sms?.closest(".notification-choice")?.parentElement?.remove();
   form.querySelector('input[name="notification-scope"]')?.closest(".notification-choice")?.parentElement?.remove();
   if (form && !form.elements.picksDue) {
-    form.elements.firstPlace.closest("label").insertAdjacentHTML("beforebegin", '<label class="notification-reminder-time"><input type="checkbox" name="picksDue" checked><span>Picks due reminder<small><input type="number" name="picksDueMinutes" min="5" max="300" step="5" value="60" aria-label="Minutes before first kickoff"> min before kickoff · skipped after you submit</small></span></label>');
-    const toggleReminderTime = () => { form.elements.picksDueMinutes.disabled = !form.elements.picksDue.checked; };
+    form.elements.firstPlace.closest("label").insertAdjacentHTML("beforebegin", '<div class="notification-reminder-time"><label><input type="checkbox" name="picksDue" checked><span>Missing picks reminder</span></label><input type="number" name="picksDueMinutes" min="1" max="240" step="1" value="60" required aria-label="Minutes before first kickoff"><span class="notification-note">Minutes before kickoff (1–240), only if your picks are missing.</span><input type="range" name="picksDueSlider" min="1" max="240" step="1" value="60" aria-label="Adjust reminder minutes"></div>');
+    const toggleReminderTime = () => { form.elements.picksDueMinutes.disabled = form.elements.picksDueSlider.disabled = !form.elements.picksDue.checked; };
+    form.elements.picksDueSlider.oninput = () => { form.elements.picksDueMinutes.value = form.elements.picksDueSlider.value; };
+    form.elements.picksDueMinutes.oninput = () => { if (form.elements.picksDueMinutes.validity.valid) form.elements.picksDueSlider.value = form.elements.picksDueMinutes.value; };
     form.elements.picksDue.addEventListener("change", toggleReminderTime);
     toggleReminderTime();
   }
   try {
     const response = await fetch(`${WEBSITE_NOTIFICATION_ENDPOINT}/?action=notification-status`, { signal: AbortSignal.timeout(10000) });
     const data = await response.json();
+    if (Array.isArray(data.players)) {
+      const options = document.getElementById("notification-player-options");
+      options.replaceChildren(...data.players.map(name => new Option(name, name)));
+    }
+    const picksName = document.getElementById("website-picks-name");
+    if (picksName && !playerInput.value) playerInput.value = notificationPlayerValidation(picksName.value).name;
+    picksName?.addEventListener("change", () => { if (!playerInput.value) playerInput.value = notificationPlayerValidation(picksName.value).name; });
     save.disabled = !data?.channels?.email;
     if (!data?.channels?.email) status.textContent = "Email sender setup is in progress. Preferences cannot be activated yet.";
   } catch (error) { save.disabled = true; status.textContent = "Alert preferences are temporarily unavailable."; }
@@ -2660,10 +2670,10 @@ async function initializeNotificationPreferences() {
       document.getElementById("notification-destination").value = data.destination || "";
       document.getElementById("notification-destination").disabled = true;
       playerInput.value = data.playerName === "FBP pool" ? "" : data.playerName || "";
-      playerInput.required = data.playerName !== "FBP pool";
+      playerInput.required = true;
       notificationEventsForForm().forEach(name => { if (form.elements[name]) form.elements[name].checked = Boolean(data.preferences?.[name]); });
-      form.elements.picksDueMinutes.value = Number(data.picksDueMinutes) || 60;
-      form.elements.picksDueMinutes.disabled = !form.elements.picksDue.checked;
+      form.elements.picksDueMinutes.value = form.elements.picksDueSlider.value = Math.max(1, Math.min(240, Number(data.picksDueMinutes) || 60));
+      form.elements.picksDueMinutes.disabled = form.elements.picksDueSlider.disabled = !form.elements.picksDue.checked;
       form.dataset.manageToken = manageToken;
       save.textContent = "Save alert changes";
       if (summary?.parentElement) summary.parentElement.open = true;
@@ -2672,17 +2682,18 @@ async function initializeNotificationPreferences() {
     } catch (error) { status.textContent = error.message; }
   }
 }
-function notificationEventsForForm() { return ["picksReady", "picksDue", "firstPlace", "earlyWindow", "beforeSnf", "beforeMnf", "weeklyResult"]; }
+function notificationEventsForForm() { return ["picksReady", "picksDue", "firstPlace", "beforeSnf", "beforeMnf"]; }
 async function saveNotificationPreferences(event) {
   event.preventDefault();
   const form = event.currentTarget, button = document.getElementById("notification-save"), status = document.getElementById("notification-status");
   const channel = "email", playerInput = document.getElementById("notification-player");
-  const player = playerInput.value ? notificationPlayerValidation(playerInput.value) : { name: "", message: "" };
+  const player = notificationPlayerValidation(playerInput.value);
   playerInput.setCustomValidity(player.message);
   if (player.message) { status.textContent = player.message; playerInput.reportValidity(); playerInput.focus(); return; }
+  playerInput.value = player.name;
   const scope = player.name ? "player" : "pool";
   const manageToken = form.dataset.manageToken || "";
-  const payload = { action: manageToken ? "update-notifications" : "subscribe-notifications", scope, channel, playerName: player.name || "FBP pool", destination: document.getElementById("notification-destination").value, manageToken, picksDueMinutes: Number(form.elements.picksDueMinutes.value) || 60, preferences: Object.fromEntries(notificationEventsForForm().map(name => [name, form.elements[name].checked])) };
+  const payload = { action: manageToken ? "update-notifications" : "subscribe-notifications", scope, channel, playerName: player.name, destination: document.getElementById("notification-destination").value, manageToken, picksDueMinutes: Number(form.elements.picksDueMinutes.value) || 60, preferences: { earlyWindow: false, lateWindow: false, weeklyResult: false, ...Object.fromEntries(notificationEventsForForm().map(name => [name, form.elements[name].checked])) } };
   button.disabled = true;
   status.textContent = "Sending verification email...";
   try {

@@ -3,12 +3,13 @@ main = "src/index.ts"
 compatibility_date = "2026-08-26"
 
 [triggers]
-crons = ["*/5 * * * *"]
+crons = ["* * * * *"]
 
 [vars]
 CORS_ORIGIN = "https://fbp26.github.io"
 PUBLIC_API_URL = "https://fbp-api.fbp-api-worker.workers.dev"
 PUBLIC_SITE_URL = "https://fbp26.github.io/fbp-stats/"
+PICKS_SOURCE_URL = "https://script.google.com/macros/s/AKfycbxZUgJm6LstCEomhmrlJYa_nH7tsmxC_4UZwYdroIZbs-PeI6KdPqUZtsF9fZvr_YuNWQ/exec"
 EMAIL_RELAY_URL = "https://script.google.com/macros/s/AKfycbxZUgJm6LstCEomhmrlJYa_nH7tsmxC_4UZwYdroIZbs-PeI6KdPqUZtsF9fZvr_YuNWQ/exec"
 
 [[d1_databases]]

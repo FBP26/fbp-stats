@@ -1,7 +1,8 @@
-import { scoreWeekWithoutProbabilities, type PlayerCard, type ScoringGame } from "./scoring";
-import { espnEventId, fetchEspnGame, isRefreshWindow, parseEspnGame, type StoredGame } from "./espn";
-import { validateRaceSnapshotPlayers } from "./race";
-import { maskNotificationDestination, normalizeNotificationDestination, notificationEvents, notificationPreferenceColumns, parseNotificationPreferences, picksDueReminderIsEligible, scheduledNotificationEvents, type NotificationChannel, type NotificationEvent } from "./notifications";
+import { scoreWeekWithoutProbabilities, type PlayerCard, type ScoringGame } from "./scoring.ts";
+import { espnEventId, fetchEspnGame, isRefreshWindow, parseEspnGame, type StoredGame } from "./espn.ts";
+import { validateRaceSnapshotPlayers } from "./race.ts";
+import { alertEmailHtml, nightPaths, observeLeads, parseAlertFeed, type AlertFeed, type AlertObservation } from "./alert-details.ts";
+import { maskNotificationDestination, normalizeNotificationDestination, notificationEvents, notificationPreferenceColumns, parseNotificationPreferences, picksDueReminderIsEligible, scheduledNotificationEvents, type NotificationChannel, type NotificationEvent } from "./notifications.ts";
 
 interface Env {
   DB: D1Database;
@@ -10,6 +11,7 @@ interface Env {
   EMAIL_RELAY_SECRET?: string;
   PUBLIC_API_URL?: string;
   PUBLIC_SITE_URL?: string;
+  PICKS_SOURCE_URL?: string;
 }
 
 type JsonObject = Record<string, unknown>;
@@ -365,7 +367,10 @@ const handleGet = async (request: Request, env: Env): Promise<Response> => {
   }
   if (action === "notification-status") return json({
     ok: true,
+    players: await notificationRoster(env),
     channels: { email: Boolean(env.EMAIL_RELAY_URL && env.EMAIL_RELAY_SECRET), sms: false },
+    reminderMinutes: { min: 1, max: 240, default: 60 },
+    checkIntervalMinutes: 1,
   }, 200, env.CORS_ORIGIN);
 
   if (action === "verify-notifications" || action === "unsubscribe-notifications") {
@@ -509,6 +514,44 @@ const randomToken = (): string => {
   return [...bytes].map((byte) => byte.toString(16).padStart(2, "0")).join("");
 };
 
+const notificationRoster = async (env: Env): Promise<string[]> => {
+  const response = await fetch(`${env.PUBLIC_SITE_URL || "https://fbp26.github.io/fbp-stats/"}data/players.json`, { signal: AbortSignal.timeout(15000) });
+  if (!response.ok) throw new Error("Player list unavailable. Try again shortly.");
+  const rows = await response.json() as { name: string }[];
+  if (!Array.isArray(rows) || !rows.length || rows.some(row => typeof row.name !== "string")) throw new Error("Player list unavailable.");
+  const current = await env.DB.prepare("SELECT canonical_name FROM players").all<{ canonical_name: string }>();
+  const names = new Map(rows.map(row => [row.name.toLowerCase(), row.name]));
+  current.results.forEach(row => { if (!names.has(row.canonical_name.toLowerCase())) names.set(row.canonical_name.toLowerCase(), row.canonical_name); });
+  return [...names.values()].sort((left, right) => left.localeCompare(right));
+};
+
+const notificationPlayerName = async (value: unknown, env: Env): Promise<string> => {
+  const input = cleanText(value, 100).replace(/\s+/g, " ").toLowerCase();
+  const name = (await notificationRoster(env)).find(name => name.toLowerCase() === input);
+  if (!name) throw new Error("Choose an existing player from the player-name list.");
+  return name;
+};
+
+const reminderMinutes = (value: unknown): number => {
+  const minutes = value == null ? 60 : Number(value);
+  if (!Number.isInteger(minutes) || minutes < 1 || minutes > 240) throw new Error("Reminder must be a whole number from 1 through 240 minutes.");
+  return minutes;
+};
+
+const loadAlertFeed = async (env: Env, week: JsonObject): Promise<AlertFeed> => {
+  if (!env.PICKS_SOURCE_URL) throw new Error("Authoritative picks feed is not configured.");
+  const url = new URL(env.PICKS_SOURCE_URL);
+  url.search = new URLSearchParams({ action: "current-week", fast: "1", _: String(Date.now()) }).toString();
+  const response = await fetch(url, { signal: AbortSignal.timeout(50000), cache: "no-store" });
+  if (!response.ok) throw new Error("Authoritative picks feed unavailable; alerts withheld.");
+  const data = await response.json() as JsonObject;
+  if (data.staged !== true) throw new Error("No active staged picks; alerts withheld.");
+  const feed = parseAlertFeed(data, Number(week.season), Number(week.week));
+  const approved = await getWeekConfig(env.DB, Number(week.id));
+  if (feed.games.length !== approved.length || feed.games.some(game => !approved.some(row => String(row.gameId) === game.gameId && String(row.favorite).toUpperCase() === game.favorite && String(row.underdog).toUpperCase() === game.underdog && Number(row.spread) === game.spread))) throw new Error("Live slate does not match the approved slate; alerts withheld.");
+  return feed;
+};
+
 const sendRelayEmail = async (env: Env, to: string, subject: string, body: string, htmlBody = ""): Promise<boolean> => {
   if (!env.EMAIL_RELAY_URL?.trim() || !env.EMAIL_RELAY_SECRET?.trim()) return false;
   const response = await fetch(env.EMAIL_RELAY_URL, {
@@ -527,11 +570,11 @@ const subscribeNotifications = async (request: Request, payload: JsonObject, env
   if (!env.EMAIL_RELAY_URL?.trim() || !env.EMAIL_RELAY_SECRET?.trim()) {
     return json({ ok: false, error: "Email alerts are temporarily unavailable while sender setup is completed." }, 503, env.CORS_ORIGIN);
   }
-  const playerName = cleanText(payload.playerName, 100).replace(/\s+/g, " ");
+  const playerName = await notificationPlayerName(payload.playerName, env);
   if (!playerName) return json({ ok: false, error: "Choose the player these alerts should follow." }, 400, env.CORS_ORIGIN);
   const normalizedDestination = normalizeNotificationDestination(channel, payload.destination);
   const preferences = parseNotificationPreferences(payload.preferences);
-  const picksDueMinutes = Math.max(5, Math.min(300, Math.round(Number(payload.picksDueMinutes) || 60)));
+  const picksDueMinutes = reminderMinutes(payload.picksDueMinutes);
   if (!notificationEvents.some((event) => preferences[event])) {
     return json({ ok: false, error: "Choose at least one alert." }, 400, env.CORS_ORIGIN);
   }
@@ -562,7 +605,7 @@ const subscribeNotifications = async (request: Request, payload: JsonObject, env
   const requestedAt = env.PUBLIC_SITE_URL || "https://fbp26.github.io/fbp-stats/";
   const sent = await sendRelayEmail(env, normalizedDestination, "Verify your FBP alerts",
     `Confirm alerts for ${playerName}:\n\n${verifyUrl}\n\nYou requested alerts at ${requestedAt}\n\nStop these alerts: ${stopUrl}`,
-    `<div style="max-width:520px;padding:24px;font-family:Arial,sans-serif;color:#171e26"><h2 style="margin:0 0 12px">Confirm FBP alerts for ${escapeHtml(playerName)}</h2><p style="margin:0 0 22px;line-height:1.5">Verify this email address to activate the alert preferences you selected.</p><p style="margin:0 0 14px"><a href="${escapeHtml(verifyUrl)}" style="display:inline-block;padding:11px 18px;border-radius:5px;background:#d4af37;color:#111;text-decoration:none;font-weight:bold">Verify email</a></p><p style="margin:0 0 24px"><a href="${escapeHtml(stopUrl)}" style="display:inline-block;padding:9px 16px;border:1px solid #9aa4af;border-radius:5px;color:#374151;text-decoration:none">Stop alerts</a></p><p style="margin:0;color:#6b7280;font-size:12px;line-height:1.5">Requested from <a href="${escapeHtml(requestedAt)}" style="color:#52606d">FBP</a>.</p></div>`);
+    `<p><a href="${escapeHtml(verifyUrl)}" style="display:inline-block;padding:13px 20px;background:#ffcf40;color:#17212b;border-radius:5px;text-decoration:none;font-weight:bold">Verify email</a></p>${alertEmailHtml(`Confirm FBP alerts for ${playerName}`, "Verify this email address to activate your selected alerts.", requestedAt, stopUrl)}`);
   if (!sent) {
     await env.DB.prepare(
       "UPDATE notification_subscriptions SET verification_token_hash = NULL, verification_sent_at = NULL, updated_at = CURRENT_TIMESTAMP WHERE channel = ? AND normalized_destination = ? AND status = 'pending'",
@@ -575,11 +618,11 @@ const subscribeNotifications = async (request: Request, payload: JsonObject, env
 const updateNotificationPreferences = async (payload: JsonObject, env: Env): Promise<Response> => {
   const manageToken = cleanText(payload.manageToken, 64);
   if (!/^[a-f0-9]{64}$/.test(manageToken)) return json({ ok: false, error: "This alert-management link is invalid." }, 400, env.CORS_ORIGIN);
-  const playerName = cleanText(payload.playerName, 100).replace(/\s+/g, " ");
+  const playerName = await notificationPlayerName(payload.playerName, env);
   if (!playerName) return json({ ok: false, error: "Choose the player these alerts should follow." }, 400, env.CORS_ORIGIN);
   const preferences = parseNotificationPreferences(payload.preferences);
   if (!notificationEvents.some((event) => preferences[event])) return json({ ok: false, error: "Choose at least one alert." }, 400, env.CORS_ORIGIN);
-  const picksDueMinutes = Math.max(5, Math.min(300, Math.round(Number(payload.picksDueMinutes) || 60)));
+  const picksDueMinutes = reminderMinutes(payload.picksDueMinutes);
   const values = notificationEvents.map((event) => preferences[event] ? 1 : 0);
   const result = await env.DB.prepare(
     `UPDATE notification_subscriptions SET player_name = ?, picks_ready = ?, picks_due = ?, picks_due_minutes = ?,
@@ -606,14 +649,14 @@ const notificationTimingExplanation = (event: NotificationEvent, picksDueMinutes
   const explanations: Record<NotificationEvent, string> = {
     picksReady: "all games and point spreads have been posted and locked",
     picksDue: `the first kickoff is about ${picksDueMinutes} minutes away and your picks are not in`,
-    firstPlace: "the latest Current Week standings first show you in 1st place",
+    firstPlace: "your provisional total wins moved from below first into sole or shared first place",
     earlyWindow: "all Sunday 1 PM games are final",
     lateWindow: "the Sunday afternoon games are final",
     beforeSnf: "the Sunday afternoon games are final and Sunday Night Football starts within 35 minutes",
     beforeMnf: "Monday Night Football starts within 35 minutes",
     weeklyResult: "the week has been finalized",
   };
-  return `Why you received this now: ${explanations[event]}. Notifications are checked every 5 minutes.`;
+  return `Why you received this now: ${explanations[event]}. Alerts are checked every minute; score feeds refresh about every five minutes. Email delivery may take longer.`;
 };
 
 const weeklyStandingsSummary = (players: JsonObject[]): string => {
@@ -642,20 +685,28 @@ interface NotificationDispatchResult {
   failed: number;
 }
 
-const dispatchWeekNotifications = async (
+export const dispatchWeekNotifications = async (
   env: Env,
   week: Record<string, unknown>,
   onlyEvents?: Set<NotificationEvent>,
 ): Promise<NotificationDispatchResult> => {
   const result = { sent: 0, skipped: 0, failed: 0 };
   if (!env.EMAIL_RELAY_URL?.trim() || !env.EMAIL_RELAY_SECRET?.trim()) return result;
-  const games = await getWeekConfig(env.DB, Number(week.id));
-  const eventSet = onlyEvents || new Set(scheduledNotificationEvents(new Date(), games, String(week.status)));
-  const current = await buildCurrentWeek(env.DB, week);
-  const players = Array.isArray(current.players) ? current.players as JsonObject[] : [];
+  const feed = onlyEvents ? null : await loadAlertFeed(env, week);
+  const games: JsonObject[] = feed ? feed.games.map(game => ({ ...game, state: game.status })) : await getWeekConfig(env.DB, Number(week.id));
+  const now = new Date();
+  const eventSet = onlyEvents || new Set(scheduledNotificationEvents(now, games, String(week.status)));
+  const players: JsonObject[] = feed ? scoreWeekWithoutProbabilities(feed.cards, feed.games, null).map(player => ({ ...player })) : [];
+  players.forEach(player => { player.rank = 1 + players.filter(other => Number(other.wins) > Number(player.wins)).length; });
+  players.sort((left, right) => Number(left.rank) - Number(right.rank));
+  let observation: AlertObservation | null = null;
+  if (feed) {
+    const previous = await env.DB.prepare("SELECT payload_json FROM notification_observations WHERE week_id = ?").bind(week.id).first<{ payload_json: string }>();
+    observation = observeLeads(feed, previous ? JSON.parse(previous.payload_json) as AlertObservation : null, now.toISOString());
+    await env.DB.prepare("INSERT INTO notification_observations (week_id, observed_at, payload_json) VALUES (?, ?, ?) ON CONFLICT (week_id) DO UPDATE SET observed_at = excluded.observed_at, payload_json = excluded.payload_json").bind(week.id, observation.at, JSON.stringify(observation)).run();
+  }
   const hasStarted = games.some((game) => ["LIVE", "FINAL"].includes(String(game.state)));
   if (!onlyEvents && hasStarted && players.length) eventSet.add("firstPlace");
-  if (!eventSet.size) return result;
   const subscriptions = await env.DB.prepare(
     "SELECT * FROM notification_subscriptions WHERE status = 'active' AND channel = 'email' AND manage_token IS NOT NULL",
   ).all();
@@ -663,14 +714,18 @@ const dispatchWeekNotifications = async (
   for (const subscription of subscriptions.results) {
     const followedName = String(subscription.player_name);
     const followed = players.find((player) => String(player.name).toLowerCase() === followedName.toLowerCase());
-    const rank = followed ? players.indexOf(followed) + 1 : 0;
+    const rank = followed ? Number(followed.rank) : 0;
+    const lead = followed && observation?.changes[String(followed.name)];
     const subscriptionEvents = new Set(eventSet);
-    if (!onlyEvents && picksDueReminderIsEligible(new Date(), games, String(week.status), Number(subscription.picks_due_minutes) || 60)) subscriptionEvents.add("picksDue");
+    if (!onlyEvents && picksDueReminderIsEligible(now, games, hasStarted ? "live" : "staged", Number(subscription.picks_due_minutes) || 60)) subscriptionEvents.add("picksDue");
     for (const event of subscriptionEvents) {
       if (!Number(subscription[notificationPreferenceColumns[event]])) continue;
       if (event === "picksDue" && (followed || followedName === "FBP pool")) continue;
-      if (event === "firstPlace" && (!followed || rank !== 1)) continue;
-      const deduplicationKey = `${event}:${week.id}`;
+      const activatedAt = String(subscription.verified_at || subscription.created_at || "");
+      if (event === "firstPlace" && (!followed || rank !== 1 || !lead || Date.parse(lead.at) < Date.parse(activatedAt.endsWith("Z") ? activatedAt : `${activatedAt}Z`))) continue;
+      const paths = (event === "beforeSnf" || event === "beforeMnf") && feed && followed ? nightPaths(feed, String(followed.name)) : null;
+      if ((event === "beforeSnf" || event === "beforeMnf") && !paths?.eligible) continue;
+      const deduplicationKey = `${event}:${week.id}${event === "firstPlace" && lead ? `:${lead.at}` : ""}`;
       const reserved = await env.DB.prepare(
         `INSERT INTO notification_deliveries (subscription_id, week_id, event_type, deduplication_key, status)
          VALUES (?, ?, ?, ?, 'queued') ON CONFLICT (subscription_id, deduplication_key) DO NOTHING`,
@@ -690,13 +745,22 @@ const dispatchWeekNotifications = async (
       const standings = weeklyStandingsSummary(players);
       const stopUrl = `${publicApiUrl}/?action=unsubscribe-notifications&token=${subscription.manage_token}`;
       const firstKickoff = games.map((game) => Date.parse(String(game.kickoff || ""))).filter(Number.isFinite).sort((left, right) => left - right)[0];
-      const eventSummary = event === "picksDue"
+      let eventSummary = event === "picksDue"
         ? `${followedName}, your Week ${week.week} picks are not in yet.\n\nFirst kickoff: ${new Date(firstKickoff).toLocaleString("en-US", { timeZone: "America/New_York", weekday: "long", month: "short", day: "numeric", hour: "numeric", minute: "2-digit", timeZoneName: "short" })}\nSubmit before kickoff to avoid missing the opening game.`
         : event === "picksReady" ? picksReadySummary(games, week.week) : standings;
+      if (event === "firstPlace" && lead && observation) {
+        const when = new Date(lead.at).toLocaleString("en-US", { timeZone: "America/New_York", month: "short", day: "numeric", hour: "numeric", minute: "2-digit", timeZoneName: "short" });
+        const journey = observation.history.filter(frame => frame.ranks[String(followed?.name)] != null).slice(-12).map(frame => `${new Date(frame.at).toLocaleTimeString("en-US", { timeZone: "America/New_York", hour: "numeric", minute: "2-digit" })}: #${frame.ranks[String(followed?.name)]}`).join(" -> ");
+        eventSummary = `${followedName}, you moved from #${lead.from} to ${lead.tied ? "shared" : "sole"} first with ${lead.wins} wins.\nObserved ${when}. This is the check time, not an exact play timestamp.\n\nChanges since the preceding check:\n${lead.events.join("\n") || "The submitted field changed; no new game score was observed."}\n\nYour recent rank journey (Eastern):\n${journey}\n\nLive scores are provisional; Best Bets count twice.\n\n${standings}`;
+      }
+      if (paths && followed) eventSummary = `${followedName}, you are still in the running. Your tiebreak guess: ${followed.tiebreaker} net passing yards.\n\n${paths.count} of ${paths.total} possible remaining ATS combinations leave you first or tied for first (counts, not odds).\n${paths.examples.join("\n")}\n${paths.count > paths.examples.length ? `Showing ${paths.examples.length} examples; open FBP for all scenarios.` : ""}\n\nCovers use the locked pool spreads; pushes add no wins. Ties use the closest guess to the final game's combined net passing yards; equal differences share first.\n\n${standings}`;
       const timingExplanation = notificationTimingExplanation(event, Number(subscription.picks_due_minutes) || 60);
+      const siteUrl = `${env.PUBLIC_SITE_URL || "https://fbp26.github.io/fbp-stats/"}#${event === "picksReady" || event === "picksDue" ? "enter-picks" : "live-analysis"}`;
+      const subject = `FBP Week ${week.week}: ${notificationEventLabels[event]}`;
+      const message = `${eventSummary}\n\n${timingExplanation}`;
       const sent = await sendRelayEmail(env, String(subscription.destination),
-        `FBP Week ${week.week}: ${notificationEventLabels[event]}`,
-        `${notificationEventLabels[event]}\n\n${eventSummary}\n\n${timingExplanation}\n\nOpen FBP: ${env.PUBLIC_SITE_URL || "https://fbp26.github.io/fbp-stats/"}\n\nStop all FBP alerts: ${stopUrl}`);
+        subject, `${message}\n\nOpen FBP: ${siteUrl}\n\nStop all FBP alerts: ${stopUrl}`,
+        alertEmailHtml(subject, message, siteUrl, stopUrl));
       await env.DB.prepare(
         "UPDATE notification_deliveries SET status = ?, sent_at = ?, error_message = ? WHERE subscription_id = ? AND deduplication_key = ?",
       ).bind(sent ? "sent" : "failed", sent ? new Date().toISOString() : null, sent ? null : "Email relay rejected the message.", subscription.id, deduplicationKey).run();
@@ -1060,13 +1124,20 @@ export default {
       return json({ ok: false, error: message }, 400, env.CORS_ORIGIN);
     }
   },
-  async scheduled(_controller: ScheduledController, env: Env): Promise<void> {
+  async scheduled(controller: ScheduledController, env: Env): Promise<void> {
+    const lease = Date.now() + 180000;
+    const locked = await env.DB.prepare("INSERT INTO notification_locks (name, expires_at) VALUES ('dispatch', ?) ON CONFLICT (name) DO UPDATE SET expires_at = excluded.expires_at WHERE notification_locks.expires_at < ?").bind(lease, Date.now()).run();
+    if (!locked.meta.changes) return;
+    try {
     const weekBeforeRefresh = await activeWeek(env.DB);
-    await refreshActiveGameStates(env.DB);
+    if (new Date(controller.scheduledTime).getUTCMinutes() % 5 === 0) await refreshActiveGameStates(env.DB);
     if (!weekBeforeRefresh) return;
     let refreshedWeek = await findWeek(env.DB, Number(weekBeforeRefresh.season), Number(weekBeforeRefresh.week), "REGULAR_SEASON");
     if (refreshedWeek?.status === "finalizing") await finalizeWeek(env.DB, refreshedWeek);
     refreshedWeek = await findWeek(env.DB, Number(weekBeforeRefresh.season), Number(weekBeforeRefresh.week), "REGULAR_SEASON");
     if (refreshedWeek) await dispatchWeekNotifications(env, refreshedWeek);
+    } finally {
+      await env.DB.prepare("DELETE FROM notification_locks WHERE name = 'dispatch' AND expires_at = ?").bind(lease).run();
+    }
   },
 } satisfies ExportedHandler<Env>;
