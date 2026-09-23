@@ -2657,7 +2657,7 @@ async function initializeNotificationPreferences() {
     }
     const picksName = document.getElementById("website-picks-name");
     if (picksName && !playerInput.value) playerInput.value = notificationPlayerValidation(picksName.value).name;
-    picksName?.addEventListener("change", () => { if (!playerInput.value) playerInput.value = notificationPlayerValidation(picksName.value).name; });
+    picksName?.addEventListener("input", () => { if (!playerInput.value) playerInput.value = notificationPlayerValidation(picksName.value).name; });
     save.disabled = !data?.channels?.email;
     if (!data?.channels?.email) status.textContent = "Email sender setup is in progress. Preferences cannot be activated yet.";
   } catch (error) { save.disabled = true; status.textContent = "Alert preferences are temporarily unavailable."; }
