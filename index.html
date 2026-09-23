@@ -130,7 +130,10 @@
   .website-team-record { grid-area: record; color: var(--muted); font-size: 13px; }
   .website-mobile-venue { display: none; grid-area: venue; overflow: hidden; color: var(--muted); font-size: 8px; font-weight: normal; text-overflow: ellipsis; white-space: nowrap; }
   .website-home-marker { color: var(--muted); font-size: .8em; font-weight: normal; }
-  .website-side:hover .website-team-choice { background: var(--panel-2); border-color: var(--border); }
+  .website-side { touch-action: manipulation; -webkit-tap-highlight-color: transparent; }
+  @media (hover: hover) and (pointer: fine) {
+    .website-side:hover .website-team-choice { background: var(--panel-2); border-color: var(--border); }
+  }
   .website-side:has(input:focus-visible) .website-team-choice { outline: 2px solid var(--accent-2); outline-offset: 2px; }
   .website-side:has(input:checked) .website-team-choice { background: #3b3315; border-color: var(--accent); color: var(--accent); }
   .website-side:has(input:checked) .website-team-record { color: #f7e7a0; }
@@ -1207,11 +1210,19 @@ function renderWebsiteBestBetPicker(teams, enabled) {
   updateWebsiteBestBetPicker();
 }
 function initializeWebsiteGamePickKeyboard(host) {
+  host.onpointerup = event => {
+    if (!event.isPrimary || !["touch", "pen"].includes(event.pointerType)) return;
+    const input = event.target.closest("label.website-side")?.querySelector('input[type="radio"]');
+    if (!input || input.disabled || input.checked) return;
+    input.checked = true;
+    input.dispatchEvent(new Event("change", { bubbles: true }));
+  };
   host.onclick = event => {
     const label = event.target.closest("label.website-side");
     const input = label?.querySelector('input[type="radio"]');
     if (!input || input.disabled || event.target === input) return;
     event.preventDefault();
+    if (input.checked) return;
     input.checked = true;
     input.dispatchEvent(new Event("change", { bubbles: true }));
   };
@@ -2747,7 +2758,7 @@ async function refreshWebsitePickShares() {
       row.querySelectorAll(".website-side").forEach(label => {
         const team = label.querySelector("input").value.toUpperCase();
         let badge = label.querySelector(".website-pick-share");
-        if (!badge) { badge = document.createElement("span"); badge.className = "website-pick-share"; badge.style.cssText = "grid-column:1 / -1;font-size:11px;color:var(--muted)"; label.querySelector(".website-team-choice").append(badge); }
+        if (!badge) { badge = document.createElement("span"); badge.className = "website-pick-share"; badge.style.cssText = "grid-column:1 / -1;font-size:10px;color:var(--muted)"; label.querySelector(".website-team-choice").append(badge); }
         badge.textContent = share.total ? `${Math.round(share.counts[team] / share.total * 100)}% picked · ${share.counts[team]}/${share.total}` : "No submitted picks yet";
       });
     });
