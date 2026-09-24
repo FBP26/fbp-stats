@@ -1,4 +1,5 @@
 import { scoreWeekWithoutProbabilities, type PlayerCard, type ScoringGame } from "./scoring.ts";
+import { publicReadSnapshot, refreshPublicReadSnapshots } from "./read-snapshots.ts";
 import { espnEventId, fetchEspnGame, isRefreshWindow, parseEspnGame, type StoredGame } from "./espn.ts";
 import { validateRaceSnapshotPlayers } from "./race.ts";
 import { alertEmailHtml, nightPaths, observeLeads, parseAlertFeed, type AlertFeed, type AlertObservation } from "./alert-details.ts";
@@ -347,6 +348,7 @@ const buildCurrentWeek = async (
 const handleGet = async (request: Request, env: Env): Promise<Response> => {
   const url = new URL(request.url);
   const action = url.searchParams.get("action") || "current-week";
+  if (action === "public-read") return publicReadSnapshot(request, env.DB, env.CORS_ORIGIN);
   if (action === "analytics-status") return json({ ok: true, analytics: true }, 200, env.CORS_ORIGIN);
   if (action === "analytics-context") {
     const context = request.cf;
@@ -1124,7 +1126,10 @@ export default {
       return json({ ok: false, error: message }, 400, env.CORS_ORIGIN);
     }
   },
-  async scheduled(controller: ScheduledController, env: Env): Promise<void> {
+  async scheduled(controller: ScheduledController, env: Env, context: ExecutionContext): Promise<void> {
+    context.waitUntil(refreshPublicReadSnapshots(env.DB, env.PICKS_SOURCE_URL).catch(error => {
+      console.error("Public read snapshot refresh failed:", error instanceof Error ? error.message : "Unexpected error");
+    }));
     const lease = Date.now() + 180000;
     const locked = await env.DB.prepare("INSERT INTO notification_locks (name, expires_at) VALUES ('dispatch', ?) ON CONFLICT (name) DO UPDATE SET expires_at = excluded.expires_at WHERE notification_locks.expires_at < ?").bind(lease, Date.now()).run();
     if (!locked.meta.changes) return;

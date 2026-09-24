@@ -2733,6 +2733,7 @@ function websiteRestorePickDraft(key) {
   } catch (error) { console.warn("Saved pick draft could not be restored."); }
 }
 function websiteClearPickDraft() {
+  websiteBypassReadSnapshots();
   const key = document.getElementById("website-game-picks")?.dataset.ready;
   websitePickDrafts.delete(key);
   websitePickShareLoadedAt = 0;
@@ -2793,14 +2794,50 @@ function updateWebsiteTiebreakLabel(games) {
   label.dataset.tiebreakLabel = `Tiebreaker · total net passing yards (${matchup})`;
   label.classList.add("tiebreak-matchup-ready");
 }
+const WEBSITE_READ_SNAPSHOT_ENDPOINT = "https://fbp-api.fbp-api-worker.workers.dev";
+const websitePublicReadRequests = new Map();
+let websiteReadSourceUntil = 0;
+function websiteBypassReadSnapshots() {
+  websiteReadSourceUntil = Date.now() + 120000;
+  try { localStorage.setItem("fbpReadSourceUntil-v1", String(websiteReadSourceUntil)); } catch (error) {}
+}
+async function websiteFetchPublicRead(action, parameters = {}, timeout = 60000) {
+  if (!["active-week", "current-week", "current-week-race"].includes(action)) throw new Error("Unsupported public read.");
+  let sourceUntil = websiteReadSourceUntil;
+  try { sourceUntil = Math.max(sourceUntil, Number(localStorage.getItem("fbpReadSourceUntil-v1")) || 0); } catch (error) {}
+  const key = JSON.stringify([action, parameters, sourceUntil]);
+  if (!websitePublicReadRequests.has(key)) {
+    const pending = (async () => {
+      if (Date.now() >= sourceUntil) {
+        try {
+          const url = new URL(WEBSITE_READ_SNAPSHOT_ENDPOINT);
+          url.search = new URLSearchParams({ action: "public-read", kind: action, ...parameters });
+          const response = await fetch(url, { cache: "no-store", signal: AbortSignal.timeout(1500) });
+          const capturedAt = Number(response.headers.get("X-FBP-Snapshot-At"));
+          const age = Date.now() - capturedAt;
+          const matchingWeek = (!parameters.season || Number(response.headers.get("X-FBP-Snapshot-Season")) === Number(parameters.season)) && (!parameters.week || Number(response.headers.get("X-FBP-Snapshot-Week")) === Number(parameters.week));
+          if (response.ok && capturedAt > 0 && age >= -5000 && age <= 90000 && matchingWeek) {
+            const data = await response.json();
+            if (data.ok) return data;
+          }
+        } catch (error) {}
+      }
+      const url = new URL(WEBSITE_SUBMISSIONS_ENDPOINT);
+      url.search = new URLSearchParams({ action, ...parameters });
+      const response = await fetch(url, { signal: AbortSignal.timeout(timeout) });
+      const data = await response.json();
+      if (!response.ok || !data.ok) throw new Error(data.error || "Could not load the latest pool data.");
+      return data;
+    })().finally(() => { websitePublicReadRequests.delete(key); });
+    websitePublicReadRequests.set(key, pending);
+  }
+  return structuredClone(await websitePublicReadRequests.get(key));
+}
 async function loadActiveRegularWeek(forceRefresh = false) {
   if (!WEBSITE_SUBMISSIONS_ENDPOINT) return websiteRegularSelection;
   if (!forceRefresh && websiteActiveRegularWeekLoadedAt && Date.now() - websiteActiveRegularWeekLoadedAt < 5 * 60 * 1000) return websiteRegularSelection;
   if (!websiteActiveRegularWeekPromise) websiteActiveRegularWeekPromise = (async () => {
-    const separator = WEBSITE_SUBMISSIONS_ENDPOINT.includes("?") ? "&" : "?";
-    const response = await fetch(`${WEBSITE_SUBMISSIONS_ENDPOINT}${separator}action=active-week&enrich=0`, { signal: AbortSignal.timeout(30000) });
-    const data = await response.json();
-    if (!response.ok || !data.ok) throw new Error(data.error || "Could not load the active regular-season week.");
+    const data = await websiteFetchPublicRead("active-week", { enrich: "0" }, 30000);
     websiteRegularSelection = { season: Number(data.season) || 2026, week: Number(data.week) || 1, phase: "REGULAR_SEASON", staged: Boolean(data.staged) };
     if (websiteRegularSelection.staged) {
       websiteEntrySelection = { testMode: false, ...websiteRegularSelection };
@@ -2969,7 +3006,7 @@ async function renderWebsitePicksFormNow(forceRefresh = false) {
   weekNameLabel.textContent = `${selection.testMode ? "Preseason" : "Week"} ${selection.week} name`;
   weekNameLabel.style.visibility = "visible";
   try {
-    const stagedGames = await loadWebsiteStagedGames(selection, forceRefresh && !useCachedSlate);
+    const stagedGames = await loadWebsiteStagedGames(selection, selection.testMode && forceRefresh && !useCachedSlate);
     if (!stagedGames.length) throw new Error(`${selection.testMode ? "Preseason" : "Regular"} Week ${selection.week} has not been staged yet.`);
     if (host.dataset.ready === configKey && host.querySelector('input[type="radio"]') && websiteSlateSignature(websiteActiveGames) === websiteSlateSignature(stagedGames)) { websiteRefreshMessage("view-enter-picks", false, websiteStagedGamesCache.get(configKey)?.storedAt, useCachedSlate); queueWebsitePicksWeatherRefresh(selection); return; }
     websiteSavePickDraft();
@@ -3988,17 +4025,10 @@ function websiteRenderCachedLive() {
   return true;
 }
 async function fetchWebsiteCurrentWeek() {
-  const separator = WEBSITE_SUBMISSIONS_ENDPOINT.includes("?") ? "&" : "?";
-  const response = await fetch(`${WEBSITE_SUBMISSIONS_ENDPOINT}${separator}action=current-week&fast=1`, { signal: AbortSignal.timeout(60000) });
-  const data = await response.json();
-  if (!response.ok || !data.ok) throw new Error(data.error || "Could not load the current week.");
-  return data;
+  return websiteFetchPublicRead("current-week", { fast: "1" });
 }
 async function fetchWebsiteCurrentWeekRace(season, week) {
-  const separator = WEBSITE_SUBMISSIONS_ENDPOINT.includes("?") ? "&" : "?";
-  const response = await fetch(`${WEBSITE_SUBMISSIONS_ENDPOINT}${separator}action=current-week-race&season=${season}&week=${week}`, { signal: AbortSignal.timeout(20000) });
-  const data = await response.json();
-  if (!response.ok || !data.ok) throw new Error(data.error || "Could not load the current week race.");
+  const data = await websiteFetchPublicRead("current-week-race", { season: String(season), week: String(week) }, 20000);
   return data.raceSnapshots || [];
 }
 async function renderWebsiteWeekOne(currentWeekRequest = null, currentRaceRequest = null, refreshGeneration = ++websiteLiveRefreshGeneration) {
@@ -4144,6 +4174,9 @@ async function renderSelectedWebsiteWeek(activeWeekKnown = false, currentWeekReq
     const table = document.getElementById("week-one-table");
     const pendingCurrentWeek = currentWeekRequest || (WEBSITE_SUBMISSIONS_ENDPOINT ? fetchWebsiteCurrentWeek() : null);
     pendingCurrentWeek?.catch(() => {});
+    const raceSelection = websiteReadCurrentWeekCache() || (selection.staged && websiteActiveRegularWeekLoadedAt ? selection : null);
+    const prefetchedRace = liveView && pendingCurrentWeek && raceSelection ? fetchWebsiteCurrentWeekRace(Number(raceSelection.season), Number(raceSelection.week)) : null;
+    prefetchedRace?.catch(() => {});
     if (liveView) websiteRenderCachedLive();
     else if (!document.querySelector("#week-one-table .picks-grid")) websiteRenderCachedCurrentWeek();
     if (!liveView && !WEBSITE_SUBMISSIONS_ENDPOINT && !document.querySelector("#week-one-table .picks-grid") && table?.dataset.instantWeek !== "true") {
@@ -4165,7 +4198,7 @@ async function renderSelectedWebsiteWeek(activeWeekKnown = false, currentWeekReq
     const active = websitePickSelection();
     document.querySelector("#view-week-one .intro h2").textContent = `Week ${active.week}`;
     document.querySelector("#view-week-one .intro p").textContent = `${active.season}-${active.season + 1} submissions and weekly standings.`;
-    const pendingRace = liveView && pendingCurrentWeek ? Promise.resolve(pendingCurrentWeek).then(data => fetchWebsiteCurrentWeekRace(Number(data.season) || 2026, Number(data.week) || 1)) : null;
+    const pendingRace = liveView && pendingCurrentWeek ? Promise.resolve(pendingCurrentWeek).then(data => prefetchedRace && Number(data.season) === Number(raceSelection.season) && Number(data.week) === Number(raceSelection.week) ? prefetchedRace : fetchWebsiteCurrentWeekRace(Number(data.season) || 2026, Number(data.week) || 1)) : null;
     pendingRace?.catch(() => {});
     return renderWebsiteWeekOne(pendingCurrentWeek, pendingRace, refreshGeneration);
   }

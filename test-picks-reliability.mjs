@@ -60,5 +60,76 @@ host.onclick({ target: mouse.target, preventDefault() {} });
 assert.equal(mouse.input.checked, true);
 assert.match(html, /touch-action: manipulation; -webkit-tap-highlight-color: transparent/);
 assert.match(html, /grid-column:1 \/ -1;font-size:10px/);
+for (const cachedWeek of [3, 2, null]) {
+  let finishCurrent;
+  const currentRequest = new Promise(resolve => { finishCurrent = resolve; });
+  const raceWeeks = [];
+  const refreshContext = vm.createContext({
+    console,
+    clearTimeout() {},
+    websiteLiveRefreshTimer: null,
+    websiteLiveRefreshGeneration: 0,
+    WEBSITE_SUBMISSIONS_ENDPOINT: 'https://example.test',
+    websiteRefreshMessage() {},
+    websitePickSelection: () => ({ season: 2026, week: 3, staged: true }),
+    websiteActiveRegularWeekLoadedAt: 0,
+    websiteReadCurrentWeekCache: () => cachedWeek ? { season: 2026, week: cachedWeek } : null,
+    websiteRenderCachedLive() {},
+    updateWebsiteWeekLabels() {},
+    fetchWebsiteCurrentWeek: () => currentRequest,
+    fetchWebsiteCurrentWeekRace: async (season, week) => { raceWeeks.push(week); return [{ season, week }]; },
+    renderWebsiteWeekOne: async (data, race) => ({ data: await data, race: await race }),
+    document: {
+      getElementById: () => ({ classList: { contains: () => true } }),
+      querySelector: () => ({}),
+    },
+  });
+  const refreshStart = html.indexOf('async function renderSelectedWebsiteWeek(');
+  const refreshEnd = html.indexOf('\nconst WEBSITE_PULL_REFRESH_THRESHOLD', refreshStart);
+  vm.runInContext(html.slice(refreshStart, refreshEnd), refreshContext);
+  const resultRequest = refreshContext.renderSelectedWebsiteWeek();
+  assert.deepEqual(raceWeeks, cachedWeek ? [cachedWeek] : [], 'Known-week race starts before the standings response');
+  finishCurrent({ ok: true, season: 2026, week: 3, games: [{}] });
+  const result = await resultRequest;
+  assert.equal(result.race[0].week, 3, 'Rollover must never attach last week race to this week');
+  assert.equal(raceWeeks.length, cachedWeek === 2 ? 2 : 1, 'Matching prefetch is reused without duplicate reads');
+}
+console.log('Live parallel reads, race request reuse, cold start, and rollover isolation passed.');
+const readStart = html.indexOf('const WEBSITE_READ_SNAPSHOT_ENDPOINT =');
+const readEnd = html.indexOf('async function loadActiveRegularWeek(', readStart);
+for (const scenario of ['fresh', 'stale', 'wrong-week', 'timeout', 'unavailable', 'submitted']) {
+  const requests = [];
+  const storage = new Map();
+  const readContext = vm.createContext({
+    Date, URL, URLSearchParams, AbortSignal, structuredClone,
+    WEBSITE_SUBMISSIONS_ENDPOINT: 'https://source.test/exec',
+    localStorage: { getItem: key => storage.get(key), setItem: (key, value) => storage.set(key, value) },
+    fetch: async url => {
+      requests.push(String(url));
+      if (url.hostname === 'source.test') return Response.json({ ok: true, origin: 'source', players: [{ name: 'Jim' }] });
+      if (scenario === 'timeout') throw new Error('timeout');
+      return Response.json({ ok: true, origin: 'snapshot', players: [{ name: 'Jim' }] }, {
+        status: scenario === 'unavailable' ? 503 : 200,
+        headers: {
+          'X-FBP-Snapshot-At': String(Date.now() - (scenario === 'stale' ? 91000 : 1000)),
+          'X-FBP-Snapshot-Season': '2026',
+          'X-FBP-Snapshot-Week': scenario === 'wrong-week' ? '2' : '3',
+        },
+      });
+    },
+  });
+  vm.runInContext(html.slice(readStart, readEnd), readContext);
+  if (scenario === 'submitted') readContext.websiteBypassReadSnapshots();
+  const [first, second] = await Promise.all([
+    readContext.websiteFetchPublicRead('current-week', { season: '2026', week: '3' }),
+    readContext.websiteFetchPublicRead('current-week', { season: '2026', week: '3' }),
+  ]);
+  assert.equal(first.origin, scenario === 'fresh' ? 'snapshot' : 'source', scenario);
+  assert.equal(requests.length, ['fresh', 'submitted'].includes(scenario) ? 1 : 2, 'Concurrent reads share requests');
+  first.players[0].name = 'Changed locally';
+  assert.equal(second.players[0].name, 'Jim', 'Probability calculations cannot mutate another consumer payload');
+  await assert.rejects(readContext.websiteFetchPublicRead('notification-preferences'), /Unsupported public read/);
+}
+console.log('Fresh snapshot reads, bounded fallback, week isolation, submission bypass, and request deduplication passed.');
 console.log('Rapid touch selection, compatibility clicks, disabled teams, and mouse fallback passed.');
 console.log('Inline syntax, Eastern-time retention, week isolation, pick shares, and removed chart checks passed.');
