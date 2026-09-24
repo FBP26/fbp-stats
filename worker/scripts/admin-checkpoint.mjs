@@ -25,6 +25,9 @@ export async function createAdminCheckpoint(db) {
   const finalControl = await db.prepare('SELECT owner, epoch FROM admin_control WHERE id = 1').first();
   if (canonicalAdminJson(control) !== canonicalAdminJson(finalControl)) throw new Error('Ownership changed during checkpoint creation.');
   const payload = { version: 1, control, events: events.results, records: records.results };
+  if (await db.prepare("SELECT name FROM sqlite_master WHERE type = 'table' AND name = 'payout_journal'").first()) {
+    payload.payoutJournal = (await db.prepare('SELECT * FROM payout_journal ORDER BY record_id, version').all()).results;
+  }
   validateHistory(payload);
   return { sha256: await adminDigest(canonicalAdminJson(payload)), payload };
 }
@@ -39,7 +42,8 @@ export async function restoreAdminCheckpoint(db, checkpoint) {
       SELECT json_extract(value, '$.operation_id'), json_extract(value, '$.request_hash'), json_extract(value, '$.kind'),
         json_extract(value, '$.record_id'), json_extract(value, '$.version'), json_extract(value, '$.epoch'),
         json_extract(value, '$.actor'), json_extract(value, '$.reason'), json_extract(value, '$.recorded_at'), json_extract(value, '$.body')
-      FROM json_each(?) WHERE NOT EXISTS (SELECT 1 FROM admin_records)`).bind(JSON.stringify(checkpoint.payload.events)),
+      FROM json_each(?) WHERE NOT EXISTS (SELECT 1 FROM admin_records)
+      ORDER BY json_extract(value, '$.kind'), json_extract(value, '$.record_id'), json_extract(value, '$.version')`).bind(JSON.stringify(checkpoint.payload.events)),
     db.prepare(`INSERT INTO admin_records(kind, record_id, version, operation_id, body)
       SELECT json_extract(value, '$.kind'), json_extract(value, '$.record_id'), json_extract(value, '$.version'),
         json_extract(value, '$.operation_id'), json_extract(value, '$.body') FROM json_each(?)
@@ -49,7 +53,8 @@ export async function restoreAdminCheckpoint(db, checkpoint) {
   await db.batch(statements);
   const restored = await createAdminCheckpoint(db);
   if (canonicalAdminJson(restored.payload.records) !== canonicalAdminJson(checkpoint.payload.records)
-    || canonicalAdminJson(restored.payload.events) !== canonicalAdminJson(checkpoint.payload.events)) throw new Error('Restored checkpoint verification failed.');
+    || canonicalAdminJson(restored.payload.events) !== canonicalAdminJson(checkpoint.payload.events)
+    || canonicalAdminJson(restored.payload.payoutJournal || []) !== canonicalAdminJson(checkpoint.payload.payoutJournal || [])) throw new Error('Restored checkpoint verification failed.');
   return { records: restored.payload.records.length, events: restored.payload.events.length, epoch: restored.payload.control.epoch };
 }
 
@@ -57,7 +62,7 @@ if (process.argv[1] && import.meta.url === pathToFileURL(process.argv[1]).href) 
   const filename = process.argv.find(argument => argument.startsWith('--rehearse='))?.slice(11);
   if (!filename) throw new Error('Use --rehearse=PRIVATE_CHECKPOINT_FILE for an isolated recovery rehearsal.');
   const { memoryDatabase } = await import('../test/helpers/d1.mjs');
-  const { sqlite, adapter } = memoryDatabase(['0009_admin_record_history.sql']);
+  const { sqlite, adapter } = memoryDatabase(['0009_admin_record_history.sql', '0011_payout_journal.sql']);
   try {
     const checkpoint = JSON.parse(await readFile(filename, 'utf8'));
     console.log(JSON.stringify({ ...await restoreAdminCheckpoint(adapter, checkpoint), productionWrites: 0 }));

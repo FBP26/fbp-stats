@@ -20,11 +20,12 @@ and timezone are retained. Observation times are not substituted for submission
 times. Historical corrections that were never retained at source cannot be
 reconstructed. Import refuses ambiguous identities and overwriting existing edits.
 
-The current payout source has four ledger/balance mismatches and one nonzero
-balance without a ledger entry. Both values are retained and flagged in the
-editor. No balance was automatically reconciled. Resolve these privately before
-financial ownership changes. Reconciliation status describes the import baseline;
-editing a rehearsal balance does not certify a reconciled financial ledger.
+The five initial financial discrepancies were resolved using explicit owner
+decisions on 2026-09-24. The live source ledger has reconciliation acknowledgements,
+and the corresponding D1 balances have audited opening-balance acceptances.
+Original discrepancies and revisions remain intact. Private financial details and
+receipts stay outside this public repository. No automatic financial adjustment
+or duplicate cash transfer is inferred from an old ledger mismatch.
 
 ## Run the editor
 
@@ -45,6 +46,22 @@ and payout tabs, search/season filters, required edit reasons, version conflicts
 idempotent operation IDs, and revision history. The source documents are not
 exposed by the editor API. Successful saves explicitly remain rehearsal edits.
 
+The direct reconciliation view is `http://127.0.0.1:8811/?view=payout&review=1`.
+Sample sessions have a distinct browser title. Payout balances are read-only in
+the generic editor: accept an opening balance, then use the transaction form for
+payments, prize credits, credit payouts or explicit adjustments. Reasons and
+confirmation are required. Transactions use integer cents, expected versions and
+epochs, retry-safe operation IDs, and an immutable journal inserted atomically
+with the administrative event. No transaction in this editor writes live Sheets.
+Only one form can hold unsaved changes at a time.
+
+Migration `0012_submission_admin_projection.sql` supports explicit links between
+administrative records and operational submissions. Linked corrections update
+the real card and its correction audit in the same transaction, preserve the
+original submission timestamp, validate matchup/Best Bet picks, and reject closed
+or superseded cards. This path requires D1 ownership. No production submission
+links have been activated; this is not an operational import or a write cutover.
+
 ## Private import and recovery
 
 The private automation repository's `export_admin_source.py` reads Sheets with a
@@ -55,6 +72,7 @@ exports outside every public checkout and protect them as private financial data
 ```sh
 node scripts/admin-import.mjs --check=PRIVATE_SOURCE_FILE
 node scripts/admin-server.mjs --remote --import=PRIVATE_SOURCE_FILE
+node scripts/admin-server.mjs --remote --import=PRIVATE_SOURCE_FILE --source-ledgers-only
 node scripts/admin-server.mjs --remote --backup=NEW_PRIVATE_CHECKPOINT_FILE
 node scripts/admin-checkpoint.mjs --rehearse=PRIVATE_CHECKPOINT_FILE
 ```
@@ -63,7 +81,19 @@ The import is additive and retryable, never the destructive legacy current-week
 importer. The checkpoint verifies records against their complete revision chains.
 Recovery rehearsals use empty in-memory SQLite, preserve intervening edits, check
 the checksum, and increment the epoch. Existing recovery data is never overwritten.
-This is administrative-record recovery, not a live Sheets ownership rollback.
+Source-only imports preserve new immutable worksheet snapshots without replacing
+edited cards or balances. Checkpoints include the payout journal; restore rebuilds
+it from the ordered events and verifies the exact journal. This is administrative
+record recovery, not a live Sheets ownership rollback or operational database backup.
+
+The private automation utility `payout_adjustments.py` can post an explicitly
+approved source reconciliation and winner allocation. It previews by default,
+backs up private data before `--apply`, checks the current rows again, and updates
+only approved Payout cells plus appended ledger entries in one Sheets batch.
+Stable references detect retries and partial pre-existing postings. Sheets has
+no compare-and-swap here: this is a supervised operation, not a concurrent public
+write bridge. Do not run alongside another payout writer. It sends no email and
+disburses no cash. Prize credit and prepaid allocation are separate ledger entries.
 
 ## Unattended candidate evidence
 
@@ -88,9 +118,10 @@ The observer's staged flag is source-staged evidence, not a new owner approval U
 
 ## Still required before cutover
 
-- Resolve the five current financial discrepancies with the owner.
 - Connect validated administrative changes to the operational submission/payout
-  model, including matchup-specific validation and audited ledger transactions.
+  model and public consumers. Transaction journaling and linked correction
+  projection are implemented; safe original-record mapping, operational imports,
+  prepaid-period editing and full consumer integration are still required.
 - Fence every real writer, including Apps Script, and prove a rollback that
   preserves intervening live submissions/corrections. An admin-only epoch is not enough.
 - Complete production playoff staging/eligibility/reveal/entry and archive wiring.
@@ -98,5 +129,5 @@ The observer's staged flag is source-staged evidence, not a new owner approval U
   its final archive with the canonical publisher, including final tiebreak values.
 - Retain original history and export checkpoints before each ownership transition.
 
-`fullReplacementReady` remains false. The five financial discrepancies and a real
-completed-cycle observation cannot be replaced by passing synthetic fixtures.
+`fullReplacementReady` remains false. Resolving the financial baseline and passing
+synthetic fixtures do not replace writer fencing or a real completed-cycle observation.

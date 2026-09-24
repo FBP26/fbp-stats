@@ -5,12 +5,14 @@ import { userInfo } from 'node:os';
 import { saveAdminRecord, AdminConflict } from '../src/admin-store.ts';
 import { importSourceRecords, prepareSourceRecords } from './admin-import.mjs';
 import { createAdminCheckpoint } from './admin-checkpoint.mjs';
+import { postPayoutTransaction } from './payout-transactions.mjs';
 
 export function validateAdminChanges(current, changes, kind) {
   if (!changes || typeof changes !== 'object' || Array.isArray(changes)) throw new Error('Changes are required.');
   const allowed = kind === 'submission' ? ['name', 'weekName', 'picks', 'bestBet', 'tiebreaker'] : kind === 'payout' ? ['weeks', 'balance', 'notes'] : [];
   if (!allowed.length || Object.keys(changes).some(key => !allowed.includes(key))) throw new Error('This field is not editable.');
   const body = { ...current, ...changes };
+  if (kind === 'payout' && changes.balance !== undefined && changes.balance !== current.balance) throw new Error('Balance changes require a payout transaction.');
   if (kind === 'submission') {
     if (typeof body.name !== 'string' || !body.name.trim() || body.name.length > 100 || typeof body.weekName !== 'string' || body.weekName.length > 100
       || !Array.isArray(body.picks) || body.picks.length !== current.picks.length || body.picks.some(pick => typeof pick !== 'string' || !/^[A-Za-z]{2,4}$/.test(pick))
@@ -49,7 +51,7 @@ export function createAdminServer(db, { port, actor, demo = false }) {
           .bind(url.searchParams.get('kind'), url.searchParams.get('id')).all();
         return send(200, { history: history.results.map(record => ({ ...record, body: JSON.parse(record.body) })) });
       }
-      if (request.method === 'POST' && url.pathname === '/api/records') {
+      if (request.method === 'POST' && ['/api/records', '/api/payout-transactions'].includes(url.pathname)) {
         if (request.headers.origin !== origin || !String(request.headers['content-type']).startsWith('application/json')) return send(403, { error: 'Same-origin JSON required.' });
         const chunks = [];
         let bytes = 0;
@@ -59,6 +61,7 @@ export function createAdminServer(db, { port, actor, demo = false }) {
           chunks.push(chunk);
         }
         const command = JSON.parse(Buffer.concat(chunks).toString('utf8'));
+        if (url.pathname === '/api/payout-transactions') return send(200, await postPayoutTransaction(db, command, actor));
         const row = await db.prepare('SELECT version, body FROM admin_records WHERE kind = ? AND record_id = ?').bind(command.kind, command.recordId).first();
         if (!row) return send(404, { error: 'Record not found.' });
         const body = validateAdminChanges(JSON.parse(row.body), command.changes, command.kind);
@@ -69,7 +72,7 @@ export function createAdminServer(db, { port, actor, demo = false }) {
       return send(404, { error: 'Not found.' });
     } catch (error) {
       if (error instanceof AdminConflict) return send(409, { error: error.message });
-      if (/Invalid|editable|required|JSON|size limit/.test(error.message)) return send(400, { error: error.message });
+      if (/Invalid|editable|required|require|Accept the|JSON|size limit/.test(error.message)) return send(400, { error: error.message });
       console.error('Administrative request failed:', error.constructor.name);
       return send(500, { error: 'Administrative request failed; no successful write is assumed.' });
     }
@@ -84,7 +87,7 @@ async function main() {
   let dispose;
   if (demo) {
     const { memoryDatabase } = await import('../test/helpers/d1.mjs');
-    const memory = memoryDatabase(['0009_admin_record_history.sql']);
+    const memory = memoryDatabase(['0009_admin_record_history.sql', '0011_payout_journal.sql']);
     db = memory.adapter;
     dispose = async () => memory.sqlite.close();
     for (const [kind, body] of [
@@ -112,7 +115,8 @@ async function main() {
     try {
       const source = JSON.parse(await readFile(importPath, 'utf8'));
       const records = await prepareSourceRecords(source);
-      console.log(JSON.stringify(await importSourceRecords(db, records)));
+      const selectedRecords = args.includes('--source-ledgers-only') ? records.filter(record => record.kind === 'source-ledger') : records;
+      console.log(JSON.stringify(await importSourceRecords(db, selectedRecords)));
     } finally { await dispose(); }
     return;
   }
