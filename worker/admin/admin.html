@@ -4,7 +4,7 @@
 <body>
 <header><div><span class="monogram">FBP</span><h1>Private Admin</h1></div><span id="mode" role="status">Connecting</span></header>
 <nav aria-label="Records"><button type="button" data-kind="submission" aria-pressed="true">Input</button><button type="button" data-kind="payout" aria-pressed="false">Payout</button><button type="button" id="refresh">Refresh</button></nav>
-<main><aside><label for="search">Player or season</label><input id="search" type="search" autocomplete="off"><label for="season">Season</label><select id="season"><option value="">All seasons</option></select><div id="count"></div><div id="records" aria-label="Available records"></div></aside>
+<main><aside><label for="search">Player or season</label><input id="search" type="search" autocomplete="off"><label for="season">Season</label><select id="season"><option value="">All seasons</option></select><label id="review-filter" hidden><input id="needs-review" type="checkbox"> Needs reconciliation</label><div id="count"></div><div id="records" aria-label="Available records"></div></aside>
 <section id="detail"><div class="empty">Select a record</div></section></main>
 <footer><span id="message" role="status" aria-live="polite"></span><span>Private connection</span></footer>
 </body></html>

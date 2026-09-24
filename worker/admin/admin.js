@@ -18,7 +18,9 @@ function allowDiscard() { return !dirty || confirm('Discard unsaved changes?'); 
 function drawList() {
   const search = byId('search').value.trim().toLowerCase();
   const season = byId('season').value;
+  byId('review-filter').hidden = kind !== 'payout';
   const filtered = records.filter(record => record.kind === kind && (!season || record.body.season === season)
+    && (kind !== 'payout' || !byId('needs-review').checked || (record.body.reconciliation && record.body.reconciliation.status !== 'match'))
     && `${record.body.name} ${record.body.season} ${record.body.weekName || ''}`.toLowerCase().includes(search))
     .sort((left, right) => right.body.season.localeCompare(left.body.season) || (right.body.week || 0) - (left.body.week || 0) || left.body.name.localeCompare(right.body.name));
   byId('count').textContent = `${filtered.length} records`;
@@ -85,6 +87,7 @@ document.querySelectorAll('[data-kind]').forEach(button => button.addEventListen
 }));
 byId('search').addEventListener('input', drawList);
 byId('season').addEventListener('change', drawList);
+byId('needs-review').addEventListener('change', drawList);
 byId('refresh').addEventListener('click', () => { if (allowDiscard()) { dirty = false; pending = null; load(selected?.record_id); } });
 addEventListener('beforeunload', event => { if (dirty) { event.preventDefault(); event.returnValue = ''; } });
 load();
