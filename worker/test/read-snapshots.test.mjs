@@ -9,7 +9,7 @@ const current = { ok: true, season: 2026, week: 3, games, favorites: ['BUF'], un
 const race = { ok: true, season: 2026, week: 3, raceSnapshots: [{ players: [{ name: 'Jim', win_prob: 1 }] }] };
 
 function database() {
-  return memoryDatabase(['0007_public_read_snapshots.sql', '0008_shadow_card_sync.sql']);
+  return memoryDatabase(['0007_public_read_snapshots.sql', '0008_shadow_card_sync.sql', '0010_candidate_lifecycle.sql']);
 }
 
 const source = async url => Response.json(({ 'active-week': active, 'current-week': current, 'current-week-race': race })[new URL(url).searchParams.get('action')]);
@@ -93,13 +93,14 @@ test('transient source HTTP errors retry once with a fresh URL; permissions fail
 test('live public feeds can build isolated snapshots without production writes', { skip: !process.env.FBP_SNAPSHOT_SOURCE_URL }, async () => {
   const { sqlite, adapter } = database();
   try {
-    await refreshPublicReadSnapshots(adapter, process.env.FBP_SNAPSHOT_SOURCE_URL);
+    await refreshPublicReadSnapshots(adapter, process.env.FBP_SNAPSHOT_SOURCE_URL, fetch, true);
     const response = await publicReadSnapshot(request('current-week'), adapter, '*');
     assert.equal(response.status, 200);
     const payload = await response.json();
     console.log(JSON.stringify({ week: payload.week, games: payload.games.length, players: payload.players.length, snapshots: sqlite.prepare('SELECT count(*) AS total FROM public_read_snapshots').get().total, productionWrites: 0 }));
     assert.equal(sqlite.prepare('SELECT count(*) AS total FROM public_read_snapshots').get().total, 3);
     assert.equal(sqlite.prepare('SELECT count(*) AS total FROM shadow_card_heads').get().total, payload.players.length);
+    assert.equal(sqlite.prepare('SELECT count(*) AS total FROM candidate_weeks').get().total, 1);
     assert.deepEqual(sqlite.prepare('PRAGMA foreign_key_check').all(), []);
   } finally { sqlite.close(); }
 });
@@ -111,5 +112,18 @@ test('shadow storage failure cannot interrupt public snapshots or the race refre
     await refreshPublicReadSnapshots(adapter, 'https://example.test', source);
     assert.equal(sqlite.prepare('SELECT count(*) AS total FROM public_read_snapshots').get().total, 3);
     assert.equal(sqlite.prepare('SELECT count(*) AS total FROM shadow_card_revisions').get().total, 0);
+  } finally { sqlite.close(); }
+});
+
+test('scheduled candidate recorder computes race frames and its failure cannot block public reads', async () => {
+  const { sqlite, adapter } = database();
+  const candidateCurrent = { ...current, games: games.map(game => ({ ...game, kickoff: '2026-09-27T17:00:00Z', status: 'PREGAME' })) };
+  const feeds = async url => new URL(url).searchParams.get('action') === 'current-week' ? Response.json(candidateCurrent) : source(url);
+  try {
+    await refreshPublicReadSnapshots(adapter, 'https://example.test', feeds, true);
+    assert.equal(sqlite.prepare('SELECT count(*) AS total FROM candidate_race_frames').get().total, 1);
+    sqlite.exec("CREATE TRIGGER reject_candidate BEFORE INSERT ON candidate_weeks BEGIN SELECT RAISE(ABORT, 'forced candidate failure'); END");
+    await refreshPublicReadSnapshots(adapter, 'https://example.test', feeds, true);
+    assert.equal(sqlite.prepare('SELECT count(*) AS total FROM public_read_snapshots').get().total, 3);
   } finally { sqlite.close(); }
 });

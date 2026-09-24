@@ -13,6 +13,7 @@ interface Env {
   PUBLIC_API_URL?: string;
   PUBLIC_SITE_URL?: string;
   PICKS_SOURCE_URL?: string;
+  CANDIDATE_LIFECYCLE_ENABLED?: string;
 }
 
 type JsonObject = Record<string, unknown>;
@@ -1127,7 +1128,7 @@ export default {
     }
   },
   async scheduled(controller: ScheduledController, env: Env, context: ExecutionContext): Promise<void> {
-    context.waitUntil(refreshPublicReadSnapshots(env.DB, env.PICKS_SOURCE_URL).catch(error => {
+    context.waitUntil(refreshPublicReadSnapshots(env.DB, env.PICKS_SOURCE_URL, fetch, env.CANDIDATE_LIFECYCLE_ENABLED === 'true').catch(error => {
       console.error("Public read snapshot refresh failed:", error instanceof Error ? error.message : "Unexpected error");
     }));
     const lease = Date.now() + 180000;

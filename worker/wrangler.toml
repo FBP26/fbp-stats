@@ -6,6 +6,7 @@ compatibility_date = "2026-08-26"
 crons = ["* * * * *"]
 
 [vars]
+CANDIDATE_LIFECYCLE_ENABLED = "true"
 CORS_ORIGIN = "https://fbp26.github.io"
 PUBLIC_API_URL = "https://fbp-api.fbp-api-worker.workers.dev"
 PUBLIC_SITE_URL = "https://fbp26.github.io/fbp-stats/"

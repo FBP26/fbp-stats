@@ -5,6 +5,15 @@ The database-backed API preserves many Apps Script `action` routes, but it is
 not yet a proven drop-in replacement for the live Sheets backend. Do not change
 submission or scoring ownership until migration parity and rollback are proven.
 
+## Private administration and lifecycle evidence
+
+See [ADMIN.md](ADMIN.md) for the local private editor, original-ledger import,
+conflict-safe revision history, checkpoint recovery, and scheduled candidate
+lifecycle recorder. These are additive rehearsal surfaces, not a live cutover.
+The owner no longer requires Sheets for input/payout editing. Five unresolved
+financial discrepancies, operational writer integration, production playoff
+workflow wiring, and a complete real-week observation still prevent replacement.
+
 ## Fast public reads
 
 `action=public-read&kind=active-week`, `kind=current-week`, and

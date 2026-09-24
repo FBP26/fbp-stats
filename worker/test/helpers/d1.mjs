@@ -11,6 +11,7 @@ export function memoryDatabase(migrations) {
       return {
         bind(...parameters) { values = parameters.map(value => value instanceof ArrayBuffer ? new Uint8Array(value) : value); return this; },
         async first() { return sqlite.prepare(sql).get(...values) || null; },
+        async all() { return { results: sqlite.prepare(sql).all(...values) }; },
         async run() { return sqlite.prepare(sql).run(...values); },
       };
     },

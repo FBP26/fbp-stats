@@ -1,0 +1,10 @@
+name = "fbp-private-admin-local"
+main = "src/index.ts"
+compatibility_date = "2026-08-26"
+
+[[d1_databases]]
+binding = "DB"
+database_name = "fbp"
+database_id = "30774d69-00cb-48de-af6b-d847202859d7"
+remote = true
+migrations_dir = "migrations"

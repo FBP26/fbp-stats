@@ -1,4 +1,5 @@
 import { synchronizeShadowCards } from './shadow-sync.ts';
+import { observeCandidatePublicWeek } from './candidate-lifecycle.ts';
 
 type PublicPayload = Record<string, unknown>;
 const snapshotNames = new Set(['active-week', 'current-week', 'current-week-race']);
@@ -59,7 +60,7 @@ async function sourceRead(source: string, parameters: Record<string, string>, fe
   throw new Error('Public read source retries exhausted.');
 }
 
-export async function refreshPublicReadSnapshots(db: D1Database, source: string | undefined, fetcher: typeof fetch = fetch): Promise<void> {
+export async function refreshPublicReadSnapshots(db: D1Database, source: string | undefined, fetcher: typeof fetch = fetch, candidateEnabled = false): Promise<void> {
   if (!source) return;
   const startedAt = Date.now();
   const [active, current] = await Promise.all([
@@ -76,6 +77,13 @@ export async function refreshPublicReadSnapshots(db: D1Database, source: string 
     await synchronizeShadowCards(db, current, startedAt);
   } catch (error) {
     console.error('Shadow card synchronization failed:', error instanceof Error ? error.message : 'Unexpected error');
+  }
+  if (candidateEnabled) {
+    try {
+      await observeCandidatePublicWeek(db, active, current, startedAt);
+    } catch (error) {
+      console.error('Candidate lifecycle observation failed:', error instanceof Error ? error.message : 'Unexpected error');
+    }
   }
   const raceStartedAt = Date.now();
   const race = await sourceRead(source, { action: 'current-week-race', season: String(season), week: String(week) }, fetcher);
