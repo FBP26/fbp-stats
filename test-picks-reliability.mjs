@@ -133,3 +133,47 @@ for (const scenario of ['fresh', 'stale', 'wrong-week', 'timeout', 'unavailable'
 console.log('Fresh snapshot reads, bounded fallback, week isolation, submission bypass, and request deduplication passed.');
 console.log('Rapid touch selection, compatibility clicks, disabled teams, and mouse fallback passed.');
 console.log('Inline syntax, Eastern-time retention, week isolation, pick shares, and removed chart checks passed.');
+const historyRequests = new Map();
+const historyTables = {};
+const historyContext = vm.createContext({
+  DATA_DIR: 'data',
+  manifest: [],
+  tableData: historyTables,
+  fetch: async url => {
+    if (url === 'data/manifest.json') return { json: async () => ['overall', 'money_won', 'weekly_champs'].map(key => ({ key })) };
+    return new Promise(resolve => historyRequests.set(url, data => resolve({ json: async () => data })));
+  },
+});
+const initStart = html.indexOf('async function init() {');
+const initTablesEnd = html.indexOf('  [websitePlayers,', initStart);
+vm.runInContext(html.slice(initStart, initTablesEnd) + '\n}', historyContext);
+const historyLoading = historyContext.init();
+await new Promise(setImmediate);
+assert.equal(historyRequests.size, 3, 'All independent summary downloads start without waiting for earlier files');
+for (const [url, finish] of [...historyRequests].reverse()) finish([{ source: url }]);
+await historyLoading;
+assert.equal(historyTables.overall[0].source, 'data/overall.json');
+assert.equal(historyTables.weekly_champs[0].source, 'data/weekly_champs.json');
+console.log('Parallel historical summary loading preserves table identity across out-of-order responses.');
+for (const route of ['enter-picks', 'live-analysis', 'faq', 'players', 'alltime']) {
+  const rendered = [];
+  const nodes = new Map();
+  const loadingContext = vm.createContext({
+    DATA_DIR: 'data', WEBSITE_WEEK_HISTORY_VERSION: 'test',
+    manifest: [], tableData: {}, websitePicks: [], location: { hash: `#${route}` },
+    fetch: async url => ({ json: async () => url.endsWith('payouts.json') ? { seasons: [] } : [] }),
+    Option: class { constructor(label, value) { this.label = label; this.value = value; } },
+    document: { getElementById: id => {
+      if (!nodes.has(id)) nodes.set(id, { options: [], add() {}, append() {}, classList: { contains: () => id === `view-${route}` } });
+      return nodes.get(id);
+    } },
+    renderNamesArchiveSummary() {}, initViews() {}, populateStreakCategories() {}, populateWeeklyRankPlayers() {},
+    renderProfile: () => rendered.push('players'), renderAllTime: () => rendered.push('alltime'),
+    loadDrilldown: async () => rendered.push('archive'),
+  });
+  vm.runInContext(html.slice(initStart, html.indexOf('\nfunction renderPicksGrid()', initStart)), loadingContext);
+  await loadingContext.init();
+  if (['enter-picks', 'live-analysis', 'faq'].includes(route)) assert.deepEqual(rendered, [], 'Lightweight pages must not render hidden history or fetch the full archive');
+  else assert.ok(rendered.includes(route), 'Requested historical page still initializes');
+}
+console.log('Lightweight-page startup avoids hidden profile/All Time work and archive downloads.');

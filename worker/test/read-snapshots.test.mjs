@@ -1,33 +1,15 @@
 import assert from 'node:assert/strict';
-import { readFileSync } from 'node:fs';
-import { DatabaseSync } from 'node:sqlite';
 import test from 'node:test';
+import { memoryDatabase } from './helpers/d1.mjs';
 import { publicReadSnapshot, refreshPublicReadSnapshots, validatePublicReadPair, snapshotMaxAgeMs } from '../src/read-snapshots.ts';
 
 const games = [{ gameId: '2026092401', favorite: 'BUF', underdog: 'mia', spread: 3 }];
 const active = { ok: true, staged: true, season: 2026, week: 3, games };
-const current = { ok: true, season: 2026, week: 3, games, favorites: ['BUF'], underdogs: ['mia'], spreads: [3], players: [{ name: 'Jim', picks: ['BUF'] }] };
+const current = { ok: true, season: 2026, week: 3, games, favorites: ['BUF'], underdogs: ['mia'], spreads: [3], players: [{ name: 'Jim', picks: ['BUF'], bestBet: 'BUF', tiebreaker: 450 }] };
 const race = { ok: true, season: 2026, week: 3, raceSnapshots: [{ players: [{ name: 'Jim', win_prob: 1 }] }] };
 
 function database() {
-  const sqlite = new DatabaseSync(':memory:');
-  sqlite.exec(readFileSync(new URL('../migrations/0007_public_read_snapshots.sql', import.meta.url), 'utf8'));
-  const adapter = {
-    prepare(sql) {
-      let values = [];
-      return {
-        bind(...parameters) { values = parameters.map(value => value instanceof ArrayBuffer ? new Uint8Array(value) : value); return this; },
-        async first() { return sqlite.prepare(sql).get(...values) || null; },
-        async run() { return sqlite.prepare(sql).run(...values); },
-      };
-    },
-    async batch(statements) {
-      sqlite.exec('BEGIN');
-      try { const results = await Promise.all(statements.map(statement => statement.run())); sqlite.exec('COMMIT'); return results; }
-      catch (error) { sqlite.exec('ROLLBACK'); throw error; }
-    },
-  };
-  return { sqlite, adapter };
+  return memoryDatabase(['0007_public_read_snapshots.sql', '0008_shadow_card_sync.sql']);
 }
 
 const source = async url => Response.json(({ 'active-week': active, 'current-week': current, 'current-week-race': race })[new URL(url).searchParams.get('action')]);
@@ -38,6 +20,7 @@ test('public snapshots preserve source data and reject stale, missing, mismatche
   try {
     assert.equal((await publicReadSnapshot(request('current-week'), adapter, '*')).status, 503);
     await refreshPublicReadSnapshots(adapter, 'https://example.test/source', source);
+    assert.equal(sqlite.prepare('SELECT count(*) AS total FROM shadow_card_heads').get().total, current.players.length);
     for (const [name, expected] of [['active-week', active], ['current-week', current], ['current-week-race', race]]) {
       const response = await publicReadSnapshot(request(name, '&season=2026&week=3'), adapter, 'https://fbp26.github.io');
       assert.equal(response.status, 200);
@@ -116,5 +99,17 @@ test('live public feeds can build isolated snapshots without production writes',
     const payload = await response.json();
     console.log(JSON.stringify({ week: payload.week, games: payload.games.length, players: payload.players.length, snapshots: sqlite.prepare('SELECT count(*) AS total FROM public_read_snapshots').get().total, productionWrites: 0 }));
     assert.equal(sqlite.prepare('SELECT count(*) AS total FROM public_read_snapshots').get().total, 3);
+    assert.equal(sqlite.prepare('SELECT count(*) AS total FROM shadow_card_heads').get().total, payload.players.length);
+    assert.deepEqual(sqlite.prepare('PRAGMA foreign_key_check').all(), []);
+  } finally { sqlite.close(); }
+});
+
+test('shadow storage failure cannot interrupt public snapshots or the race refresh', async () => {
+  const { sqlite, adapter } = database();
+  try {
+    sqlite.exec("CREATE TRIGGER reject_shadow BEFORE INSERT ON shadow_card_heads BEGIN SELECT RAISE(ABORT, 'forced shadow failure'); END;");
+    await refreshPublicReadSnapshots(adapter, 'https://example.test', source);
+    assert.equal(sqlite.prepare('SELECT count(*) AS total FROM public_read_snapshots').get().total, 3);
+    assert.equal(sqlite.prepare('SELECT count(*) AS total FROM shadow_card_revisions').get().total, 0);
   } finally { sqlite.close(); }
 });

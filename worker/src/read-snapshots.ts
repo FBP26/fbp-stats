@@ -1,3 +1,5 @@
+import { synchronizeShadowCards } from './shadow-sync.ts';
+
 type PublicPayload = Record<string, unknown>;
 const snapshotNames = new Set(['active-week', 'current-week', 'current-week-race']);
 export const snapshotMaxAgeMs = 90000;
@@ -70,6 +72,11 @@ export async function refreshPublicReadSnapshots(db: D1Database, source: string 
     snapshotStatement(db, 'active-week', season, week, startedAt, active),
     snapshotStatement(db, 'current-week', season, week, startedAt, current),
   ]));
+  try {
+    await synchronizeShadowCards(db, current, startedAt);
+  } catch (error) {
+    console.error('Shadow card synchronization failed:', error instanceof Error ? error.message : 'Unexpected error');
+  }
   const raceStartedAt = Date.now();
   const race = await sourceRead(source, { action: 'current-week-race', season: String(season), week: String(week) }, fetcher);
   if (!Array.isArray(race.raceSnapshots)

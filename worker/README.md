@@ -39,6 +39,50 @@ in-memory live-feed snapshot test; no production database writes occur in it.
 Rollback the frontend snapshot helper to direct Apps Script reads if needed;
 there is no need to remove the additive cache table or change live data ownership.
 
+## Non-destructive card shadow
+
+Migration `0008` adds three separate `shadow_*` tables. After a validated public
+slate/standings refresh, the same cron records normalized cards without changing
+operational weeks, games, submissions, corrections, scoring, or completed archives.
+No additional source request is needed. A shadow failure is logged and cannot
+prevent public snapshot or race-cache updates.
+
+Each week has a monotonic observation watermark and a current membership list.
+Unchanged cards do not create revisions, while changed cards and later reversions
+retain append-only revisions. Missing players leave their history intact; the
+membership list distinguishes current source members from retained heads. Revision,
+head, and watermark updates are atomic. Delayed observations cannot rewind them.
+Scores and probabilities do not produce artificial card revisions.
+
+`observed_at` means when the source read began, NOT when someone submitted picks.
+`submitted_at` stays NULL unless the source explicitly supplies `submittedAt`.
+This feed cannot reconstruct edits made between polls, original submission times
+it never exposed, or correction authors/reasons. The shadow is not a replacement
+for the source audit trail and is not used to decide submission deadlines.
+
+Tests cover repeated observations, edits, reversions, missing cards, final-game
+status, next-week isolation, malformed input, stale reads, and transaction rollback.
+The opt-in live-feed test also checks one shadow head per current source player.
+These are shadow synchronization tests, not certification of the D1 scorer or a
+full production ETL cutover. Input/payout editing bridges, source audit provenance,
+Best Bet push parity, approved staging, and end-to-end ownership rollback remain
+required before retiring operational Sheets tabs.
+
+Apply the additive migration before deploying the Worker. To stop shadow writes,
+roll back the Worker to its preceding version; leave the shadow tables intact.
+No source data restore is necessary because this path never writes to the source.
+
+## Historical page startup
+
+The website fetches manifest summary tables concurrently and only renders the
+requested history page. Enter Picks, Live, and FAQ no longer load the full games
+and player-picks archive just to render hidden All Time, player, or season views.
+Historical selectors initialize on first navigation and retain their choices on
+revisits. Detailed history pages still need the large archive; this release does
+not shard those files or change the completed-week publisher's output contract.
+Run `node ../test-picks-reliability.mjs` to check parallel completion and lightweight
+startup alongside the existing current-week, snapshot, and form regressions.
+
 ## Prerequisites
 
 Install a current Node.js LTS release, then authenticate Wrangler:
@@ -66,6 +110,12 @@ npm run deploy
 
 ## Importing the active week
 
+Warning: this legacy importer deletes/rebuilds target-week operational rows and
+uses synthetic submission timestamps. It is suitable for isolated parity
+rehearsals, NOT ongoing production synchronization. Use the additive card shadow
+above for observations; do not run the destructive importer against live D1 as a
+backend upgrade.
+
 Prepare a reviewable SQL snapshot from the production Apps Script API:
 
 ```powershell
@@ -74,12 +124,10 @@ npm run import:prepare
 
 The command refuses to import when no regular-season week is staged or when a
 player card is incomplete. It writes ignored output to
-`.generated/current-week.sql`. Review that file, validate it against local D1,
-then explicitly apply the same file remotely:
+`.generated/current-week.sql`. Review that file and validate it against local D1:
 
 ```powershell
 npm run db:import:local
-npm run db:import:remote
 ```
 
 An explicitly staged preseason week can be prepared for local parity testing:
