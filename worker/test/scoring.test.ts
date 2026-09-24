@@ -27,7 +27,7 @@ test("ATS outcome subtracts the favorite spread and preserves pushes", () => {
   assert.equal(atsOutcome(game({ favoriteScore: 21 })), "underdog");
 });
 
-test("Best Bet doubles both a win and a loss while a push scores neither", () => {
+test("Best Bet doubles a win or loss and a pushed Best Bet counts one loss", () => {
   const players = scoreWeek(
     [card("Winner", "PIT", "PIT"), card("Loser", "BAL", "BAL")],
     [game()],
@@ -38,7 +38,14 @@ test("Best Bet doubles both a win and a loss while a push scores neither", () =>
     { wins: 0, losses: 2 },
   ]);
   const pushed = scoreWeek([card("Push", "PIT", "PIT")], [game({ favoriteScore: 23 })], 450)[0];
-  assert.deepEqual({ wins: pushed.wins, losses: pushed.losses }, { wins: 0, losses: 0 });
+  assert.deepEqual({ wins: pushed.wins, losses: pushed.losses }, { wins: 0, losses: 1 });
+  assert.equal(pushed.winPercent, 0);
+  for (const status of ["LIVE", "FINAL"] as const) {
+    const ordinaryPush = scoreWeekWithoutProbabilities([card("Ordinary push", "PIT")], [game({ status, favoriteScore: 23 })], null)[0];
+    assert.deepEqual({ wins: ordinaryPush.wins, losses: ordinaryPush.losses }, { wins: 0, losses: 0 });
+  }
+  const pending = scoreWeekWithoutProbabilities([card("Pending", "PIT", "PIT")], [game({ status: "PREGAME", favoriteScore: 23 })], null)[0];
+  assert.deepEqual({ wins: pending.wins, losses: pending.losses }, { wins: 0, losses: 0 });
 });
 
 test("unresolved integer spreads include push paths and split tied victories", () => {

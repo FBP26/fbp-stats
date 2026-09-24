@@ -177,3 +177,33 @@ for (const route of ['enter-picks', 'live-analysis', 'faq', 'players', 'alltime'
   else assert.ok(rendered.includes(route), 'Requested historical page still initializes');
 }
 console.log('Lightweight-page startup avoids hidden profile/All Time work and archive downloads.');
+const { gzipSync } = await import('node:zlib');
+const { webcrypto } = await import('node:crypto');
+const historySource = new TextEncoder().encode('[{"name":"Mac","weekName":"None","wins":0,"note":null}]');
+const historyHash = Buffer.from(await webcrypto.subtle.digest('SHA-256', historySource)).toString('hex');
+const historyManifest = { version: 1, files: Object.fromEntries(['games.json', 'player_picks.json'].map(filename => [filename, {
+  file: `${filename.replace('.json', '')}.${historyHash.slice(0, 16)}.json.gz`, sha256: historyHash, bytes: historySource.length,
+}])) };
+for (const failure of ['none', 'manifest', 'gzip', 'checksum', 'unsupported']) {
+  const requests = [];
+  const manifest = structuredClone(historyManifest);
+  if (failure === 'checksum') manifest.files['games.json'].sha256 = '0'.repeat(64), manifest.files['games.json'].file = 'games.0000000000000000.json.gz';
+  const historyContext = vm.createContext({
+    DATA_DIR: 'data', DecompressionStream: failure === 'unsupported' ? undefined : DecompressionStream,
+    crypto: webcrypto, Response, AbortSignal, TextDecoder, console: { warn() {} },
+    fetch: async url => {
+      requests.push(url);
+      if (url.endsWith('history-bundles.json')) return failure === 'manifest' ? new Response('', { status: 404 }) : Response.json(manifest);
+      if (url.endsWith('.gz')) return new Response(failure === 'gzip' ? new Uint8Array([1, 2, 3]) : gzipSync(historySource));
+      return new Response(historySource);
+    },
+  });
+  const loaderStart = html.indexOf('let websiteHistoryBundleManifest =');
+  vm.runInContext(html.slice(loaderStart, html.indexOf('async function loadDrilldown()', loaderStart)), historyContext);
+  const loaded = await Promise.all(['games.json', 'player_picks.json'].map(filename => historyContext.websiteFetchHistoryFile(filename)));
+  assert.equal(JSON.stringify(loaded[0]), new TextDecoder().decode(historySource));
+  assert.equal(JSON.stringify(loaded[1]), new TextDecoder().decode(historySource));
+  assert.equal(requests.filter(url => url.endsWith('history-bundles.json')).length, failure === 'unsupported' ? 0 : 1);
+  assert.equal(requests.includes('data/games.json'), failure !== 'none');
+}
+console.log('Compressed history integrity, shared manifest reads, original JSON fallback, and compatibility checks passed.');

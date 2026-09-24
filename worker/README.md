@@ -65,8 +65,14 @@ status, next-week isolation, malformed input, stale reads, and transaction rollb
 The opt-in live-feed test also checks one shadow head per current source player.
 These are shadow synchronization tests, not certification of the D1 scorer or a
 full production ETL cutover. Input/payout editing bridges, source audit provenance,
-Best Bet push parity, approved staging, and end-to-end ownership rollback remain
+approved staging, and end-to-end ownership rollback remain
 required before retiring operational Sheets tabs.
+
+The owner confirmed on 2026-09-24 that a pushed Best Bet counts one loss. The
+replacement scorer and Apps Script version 116 now follow that rule; an ordinary
+push remains neither a win nor a loss. Historical ETL already uses this rule, so
+existing archives are not rewritten. The completed-week parity check covers all
+61 player records from Weeks 1 and 2 plus an explicit pushed-Best-Bet boundary.
 
 Apply the additive migration before deploying the Worker. To stop shadow writes,
 roll back the Worker to its preceding version; leave the shadow tables intact.
@@ -78,10 +84,23 @@ The website fetches manifest summary tables concurrently and only renders the
 requested history page. Enter Picks, Live, and FAQ no longer load the full games
 and player-picks archive just to render hidden All Time, player, or season views.
 Historical selectors initialize on first navigation and retain their choices on
-revisits. Detailed history pages still need the large archive; this release does
-not shard those files or change the completed-week publisher's output contract.
+revisits. Detailed history pages use a shared manifest and content-addressed gzip
+bundles, verify the decompressed byte count and SHA-256, then parse the original
+JSON. Missing/invalid bundles and unsupported browsers fall back to the unchanged
+JSON files. The private completed-week publisher regenerates bundles only after
+preserving historical metadata. Old hash-addressed bundles remain usable by a
+page that already fetched an earlier manifest.
+
+The initial bundles total 2,214,966 bytes for 62,663,511 bytes of original JSON.
+Do not present that as a 96% production download reduction: GitHub already serves
+the old JSON gzip-compressed. The old picks response measured 2,145,276 bytes,
+versus 1,815,229 bytes for its new bundle, about 15% smaller. Full detail views
+still parse/index 131,147 picks; season/player partitioning remains future work.
 Run `node ../test-picks-reliability.mjs` to check parallel completion and lightweight
 startup alongside the existing current-week, snapshot, and form regressions.
+
+The development toolchain is pinned to Wrangler 4.138.0 and matching Cloudflare
+types 5.20260924.1; npm audit reports zero vulnerabilities as of this release.
 
 ## Prerequisites
 

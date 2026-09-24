@@ -50,7 +50,11 @@ const scoreDecisions = (
   games.forEach((game, index) => {
     if (!includeGame(game)) return;
     const outcome = atsOutcome(game);
-    if (!outcome || outcome === "push") return;
+    if (!outcome) return;
+    if (outcome === "push") {
+      if (player.bestBet === player.picks[index]) losses += 1;
+      return;
+    }
     const winner = winningTeam(game, outcome);
     const units = player.bestBet === player.picks[index] ? 2 : 1;
     if (player.picks[index] === winner) wins += units;
