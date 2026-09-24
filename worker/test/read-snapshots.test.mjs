@@ -82,6 +82,31 @@ test('race failure leaves independently usable fresh slate and standings snapsho
   } finally { sqlite.close(); }
 });
 
+test('transient source HTTP errors retry once with a fresh URL; permissions fail immediately', async () => {
+  const { sqlite, adapter } = database();
+  const urls = [];
+  try {
+    await refreshPublicReadSnapshots(adapter, 'https://example.test', async url => {
+      if (url.searchParams.get('action') === 'current-week') {
+        urls.push(String(url));
+        if (urls.length === 1) return new Response('Transient redirect failure', { status: 404 });
+      }
+      return source(url);
+    });
+    assert.equal(urls.length, 2);
+    assert.notEqual(urls[0], urls[1]);
+    let forbiddenCalls = 0;
+    await assert.rejects(refreshPublicReadSnapshots(adapter, 'https://example.test', async url => {
+      if (url.searchParams.get('action') === 'active-week') {
+        forbiddenCalls++;
+        return new Response('Forbidden', { status: 403 });
+      }
+      return source(url);
+    }), /403/);
+    assert.equal(forbiddenCalls, 1);
+  } finally { sqlite.close(); }
+});
+
 test('live public feeds can build isolated snapshots without production writes', { skip: !process.env.FBP_SNAPSHOT_SOURCE_URL }, async () => {
   const { sqlite, adapter } = database();
   try {

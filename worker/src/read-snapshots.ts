@@ -41,13 +41,20 @@ async function snapshotStatement(db: D1Database, name: string, season: number, w
 }
 
 async function sourceRead(source: string, parameters: Record<string, string>, fetcher: typeof fetch): Promise<PublicPayload> {
-  const url = new URL(source);
-  url.search = new URLSearchParams(parameters).toString();
-  const response = await fetcher(url, { signal: AbortSignal.timeout(35000), cache: 'no-store' });
-  if (!response.ok) throw new Error(`Public read source returned HTTP ${response.status}.`);
-  const payload = await response.json() as PublicPayload;
-  if (payload?.ok !== true) throw new Error('Public read source did not return a successful payload.');
-  return payload;
+  for (let attempt = 0; attempt < 2; attempt++) {
+    const url = new URL(source);
+    url.search = new URLSearchParams({ ...parameters, _: `${Date.now()}-${attempt}` }).toString();
+    const response = await fetcher(url, { signal: AbortSignal.timeout(35000), cache: 'no-store' });
+    if (attempt === 0 && [404, 408, 429, 500, 502, 503, 504].includes(response.status)) {
+      await response.body?.cancel();
+      continue;
+    }
+    if (!response.ok) throw new Error(`Public read source returned HTTP ${response.status}.`);
+    const payload = await response.json() as PublicPayload;
+    if (payload?.ok !== true) throw new Error('Public read source did not return a successful payload.');
+    return payload;
+  }
+  throw new Error('Public read source retries exhausted.');
 }
 
 export async function refreshPublicReadSnapshots(db: D1Database, source: string | undefined, fetcher: typeof fetch = fetch): Promise<void> {

@@ -18,6 +18,8 @@ before an atomic update; older overlapping refreshes cannot overwrite newer ones
 Race refresh failure does not invalidate fresh slate or standings. Snapshots older
 than 90 seconds from the start of the source read are rejected with HTTP 503.
 Oversized compressed payloads are rejected instead of exceeding D1 row limits.
+Source GET requests are cache-busted and retry transient HTTP failures once;
+permission errors are not retried. Each attempt has a 35-second timeout.
 
 The frontend allows 1.5 seconds for a fresh snapshot, then falls back to Apps
 Script. It deduplicates concurrent reads without sharing mutable player objects.
