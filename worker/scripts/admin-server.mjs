@@ -3,9 +3,11 @@ import { readFile, writeFile } from 'node:fs/promises';
 import { fileURLToPath, pathToFileURL } from 'node:url';
 import { userInfo } from 'node:os';
 import { saveAdminRecord, AdminConflict } from '../src/admin-store.ts';
-import { importSourceRecords, prepareSourceRecords } from './admin-import.mjs';
+import { importSourceRecords, prepareSourceRecords, refreshSourceSubmissions, reconcileSubmissionWeek } from './admin-import.mjs';
 import { createAdminCheckpoint } from './admin-checkpoint.mjs';
 import { postPayoutTransaction } from './payout-transactions.mjs';
+import { approveOperationalWeek } from '../src/operational-weeks.ts';
+import { SubmissionError } from '../src/operational-submissions.ts';
 
 export function validateAdminChanges(current, changes, kind) {
   if (!changes || typeof changes !== 'object' || Array.isArray(changes)) throw new Error('Changes are required.');
@@ -51,7 +53,7 @@ export function createAdminServer(db, { port, actor, demo = false }) {
           .bind(url.searchParams.get('kind'), url.searchParams.get('id')).all();
         return send(200, { history: history.results.map(record => ({ ...record, body: JSON.parse(record.body) })) });
       }
-      if (request.method === 'POST' && ['/api/records', '/api/payout-transactions'].includes(url.pathname)) {
+      if (request.method === 'POST' && ['/api/records', '/api/payout-transactions', '/api/week-approvals'].includes(url.pathname)) {
         if (request.headers.origin !== origin || !String(request.headers['content-type']).startsWith('application/json')) return send(403, { error: 'Same-origin JSON required.' });
         const chunks = [];
         let bytes = 0;
@@ -61,6 +63,7 @@ export function createAdminServer(db, { port, actor, demo = false }) {
           chunks.push(chunk);
         }
         const command = JSON.parse(Buffer.concat(chunks).toString('utf8'));
+        if (url.pathname === '/api/week-approvals') return send(200, await approveOperationalWeek(db, command, actor));
         if (url.pathname === '/api/payout-transactions') return send(200, await postPayoutTransaction(db, command, actor));
         const row = await db.prepare('SELECT version, body FROM admin_records WHERE kind = ? AND record_id = ?').bind(command.kind, command.recordId).first();
         if (!row) return send(404, { error: 'Record not found.' });
@@ -72,6 +75,7 @@ export function createAdminServer(db, { port, actor, demo = false }) {
       return send(404, { error: 'Not found.' });
     } catch (error) {
       if (error instanceof AdminConflict) return send(409, { error: error.message });
+      if (error instanceof SubmissionError) return send(error.status, { error: error.message });
       if (/Invalid|editable|required|require|Accept the|JSON|size limit/.test(error.message)) return send(400, { error: error.message });
       console.error('Administrative request failed:', error.constructor.name);
       return send(500, { error: 'Administrative request failed; no successful write is assumed.' });
@@ -115,6 +119,17 @@ async function main() {
     try {
       const source = JSON.parse(await readFile(importPath, 'utf8'));
       const records = await prepareSourceRecords(source);
+      if (args.includes('--refresh-submissions')) {
+        const season = Number(args.find(arg => arg.startsWith('--season='))?.slice(9));
+        const week = Number(args.find(arg => arg.startsWith('--week='))?.slice(7));
+        if (!Number.isInteger(season) || season < 2000 || !Number.isInteger(week) || week < 1 || week > 18) throw new Error('Submission refresh requires a valid --season and --week for final reconciliation.');
+        const result = await refreshSourceSubmissions(db, records);
+        const stored = (await db.prepare("SELECT kind,record_id,body FROM admin_records WHERE kind='submission'").all()).results;
+        const reconciliation = reconcileSubmissionWeek(records, stored, season, week);
+        if (!reconciliation.complete) throw new Error('Submission reconciliation is incomplete; live source ownership must not change.');
+        console.log(JSON.stringify({ ...result, reconciliation }));
+        return;
+      }
       const selectedRecords = args.includes('--source-ledgers-only') ? records.filter(record => record.kind === 'source-ledger') : records;
       console.log(JSON.stringify(await importSourceRecords(db, selectedRecords)));
     } finally { await dispose(); }

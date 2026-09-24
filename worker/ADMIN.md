@@ -62,6 +62,42 @@ original submission timestamp, validate matchup/Best Bet picks, and reject close
 or superseded cards. This path requires D1 ownership. No production submission
 links have been activated; this is not an operational import or a write cutover.
 
+## Week 3 continuity safeguards
+
+The public form and its Apps Script endpoint remain unchanged. Production must
+keep `OPERATIONAL_WRITES_ENABLED=false` and `admin_control.owner=SHEETS` while
+Week 3 is collecting or scoring picks. The Worker refuses replacement submissions
+unless both deployment configuration and database ownership permit them. Public
+Worker name corrections are disabled; operational corrections use the private
+editor and its audited, version-checked projection.
+
+Migration `0015` blocks a Sheets-to-D1 ownership change while an observed source
+week remains unfinished, or before a complete open/live/finalized source cycle
+exists. This is an additional guard, not authorization to switch when it passes:
+the observer may lag, and the remaining cutover requirements below still apply.
+
+Fresh source captures can add newly arrived original cards without overwriting
+existing copies. Changed or missing source records stop the refresh for explicit
+reconciliation. Unchanged records retain their original provenance. Always take
+a new read-only source capture; replaying an old capture cannot detect arrivals
+after its capture time.
+
+```sh
+node scripts/admin-server.mjs --remote --import=PRIVATE_SOURCE_FILE --refresh-submissions --season=2026 --week=3
+```
+
+The report compares each selected-week record, not only totals. A successful
+report describes that capture, not a frozen source or a safe ownership handoff.
+Do not run the destructive legacy operational importer against the active week.
+
+The disabled replacement writer supports atomic cards/picks/receipts/editor
+links, stable retry IDs, expected-current-card checks, commit-time ownership and
+slate checks, and the existing late-new-player exception. Field limits match the
+live form. Private week approval validates ordered matchups and an explicit fixed
+playoff roster; hidden playoff reads reveal only after all eligible entries or
+kickoff. These paths have synthetic coverage, but the approval interface, public
+entry client, playoff finalization and cumulative archive workflow are not complete.
+
 ## Private import and recovery
 
 The private automation repository's `export_admin_source.py` reads Sheets with a

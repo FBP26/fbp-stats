@@ -127,3 +127,39 @@ if (process.argv[1] && import.meta.url === pathToFileURL(process.argv[1]).href) 
   }
   console.log(JSON.stringify({ sha256: await adminDigest(encoded), records: counts, reconciliation, databaseWrites: 0 }));
 }
+
+export function planSubmissionRefresh(records, existing) {
+  const source = new Map(records.filter(record => record.kind === 'submission').map(record => [record.recordId, record]));
+  const current = new Map(existing.filter(record => record.kind === 'submission' && record.record_id.startsWith('submission:')).map(record => [record.record_id, record]));
+  const added = [], conflicts = [], missing = [];
+  let unchanged = 0;
+  const content = body => {
+    const { provenance, ...values } = body;
+    return canonicalAdminJson(values);
+  };
+  for (const [recordId, record] of source) {
+    const previous = current.get(recordId);
+    if (!previous) added.push(record);
+    else if (content(JSON.parse(previous.body)) !== content(record.body)) conflicts.push(recordId);
+    else unchanged++;
+  }
+  for (const recordId of current.keys()) if (!source.has(recordId)) missing.push(recordId);
+  return { added, unchanged, conflicts, missing, safe: conflicts.length === 0 && missing.length === 0 };
+}
+
+export async function refreshSourceSubmissions(db, records) {
+  const existing = (await db.prepare("SELECT kind,record_id,body FROM admin_records WHERE kind='submission'").all()).results;
+  const plan = planSubmissionRefresh(records, existing);
+  if (!plan.safe) throw new Error(`Submission reconciliation blocked: ${plan.conflicts.length} changed, ${plan.missing.length} missing; no imported card was overwritten.`);
+  const imported = await importSourceRecords(db, plan.added);
+  return { ...imported, unchanged: plan.unchanged, sourceCards: plan.added.length + plan.unchanged, conflicts: 0, missing: 0 };
+}
+
+export function reconcileSubmissionWeek(records, existing, season, week) {
+  const source = records.filter(record => record.kind === 'submission' && String(record.body.season) === `${season}-${Number(season)+1}` && Number(record.body.week) === Number(week));
+  const stored = existing.filter(record => record.kind === 'submission' && record.record_id.startsWith('submission:') && String(JSON.parse(record.body).season) === `${season}-${Number(season)+1}` && Number(JSON.parse(record.body).week) === Number(week));
+  const plan = planSubmissionRefresh(source, stored);
+  return { season, week, sourceRows: source.length, storedRows: stored.length, matched: plan.unchanged,
+    newRows: plan.added.length, changedRows: plan.conflicts.length, missingRows: plan.missing.length,
+    complete: source.length > 0 && plan.safe && plan.added.length === 0 };
+}

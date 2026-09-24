@@ -1,4 +1,6 @@
 import { scoreWeekWithoutProbabilities, type PlayerCard, type ScoringGame } from "./scoring.ts";
+import { submitOperationalCard, SubmissionError } from './operational-submissions.ts';
+import { operationalPicksVisible } from './operational-weeks.ts';
 import { publicReadSnapshot, refreshPublicReadSnapshots } from "./read-snapshots.ts";
 import { espnEventId, fetchEspnGame, isRefreshWindow, parseEspnGame, type StoredGame } from "./espn.ts";
 import { validateRaceSnapshotPlayers } from "./race.ts";
@@ -14,6 +16,7 @@ interface Env {
   PUBLIC_SITE_URL?: string;
   PICKS_SOURCE_URL?: string;
   CANDIDATE_LIFECYCLE_ENABLED?: string;
+  OPERATIONAL_WRITES_ENABLED?: string;
 }
 
 type JsonObject = Record<string, unknown>;
@@ -315,7 +318,8 @@ const buildCurrentWeek = async (
   week: Record<string, unknown>,
 ): Promise<JsonObject> => {
   const games = await getWeekConfig(db, Number(week.id));
-  const cards = await loadPlayerCards(db, Number(week.id));
+  const picksVisible = await operationalPicksVisible(db, Number(week.id));
+  const cards = picksVisible ? await loadPlayerCards(db, Number(week.id)) : [];
   const scoringGames: ScoringGame[] = games.map((game) => ({
     favorite: String(game.favorite),
     underdog: String(game.underdog),
@@ -328,6 +332,7 @@ const buildCurrentWeek = async (
   const players = scoreWeekWithoutProbabilities(cards, scoringGames, actualTiebreaker);
   return {
     ok: true,
+    picksVisible,
     season: Number(week.season),
     seasonLabel: `${week.season}-${Number(week.season) + 1}`,
     week: Number(week.week),
@@ -448,6 +453,11 @@ const handleGet = async (request: Request, env: Env): Promise<Response> => {
   if (action === "week-config") {
     const games = await getWeekConfig(env.DB, weekId);
     return json({ ok: true, season, week: weekNumber, phase, games, enrichmentError: "" }, 200, env.CORS_ORIGIN);
+  }
+
+  if (phase === 'PLAYOFFS') {
+    if (!await operationalPicksVisible(env.DB, weekId)) return json({ ok: true, season, week: weekNumber, phase, picksVisible: false, players: [], raceSnapshots: [] }, 200, env.CORS_ORIGIN);
+    if (action === 'playoff-round') return json(await buildCurrentWeek(env.DB, week), 200, env.CORS_ORIGIN);
   }
 
   if (action === "race-archive") {
@@ -875,142 +885,12 @@ const handleAnalytics = async (payload: JsonObject, env: Env): Promise<Response>
 };
 
 const submitCard = async (payload: JsonObject, env: Env): Promise<Response> => {
-  const rawName = cleanText(payload.name, 100);
-  const name = rawName.replace(/\s+/g, " ");
-  const weekName = cleanText(payload.weekName, 200);
-  const picks = Array.isArray(payload.picks) ? payload.picks.map((pick) => cleanText(pick, 20)) : [];
-  const bestBet = cleanText(payload.bestBet, 20);
-  const tiebreaker = Number(payload.tiebreaker);
-  const season = Number(payload.season || 2026);
-  const weekNumber = Number(payload.week || 1);
-  const phase = cleanText(payload.phase || (payload.mode === "test" ? "PRESEASON" : "REGULAR_SEASON"), 30);
-  if (!name || !weekName || !picks.length || picks.some((pick) => !pick) || !bestBet) {
-    return json({ ok: false, error: "Name, week name, every pick, best bet, and tiebreaker are required." }, 400, env.CORS_ORIGIN);
-  }
-  if (!Number.isFinite(tiebreaker) || tiebreaker < -100 || tiebreaker > 1200) {
-    return json({ ok: false, error: "The tiebreaker must be a number from -100 through 1200." }, 400, env.CORS_ORIGIN);
-  }
-  if (!Number.isInteger(season) || !Number.isInteger(weekNumber)) {
-    return json({ ok: false, error: "Season and week must be integers." }, 400, env.CORS_ORIGIN);
-  }
-  const week = await findWeek(env.DB, season, weekNumber, phase);
-  if (!week || week.status === "finalized" || week.status === "finalizing") {
-    return json({ ok: false, error: "This week is not open for submissions." }, 409, env.CORS_ORIGIN);
-  }
-  const gameRows = await env.DB
-    .prepare("SELECT id, game_index, favorite, underdog FROM games WHERE week_id = ? ORDER BY game_index")
-    .bind(week.id)
-    .all();
-  if (!gameRows.results.length || picks.length !== gameRows.results.length) {
-    return json({ ok: false, error: "Picks must match the currently staged week." }, 400, env.CORS_ORIGIN);
-  }
-  const validPicks = picks.every((pick, index) => {
-    const game = gameRows.results[index];
-    return pick === game.favorite || pick === game.underdog;
-  });
-  const bestBetGameIndex = picks.indexOf(bestBet);
-  if (!validPicks || bestBetGameIndex < 0) {
-    return json({ ok: false, error: "A pick or best bet does not match the staged games." }, 400, env.CORS_ORIGIN);
-  }
-
-  await env.DB.prepare("INSERT INTO players (canonical_name) VALUES (?) ON CONFLICT (canonical_name) DO NOTHING").bind(name).run();
-  const player = await env.DB
-    .prepare("SELECT id, canonical_name FROM players WHERE canonical_name = ? COLLATE NOCASE")
-    .bind(name)
-    .first<{ id: number; canonical_name: string }>();
-  if (!player) throw new Error("Player identity could not be stored.");
-  const submittedAt = new Date().toISOString();
-  const statements = [
-    env.DB.prepare("UPDATE submissions SET superseded_at = ? WHERE week_id = ? AND player_id = ? AND superseded_at IS NULL")
-      .bind(submittedAt, week.id, player.id),
-    env.DB.prepare(
-      `INSERT INTO submissions
-       (week_id, player_id, submitted_name, week_name, best_bet_game_index, tiebreaker, source, submitted_at)
-       VALUES (?, ?, ?, ?, ?, ?, ?, ?)`,
-    ).bind(week.id, player.id, rawName, weekName, bestBetGameIndex, tiebreaker, payload.mode === "test" ? "website-test" : "website", submittedAt),
-    ...gameRows.results.map((game, index) => env.DB.prepare(
-      `INSERT INTO submission_picks (submission_id, game_id, picked_team)
-       SELECT id, ?, ? FROM submissions
-       WHERE week_id = ? AND player_id = ? AND submitted_at = ?`,
-    ).bind(game.id, picks[index], week.id, player.id, submittedAt)),
-  ];
-  await env.DB.batch(statements);
-  return json({
-    ok: true,
-    testMode: payload.mode === "test",
-    submittedAt,
-    identity: {
-      status: rawName === player.canonical_name ? "known" : "suggestion",
-      submittedName: player.canonical_name,
-      suggestedName: "",
-      reason: "",
-      canonicalizedFrom: rawName === player.canonical_name ? "" : rawName,
-    },
-  }, 200, env.CORS_ORIGIN);
+  if (env.OPERATIONAL_WRITES_ENABLED !== 'true') return json({ ok: false, error: 'Replacement submissions are disabled. Sheets currently owns the live submission path.' }, 409, env.CORS_ORIGIN);
+  return json(await submitOperationalCard(env.DB, payload), 200, env.CORS_ORIGIN);
 };
 
-const correctSubmission = async (payload: JsonObject, env: Env): Promise<Response> => {
-  const originalName = cleanText(payload.originalName, 100).replace(/\s+/g, " ");
-  const correctedName = cleanText(payload.correctedName, 100).replace(/\s+/g, " ");
-  const correctedWeekName = cleanText(payload.correctedWeekName, 200).replace(/\s+/g, " ");
-  const submittedAt = cleanText(payload.submittedAt, 40);
-  const season = Number(payload.season);
-  const weekNumber = Number(payload.week);
-  const phase = payload.mode === "test" ? "PRESEASON" : "REGULAR_SEASON";
-  if (!originalName || !correctedName || !submittedAt || !Number.isInteger(season) || !Number.isInteger(weekNumber)) {
-    return json({ ok: false, error: "The submission timestamp, original name, corrected name, season, and week are required." }, 400, env.CORS_ORIGIN);
-  }
-  if (!Number.isFinite(Date.parse(submittedAt))) {
-    return json({ ok: false, error: "The submission timestamp is invalid." }, 400, env.CORS_ORIGIN);
-  }
-  const week = await findWeek(env.DB, season, weekNumber, phase);
-  if (!week) return json({ ok: false, error: "The submitted entry could not be found." }, 404, env.CORS_ORIGIN);
-  const submission = await env.DB
-    .prepare(
-      `SELECT s.id, s.player_id, s.week_name, p.canonical_name
-       FROM submissions s JOIN players p ON p.id = s.player_id
-       WHERE s.week_id = ? AND s.submitted_at = ?
-         AND p.canonical_name = ? COLLATE NOCASE
-       ORDER BY s.id DESC LIMIT 1`,
-    )
-    .bind(week.id, submittedAt, originalName)
-    .first<{ id: number; player_id: number; week_name: string; canonical_name: string }>();
-  if (!submission) {
-    return json({ ok: false, error: `The Week ${weekNumber} submission for ${originalName} could not be found.` }, 404, env.CORS_ORIGIN);
-  }
-  await env.DB.prepare("INSERT INTO players (canonical_name) VALUES (?) ON CONFLICT (canonical_name) DO NOTHING").bind(correctedName).run();
-  const correctedPlayer = await env.DB
-    .prepare("SELECT id, canonical_name FROM players WHERE canonical_name = ? COLLATE NOCASE")
-    .bind(correctedName)
-    .first<{ id: number; canonical_name: string }>();
-  if (!correctedPlayer) throw new Error("Corrected player identity could not be stored.");
-  const statements = [
-    env.DB.prepare("UPDATE submissions SET player_id = ?, week_name = ? WHERE id = ?")
-      .bind(correctedPlayer.id, correctedWeekName || submission.week_name, submission.id),
-  ];
-  if (submission.canonical_name !== correctedPlayer.canonical_name) {
-    statements.push(env.DB.prepare(
-      "INSERT INTO submission_corrections (submission_id, field, old_value, new_value) VALUES (?, 'name', ?, ?)",
-    ).bind(submission.id, submission.canonical_name, correctedPlayer.canonical_name));
-  }
-  if (correctedWeekName && correctedWeekName !== submission.week_name) {
-    statements.push(env.DB.prepare(
-      "INSERT INTO submission_corrections (submission_id, field, old_value, new_value) VALUES (?, 'weekName', ?, ?)",
-    ).bind(submission.id, submission.week_name, correctedWeekName));
-  }
-  await env.DB.batch(statements);
-  return json({
-    ok: true,
-    correctedName: correctedPlayer.canonical_name,
-    correctedWeekName,
-    identity: {
-      status: "known",
-      submittedName: correctedPlayer.canonical_name,
-      suggestedName: "",
-      reason: "",
-      canonicalizedFrom: correctedName === correctedPlayer.canonical_name ? "" : correctedName,
-    },
-  }, 200, env.CORS_ORIGIN);
+const correctSubmission = async (_payload: JsonObject, env: Env): Promise<Response> => {
+  return json({ ok: false, error: 'Replacement-backend corrections require the private owner editor.' }, 403, env.CORS_ORIGIN);
 };
 
 const storeRaceSnapshot = async (payload: JsonObject, env: Env): Promise<Response> => {
@@ -1124,7 +1004,7 @@ export default {
       return json({ ok: false, error: "Method not allowed." }, 405, env.CORS_ORIGIN);
     } catch (error) {
       const message = error instanceof Error ? error.message : "Unexpected error.";
-      return json({ ok: false, error: message }, 400, env.CORS_ORIGIN);
+      return json({ ok: false, error: message }, error instanceof SubmissionError ? error.status : 400, env.CORS_ORIGIN);
     }
   },
   async scheduled(controller: ScheduledController, env: Env, context: ExecutionContext): Promise<void> {
