@@ -1,7 +1,7 @@
 import { scoreWeekWithoutProbabilities, type PlayerCard, type ScoringGame } from "./scoring.ts";
 import { existingOperationalCard, submitOperationalCard, SubmissionError } from './operational-submissions.ts';
 import { readOperationalPayouts } from './payouts.ts';
-import { operationalPicksVisible } from './operational-weeks.ts';
+import { operationalPicksVisible, readOperationalSeasonStatus } from './operational-weeks.ts';
 import { publicReadSnapshot, refreshPublicReadSnapshots } from "./read-snapshots.ts";
 import { espnEventId, fetchEspnGame, isRefreshWindow, parseEspnGame, type StoredGame } from "./espn.ts";
 import { validateRaceSnapshotPlayers } from "./race.ts";
@@ -401,6 +401,7 @@ const handleGet = async (request: Request, env: Env): Promise<Response> => {
   if (action === "public-read") return publicReadSnapshot(request, env.DB, env.CORS_ORIGIN);
   if (action === 'existing-submission') return json(await existingOperationalCard(env.DB, Object.fromEntries(url.searchParams)), 200, env.CORS_ORIGIN);
   if (action === 'payouts') return json(await readOperationalPayouts(env.DB), 200, env.CORS_ORIGIN);
+  if (action === 'season-status') return json(await readOperationalSeasonStatus(env.DB), 200, env.CORS_ORIGIN);
   if (action === "analytics-status") return json({ ok: true, analytics: true }, 200, env.CORS_ORIGIN);
   if (action === "analytics-context") {
     const context = request.cf;

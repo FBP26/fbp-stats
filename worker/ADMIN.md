@@ -14,6 +14,30 @@ writer is not fenced by this administrative epoch. Worker submissions, legacy
 staging, and browser race writes now check ownership, but this does not fence
 every production writer or constitute a live ownership handoff.
 
+## September 29 read-client completion
+
+Week approval now rejects another unfinished competitive week across both regular
+season and playoffs, including an intervening concurrent approval. Preseason
+rehearsals do not block competitive approvals.
+
+The public client routes staged-game configuration, preseason discovery/results,
+season submission status, historical race reads and operational payouts through
+the selected owner. Reads recheck the ownership epoch after the response and
+reject a handoff during loading. Historical race caches include owner and epoch;
+D1 failures never fall back to Sheets. The installed shell cache is v39.
+
+The D1 season-status endpoint excludes preseason and superseded cards, uses the
+approved playoff roster for outstanding entries, and returns names/status only.
+Its season totals require all original season cards to be mapped before cutover.
+The generic current-week aliases already enforce hidden playoff picks through
+the shared builder; explicit regression coverage now includes these aliases.
+
+This is not a production ownership transfer. Financial baselines and period
+allocations, complete phase-aware entry/approval workflows, confirmation email,
+all-writer fencing, write-preserving Sheets rollback and independent publication
+remain cutover requirements. No ownership, financial records or source cards were
+changed by this release.
+
 ## September 29 lifecycle and ownership follow-up
 
 The owner upgraded the account to Workers Paid. Cloudflare confirmed Standard
@@ -81,7 +105,7 @@ operation IDs and the original expected card ID across lost responses and reload
 owner/epoch changes stop the attempt. Lookup exposes metadata, not hidden playoff
 picks. D1 live reads and payouts never fall back to Sheets. Current D1 payouts
 require accepted integer-cent baselines; incomplete reconciliation fails closed.
-Some staging, historical-race and season-status client paths still use Apps Script.
+The read-client follow-up above migrates staging, historical-race and season-status reads.
 Do not treat the owner-aware client as permission to change the owner flag.
 
 Verification: 82 backend tests passed, two optional live tests skipped, TypeScript

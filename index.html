@@ -2823,7 +2823,7 @@ async function websiteFetchPublicRead(action, parameters = {}, timeout = 60000) 
   if (!websitePublicReadRequests.has(key)) {
     const pending = (async () => {
       const owner = await websiteLiveClient.owner(true);
-      if (owner.owner === 'D1') return websiteLiveClient.request(WEBSITE_READ_SNAPSHOT_ENDPOINT, action === 'current-week-race' ? 'race-archive' : action, parameters, timeout);
+      if (owner.owner === 'D1') return websiteLiveClient.read(action, parameters, timeout);
       if (Date.now() >= sourceUntil) {
         try {
           const url = new URL(WEBSITE_READ_SNAPSHOT_ENDPOINT);
@@ -2870,7 +2870,7 @@ async function loadActiveRegularWeek(forceRefresh = false) {
   })().finally(() => { websiteActiveRegularWeekPromise = null; });
   return websiteActiveRegularWeekPromise;
 }
-async function selectStagedPreseasonWeek() { if (!WEBSITE_SUBMISSIONS_ENDPOINT) return false; const regular = await loadActiveRegularWeek(); if (regular.staged) return false; const separator = WEBSITE_SUBMISSIONS_ENDPOINT.includes("?") ? "&" : "?"; for (const week of [4, 3, 2, 1]) { try { const response = await fetch(`${WEBSITE_SUBMISSIONS_ENDPOINT}${separator}action=preseason-test&season=2026&week=${week}`, { signal: AbortSignal.timeout(20000) }); const data = await response.json(); if (!response.ok || !data.ok || !(data.games || []).length) continue; websiteDiscoveredPreseasonData = data; websiteEntrySelection = { testMode: true, season: 2026, week, phase: "PRESEASON" }; updateWebsiteWeekLabels(websiteEntrySelection); document.getElementById("website-game-picks").dataset.ready = ""; return true; } catch (error) { console.warn(`Preseason Week ${week} discovery failed: ${error.message}`); } } return false; }
+async function selectStagedPreseasonWeek() { if (!WEBSITE_SUBMISSIONS_ENDPOINT) return false; const regular = await loadActiveRegularWeek(); if (regular.staged) return false; for (const week of [4, 3, 2, 1]) { try { const data = await websiteLiveClient.read('preseason-test', { season: regular.season, week }, 20000); if (!(data.games || []).length) continue; websiteDiscoveredPreseasonData = data; websiteEntrySelection = { testMode: true, season: regular.season, week, phase: "PRESEASON" }; updateWebsiteWeekLabels(websiteEntrySelection); document.getElementById("website-game-picks").dataset.ready = ""; return true; } catch (error) { console.warn(`Preseason Week ${week} discovery failed: ${error.message}`); } } return false; }
 async function loadWebsiteStagedGames(selection, forceRefresh = false) {
   if (!WEBSITE_SUBMISSIONS_ENDPOINT) return selection.testMode ? [] : WEBSITE_WEEK_ONE_GAMES;
   const cacheKey = `${selection.phase}-${selection.season}-${selection.week}`;
@@ -2883,12 +2883,7 @@ async function loadWebsiteStagedGames(selection, forceRefresh = false) {
     return cached.games.map((game, index) => ({ ...game, id: game.gameId || `game-${index + 1}`, time: game.kickoffGroup || game.kickoff || `Game ${index + 1}` }));
   }
   const rawGames = discoveredGames?.length ? discoveredGames : await (async () => {
-    const separator = WEBSITE_SUBMISSIONS_ENDPOINT.includes("?") ? "&" : "?";
-    const enrich = forceRefresh ? '&enrich=1' : '';
-    const url = `${WEBSITE_SUBMISSIONS_ENDPOINT}${separator}action=week-config&season=${selection.season}&week=${selection.week}&phase=${selection.phase}${enrich}`;
-    const response = await fetch(url, { signal: AbortSignal.timeout(forceRefresh ? 60000 : 30000) });
-    const data = await response.json();
-    if (!response.ok || !data.ok) throw new Error(data.error || "Could not load the staged games.");
+    const data = await websiteLiveClient.read('week-config', { season: selection.season, week: selection.week, phase: selection.phase, enrich: forceRefresh ? '1' : '0' }, forceRefresh ? 60000 : 30000);
     const games = (data.games || []).map(game => websiteMergeGameContext(cached?.games?.find(previous => websiteGamesMatch(previous, game)), game));
     websiteStagedGamesCache.set(cacheKey, { games, storedAt: Date.now() });
     return games;
@@ -4212,10 +4207,7 @@ async function renderSelectedWebsiteWeek(activeWeekKnown = false, currentWeekReq
     let data = websiteDiscoveredPreseasonData;
     websiteDiscoveredPreseasonData = null;
     if (!data || Number(data.season) !== selection.season || Number(data.week) !== selection.week) {
-      const separator = WEBSITE_SUBMISSIONS_ENDPOINT.includes("?") ? "&" : "?";
-      const response = await fetch(`${WEBSITE_SUBMISSIONS_ENDPOINT}${separator}action=preseason-test&season=${selection.season}&week=${selection.week}`, { signal: AbortSignal.timeout(20000) });
-      data = await response.json();
-      if (!response.ok || !data.ok) throw new Error(data.error || "Could not load the preseason test.");
+      data = await websiteLiveClient.read('preseason-test', { season: selection.season, week: selection.week }, 20000);
     }
     websitePreparePlayers(data);
     renderWebsiteWeekOneGrid(data, `Preseason ${selection.week} test`);
@@ -5793,10 +5785,10 @@ function weekLiveFirstPlaceHeadline(frames, frameIndex, metric) {
   return `${leader.name} holds first. ${chase}`;
 }
 async function loadWeekLiveRaceArchive(season, week) {
-  const key = `${season}-${week}`;
+  const owner = await websiteLiveClient.owner(true);
+  const key = `${owner.owner}-${owner.epoch}-${season}-${week}`;
   if (!weekLiveRaceArchiveCache.has(key)) {
-    const separator = WEBSITE_SUBMISSIONS_ENDPOINT.includes("?") ? "&" : "?";
-    weekLiveRaceArchiveCache.set(key, fetch(`${WEBSITE_SUBMISSIONS_ENDPOINT}${separator}action=race-archive&season=${encodeURIComponent(season)}&week=${encodeURIComponent(week)}`, { signal: AbortSignal.timeout(20000) }).then(response => response.json()).then(data => data.ok && Array.isArray(data.raceSnapshots) ? data.raceSnapshots : []).catch(error => { weekLiveRaceArchiveCache.delete(key); throw error; }));
+    weekLiveRaceArchiveCache.set(key, websiteLiveClient.read('race-archive', { season, week }, 20000).then(data => Array.isArray(data.raceSnapshots) ? data.raceSnapshots : []).catch(error => { weekLiveRaceArchiveCache.delete(key); throw error; }));
   }
   return weekLiveRaceArchiveCache.get(key);
 }
@@ -6754,7 +6746,7 @@ async function loadPayoutSheet(forceRefresh = false) {
   if (forceRefresh || payoutOwnerKey !== ownerKey) payoutSheetLoadPromise = null;
   payoutOwnerKey = ownerKey;
   if (owner.owner === 'D1') {
-    if (!payoutSheetLoadPromise) payoutSheetLoadPromise = websiteLiveClient.request(WEBSITE_NOTIFICATION_ENDPOINT, 'payouts').then(data => {
+    if (!payoutSheetLoadPromise) payoutSheetLoadPromise = websiteLiveClient.read('payouts').then(data => {
       if (data.owner !== owner.owner || data.epoch !== owner.epoch || !Array.isArray(data.seasons) || !data.seasons.length) throw new Error('Payout ownership changed. Refresh to try again.');
       return data.seasons;
     }).catch(error => { payoutSheetLoadPromise = null; error.operationalData = true; throw error; });
@@ -7267,10 +7259,7 @@ async function renderSubmissionStatus() {
   if (!host || !WEBSITE_SUBMISSIONS_ENDPOINT) return;
   host.innerHTML = `<p class="analysis-note">Loading submission status...</p>`;
   try {
-    const separator = WEBSITE_SUBMISSIONS_ENDPOINT.includes("?") ? "&" : "?";
-    const response = await fetch(`${WEBSITE_SUBMISSIONS_ENDPOINT}${separator}action=season-status`, { signal: AbortSignal.timeout(20000) });
-    const status = await response.json();
-    if (!response.ok || !status.ok) throw new Error(status.error || "Submission status is unavailable.");
+    const status = await websiteLiveClient.read('season-status', {}, 20000);
     const list = (names, empty) => names.length ? `<ul class="submission-status-list">${names.map(name => `<li>${websiteEscapeHtml(name)}</li>`).join("")}</ul>` : `<p class="analysis-note">${websiteEscapeHtml(empty)}</p>`;
     host.innerHTML = `<div class="submission-status-group"><h3>Not yet submitted Week ${status.week} (${status.notYetSubmittedCurrentWeek.length})</h3>${list(status.notYetSubmittedCurrentWeek, "Everyone who played an earlier week has submitted this week.")}</div><div class="submission-status-group"><h3>Submitted Week ${status.week} (${status.submittedCurrentWeek.length})</h3>${list(status.submittedCurrentWeek, "No one has submitted this week yet.")}</div><div class="submission-status-group"><h3>Played this season (${status.playedThisSeason.length})</h3>${list(status.playedThisSeason, "No submissions recorded this season yet.")}</div>`;
   } catch (error) {

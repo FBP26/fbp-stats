@@ -42,10 +42,10 @@ export async function approveOperationalWeek(db: D1Database, command: Record<str
   const body = { ok: true, season, week, phase, actor, reason, approvedAt: now, gameCount: games.length };
   const receiptGuard = `INSERT INTO operational_receipts(operation_id,request_hash,epoch,kind,body,recorded_at)
     SELECT ?,?,?, 'week-approval',?,? WHERE NOT EXISTS(SELECT 1 FROM weeks WHERE season=? AND week=? AND phase=?)
-    AND NOT EXISTS(SELECT 1 FROM weeks WHERE phase=? AND status != 'finalized')
+    AND NOT EXISTS(SELECT 1 FROM weeks WHERE phase IN ('REGULAR_SEASON','PLAYOFFS') AND status != 'finalized')
     AND (? != 'PLAYOFFS' OR ? = 1 OR EXISTS(SELECT 1 FROM weeks WHERE season=? AND week=? AND phase='PLAYOFFS' AND status='finalized'))`;
   const statements = [
-    db.prepare(receiptGuard).bind(operationId,hash,control.epoch,JSON.stringify(body),now,season,week,phase,phase,phase,week,season,week-1),
+    db.prepare(receiptGuard).bind(operationId,hash,control.epoch,JSON.stringify(body),now,season,week,phase,phase,week,season,week-1),
     db.prepare("INSERT INTO weeks(season,week,phase,status,tiebreak_game_id,staged_at) SELECT ?,?,?,'open',?,? WHERE EXISTS(SELECT 1 FROM operational_receipts WHERE operation_id=?)")
       .bind(season,week,phase,normalized.at(-1)!.externalId,now,operationId),
     ...normalized.map((game,index)=>db.prepare(`INSERT INTO games(week_id,game_index,external_id,kickoff_at,favorite,underdog,spread,home_team,away_team,metadata_json)
@@ -56,6 +56,28 @@ export async function approveOperationalWeek(db: D1Database, command: Record<str
   await db.batch(statements);
   if (!await db.prepare('SELECT operation_id FROM operational_receipts WHERE operation_id=?').bind(operationId).first()) throw new SubmissionError('An active or existing week prevents this approval; no week was replaced or finalized.');
   return body;
+}
+
+export async function readOperationalSeasonStatus(db: D1Database) {
+  const control = await db.prepare('SELECT owner,epoch FROM admin_control WHERE id=1').first<{owner:string;epoch:number}>();
+  if (control?.owner !== 'D1') throw new SubmissionError('Season status requires D1 ownership.');
+  const week = await db.prepare("SELECT id,season,week,phase FROM weeks WHERE phase IN ('REGULAR_SEASON','PLAYOFFS') ORDER BY season DESC,CASE phase WHEN 'PLAYOFFS' THEN 1 ELSE 0 END DESC,week DESC LIMIT 1")
+    .first<{id:number;season:number;week:number;phase:string}>();
+  if (!week) throw new SubmissionError('No competitive week has been approved.', 404);
+  const rows = (await db.prepare(`SELECT canonical_name AS name, MAX(CASE WHEN week_id=? THEN 1 ELSE 0 END) AS submitted
+    FROM submissions JOIN players ON players.id=player_id JOIN weeks ON weeks.id=week_id
+    WHERE season=? AND phase IN ('REGULAR_SEASON','PLAYOFFS') AND superseded_at IS NULL
+    GROUP BY canonical_name COLLATE NOCASE ORDER BY canonical_name COLLATE NOCASE`).bind(week.id,week.season).all<{name:string;submitted:number}>()).results;
+  const playedThisSeason = rows.map(row => row.name);
+  const submittedCurrentWeek = rows.filter(row => row.submitted).map(row => row.name);
+  const expected = week.phase === 'PLAYOFFS'
+    ? (await db.prepare('SELECT player_name AS name FROM playoff_eligibility WHERE season=? ORDER BY player_name COLLATE NOCASE').bind(week.season).all<{name:string}>()).results.map(row => row.name)
+    : playedThisSeason;
+  const submitted = new Set(submittedCurrentWeek.map(name => name.toLowerCase()));
+  const current = await db.prepare('SELECT owner,epoch FROM admin_control WHERE id=1').first<{owner:string;epoch:number}>();
+  if (current?.owner !== control.owner || current.epoch !== control.epoch) throw new SubmissionError('Pool ownership changed while loading season status.');
+  return { ok:true, owner:control.owner, epoch:control.epoch, season:week.season, week:week.week, phase:week.phase,
+    playedThisSeason, submittedCurrentWeek, notYetSubmittedCurrentWeek:expected.filter(name => !submitted.has(name.toLowerCase())) };
 }
 
 export async function operationalPicksVisible(db: D1Database, weekId: number, now = new Date().toISOString()) {

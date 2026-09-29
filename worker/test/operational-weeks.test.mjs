@@ -86,6 +86,30 @@ test('owner approves four immutable rounds; prior-round completion and fixed ros
   }finally{sqlite.close();}
 });
 
+test('approval prevents overlapping competitive phases even when another approval commits first', async () => {
+  for (const activePhase of ['REGULAR_SEASON', 'PLAYOFFS']) {
+    const { sqlite, adapter } = fixture();
+    try {
+      await approveOperationalWeek(adapter, { ...approval(1), phase: activePhase }, 'owner', now);
+      const otherPhase = activePhase === 'PLAYOFFS' ? 'REGULAR_SEASON' : 'PLAYOFFS';
+      await assert.rejects(approveOperationalWeek(adapter, { ...approval(1), operationId: 'overlapping-week-approval', phase: otherPhase }, 'owner', now), /active or existing week/);
+      assert.equal(sqlite.prepare('SELECT count(*) AS total FROM weeks').get().total, 1);
+      assert.equal(sqlite.prepare('SELECT count(*) AS total FROM operational_receipts').get().total, 1);
+    } finally { sqlite.close(); }
+  }
+  const { sqlite, adapter } = fixture();
+  try {
+    const batch = adapter.batch;
+    adapter.batch = async statements => {
+      sqlite.exec("INSERT INTO weeks(season,week,phase,status) VALUES(2026,18,'REGULAR_SEASON','open')");
+      return batch(statements);
+    };
+    await assert.rejects(approveOperationalWeek(adapter, approval(1), 'owner', now), /active or existing week/);
+    assert.equal(sqlite.prepare('SELECT count(*) AS total FROM operational_receipts').get().total, 0);
+    assert.equal(sqlite.prepare('SELECT count(*) AS total FROM playoff_eligibility').get().total, 0);
+  } finally { sqlite.close(); }
+});
+
 test('eligible entries reveal only when complete or kicked off, without requiring a pre-Super-Bowl tiebreaker',async()=>{
   const {sqlite,adapter}=fixture();
   try{
@@ -95,7 +119,7 @@ test('eligible entries reveal only when complete or kicked off, without requirin
     await assert.rejects(submitOperationalCard(adapter,{...card,name:'Unapproved'},now),/approved playoff roster/);
     await submitOperationalCard(adapter,card,now);
     assert.equal(await operationalPicksVisible(adapter,1,now),false);
-    for (const action of ['playoff-round','race-archive','archive-week']) {
+    for (const action of ['playoff-round','race-archive','week-archive','current-week','week-one']) {
       const response=await worker.fetch(new Request(`https://example.test/?action=${action}&season=2026&week=1&phase=PLAYOFFS`),{DB:adapter,CORS_ORIGIN:'*'});
       const body=await response.json();
       assert.equal(body.picksVisible,false);
@@ -144,6 +168,37 @@ test('playoff rounds refresh by approved kickoff and finalize without an early-r
       assert.deepEqual(sqlite.prepare('SELECT * FROM completed_week_archives WHERE week_id=?').get(week.id), archive);
     }
     assert.equal(sqlite.prepare('SELECT count(*) AS total FROM completed_week_archives').get().total, 4);
+  } finally { sqlite.close(); }
+});
+
+test('season status lists active originals, excludes preseason and uses the approved playoff roster', async () => {
+  const { sqlite, adapter } = fixture();
+  const env = { DB:adapter, CORS_ORIGIN:'*' };
+  const request = () => worker.fetch(new Request('https://example.test/?action=season-status'), env);
+  try {
+    await approveOperationalWeek(adapter, { ...approval(1), phase:'REGULAR_SEASON' }, 'owner', now);
+    const card = { operationId:'season-status-first-card', name:'Example', weekName:'None', season:2026, week:1, picks:games(6).map(game=>game.favorite), bestBet:'BUF', tiebreaker:400 };
+    await submitOperationalCard(adapter, card, now);
+    sqlite.exec("UPDATE weeks SET status='finalized'; INSERT INTO weeks(season,week,phase,status) VALUES(2026,1,'PRESEASON','open'); INSERT INTO players(canonical_name) VALUES('Test only'); INSERT INTO submissions(week_id,player_id,submitted_name,week_name,best_bet_game_index,tiebreaker,submitted_at) SELECT weeks.id,players.id,'Test only','Private test',0,400,'2026-08-01T12:00:00Z' FROM weeks,players WHERE phase='PRESEASON' AND canonical_name='Test only';");
+    await approveOperationalWeek(adapter, { ...approval(1), operationId:'season-status-second-week', week:2, phase:'REGULAR_SEASON' }, 'owner', now);
+    let response = await request();
+    assert.equal(response.status, 200);
+    let body = await response.json();
+    assert.deepEqual(body.notYetSubmittedCurrentWeek, ['Example']);
+    assert.deepEqual(body.playedThisSeason, ['Example']);
+    assert.deepEqual(body.submittedCurrentWeek, []);
+    await submitOperationalCard(adapter, { ...card, operationId:'season-status-second-card', week:2 }, now);
+    body = await (await request()).json();
+    assert.deepEqual(body.notYetSubmittedCurrentWeek, []);
+    assert.deepEqual(body.submittedCurrentWeek, ['Example']);
+    assert.equal(JSON.stringify(body).includes('bestBet'), false);
+    sqlite.exec("UPDATE weeks SET status='finalized' WHERE phase='REGULAR_SEASON'");
+    await approveOperationalWeek(adapter, { ...approval(1), operationId:'season-status-playoff-week' }, 'owner', now);
+    body = await (await request()).json();
+    assert.equal(body.phase, 'PLAYOFFS');
+    assert.deepEqual(body.notYetSubmittedCurrentWeek, ['Example','Other']);
+    sqlite.exec("UPDATE admin_control SET owner='SHEETS',epoch=3");
+    assert.equal((await request()).status, 409);
   } finally { sqlite.close(); }
 });
 

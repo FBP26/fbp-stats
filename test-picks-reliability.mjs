@@ -34,6 +34,26 @@ await assert.rejects(liveClient.submit(clientCard, { ...lookup, epoch: 3 }), /te
 ownership = { ...ownership, owner: 'SHEETS' };
 await assert.rejects(liveClient.submit(clientCard, lookup), /ownership changed/);
 console.log('Owner-aware client preserves submission retries and refuses stale ownership or disabled writes.');
+for (const startingOwner of ['SHEETS', 'D1']) {
+  let readOwner = { ok: true, owner: startingOwner, epoch: 2 }, changeOwner = false;
+  const readRequests = [];
+  const reader = new clientContext.FBPLiveClient({ workerUrl: 'https://worker.test/', sheetsUrl: 'https://sheets.test/', storage: liveClient.storage,
+    fetcher: async url => {
+      if (url.searchParams.get('action') === 'backend-status') return Response.json(readOwner);
+      readRequests.push(String(url));
+      if (changeOwner) readOwner = { ...readOwner, epoch: 3 };
+      return Response.json({ ok: true, games: [], raceSnapshots: [] });
+    },
+  });
+  for (const action of ['week-config', 'preseason-test', 'current-week-race']) await reader.read(action, { season: 2027, week: 1 });
+  assert.ok(readRequests.every(url => new URL(url).hostname === (startingOwner === 'D1' ? 'worker.test' : 'sheets.test')));
+  assert.equal(new URL(readRequests[2]).searchParams.get('action'), startingOwner === 'D1' ? 'race-archive' : 'current-week-race');
+  changeOwner = true;
+  await assert.rejects(reader.read('week-config'), /ownership changed while loading/);
+}
+assert.match(html, /websiteLiveClient\.read\('week-config'/);
+assert.match(html, /websiteLiveClient\.read\('preseason-test'/);
+console.log('Slate, preseason and race reads follow ownership and discard responses across epoch changes.');
 clientContext.fetch = function () {
   assert.equal(this.FBPLiveClient, clientContext.FBPLiveClient, 'Native fetch must be invoked on the browser global, not the client instance');
   return Promise.resolve(Response.json({ ok: true, owner: 'SHEETS', epoch: 1 }));
@@ -216,7 +236,7 @@ for (const fails of [false, true]) {
   const requests = [];
   const readContext = vm.createContext({
     Date, structuredClone, localStorage: { getItem() {} },
-    websiteLiveClient: { owner: async () => ({ owner: 'D1', epoch: 2 }), request: async (endpoint, action) => {
+    websiteLiveClient: { owner: async () => ({ owner: 'D1', epoch: 2 }), read: async action => {
       requests.push(action);
       if (fails) throw new Error('Operational read unavailable');
       return { ok: true, origin: 'D1' };
@@ -227,13 +247,13 @@ for (const fails of [false, true]) {
   const read = readContext.websiteFetchPublicRead('current-week-race', { season: '2026', week: '3' });
   if (fails) await assert.rejects(read, /Operational read unavailable/);
   else assert.equal((await read).origin, 'D1');
-  assert.deepEqual(requests, ['race-archive']);
+  assert.deepEqual(requests, ['current-week-race']);
 }
 console.log('D1 live reads never fall back to Sheets, including when the operational read fails.');
 for (const fails of [false, true]) {
   const payoutContext = vm.createContext({
     Date, WEBSITE_NOTIFICATION_ENDPOINT: 'https://worker.test/',
-    websiteLiveClient: { owner: async () => ({ owner: 'D1', epoch: 2 }), request: async () => {
+    websiteLiveClient: { owner: async () => ({ owner: 'D1', epoch: 2 }), read: async () => {
       if (fails) throw new Error('Unreconciled payout');
       return { ok: true, owner: 'D1', epoch: 2, seasons: [{ year: 2026 }] };
     } },
@@ -245,6 +265,25 @@ for (const fails of [false, true]) {
   else assert.equal((await payoutContext.loadPayoutSheet())[0].year, 2026);
 }
 console.log('Payouts use the selected owner and reject stale saved-copy fallback after D1 cutover.');
+for (const action of ['season-status', 'race-archive']) assert.ok(html.includes(`websiteLiveClient.read('${action}'`));
+const archiveReads = [];
+let archiveOwner = { owner:'SHEETS', epoch:1 };
+const archiveContext = vm.createContext({
+  weekLiveRaceArchiveCache:new Map(),
+  websiteLiveClient:{ owner:async()=>archiveOwner, read:async(action, parameters)=>{
+    archiveReads.push({ action, ...parameters, owner:archiveOwner.owner });
+    return { ok:true, raceSnapshots:[{ owner:archiveOwner.owner }] };
+  } },
+});
+const archiveStart = html.indexOf('async function loadWeekLiveRaceArchive(');
+vm.runInContext(html.slice(archiveStart, html.indexOf('\nfunction showWeekLiveRaceFrame', archiveStart)), archiveContext);
+assert.equal((await archiveContext.loadWeekLiveRaceArchive(2026,3))[0].owner, 'SHEETS');
+await archiveContext.loadWeekLiveRaceArchive(2026,3);
+assert.equal(archiveReads.length, 1);
+archiveOwner = { owner:'D1', epoch:2 };
+assert.equal((await archiveContext.loadWeekLiveRaceArchive(2026,3))[0].owner, 'D1');
+assert.equal(archiveReads.length, 2);
+console.log('Historical race caches are isolated by backend ownership and epoch.');
 console.log('Rapid touch selection, compatibility clicks, disabled teams, and mouse fallback passed.');
 console.log('Inline syntax, Eastern-time retention, week isolation, pick shares, and removed chart checks passed.');
 const historyRequests = new Map();

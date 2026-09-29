@@ -34,7 +34,11 @@ globalThis.FBPLiveClient = class {
 
   async read(action, parameters = {}, timeout = 30000) {
     const state = await this.owner();
-    return this.request(state.owner === 'D1' ? this.workerUrl : this.sheetsUrl, action, parameters, timeout);
+    const resolvedAction = state.owner === 'D1' && action === 'current-week-race' ? 'race-archive' : action;
+    const data = await this.request(state.owner === 'D1' ? this.workerUrl : this.sheetsUrl, resolvedAction, parameters, timeout);
+    const current = await this.owner(true);
+    if (current.owner !== state.owner || current.epoch !== state.epoch) throw new Error('Pool ownership changed while loading. Refresh before continuing.');
+    return data;
   }
 
   async identity(submission) {
