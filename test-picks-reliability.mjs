@@ -3,6 +3,43 @@ import { readFileSync } from 'node:fs';
 import vm from 'node:vm';
 
 const html = readFileSync(new URL('./index.html', import.meta.url), 'utf8');
+const clientContext = vm.createContext({ URL, URLSearchParams, AbortSignal, Date });
+vm.runInContext(readFileSync(new URL('./live-client.js', import.meta.url), 'utf8'), clientContext);
+const pendingStorage = new Map();
+let ownership = { ok: true, owner: 'D1', epoch: 2, writesEnabled: true }, loseResponse = true, operationIds = 0;
+const submissionRequests = [];
+const liveClient = new clientContext.FBPLiveClient({ workerUrl: 'https://worker.test/', sheetsUrl: 'https://sheets.test/',
+  storage: { getItem: key => pendingStorage.get(key), setItem: (key, value) => pendingStorage.set(key, value), removeItem: key => pendingStorage.delete(key) },
+  newId: () => `stable-operation-${++operationIds}`,
+  fetcher: async (url, options) => {
+    if (options?.method !== 'POST') return Response.json(ownership);
+    submissionRequests.push({ url: String(url), body: JSON.parse(options.body) });
+    if (loseResponse) throw new Error('Response lost after acceptance');
+    return Response.json({ ok: true, replayed: true });
+  },
+});
+const clientCard = { name: 'Example', season: 2026, week: 4, picks: ['BUF'], bestBet: 'BUF' };
+const lookup = { owner: 'D1', epoch: 2, submissionId: null };
+await assert.rejects(liveClient.submit(clientCard, lookup), /Response lost/);
+loseResponse = false;
+const reloadedClient = new clientContext.FBPLiveClient({ workerUrl: liveClient.workerUrl, sheetsUrl: liveClient.sheetsUrl, fetcher: liveClient.fetcher, storage: liveClient.storage, newId: liveClient.newId });
+await reloadedClient.submit(clientCard, { ...lookup, submissionId: 12 });
+assert.deepEqual(submissionRequests[0], submissionRequests[1], 'A lost response retries the original operation and expected card ID');
+assert.equal(pendingStorage.size, 0);
+ownership = { ...ownership, epoch: 3 };
+await assert.rejects(liveClient.submit(clientCard, lookup), /ownership changed/);
+assert.equal(submissionRequests.length, 2);
+ownership = { ...ownership, writesEnabled: false };
+await assert.rejects(liveClient.submit(clientCard, { ...lookup, epoch: 3 }), /temporarily paused/);
+ownership = { ...ownership, owner: 'SHEETS' };
+await assert.rejects(liveClient.submit(clientCard, lookup), /ownership changed/);
+console.log('Owner-aware client preserves submission retries and refuses stale ownership or disabled writes.');
+clientContext.fetch = function () {
+  assert.equal(this.FBPLiveClient, clientContext.FBPLiveClient, 'Native fetch must be invoked on the browser global, not the client instance');
+  return Promise.resolve(Response.json({ ok: true, owner: 'SHEETS', epoch: 1 }));
+};
+const nativeFetchClient = new clientContext.FBPLiveClient({ workerUrl: 'https://worker.test/', sheetsUrl: 'https://sheets.test/', storage: liveClient.storage });
+assert.equal((await nativeFetchClient.owner()).owner, 'SHEETS');
 for (const script of html.matchAll(/<script\b[^>]*>([\s\S]*?)<\/script>/gi)) {
   if (script[1].trim()) new vm.Script(script[1]);
 }
@@ -145,6 +182,7 @@ for (const scenario of ['fresh', 'stale', 'wrong-week', 'timeout', 'unavailable'
   const storage = new Map();
   const readContext = vm.createContext({
     Date, URL, URLSearchParams, AbortSignal, structuredClone,
+    websiteLiveClient: { owner: async () => ({ owner: 'SHEETS', epoch: 1 }) },
     WEBSITE_SUBMISSIONS_ENDPOINT: 'https://source.test/exec',
     localStorage: { getItem: key => storage.get(key), setItem: (key, value) => storage.set(key, value) },
     fetch: async url => {
@@ -174,6 +212,39 @@ for (const scenario of ['fresh', 'stale', 'wrong-week', 'timeout', 'unavailable'
   await assert.rejects(readContext.websiteFetchPublicRead('notification-preferences'), /Unsupported public read/);
 }
 console.log('Fresh snapshot reads, bounded fallback, week isolation, submission bypass, and request deduplication passed.');
+for (const fails of [false, true]) {
+  const requests = [];
+  const readContext = vm.createContext({
+    Date, structuredClone, localStorage: { getItem() {} },
+    websiteLiveClient: { owner: async () => ({ owner: 'D1', epoch: 2 }), request: async (endpoint, action) => {
+      requests.push(action);
+      if (fails) throw new Error('Operational read unavailable');
+      return { ok: true, origin: 'D1' };
+    } },
+    fetch: () => { throw new Error('Must never use Sheets or its snapshot under D1 ownership'); },
+  });
+  vm.runInContext(html.slice(readStart, readEnd), readContext);
+  const read = readContext.websiteFetchPublicRead('current-week-race', { season: '2026', week: '3' });
+  if (fails) await assert.rejects(read, /Operational read unavailable/);
+  else assert.equal((await read).origin, 'D1');
+  assert.deepEqual(requests, ['race-archive']);
+}
+console.log('D1 live reads never fall back to Sheets, including when the operational read fails.');
+for (const fails of [false, true]) {
+  const payoutContext = vm.createContext({
+    Date, WEBSITE_NOTIFICATION_ENDPOINT: 'https://worker.test/',
+    websiteLiveClient: { owner: async () => ({ owner: 'D1', epoch: 2 }), request: async () => {
+      if (fails) throw new Error('Unreconciled payout');
+      return { ok: true, owner: 'D1', epoch: 2, seasons: [{ year: 2026 }] };
+    } },
+    fetch: () => { throw new Error('D1 payouts must not fetch the Sheets CSV'); },
+  });
+  const start = html.indexOf('let payoutSheetLoadPromise =');
+  vm.runInContext(html.slice(start, html.indexOf('function payoutUnpaidTooltip(', start)), payoutContext);
+  if (fails) await assert.rejects(payoutContext.loadPayoutSheet(), error => error.operationalData === true);
+  else assert.equal((await payoutContext.loadPayoutSheet())[0].year, 2026);
+}
+console.log('Payouts use the selected owner and reject stale saved-copy fallback after D1 cutover.');
 console.log('Rapid touch selection, compatibility clicks, disabled teams, and mouse fallback passed.');
 console.log('Inline syntax, Eastern-time retention, week isolation, pick shares, and removed chart checks passed.');
 const historyRequests = new Map();

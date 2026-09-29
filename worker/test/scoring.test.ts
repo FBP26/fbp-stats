@@ -48,6 +48,20 @@ test("Best Bet doubles a win or loss and a pushed Best Bet counts one loss", () 
   assert.deepEqual({ wins: pending.wins, losses: pending.losses }, { wins: 0, losses: 0 });
 });
 
+test('an opposing Best Bet earns its own win or loss and one loss on a push', () => {
+  for (const favoriteScore of [24, 21]) {
+    for (const status of ['LIVE', 'FINAL'] as const) {
+      const result = scoreWeekWithoutProbabilities([card('Opposing', 'PIT', 'BAL')], [game({ favoriteScore, status })], null)[0];
+      assert.deepEqual({ wins: result.wins, losses: result.losses }, { wins: 1, losses: 1 });
+    }
+  }
+  const push = scoreWeekWithoutProbabilities([card('Opposing', 'PIT', 'BAL')], [game({ favoriteScore: 23 })], null)[0];
+  assert.deepEqual({ wins: push.wins, losses: push.losses }, { wins: 0, losses: 1 });
+  const pending = scoreWeekWithoutProbabilities([card('Opposing', 'PIT', 'BAL')], [game({ status: 'PREGAME' })], null)[0];
+  assert.equal(pending.wins + pending.losses, 0);
+  assert.deepEqual(calculatePaths([card('Opposing', 'PIT', 'BAL'), card('Favorite', 'PIT', 'PIT'), card('Underdog', 'BAL', 'BAL')], [game({ status: 'PREGAME', spread: 3.5 })]).probabilities, [0, 50, 50]);
+});
+
 test("unresolved integer spreads include push paths and split tied victories", () => {
   const result = calculatePaths(
     [card("Favorite", "PIT"), card("Underdog", "BAL")],
@@ -88,6 +102,40 @@ test("standings sort by wins, tiebreak distance, losses, then name", () => {
     450,
   ).sort(compareStandings);
   assert.deepEqual(players.map(({ name }) => name), ["Alpha", "Zulu"]);
+});
+
+test('optimized paths match direct scenario scoring for mixed finals, pushes and a full 31-player field', () => {
+  for (const gameCount of [1, 4, 7]) {
+    const games = Array.from({ length: gameCount }, (_, index) => game({
+      favorite: `F${index}`, underdog: `U${index}`, spread: index % 2 ? 3.5 : 3,
+      status: index === 1 ? 'FINAL' : 'PREGAME',
+      favoriteScore: index === 1 ? 20 : null, underdogScore: index === 1 ? 17 : null,
+    }));
+    const players = Array.from({ length: 31 }, (_, index) => ({ ...card(`Player${index}`, ''),
+      picks: games.map((match, position) => (index >> (position % 5)) & 1 ? match.favorite : match.underdog),
+      bestBet: index % 3 ? games[index % gameCount].favorite : '',
+    }));
+    const unresolved = games.map((match, position) => ({ match, position })).filter(({ match }) => match.status !== 'FINAL');
+    const total = unresolved.reduce((count, { match }) => count * (Number.isInteger(match.spread) ? 3 : 2), 1);
+    const paths = players.map(() => 0);
+    for (let scenario = 0; scenario < total; scenario += 1) {
+      let encoded = scenario;
+      const resolved = games.map(match => ({ ...match }));
+      for (const { match, position } of unresolved) {
+        const radix = Number.isInteger(match.spread) ? 3 : 2;
+        const outcome = encoded % radix;
+        encoded = Math.floor(encoded / radix);
+        resolved[position] = { ...match, status: 'FINAL', underdogScore: 10, favoriteScore: outcome === 2 ? 10 + match.spread : outcome === 1 ? 20 : 0 };
+      }
+      const scores = scoreWeekWithoutProbabilities(players, resolved, null).map(player => player.wins);
+      const max = Math.max(...scores);
+      const winners = scores.map((score, position) => score === max ? position : -1).filter(position => position >= 0);
+      for (const winner of winners) paths[winner] += 1 / winners.length;
+    }
+    const result = calculatePaths(players, games);
+    assert.deepEqual(result.paths, paths);
+    assert.equal(result.evaluatedCount, total);
+  }
 });
 
 test("fast scoring preserves decisions without enumerating probabilities", () => {

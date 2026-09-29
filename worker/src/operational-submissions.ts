@@ -5,16 +5,45 @@ export class SubmissionError extends Error {
   constructor(message: string, status = 409) { super(message); this.status = status; }
 }
 
+async function receiptWithSubmissionId(db: D1Database, receipt: Record<string, unknown>) {
+  const link = await db.prepare('SELECT submission_id FROM admin_submission_links WHERE record_id=?')
+    .bind(`operational:${receipt.operationId}`).first<{ submission_id: number }>();
+  if (!link) throw new SubmissionError('Accepted submission receipt is missing its card link. Contact the owner.', 503);
+  return { ...receipt, submissionId: link.submission_id };
+}
+
+export async function existingOperationalCard(db: D1Database, payload: Record<string, unknown>, now = Date.now()) {
+  const control = await db.prepare('SELECT owner, epoch FROM admin_control WHERE id = 1').first<{ owner: string; epoch: number }>();
+  if (control?.owner !== 'D1') throw new SubmissionError('Sheets currently owns submissions.');
+  const name = String(payload.name || '').trim().replace(/\s+/g, ' ');
+  const season = Number(payload.season), week = Number(payload.week);
+  const phase = String(payload.phase || 'REGULAR_SEASON');
+  if (!name || name.length > 13 || !Number.isInteger(season) || !Number.isInteger(week) || !['REGULAR_SEASON', 'PRESEASON', 'PLAYOFFS'].includes(phase)) throw new SubmissionError('Invalid submission lookup.', 400);
+  const target = await db.prepare('SELECT id, status FROM weeks WHERE season=? AND week=? AND phase=?').bind(season, week, phase).first<{ id: number; status: string }>();
+  if (!target) throw new SubmissionError('This week is not staged.');
+  const current = await db.prepare(`SELECT submissions.id, submitted_at, canonical_name FROM submissions
+    JOIN players ON players.id=player_id WHERE week_id=? AND canonical_name=? COLLATE NOCASE AND superseded_at IS NULL`)
+    .bind(target.id, name).first<{ id: number; submitted_at: string; canonical_name: string }>();
+  const games = (await db.prepare('SELECT kickoff_at FROM games WHERE week_id=?').bind(target.id).all<{ kickoff_at: string }>()).results;
+  const kickoff = Math.min(...games.map(game => Date.parse(game.kickoff_at)));
+  const open = ['open', 'live'].includes(target.status) && games.length > 0 && Number.isFinite(kickoff);
+  return { ok: true, season, week, phase, owner: 'D1', epoch: control.epoch,
+    exists: Boolean(current), submissionId: current?.id ?? null, submittedAt: current?.submitted_at ?? null,
+    name: current?.canonical_name ?? name, replacementLocked: Boolean(current) && (!open || now >= kickoff),
+    canSubmit: open && (!current || now < kickoff) };
+}
+
 export async function submitOperationalCard(db: D1Database, payload: Record<string, unknown>, now = new Date().toISOString()) {
   const control = await db.prepare('SELECT owner, epoch FROM admin_control WHERE id = 1').first<{ owner: string; epoch: number }>();
   if (control?.owner !== 'D1') throw new SubmissionError('Sheets currently owns submissions. No replacement-backend write was made.');
+  if (payload.expectedEpoch != null && payload.expectedEpoch !== control.epoch) throw new SubmissionError('Pool ownership changed. Reload before submitting.');
   const operationId = String(payload.operationId || '');
   if (!/^[A-Za-z0-9_-]{16,100}$/.test(operationId)) throw new SubmissionError('A stable submission operation ID is required.', 400);
   const requestHash = await adminDigest(canonicalAdminJson(payload));
   const existing = await db.prepare('SELECT request_hash, body FROM operational_receipts WHERE operation_id = ?').bind(operationId).first<{ request_hash: string; body: string }>();
   if (existing) {
     if (existing.request_hash !== requestHash) throw new SubmissionError('Submission operation ID was reused with changed content.');
-    return { ...JSON.parse(existing.body), replayed: true };
+    return receiptWithSubmissionId(db, { ...JSON.parse(existing.body), replayed: true });
   }
   const name = String(payload.name || '').trim().replace(/\s+/g, ' ');
   const weekName = String(payload.weekName || '').trim();
@@ -34,8 +63,11 @@ export async function submitOperationalCard(db: D1Database, payload: Record<stri
   const picks = Array.isArray(payload.picks) ? payload.picks.map(value => String(value).trim().toUpperCase()) : [];
   if (!games.length || picks.length !== games.length || games.some((game, index) => game.game_index !== index || !Number.isFinite(Date.parse(game.kickoff_at))
     || ![game.favorite.toUpperCase(), game.underdog.toUpperCase()].includes(picks[index]))) throw new SubmissionError('Picks do not match the approved slate.', 400);
-  const bestBetIndex = phase === 'PLAYOFFS' && weekNumber === 4 ? 0 : picks.indexOf(String(payload.bestBet || '').trim().toUpperCase());
-  if (bestBetIndex < 0) throw new SubmissionError('Best Bet must be one of the selected picks.', 400);
+  const bestBetTeam = phase === 'PLAYOFFS' && weekNumber === 4 ? picks[0] : String(payload.bestBet || '').trim().toUpperCase();
+  const bestBetIndex = games.findIndex(game => [game.favorite.toUpperCase(), game.underdog.toUpperCase()].includes(bestBetTeam));
+  if (bestBetIndex < 0) throw new SubmissionError('Best Bet must be a team on the approved slate.', 400);
+  if (!picks.includes(bestBetTeam)) throw new SubmissionError('Best Bet must be one of the selected picks.', 400);
+  const bestBet = games[bestBetIndex].favorite.toUpperCase() === bestBetTeam ? games[bestBetIndex].favorite : games[bestBetIndex].underdog;
   const current = await db.prepare('SELECT submissions.id FROM submissions JOIN players ON players.id = player_id WHERE week_id = ? AND canonical_name = ? COLLATE NOCASE AND superseded_at IS NULL').bind(week.id, name).first<{ id: number }>();
   const kickoff = Math.min(...games.map(game => Date.parse(game.kickoff_at)));
   if (current && Date.parse(now) >= kickoff) throw new SubmissionError('An existing card cannot be replaced after the first kickoff.');
@@ -48,7 +80,7 @@ export async function submitOperationalCard(db: D1Database, payload: Record<stri
   const recordId = `operational:${operationId}`;
   const cardBody = JSON.stringify({ name: canonicalName, weekName, season: `${season}-${season + 1}`, week: weekNumber, phase,
     picks: games.map((game, index) => picks[index] === game.favorite.toUpperCase() ? game.favorite : game.underdog),
-    bestBet: picks[bestBetIndex], tiebreaker, submittedAt: now, provenance: { source: 'D1', operationId } });
+    bestBet, tiebreaker, submittedAt: now, provenance: { source: 'D1', operationId } });
   const guard = `INSERT INTO operational_receipts(operation_id, request_hash, epoch, kind, body, recorded_at)
     SELECT ?, ?, ?, 'submission', ?, ? WHERE EXISTS (SELECT 1 FROM weeks WHERE id = ? AND status IN ('open','live'))
     AND COALESCE((SELECT submissions.id FROM submissions JOIN players ON players.id = player_id WHERE week_id = ? AND canonical_name = ? COLLATE NOCASE AND superseded_at IS NULL),0) = ?
@@ -58,9 +90,9 @@ export async function submitOperationalCard(db: D1Database, payload: Record<stri
     db.prepare(guard).bind(operationId, requestHash, control.epoch, JSON.stringify(receipt), now, week.id, week.id, name, current?.id || 0, current?.id || 0, now, week.id, week.id, slate),
     db.prepare('INSERT INTO players(canonical_name) SELECT ? WHERE EXISTS(SELECT 1 FROM operational_receipts WHERE operation_id = ?) ON CONFLICT DO NOTHING').bind(name, operationId),
     db.prepare('UPDATE submissions SET superseded_at = ? WHERE id = ? AND EXISTS(SELECT 1 FROM operational_receipts WHERE operation_id = ?)').bind(now, current?.id || 0, operationId),
-    db.prepare(`INSERT INTO submissions(week_id,player_id,submitted_name,week_name,best_bet_game_index,tiebreaker,source,submitted_at)
-      SELECT ?, players.id, ?, ?, ?, ?, 'website', ? FROM players WHERE canonical_name = ? COLLATE NOCASE AND EXISTS(SELECT 1 FROM operational_receipts WHERE operation_id = ?)`)
-      .bind(week.id, name, weekName, bestBetIndex, tiebreaker, now, name, operationId),
+    db.prepare(`INSERT INTO submissions(week_id,player_id,submitted_name,week_name,best_bet_game_index,best_bet_team,tiebreaker,source,submitted_at)
+      SELECT ?, players.id, ?, ?, ?, ?, ?, 'website', ? FROM players WHERE canonical_name = ? COLLATE NOCASE AND EXISTS(SELECT 1 FROM operational_receipts WHERE operation_id = ?)`)
+      .bind(week.id, name, weekName, bestBetIndex, bestBet, tiebreaker, now, name, operationId),
     ...games.map((game, index) => db.prepare(`INSERT INTO submission_picks(submission_id,game_id,picked_team)
       SELECT submissions.id, ?, ? FROM submissions JOIN players ON players.id = player_id WHERE week_id = ? AND canonical_name = ? COLLATE NOCASE AND submitted_at = ?
       AND superseded_at IS NULL AND EXISTS(SELECT 1 FROM operational_receipts WHERE operation_id = ?)`)
@@ -77,10 +109,10 @@ export async function submitOperationalCard(db: D1Database, payload: Record<stri
   try { await db.batch(statements); }
   catch (error) {
     const concurrent = await db.prepare('SELECT request_hash, body FROM operational_receipts WHERE operation_id = ?').bind(operationId).first<{ request_hash: string; body: string }>();
-    if (concurrent?.request_hash === requestHash) return { ...JSON.parse(concurrent.body), replayed: true };
+    if (concurrent?.request_hash === requestHash) return receiptWithSubmissionId(db, { ...JSON.parse(concurrent.body), replayed: true });
     throw error;
   }
   const accepted = await db.prepare('SELECT operation_id FROM operational_receipts WHERE operation_id = ?').bind(operationId).first();
   if (!accepted) throw new SubmissionError('The week or current card changed during submission. Reload and retry.');
-  return receipt;
+  return receiptWithSubmissionId(db, receipt);
 }

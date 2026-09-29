@@ -10,8 +10,50 @@ not for the scheduled observer or the existing hosted publisher.
 **Rehearsal only. Sheets and Apps Script remain authoritative.** Administrative
 records do not feed public standings, submissions, payouts, alerts, or the ETL.
 Do not flip `admin_control.owner` as a cutover procedure: the live Apps Script
-writer and legacy Worker writers do not yet consult this administrative epoch.
-The epoch currently fences administrative mutations, not every production writer.
+writer is not fenced by this administrative epoch. Worker submissions, legacy
+staging, and browser race writes now check ownership, but this does not fence
+every production writer or constitute a live ownership handoff.
+
+## September 29 integration
+
+Week 3's canonical CSV/JSON publication and actual D1 candidate final-result
+comparison passed: 31 cards, 16 final games, and a 388-yard final tiebreaker.
+This does not certify uninterrupted race coverage or probability-model parity.
+
+Migration 0016 is applied in production. It preserves Best Bet independently of
+the ordinary pick. New submissions must choose a selected team; legacy opposing
+Best Bets remain readable, score independently, and survive unrelated corrections.
+No archived source cards or historical files were rewritten.
+
+The 31 preserved Week 3 originals are now mapped into operational D1 tables with
+their real source times, unchanged picks/Best Bets/tiebreakers/week names, and
+private administrative links. Mapping is transactional, defaults to a dry run,
+rejects an existing conflicting operational field, and checks source versions,
+slate and ownership at commit. Replay inserted zero cards. Post-import recovery
+exactly restored 45 total operational cards, 720 picks and 31 links; this remains
+an isolated operational restore, not a live Sheets writeback rollback.
+
+```sh
+node scripts/admin-server.mjs --remote --map-originals=2026:3
+node scripts/admin-server.mjs --remote --map-originals=2026:3 --apply-originals
+node scripts/operational-source-import.mjs --rehearse=2026:3 --checkpoint=PRIVATE_CHECKPOINT
+node scripts/admin-server.mjs --remote --operational-backup=NEW_PRIVATE_CHECKPOINT
+```
+
+The public client checks `backend-status` before submission. D1 submissions retain
+operation IDs and the original expected card ID across lost responses and reloads;
+owner/epoch changes stop the attempt. Lookup exposes metadata, not hidden playoff
+picks. D1 live reads and payouts never fall back to Sheets. Current D1 payouts
+require accepted integer-cent baselines; incomplete reconciliation fails closed.
+Some staging, historical-race and season-status client paths still use Apps Script.
+Do not treat the owner-aware client as permission to change the owner flag.
+
+Verification: 82 backend tests passed, two optional live tests skipped, TypeScript
+passed, frontend regressions passed. A mocked real-browser lost-response/reload
+test resent exactly the same operation and reached confirmation, with no page
+exceptions or overflow at 1440px/390px. No real test entry or email was sent.
+Keep `OPERATIONAL_WRITES_ENABLED=false`, owner SHEETS and epoch 1 until all remaining
+handoff, financial, lifecycle, rollback and CPU-capacity requirements are met.
 
 The verified initial import contains 69 submitted cards, 660 season/player payout
 records across 21 seasons, and five compressed original worksheet documents.
@@ -59,8 +101,8 @@ Migration `0012_submission_admin_projection.sql` supports explicit links between
 administrative records and operational submissions. Linked corrections update
 the real card and its correction audit in the same transaction, preserve the
 original submission timestamp, validate matchup/Best Bet picks, and reject closed
-or superseded cards. This path requires D1 ownership. No production submission
-links have been activated; this is not an operational import or a write cutover.
+or superseded cards. This path requires D1 ownership. The 31 Week 3 production
+links now exist, but corrections remain fenced while Sheets owns the pool.
 
 ## Week 3 continuity safeguards
 
@@ -132,6 +174,37 @@ write bridge. Do not run alongside another payout writer. It sends no email and
 disburses no cash. Prize credit and prepaid allocation are separate ledger entries.
 
 ## Unattended candidate evidence
+
+### Week 3 pre-final checks (2026-09-28)
+
+The scheduled observer stalled at 2026-09-29 01:18:49 UTC despite later public
+read-pair writes. Read-only source replay with all 31 cards passes in isolated
+SQLite. Production logs identify both 35-second source timeouts and an
+`exceededCpu` termination (21 ms measured CPU). Source reads now retry one
+timeout/abort/network failure, with fresh URLs and unchanged freshness rules;
+permission errors still fail immediately. Stage logs contain only week/time
+metadata. Worker 559586c3-6278-48e1-a4ba-0bbc47c37d65 deployed this change with
+operational writes disabled. Observation subsequently advanced to 03:08:49 UTC
+and 205 frames, but that does not establish sustained health or repair missing
+frames. CPU capacity remains an unresolved operational requirement. The cached
+OAuth credential cannot read billing subscriptions; no billing was changed.
+
+Read-only diagnostics (from `worker/`, Node 24):
+
+```sh
+node scripts/check-candidate-observer.mjs
+node scripts/check-candidate-observer.mjs --compare-final=2026:3
+```
+
+The first command reads snapshots and existing candidate records from D1, then
+replays processing only in memory. It reports source age; replay success does
+not mean production is healthy. The second checks the actual immutable D1
+archive checksum against the published latest-completed-week JSON. It compares
+ordered games/lines/kickoffs/final scores, normalized cards, final tiebreaker and
+win/loss records. Missing archives or another published week report `pending`;
+corrupt or differing results fail. It does not compare the CSV directly, certify
+probability/race parity, or authorize cutover. `fullReplacementReady` stays false.
+Neither command writes production records or sends email.
 
 `CANDIDATE_LIFECYCLE_ENABLED=true` enables a separate candidate observer in the
 existing one-minute snapshot job. It reuses the validated source games/cards but

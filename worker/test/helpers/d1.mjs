@@ -12,7 +12,11 @@ export function memoryDatabase(migrations) {
         bind(...parameters) { values = parameters.map(value => value instanceof ArrayBuffer ? new Uint8Array(value) : value); return this; },
         async first() { return sqlite.prepare(sql).get(...values) || null; },
         async all() { return { results: sqlite.prepare(sql).all(...values) }; },
-        async run() { return sqlite.prepare(sql).run(...values); },
+        async run() {
+          const statement = sqlite.prepare(sql);
+          if (statement.columns().length) return { results: statement.all(...values), meta: { changes: 0 } };
+          return statement.run(...values);
+        },
       };
     },
     async batch(statements) {

@@ -2,6 +2,7 @@ import test from 'node:test';
 import assert from 'node:assert/strict';
 import { recordCandidateObservation, replacementSubmissionAllowed, playoffPicksVisible } from '../src/candidate-lifecycle.ts';
 import { memoryDatabase } from './helpers/d1.mjs';
+import { compareCandidateArchive } from '../scripts/candidate-parity.mjs';
 
 const kickoff = Date.parse('2026-09-27T17:00:00Z');
 function observation({ phase = 'REGULAR_SEASON', week = 3, count = 1, status = 'PREGAME', actual = null } = {}) {
@@ -28,6 +29,38 @@ test('candidate lifecycle records independent race frames and immutable finals w
     await assert.rejects(recordCandidateObservation(adapter, observation({ status: 'FINAL', actual: 411 }), kickoff + 3000000), /immutable/);
     assert.throws(() => sqlite.exec('DELETE FROM candidate_archives'), /immutable/);
     assert.equal(sqlite.prepare('SELECT checksum FROM candidate_archives').get().checksum, archive.checksum);
+  } finally { sqlite.close(); }
+});
+
+test('final archive comparison rejects incomplete, corrupt and mismatched evidence without claiming cutover readiness', async () => {
+  const { sqlite, adapter } = memoryDatabase(['0010_candidate_lifecycle.sql']);
+  try {
+    await recordCandidateObservation(adapter, observation({ status: 'FINAL', actual: 410 }), kickoff + 1800000);
+    const stored = sqlite.prepare('SELECT * FROM candidate_archives').get();
+    const candidate = JSON.parse(stored.payload_json);
+    const canonical = { ok: true, season: 2026, week: 3, tiebreakStatus: 'final', actualTiebreaker: 410, games: candidate.games, players: candidate.results };
+    const report = compareCandidateArchive(stored, canonical);
+    assert.equal(report.finalResultParity, true);
+    assert.equal(report.fullReplacementReady, false);
+    assert.equal(report.productionWrites, 0);
+    assert.throws(() => compareCandidateArchive(null, canonical), /not finalized/);
+    assert.throws(() => compareCandidateArchive({ ...stored, checksum: 'bad' }, canonical), /checksum/);
+    for (const change of [
+      value => { value.week = 4; },
+      value => { value.actualTiebreaker = ''; },
+      value => { value.actualTiebreaker = 411; },
+      value => { value.tiebreakStatus = ''; },
+      value => { value.games[0].status = 'LIVE'; },
+      value => { value.games[0].favoriteScore++; },
+      value => { value.players[0].picks[0] = 'U0'; value.players[0].bestBet = 'U0'; },
+      value => { value.players[0].weekName = 'Changed'; },
+      value => { value.players[0].wins++; },
+      value => { value.players = []; },
+    ]) {
+      const changed = structuredClone(canonical);
+      change(changed);
+      assert.throws(() => compareCandidateArchive(stored, changed));
+    }
   } finally { sqlite.close(); }
 });
 
@@ -72,4 +105,18 @@ test('submission deadline and playoff reveal rules preserve the existing late-ne
   assert.equal(playoffPicksVisible(cards, ['Example', 'Other'], kickoff, kickoff - 1), false);
   assert.equal(playoffPicksVisible(cards, ['Example'], kickoff, kickoff - 1), true);
   assert.equal(playoffPicksVisible(cards, ['Example', 'Other'], kickoff, kickoff), true);
+});
+
+test('candidate archives retain opposing legacy Best Bets without rewriting the ordinary pick', async () => {
+  const { sqlite, adapter } = memoryDatabase(['0010_candidate_lifecycle.sql']);
+  try {
+    const legacy = observation({ status: 'FINAL', actual: 410 });
+    legacy.feed.cards[0].bestBet = 'U0';
+    await recordCandidateObservation(adapter, legacy, kickoff + 1800000);
+    const archive = JSON.parse(sqlite.prepare('SELECT payload_json FROM candidate_archives').get().payload_json);
+    assert.deepEqual(archive.cards[0].picks, ['F0']);
+    assert.equal(archive.cards[0].bestBet, 'U0');
+    assert.equal(archive.results[0].wins, 1);
+    assert.equal(archive.results[0].losses, 1);
+  } finally { sqlite.close(); }
 });

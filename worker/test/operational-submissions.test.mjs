@@ -1,17 +1,41 @@
 import test from 'node:test';
 import assert from 'node:assert/strict';
 import { memoryDatabase } from './helpers/d1.mjs';
-import { submitOperationalCard } from '../src/operational-submissions.ts';
+import { existingOperationalCard, submitOperationalCard } from '../src/operational-submissions.ts';
 import worker from '../src/index.ts';
 import { saveAdminRecord } from '../src/admin-store.ts';
+import { createOperationalCheckpoint, rehearseOperationalCheckpoint } from '../scripts/operational-checkpoint.mjs';
 
 const command = { operationId: 'submission-fixture-0001', name: 'Example', weekName: 'None', season: 2026, week: 3, picks: ['mia'], bestBet: 'MIA', tiebreaker: 0 };
 function fixture() {
-  const memory = memoryDatabase(['0001_initial.sql', '0009_admin_record_history.sql', '0012_submission_admin_projection.sql', '0013_operational_receipts.sql']);
+  const memory = memoryDatabase(['0001_initial.sql', '0009_admin_record_history.sql', '0012_submission_admin_projection.sql', '0013_operational_receipts.sql', '0016_independent_best_bet.sql']);
   memory.sqlite.exec(`INSERT INTO weeks(id,season,week,phase,status) VALUES(1,2026,3,'REGULAR_SEASON','open');
     INSERT INTO games(id,week_id,game_index,external_id,kickoff_at,favorite,underdog,spread,home_team,away_team) VALUES(1,1,0,'game1','2026-09-27T17:00:00Z','BUF','mia',3,'BUF','MIA');`);
   return memory;
 }
+
+test('current-card lookup supplies replacement identity without exposing picks and fails closed outside D1 ownership', async () => {
+  const { sqlite, adapter } = fixture();
+  try {
+    await assert.rejects(existingOperationalCard(adapter, command), /Sheets currently owns/);
+    sqlite.exec("UPDATE admin_control SET owner='D1',epoch=2");
+    const before = Date.parse('2026-09-24T20:00:00Z');
+    const empty = await existingOperationalCard(adapter, command, before);
+    assert.equal(empty.submissionId, null);
+    assert.equal(empty.canSubmit, true);
+    await submitOperationalCard(adapter, command, '2026-09-24T19:00:00Z');
+    const card = await existingOperationalCard(adapter, { ...command, name: ' example ' }, before);
+    assert.equal(card.submissionId, 1);
+    assert.equal(card.name, 'Example');
+    assert.equal(card.replacementLocked, false);
+    assert.equal('picks' in card, false);
+    const locked = await existingOperationalCard(adapter, command, Date.parse('2026-09-27T17:00:00Z'));
+    assert.equal(locked.replacementLocked, true);
+    assert.equal(locked.canSubmit, false);
+    sqlite.exec("UPDATE weeks SET status='finalized'");
+    assert.equal((await existingOperationalCard(adapter, { ...command, name: 'New player' }, before)).canSubmit, false);
+  } finally { sqlite.close(); }
+});
 
 test('submissions fail closed under Sheets ownership; D1 writes and retries preserve one original card', async () => {
   const { sqlite, adapter } = fixture();
@@ -20,7 +44,9 @@ test('submissions fail closed under Sheets ownership; D1 writes and retries pres
     assert.equal(sqlite.prepare('SELECT count(*) AS total FROM players').get().total, 0);
     sqlite.exec("UPDATE admin_control SET owner='D1',epoch=2");
     const result = await submitOperationalCard(adapter, command, '2026-09-24T19:00:00.123Z');
+    await assert.rejects(submitOperationalCard(adapter, { ...command, expectedEpoch: 1 }), /ownership changed/);
     assert.equal(result.submittedAt, '2026-09-24T19:00:00.123Z');
+    assert.equal(result.submissionId, 1);
     assert.equal((await submitOperationalCard(adapter, command)).replayed, true);
     assert.equal(sqlite.prepare('SELECT count(*) AS total FROM submissions').get().total, 1);
     assert.equal(sqlite.prepare('SELECT picked_team FROM submission_picks').get().picked_team, 'mia');
@@ -67,6 +93,8 @@ test('replacement validation matches live limits and timestamp collisions preser
     assert.equal(sqlite.prepare('SELECT superseded_at FROM submissions WHERE id=1').get().superseded_at, null);
     assert.equal(sqlite.prepare('SELECT count(*) AS total FROM operational_receipts').get().total, 1);
     await submitOperationalCard(adapter, replacement, '2026-09-24T19:00:00.124Z');
+    assert.equal((await submitOperationalCard(adapter, original)).submissionId, 1);
+    assert.equal((await submitOperationalCard(adapter, replacement)).submissionId, 2);
     assert.deepEqual(sqlite.prepare('SELECT picked_team FROM submission_picks ORDER BY submission_id').all().map(row => row.picked_team), ['mia', 'BUF']);
     assert.equal(sqlite.prepare('SELECT count(*) AS total FROM submissions WHERE superseded_at IS NULL').get().total, 1);
     assert.equal(sqlite.prepare('SELECT count(*) AS total FROM admin_submission_links').get().total, 2);
@@ -76,6 +104,8 @@ test('replacement validation matches live limits and timestamp collisions preser
 test('the public Worker route rejects writes while Sheets owns the pool', async () => {
   const { sqlite, adapter } = fixture();
   try {
+    const status = await worker.fetch(new Request('https://example.test/?action=backend-status'), { DB: adapter, CORS_ORIGIN: '*' });
+    assert.deepEqual(await status.json(), { ok: true, owner: 'SHEETS', epoch: 1, writesEnabled: false });
     const response = await worker.fetch(new Request('https://example.test/', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify(command) }), { DB: adapter, CORS_ORIGIN: '*' });
     assert.equal(response.status, 409);
     assert.match((await response.json()).error, /Sheets currently owns/);
@@ -118,6 +148,53 @@ test('an ownership transition between validation and commit fences the entire tr
     assert.equal(sqlite.prepare('SELECT count(*) AS total FROM submissions').get().total, 0);
     assert.equal(sqlite.prepare('SELECT count(*) AS total FROM players').get().total, 0);
     assert.equal(sqlite.prepare('SELECT count(*) AS total FROM operational_receipts').get().total, 0);
+  } finally { sqlite.close(); }
+});
+
+test('operational recovery retains originals, replacements, corrections and immutable receipts without production writes', async () => {
+  const { sqlite, adapter } = memoryDatabase(['0001_initial.sql', '0009_admin_record_history.sql', '0010_candidate_lifecycle.sql', '0011_payout_journal.sql', '0012_submission_admin_projection.sql', '0013_operational_receipts.sql', '0014_playoff_eligibility.sql', '0016_independent_best_bet.sql']);
+  try {
+    sqlite.exec(`UPDATE admin_control SET owner='D1',epoch=2;
+      INSERT INTO weeks(id,season,week,phase,status) VALUES(1,2026,3,'REGULAR_SEASON','open');
+      INSERT INTO games(id,week_id,game_index,external_id,kickoff_at,favorite,underdog,spread,home_team,away_team) VALUES(1,1,0,'game1','2026-09-27T17:00:00Z','BUF','mia',3,'BUF','MIA');`);
+    await submitOperationalCard(adapter, command, '2026-09-24T19:00:00Z');
+    await submitOperationalCard(adapter, { ...command, operationId: 'replacement-checkpoint-001', expectedSubmissionId: 1 }, '2026-09-24T20:00:00Z');
+    const record = sqlite.prepare("SELECT * FROM admin_records WHERE record_id='operational:replacement-checkpoint-001'").get();
+    await saveAdminRecord(adapter, { kind: 'submission', recordId: record.record_id, expectedVersion: 1, expectedEpoch: 2,
+      operationId: 'checkpoint-correction-001', reason: 'Correct name', body: { ...JSON.parse(record.body), weekName: 'Corrected' } }, 'owner');
+    const checkpoint = await createOperationalCheckpoint(adapter);
+    const result = await rehearseOperationalCheckpoint(checkpoint);
+    assert.equal(result.exactStateRestored, true);
+    assert.equal(result.counts.submissions, 2);
+    assert.equal(result.counts.submission_corrections, 1);
+    assert.equal(result.counts.operational_receipts, 2);
+    assert.equal(result.epoch, 3);
+    assert.equal(result.productionWrites, 0);
+    assert.equal(sqlite.prepare('SELECT owner FROM admin_control').get().owner, 'D1');
+    checkpoint.payload.tables.submissions[0].week_name = 'Corrupted';
+    await assert.rejects(rehearseOperationalCheckpoint(checkpoint), /checksum/);
+  } finally { sqlite.close(); }
+});
+
+test('new opposing Best Bets are rejected while legacy opposing cards remain readable and correctable', async () => {
+  const { sqlite, adapter } = fixture();
+  try {
+    sqlite.exec("UPDATE admin_control SET owner='D1',epoch=2");
+    await assert.rejects(submitOperationalCard(adapter, { ...command, bestBet: 'BUF' }, '2026-09-24T19:00:00Z'), /one of the selected picks/);
+    assert.equal(sqlite.prepare('SELECT count(*) AS total FROM submissions').get().total, 0);
+    await submitOperationalCard(adapter, command, '2026-09-24T19:00:00Z');
+    sqlite.exec("UPDATE submissions SET best_bet_team='BUF'");
+    assert.equal(sqlite.prepare('SELECT best_bet_team FROM submissions').get().best_bet_team, 'BUF');
+    const response = await worker.fetch(new Request('https://example.test/?action=current-week'), { DB: adapter, CORS_ORIGIN: '*' });
+    assert.equal(response.status, 200);
+    const player = (await response.json()).players[0];
+    assert.equal(player.bestBet, 'BUF');
+    assert.deepEqual(player.picks, ['mia']);
+    const body = JSON.parse(sqlite.prepare('SELECT body FROM admin_records').get().body);
+    await saveAdminRecord(adapter, { kind: 'submission', recordId: 'operational:submission-fixture-0001', expectedVersion: 1, expectedEpoch: 2,
+      operationId: 'opposing-correction-001', reason: 'Change ordinary pick', body: { ...body, picks: ['BUF'], bestBet: 'mia' } }, 'owner');
+    assert.equal(sqlite.prepare('SELECT best_bet_team FROM submissions').get().best_bet_team, 'mia');
+    assert.equal(sqlite.prepare('SELECT picked_team FROM submission_picks').get().picked_team, 'BUF');
   } finally { sqlite.close(); }
 });
 

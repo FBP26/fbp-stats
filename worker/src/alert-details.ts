@@ -45,7 +45,7 @@ export function parseAlertFeed(data: Row, season: number, week: number): AlertFe
   const cards: PlayerCard[] = data.players.map((player: Row) => {
     const picks = Array.isArray(player.picks) ? player.picks.map(pick => String(pick).toUpperCase()) : [];
     const bestBet = String(player.bestBet || "").toUpperCase();
-    if (!player.name || picks.length !== games.length || picks.some((pick, index) => ![games[index].favorite, games[index].underdog].includes(pick)) || !picks.includes(bestBet) || player.tiebreaker == null || player.tiebreaker === "" || !Number.isFinite(Number(player.tiebreaker))) throw new Error("Incomplete submitted card; alerts withheld.");
+    if (!player.name || picks.length !== games.length || picks.some((pick, index) => ![games[index].favorite, games[index].underdog].includes(pick)) || !games.some(game => [game.favorite, game.underdog].includes(bestBet)) || player.tiebreaker == null || player.tiebreaker === "" || !Number.isFinite(Number(player.tiebreaker))) throw new Error("Incomplete submitted card; alerts withheld.");
     return { name: String(player.name), weekName: String(player.weekName || ""), picks, bestBet, tiebreaker: Number(player.tiebreaker) };
   });
   if (new Set(cards.map(card => card.name.toLowerCase())).size !== cards.length) throw new Error("Duplicate players; alerts withheld.");
@@ -67,9 +67,9 @@ export function observeLeads(feed: AlertFeed, previous: AlertObservation | null,
       const outcome = atsOutcome(game), oldOutcome = old.status === "PREGAME" ? null : atsOutcome(old);
       const winner = outcome === "favorite" ? game.favorite : outcome === "underdog" ? game.underdog : null;
       const oldWinner = oldOutcome === "favorite" ? old.favorite : oldOutcome === "underdog" ? old.underdog : null;
-      const units = player.bestBet === player.picks[index] ? 2 : 1;
-      const gain = (winner === player.picks[index] ? units : 0) - (oldWinner === player.picks[index] ? units : 0);
-      return [`${game.favorite} ${game.favoriteScore} - ${game.underdog} ${game.underdogScore} (${game.status}${game.period ? `, period ${game.period}` : ""}${game.clock ? `, ${game.clock}` : ""}): ${winner ? `${winner} ${game.status === "FINAL" ? "covered" : "is covering"}` : "ATS push"}; your pick ${player.picks[index]}${units === 2 ? " (Best Bet)" : ""}, ${gain > 0 ? "+" : ""}${gain} wins since the prior check.`];
+      const gain = Number(winner === player.picks[index]) + Number(winner === player.bestBet) - Number(oldWinner === player.picks[index]) - Number(oldWinner === player.bestBet);
+      const bestBetLabel = [game.favorite, game.underdog].includes(player.bestBet) ? ` (Best Bet ${player.bestBet})` : '';
+      return [`${game.favorite} ${game.favoriteScore} - ${game.underdog} ${game.underdogScore} (${game.status}${game.period ? `, period ${game.period}` : ""}${game.clock ? `, ${game.clock}` : ""}): ${winner ? `${winner} ${game.status === "FINAL" ? "covered" : "is covering"}` : "ATS push"}; your pick ${player.picks[index]}${bestBetLabel}, ${gain > 0 ? "+" : ""}${gain} wins since the prior check.`];
     });
     changes[player.name] = { at, from: previous.ranks[player.name], rank: 1, wins: player.wins, tied: scored.filter(other => other.wins === player.wins).length > 1, events };
   }
@@ -110,7 +110,7 @@ export function nightPaths(feed: AlertFeed, name: string): { eligible: boolean; 
       const outcomes = options[remainingIndex], winner = outcomes[cursor % outcomes.length];
       cursor = Math.floor(cursor / outcomes.length);
       descriptions.push(winner === "push" ? `${game.favorite}-${game.underdog} pushes` : `${winner} covers`);
-      feed.cards.forEach((card, cardIndex) => { if (card.picks[index] === winner) wins[cardIndex] += card.bestBet === winner ? 2 : 1; });
+      feed.cards.forEach((card, cardIndex) => { wins[cardIndex] += Number(card.picks[index] === winner) + Number(card.bestBet === winner); });
     });
     if (wins[playerIndex] !== Math.max(...wins)) continue;
     const tied = feed.cards.filter((_, index) => index !== playerIndex && wins[index] === wins[playerIndex]);

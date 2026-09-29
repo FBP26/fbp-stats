@@ -4,7 +4,7 @@ import { memoryDatabase } from './helpers/d1.mjs';
 import { saveAdminRecord } from '../src/admin-store.ts';
 
 async function fixture() {
-  const memory = memoryDatabase(['0001_initial.sql', '0009_admin_record_history.sql', '0012_submission_admin_projection.sql']);
+  const memory = memoryDatabase(['0001_initial.sql', '0009_admin_record_history.sql', '0012_submission_admin_projection.sql', '0016_independent_best_bet.sql']);
   const { sqlite, adapter } = memory;
   sqlite.exec(`INSERT INTO weeks(id,season,week,phase,status) VALUES(1,2026,3,'REGULAR_SEASON','open');
     INSERT INTO games(id,week_id,game_index,external_id,kickoff_at,favorite,underdog,spread,home_team,away_team) VALUES(1,1,0,'game1','2026-09-27T17:00:00Z','BUF','mia',3,'BUF','MIA');

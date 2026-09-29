@@ -51,14 +51,18 @@ const scoreDecisions = (
     if (!includeGame(game)) return;
     const outcome = atsOutcome(game);
     if (!outcome) return;
+    const hasBestBet = player.bestBet === game.favorite || player.bestBet === game.underdog;
     if (outcome === "push") {
-      if (player.bestBet === player.picks[index]) losses += 1;
+      if (hasBestBet) losses += 1;
       return;
     }
     const winner = winningTeam(game, outcome);
-    const units = player.bestBet === player.picks[index] ? 2 : 1;
-    if (player.picks[index] === winner) wins += units;
-    else losses += units;
+    if (player.picks[index] === winner) wins += 1;
+    else losses += 1;
+    if (hasBestBet) {
+      if (player.bestBet === winner) wins += 1;
+      else losses += 1;
+    }
   });
   return { wins, losses };
 };
@@ -93,27 +97,30 @@ export const calculatePaths = (
 
   const finalWins = players.map((player) => scoreDecisions(player, games, (game) => game.status === "FINAL").wins);
   const paths = players.map(() => 0);
+  const contributions = unresolved.map(({ game, index, outcomes }) => outcomes.map(outcome => {
+    const winner = winningTeam(game, outcome);
+    return Uint8Array.from(players, player => winner ? Number(player.picks[index] === winner) + Number(player.bestBet === winner) : 0);
+  }));
+  const projectedWins = new Float64Array(players.length);
 
-  indexes.forEach((pathIndex) => {
+  for (const pathIndex of indexes) {
     let pathValue = pathIndex;
-    const projectedWins = finalWins.slice();
-    unresolved.forEach(({ game, index, outcomes }) => {
-      const outcome = outcomes[pathValue % outcomes.length];
+    projectedWins.set(finalWins);
+    for (const outcomes of contributions) {
+      const points = outcomes[pathValue % outcomes.length];
       pathValue = Math.floor(pathValue / outcomes.length);
-      const winner = winningTeam(game, outcome);
-      if (!winner) return;
-      players.forEach((player, playerIndex) => {
-        if (player.picks[index] !== winner) return;
-        projectedWins[playerIndex] += player.bestBet === player.picks[index] ? 2 : 1;
-      });
-    });
-    const leadingScore = Math.max(...projectedWins);
-    const leaders = projectedWins
-      .map((score, index) => (score === leadingScore ? index : -1))
-      .filter((index) => index >= 0);
-    const share = 1 / leaders.length;
-    leaders.forEach((index) => { paths[index] += share; });
-  });
+      for (let playerIndex = 0; playerIndex < players.length; playerIndex += 1) projectedWins[playerIndex] += points[playerIndex];
+    }
+    let leadingScore = -1, leaderCount = 0;
+    for (const score of projectedWins) {
+      if (score > leadingScore) { leadingScore = score; leaderCount = 1; }
+      else if (score === leadingScore) leaderCount += 1;
+    }
+    const share = 1 / leaderCount;
+    for (let playerIndex = 0; playerIndex < players.length; playerIndex += 1) {
+      if (projectedWins[playerIndex] === leadingScore) paths[playerIndex] += share;
+    }
+  }
 
   return {
     probabilities: paths.map((pathCount) => (pathCount / indexes.length) * 100),

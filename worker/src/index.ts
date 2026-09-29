@@ -1,5 +1,6 @@
 import { scoreWeekWithoutProbabilities, type PlayerCard, type ScoringGame } from "./scoring.ts";
-import { submitOperationalCard, SubmissionError } from './operational-submissions.ts';
+import { existingOperationalCard, submitOperationalCard, SubmissionError } from './operational-submissions.ts';
+import { readOperationalPayouts } from './payouts.ts';
 import { operationalPicksVisible } from './operational-weeks.ts';
 import { publicReadSnapshot, refreshPublicReadSnapshots } from "./read-snapshots.ts";
 import { espnEventId, fetchEspnGame, isRefreshWindow, parseEspnGame, type StoredGame } from "./espn.ts";
@@ -181,7 +182,7 @@ const getWeekConfig = async (db: D1Database, weekId: number): Promise<JsonObject
 const loadPlayerCards = async (db: D1Database, weekId: number): Promise<PlayerCard[]> => {
   const submissions = await db
     .prepare(
-      `SELECT s.id, p.canonical_name, s.week_name, s.best_bet_game_index,
+      `SELECT s.id, p.canonical_name, s.week_name, s.best_bet_game_index, s.best_bet_team,
               s.tiebreaker
        FROM submissions s
        JOIN players p ON p.id = s.player_id
@@ -215,7 +216,7 @@ const loadPlayerCards = async (db: D1Database, weekId: number): Promise<PlayerCa
       name: String(row.canonical_name),
       weekName: String(row.week_name),
       picks: cardPicks,
-      bestBet: cardPicks[Number(row.best_bet_game_index)],
+      bestBet: String(row.best_bet_team || cardPicks[Number(row.best_bet_game_index)]),
       tiebreaker: Number(row.tiebreaker),
     };
   });
@@ -224,7 +225,7 @@ const loadPlayerCards = async (db: D1Database, weekId: number): Promise<PlayerCa
 const loadArchiveSubmissions = async (db: D1Database, weekId: number, gameCount: number): Promise<JsonObject[]> => {
   const submissions = await db
     .prepare(
-      `SELECT s.id, p.canonical_name, s.week_name, s.best_bet_game_index,
+      `SELECT s.id, p.canonical_name, s.week_name, s.best_bet_game_index, s.best_bet_team,
               s.tiebreaker, s.source, s.submitted_at
        FROM submissions s
        JOIN players p ON p.id = s.player_id
@@ -260,7 +261,7 @@ const loadArchiveSubmissions = async (db: D1Database, weekId: number, gameCount:
       weekName: row.week_name,
       picks: submissionPicks,
       submittedGameCount: submissionPicks.length,
-      bestBet: submissionPicks[Number(row.best_bet_game_index)],
+      bestBet: String(row.best_bet_team || submissionPicks[Number(row.best_bet_game_index)]),
       tiebreaker: Number(row.tiebreaker),
       source: row.source,
     };
@@ -354,7 +355,14 @@ const buildCurrentWeek = async (
 const handleGet = async (request: Request, env: Env): Promise<Response> => {
   const url = new URL(request.url);
   const action = url.searchParams.get("action") || "current-week";
+  if (action === 'backend-status') {
+    const control = await env.DB.prepare('SELECT owner,epoch FROM admin_control WHERE id=1').first<{ owner: string; epoch: number }>();
+    if (!control) return json({ ok: false, error: 'Pool ownership is unavailable.' }, 503, env.CORS_ORIGIN);
+    return json({ ok: true, ...control, writesEnabled: control.owner === 'D1' && env.OPERATIONAL_WRITES_ENABLED === 'true' }, 200, env.CORS_ORIGIN);
+  }
   if (action === "public-read") return publicReadSnapshot(request, env.DB, env.CORS_ORIGIN);
+  if (action === 'existing-submission') return json(await existingOperationalCard(env.DB, Object.fromEntries(url.searchParams)), 200, env.CORS_ORIGIN);
+  if (action === 'payouts') return json(await readOperationalPayouts(env.DB), 200, env.CORS_ORIGIN);
   if (action === "analytics-status") return json({ ok: true, analytics: true }, 200, env.CORS_ORIGIN);
   if (action === "analytics-context") {
     const context = request.cf;
@@ -784,7 +792,9 @@ export const dispatchWeekNotifications = async (
   return result;
 };
 
-const syncApprovedStagedWeek = async (payload: JsonObject, env: Env): Promise<Record<string, unknown>> => {
+export const syncApprovedStagedWeek = async (payload: JsonObject, env: Env): Promise<Record<string, unknown>> => {
+  const control = await env.DB.prepare('SELECT owner,epoch FROM admin_control WHERE id=1').first<{ owner: string; epoch: number }>();
+  if (control?.owner !== 'SHEETS') throw new SubmissionError('Legacy staging is disabled while D1 owns the pool.');
   const season = Number(payload.season), weekNumber = Number(payload.week);
   if (!Number.isInteger(season) || !Number.isInteger(weekNumber) || weekNumber < 1 || weekNumber > 18) {
     throw new Error("A valid regular-season season and week are required.");
@@ -806,26 +816,38 @@ const syncApprovedStagedWeek = async (payload: JsonObject, env: Env): Promise<Re
   });
   const existing = await findWeek(env.DB, season, weekNumber, "REGULAR_SEASON");
   if (existing) {
+    if (existing.status === 'finalized') throw new SubmissionError('A finalized slate cannot be replaced.');
     const submissions = await env.DB.prepare("SELECT COUNT(*) AS count FROM submissions WHERE week_id = ? AND superseded_at IS NULL")
       .bind(existing.id).first<{ count: number }>();
     if (Number(submissions?.count)) throw new Error("The staged week already has picks and cannot be replaced by an approval link.");
   }
-  await env.DB.prepare(
-    "UPDATE weeks SET status = 'finalized', finalized_at = COALESCE(finalized_at, CURRENT_TIMESTAMP) WHERE phase = 'REGULAR_SEASON' AND status IN ('staged', 'open', 'live', 'finalizing') AND NOT (season = ? AND week = ?)",
-  ).bind(season, weekNumber).run();
-  await env.DB.prepare(
-    "INSERT INTO weeks (season, week, phase, status) VALUES (?, ?, 'REGULAR_SEASON', 'staged') ON CONFLICT (season, week, phase) DO UPDATE SET status = 'staged', finalized_at = NULL",
-  ).bind(season, weekNumber).run();
-  const staged = await findWeek(env.DB, season, weekNumber, "REGULAR_SEASON");
-  if (!staged) throw new Error("The staged week could not be synchronized.");
-  await env.DB.prepare("DELETE FROM games WHERE week_id = ?").bind(staged.id).run();
-  const statements: D1PreparedStatement[] = [];
+  const ownership = "EXISTS(SELECT 1 FROM admin_control WHERE owner='SHEETS' AND epoch=?)";
+  const statements: D1PreparedStatement[] = [
+    env.DB.prepare(`UPDATE weeks SET status='finalized',finalized_at=COALESCE(finalized_at,CURRENT_TIMESTAMP)
+      WHERE phase='REGULAR_SEASON' AND status!='finalized' AND NOT (season=? AND week=?) AND ${ownership}
+      AND EXISTS(SELECT 1 FROM candidate_archives archive WHERE archive.season=weeks.season AND archive.week=weeks.week AND archive.phase=weeks.phase)`)
+      .bind(season, weekNumber, control.epoch),
+    env.DB.prepare(`INSERT INTO weeks(season,week,phase,status,tiebreak_game_id)
+      SELECT ?,?,'REGULAR_SEASON','staged',? WHERE ${ownership}
+      AND NOT EXISTS(SELECT 1 FROM weeks WHERE phase='REGULAR_SEASON' AND status!='finalized' AND NOT (season=? AND week=?))
+      ON CONFLICT(season,week,phase) DO UPDATE SET status='staged',tiebreak_game_id=excluded.tiebreak_game_id
+      WHERE weeks.status!='finalized' AND NOT EXISTS(SELECT 1 FROM submissions WHERE week_id=weeks.id)`)
+      .bind(season, weekNumber, normalizedGames.at(-1)!.externalId, control.epoch, season, weekNumber),
+    env.DB.prepare(`DELETE FROM games WHERE week_id IN (SELECT id FROM weeks WHERE season=? AND week=? AND phase='REGULAR_SEASON' AND status='staged')
+      AND ${ownership} AND NOT EXISTS(SELECT 1 FROM submissions WHERE week_id=games.week_id)`)
+      .bind(season, weekNumber, control.epoch),
+  ];
   normalizedGames.forEach((game, index) => {
     statements.push(env.DB.prepare(
-      "INSERT INTO games (week_id, game_index, external_id, kickoff_at, favorite, underdog, spread, home_team, away_team, metadata_json) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?)",
-    ).bind(staged.id, index, game.externalId, game.kickoff, game.favorite, game.underdog, game.spread, game.home, game.away, game.metadata));
+      `INSERT INTO games (week_id,game_index,external_id,kickoff_at,favorite,underdog,spread,home_team,away_team,metadata_json)
+       SELECT id,?,?,?,?,?,?,?,?,? FROM weeks WHERE season=? AND week=? AND phase='REGULAR_SEASON' AND status='staged' AND ${ownership}
+       AND NOT EXISTS(SELECT 1 FROM submissions WHERE week_id=weeks.id)`,
+    ).bind(index, game.externalId, game.kickoff, game.favorite, game.underdog, game.spread, game.home, game.away, game.metadata, season, weekNumber, control.epoch));
   });
   await env.DB.batch(statements);
+  const staged = await findWeek(env.DB, season, weekNumber, 'REGULAR_SEASON');
+  const currentOwner = await env.DB.prepare('SELECT owner,epoch FROM admin_control WHERE id=1').first<{ owner: string; epoch: number }>();
+  if (!staged || staged.status !== 'staged' || currentOwner?.owner !== 'SHEETS' || currentOwner.epoch !== control.epoch) throw new SubmissionError('Staging was fenced by ownership or an unfinished prior week.');
   return staged;
 };
 
@@ -886,6 +908,7 @@ const handleAnalytics = async (payload: JsonObject, env: Env): Promise<Response>
 
 const submitCard = async (payload: JsonObject, env: Env): Promise<Response> => {
   if (env.OPERATIONAL_WRITES_ENABLED !== 'true') return json({ ok: false, error: 'Replacement submissions are disabled. Sheets currently owns the live submission path.' }, 409, env.CORS_ORIGIN);
+  if (!Number.isSafeInteger(payload.expectedEpoch) || !Object.hasOwn(payload, 'expectedSubmissionId')) return json({ ok: false, error: 'Reload and check the current entry before submitting.' }, 409, env.CORS_ORIGIN);
   return json(await submitOperationalCard(env.DB, payload), 200, env.CORS_ORIGIN);
 };
 
@@ -894,6 +917,8 @@ const correctSubmission = async (_payload: JsonObject, env: Env): Promise<Respon
 };
 
 const storeRaceSnapshot = async (payload: JsonObject, env: Env): Promise<Response> => {
+  const control = await env.DB.prepare('SELECT owner,epoch FROM admin_control WHERE id=1').first<{ owner: string; epoch: number }>();
+  if (control?.owner !== 'SHEETS') return json({ ok: false, error: 'Legacy browser race writes are disabled under D1 ownership.' }, 403, env.CORS_ORIGIN);
   const season = Number(payload.season);
   const weekNumber = Number(payload.week);
   if (!Number.isInteger(season) || !Number.isInteger(weekNumber)) {
@@ -960,9 +985,9 @@ const storeRaceSnapshot = async (payload: JsonObject, env: Env): Promise<Respons
     return env.DB.prepare(
       `INSERT INTO race_snapshots
        (week_id, captured_at, player_name, win_probability, paths, win_pct, game_state_json)
-       VALUES (?, ?, ?, ?, ?, ?, ?)`,
+       SELECT ?, ?, ?, ?, ?, ?, ? WHERE EXISTS(SELECT 1 FROM admin_control WHERE owner='SHEETS' AND epoch=?)`,
     ).bind(week.id, capturedAt, player.name, player.winProbability, player.pathsToVictory,
-      scored?.winPercent || 0, gameStateJson);
+      scored?.winPercent || 0, gameStateJson, control.epoch);
   }));
   return json({ ok: true, stored: true, capturedAt }, 201, env.CORS_ORIGIN);
 };
@@ -985,6 +1010,7 @@ const handlePost = async (request: Request, env: Env): Promise<Response> => {
     return json({
       ok: true,
       identity: {
+        status: player ? 'known' : 'new',
         submittedName: player?.canonical_name || submittedName,
         canonicalizedFrom: player && player.canonical_name !== submittedName ? submittedName : "",
         knownPlayer: Boolean(player),

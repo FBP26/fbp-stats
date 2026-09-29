@@ -18,7 +18,7 @@ export function validateAdminChanges(current, changes, kind) {
   if (kind === 'submission') {
     if (typeof body.name !== 'string' || !body.name.trim() || body.name.length > 100 || typeof body.weekName !== 'string' || body.weekName.length > 100
       || !Array.isArray(body.picks) || body.picks.length !== current.picks.length || body.picks.some(pick => typeof pick !== 'string' || !/^[A-Za-z]{2,4}$/.test(pick))
-      || typeof body.bestBet !== 'string' || !body.picks.some(pick => pick.toUpperCase() === body.bestBet.toUpperCase())
+      || typeof body.bestBet !== 'string' || (!body.picks.some(pick => pick.toUpperCase() === body.bestBet.toUpperCase()) && body.bestBet !== current.bestBet)
       || typeof body.tiebreaker !== 'number' || !Number.isFinite(body.tiebreaker) || body.tiebreaker < -100 || body.tiebreaker > 1200) throw new Error('Invalid submission fields.');
   } else if (!Array.isArray(body.weeks) || body.weeks.length !== 19 || body.weeks.some(value => typeof value !== 'string' || value.length > 100)
     || typeof body.balance !== 'string' || !/^(?:even|[+-]?\d+(?:\.\d{1,2})?)?$/i.test(body.balance.trim())
@@ -85,6 +85,9 @@ export function createAdminServer(db, { port, actor, demo = false }) {
 
 async function main() {
   const args = process.argv.slice(2);
+  const mappingArgument = args.find(arg => arg.startsWith('--map-originals='));
+  const mapping = mappingArgument?.match(/^--map-originals=(20\d{2}):([1-9]|1[0-8])$/);
+  if ((mappingArgument && !mapping) || (args.includes('--apply-originals') && !mapping)) throw new Error('Original mapping requires --map-originals=2026:3; omit --apply-originals for a read-only plan.');
   const demo = args.includes('--demo');
   const port = Number(args.find(arg => arg.startsWith('--port='))?.split('=')[1] || 8810);
   let db;
@@ -104,6 +107,24 @@ async function main() {
     const proxy = await getPlatformProxy({ configPath: fileURLToPath(new URL('../wrangler.admin.toml', import.meta.url)), persist: false, remoteBindings: true });
     db = proxy.env.DB;
     dispose = proxy.dispose;
+  }
+  if (mapping) {
+    try {
+      const { importOperationalOriginals } = await import('./operational-source-import.mjs');
+      console.log(JSON.stringify(await importOperationalOriginals(db, Number(mapping[1]), Number(mapping[2]), { apply: args.includes('--apply-originals') })));
+    } finally { await dispose(); }
+    return;
+  }
+  const operationalBackupPath = args.find(arg => arg.startsWith('--operational-backup='))?.slice('--operational-backup='.length);
+  if (operationalBackupPath) {
+    try {
+      const { createOperationalCheckpoint, rehearseOperationalCheckpoint } = await import('./operational-checkpoint.mjs');
+      const checkpoint = await createOperationalCheckpoint(db);
+      const rehearsal = await rehearseOperationalCheckpoint(checkpoint);
+      await writeFile(operationalBackupPath, JSON.stringify(checkpoint), { flag: 'wx' });
+      console.log(JSON.stringify({ sha256: checkpoint.sha256, ...rehearsal }));
+    } finally { await dispose(); }
+    return;
   }
   const backupPath = args.find(arg => arg.startsWith('--backup='))?.slice(9);
   if (backupPath) {

@@ -90,6 +90,32 @@ test('transient source HTTP errors retry once with a fresh URL; permissions fail
   } finally { sqlite.close(); }
 });
 
+test('source timeouts and network failures retry once without extending stale cache freshness', async () => {
+  for (const failure of [new DOMException('Timed out', 'TimeoutError'), new DOMException('Aborted', 'AbortError'), new TypeError('Network failure')]) {
+    const { sqlite, adapter } = database();
+    const urls = [];
+    try {
+      await refreshPublicReadSnapshots(adapter, 'https://example.test', async url => {
+        if (url.searchParams.get('action') === 'current-week') {
+          urls.push(String(url));
+          if (urls.length === 1) throw failure;
+        }
+        return source(url);
+      });
+      assert.equal(urls.length, 2);
+      assert.notEqual(urls[0], urls[1]);
+      const saved = sqlite.prepare("SELECT read_started_at FROM public_read_snapshots WHERE name = 'current-week'").get();
+      let calls = 0;
+      await assert.rejects(refreshPublicReadSnapshots(adapter, 'https://example.test', async url => {
+        if (url.searchParams.get('action') === 'current-week') { calls++; throw failure; }
+        return source(url);
+      }), error => error === failure);
+      assert.equal(calls, 2);
+      assert.deepEqual(sqlite.prepare("SELECT read_started_at FROM public_read_snapshots WHERE name = 'current-week'").get(), saved);
+    } finally { sqlite.close(); }
+  }
+});
+
 test('live public feeds can build isolated snapshots without production writes', { skip: !process.env.FBP_SNAPSHOT_SOURCE_URL }, async () => {
   const { sqlite, adapter } = database();
   try {

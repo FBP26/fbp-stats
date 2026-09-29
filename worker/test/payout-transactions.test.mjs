@@ -4,6 +4,7 @@ import { memoryDatabase } from './helpers/d1.mjs';
 import { saveAdminRecord } from '../src/admin-store.ts';
 import { moneyCents, payoutBalanceCents, postPayoutTransaction } from '../scripts/payout-transactions.mjs';
 import { createAdminCheckpoint, restoreAdminCheckpoint } from '../scripts/admin-checkpoint.mjs';
+import { readOperationalPayouts } from '../src/payouts.ts';
 
 const command = (overrides = {}) => ({ recordId: 'payout:example', operationId: 'accept-baseline-operation', expectedVersion: 1, expectedEpoch: 1, type: 'ADOPT_PAYOUT_BASELINE', reason: 'Preserve the existing Payout balance', ...overrides });
 
@@ -35,6 +36,24 @@ test('accepted source balance, payments, payouts, adjustments and retries have o
     assert.equal(sqlite.prepare('SELECT count(*) AS total FROM admin_events').get().total, 4);
     assert.throws(() => sqlite.exec('DELETE FROM payout_journal'), /immutable/);
     assert.deepEqual(sqlite.prepare('PRAGMA foreign_key_check').all(), []);
+  } finally { sqlite.close(); }
+});
+
+test('public payout projection requires ownership and accepted cents, preserves periods and strips private fields', async () => {
+  const { sqlite, adapter } = memoryDatabase(['0009_admin_record_history.sql', '0011_payout_journal.sql']);
+  try {
+    await assert.rejects(readOperationalPayouts(adapter), /Sheets currently owns/);
+    const body = { name: 'Example', season: '2026', periods: Array.from({ length: 19 }, (_, index) => String(index + 1)), weeks: Array(19).fill('paid'), balance: '+210', notes: 'private', provenance: { private: true } };
+    await saveAdminRecord(adapter, { ...command(), kind: 'payout', expectedVersion: 0, operationId: 'import-payout-reader', body }, 'source');
+    sqlite.exec("UPDATE admin_control SET owner='D1'");
+    await assert.rejects(readOperationalPayouts(adapter), /baseline has not been accepted/);
+    await postPayoutTransaction(adapter, command(), 'owner');
+    const result = await readOperationalPayouts(adapter);
+    assert.equal(result.seasons[0].season, '2026-2027');
+    assert.deepEqual(result.seasons[0].players, [{ name: 'Example', weeks: Array(19).fill('paid'), balance: '+210' }]);
+    assert.equal(JSON.stringify(result).includes('private'), false);
+    assert.equal(JSON.stringify(result).includes('posting'), false);
+    assert.equal(sqlite.prepare('SELECT count(*) AS total FROM payout_journal').get().total, 1);
   } finally { sqlite.close(); }
 });
 

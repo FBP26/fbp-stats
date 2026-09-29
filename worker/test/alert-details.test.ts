@@ -150,3 +150,19 @@ test("live alert source matches the approved slate without sending mail", { skip
   }
   console.log(`Read-only source validation: week ${approved.week}, ${parsed.games.length} approved games, ${parsed.cards.length} complete cards.`);
 });
+
+test('legacy opposing Best Bets remain readable and contribute independently to alerts', () => {
+  const legacy: AlertFeed = { ...feed, cards: [
+    { ...feed.cards[0], bestBet: 'MIA' },
+    { ...feed.cards[1], picks: ['BUF'], bestBet: 'BUF' },
+  ] };
+  assert.equal(parseAlertFeed({ ok: true, season: 2026, week: 3, games: legacy.games, players: legacy.cards }, 2026, 3).cards[0].bestBet, 'MIA');
+  const paths = nightPaths(legacy, 'Jim');
+  assert.equal(paths.count, 1);
+  assert.match(paths.examples[0], /MIA covers: 1 wins.*outright first/);
+  const previous = observeLeads({ ...legacy, games: [{ ...legacy.games[0], favoriteScore: 14 }] }, null, '2026-09-14T00:30:00Z');
+  const next = observeLeads(legacy, previous, '2026-09-14T00:35:00Z');
+  assert.equal(next.wins.Jim, 1);
+  assert.match(next.changes.Jim.events[0], /Best Bet MIA.*0 wins/);
+  assert.throws(() => parseAlertFeed({ ok: true, season: 2026, week: 3, games: legacy.games, players: [{ ...legacy.cards[0], bestBet: 'PIT' }] }, 2026, 3), /Incomplete/);
+});

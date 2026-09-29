@@ -47,7 +47,16 @@ async function sourceRead(source: string, parameters: Record<string, string>, fe
   for (let attempt = 0; attempt < 2; attempt++) {
     const url = new URL(source);
     url.search = new URLSearchParams({ ...parameters, _: `${Date.now()}-${attempt}` }).toString();
-    const response = await fetcher(url, { signal: AbortSignal.timeout(35000), cache: 'no-store' });
+    let response: Response;
+    try {
+      response = await fetcher(url, { signal: AbortSignal.timeout(35000), cache: 'no-store' });
+    } catch (error) {
+      if (attempt === 0 && error instanceof Error && ['TimeoutError', 'AbortError', 'TypeError'].includes(error.name)) {
+        console.warn('Public read source retry:', parameters.action, error.name);
+        continue;
+      }
+      throw error;
+    }
     if (attempt === 0 && [404, 408, 429, 500, 502, 503, 504].includes(response.status)) {
       await response.body?.cancel();
       continue;
@@ -73,14 +82,17 @@ export async function refreshPublicReadSnapshots(db: D1Database, source: string 
     snapshotStatement(db, 'active-week', season, week, startedAt, active),
     snapshotStatement(db, 'current-week', season, week, startedAt, current),
   ]));
+  console.info('Public read pair stored:', season, week, startedAt);
   try {
     await synchronizeShadowCards(db, current, startedAt);
+    console.info('Shadow card synchronization completed:', season, week, startedAt);
   } catch (error) {
     console.error('Shadow card synchronization failed:', error instanceof Error ? error.message : 'Unexpected error');
   }
   if (candidateEnabled) {
     try {
       await observeCandidatePublicWeek(db, active, current, startedAt);
+      console.info('Candidate lifecycle processed:', season, week, startedAt);
     } catch (error) {
       console.error('Candidate lifecycle observation failed:', error instanceof Error ? error.message : 'Unexpected error');
     }

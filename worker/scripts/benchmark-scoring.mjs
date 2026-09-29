@@ -1,4 +1,7 @@
 import { performance } from "node:perf_hooks";
+import { execFileSync } from 'node:child_process';
+import { stripTypeScriptTypes } from 'node:module';
+import { fileURLToPath } from 'node:url';
 
 import { scoreWeek, scoreWeekWithoutProbabilities } from "../src/scoring.ts";
 
@@ -7,7 +10,16 @@ source.searchParams.set("action", "preseason-test");
 source.searchParams.set("season", "2026");
 source.searchParams.set("week", "4");
 
-const payload = await fetch(source).then((response) => response.json());
+const synthetic = process.argv.includes('--synthetic');
+const syntheticGames = Array.from({ length: 16 }, (_, index) => ({ favorite: `F${index}`, underdog: `U${index}`, spread: 3.5 }));
+const payload = synthetic ? { games: syntheticGames, players: Array.from({ length: 31 }, (_, index) => ({
+  name: `Player${index}`, weekName: 'Benchmark', tiebreaker: 400 + index,
+  picks: syntheticGames.map((game, position) => (index >> (position % 5)) & 1 ? game.favorite : game.underdog),
+  bestBet: syntheticGames[index % syntheticGames.length].favorite,
+})) } : await fetch(source, { signal: AbortSignal.timeout(35000) }).then((response) => response.json());
+const baseline = process.argv.includes('--compare-head') ? await import(`data:text/javascript;base64,${Buffer.from(stripTypeScriptTypes(execFileSync('git', ['show', 'HEAD:worker/src/scoring.ts'], {
+  cwd: fileURLToPath(new URL('../../', import.meta.url)), encoding: 'utf8',
+}))).toString('base64')}`) : null;
 if (!Array.isArray(payload.players) || !Array.isArray(payload.games)) {
   throw new Error(payload.error || "Benchmark API did not return players and games.");
 }
@@ -51,8 +63,10 @@ const measure = (callback) => {
 };
 
 console.log(JSON.stringify({
+  synthetic,
   players: cards.length,
   games: games.length,
+  baselineProbabilityScoring: baseline ? measure(() => baseline.scoreWeek(cards, games, null)) : undefined,
   probabilityScoring: measure(() => scoreWeek(cards, games, null)),
   deterministicScoring: measure(() => scoreWeekWithoutProbabilities(cards, games, null)),
 }, null, 2));

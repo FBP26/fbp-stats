@@ -951,6 +951,7 @@
     <div class="panel" id="submission-status-panel"><p class="analysis-note">Loading submission status...</p></div>
   </section>
 </main>
+<script src="./live-client.js"></script>
 <script>
 document.getElementById("profile-best-bet-chart")?.closest(".profile-chart")?.before(document.getElementById("profile-team-chart")?.closest(".profile-chart"));
 const DATA_DIR = "./data";
@@ -974,6 +975,7 @@ if (location.hash === "#weekly-rank") history.replaceState(null, "", "#weeks");
 let startupRoutePending = true;
 const WEBSITE_SUBMISSIONS_ENDPOINT = "https://script.google.com/macros/s/AKfycbxZUgJm6LstCEomhmrlJYa_nH7tsmxC_4UZwYdroIZbs-PeI6KdPqUZtsF9fZvr_YuNWQ/exec";
 const WEBSITE_NOTIFICATION_ENDPOINT = "https://fbp-api.fbp-api-worker.workers.dev";
+const websiteLiveClient = new FBPLiveClient({ workerUrl: WEBSITE_NOTIFICATION_ENDPOINT, sheetsUrl: WEBSITE_SUBMISSIONS_ENDPOINT });
 const WEBSITE_ANALYTICS_HOST = location.hostname === "fbp26.github.io";
 let websiteAnalyticsReady = false;
 let websiteLastTrackedView = "";
@@ -2820,6 +2822,8 @@ async function websiteFetchPublicRead(action, parameters = {}, timeout = 60000) 
   const key = JSON.stringify([action, parameters, sourceUntil]);
   if (!websitePublicReadRequests.has(key)) {
     const pending = (async () => {
+      const owner = await websiteLiveClient.owner(true);
+      if (owner.owner === 'D1') return websiteLiveClient.request(WEBSITE_READ_SNAPSHOT_ENDPOINT, action === 'current-week-race' ? 'race-archive' : action, parameters, timeout);
       if (Date.now() >= sourceUntil) {
         try {
           const url = new URL(WEBSITE_READ_SNAPSHOT_ENDPOINT);
@@ -3411,9 +3415,7 @@ async function preflightWebsiteIdentity(submission, status) {
     return true;
   }
   status.textContent = "Building your confirmation: checking your name...";
-  const response = await fetch(WEBSITE_SUBMISSIONS_ENDPOINT, { method: "POST", headers: { "Content-Type": "text/plain;charset=utf-8" }, body: JSON.stringify({ action: "assess-player-identity", name: submission.name, weekName: submission.weekName }) });
-  const result = await response.json();
-  if (!response.ok || !result.ok) throw new Error(result.error || "Name check failed.");
+  const result = await websiteLiveClient.identity(submission);
   let identity = result.identity || {};
   const canonicalSuggestion = websiteCanonicalPlayerSuggestion(submission.name);
   if (canonicalSuggestion && identity.status === "known") identity = { status: "suggestion", submittedName: submission.name.trim(), suggestedName: canonicalSuggestion, reason: "similar-to-canonical-player" };
@@ -3457,20 +3459,11 @@ function confirmWebsiteBestBetMismatch(submission, status) {
   return false;
 }
 async function findExistingWebsiteSubmission(submission) {
-  if (!WEBSITE_SUBMISSIONS_ENDPOINT) return null;
-  const selection = websitePickSelection(), separator = WEBSITE_SUBMISSIONS_ENDPOINT.includes("?") ? "&" : "?";
-  const action = selection.testMode
-    ? `preseason-test&season=${selection.season}&week=${selection.week}`
-    : `existing-submission&season=${selection.season}&week=${selection.week}&name=${encodeURIComponent(submission.name)}`;
-  const response = await fetch(`${WEBSITE_SUBMISSIONS_ENDPOINT}${separator}action=${action}`, { signal: AbortSignal.timeout(20000) });
-  const data = await response.json();
-  if (!response.ok || !data.ok) throw new Error(data.error || "Could not check your existing picks.");
-  if (!selection.testMode) return data.player || null;
-  const normalizedName = String(submission.name || "").trim().toLowerCase();
-  return (data.players || []).find(player => String(player.name || "").trim().toLowerCase() === normalizedName) || null;
+  return websiteLiveClient.existing(submission);
 }
 function compareWebsiteSubmission(existing, submission) {
   if (!existing) return { same: false, changes: [] };
+  if (existing.lookupOnly) return { same: false, changes: ["your entry"] };
   const normalized = value => String(value ?? "").trim().toUpperCase();
   const existingPicks = existing.picks || [], changedPicks = submission.picks.filter((pick, index) => normalized(pick) !== normalized(existingPicks[index])).length;
   const changes = [];
@@ -3512,7 +3505,8 @@ document.getElementById("website-picks-form").onsubmit = async event => {
     if (!await preflightWebsiteIdentity(submission, status)) return;
     if (!confirmWebsiteBestBetMismatch(submission, status)) return;
     status.textContent = "Building your confirmation: checking for an existing entry...";
-    const existing = await findExistingWebsiteSubmission(submission);
+    const checked = await findExistingWebsiteSubmission(submission);
+    const existing = checked.player;
     const comparison = compareWebsiteSubmission(existing, submission);
     if (comparison.same) {
       const original = { ...submission, submittedAt: existing.submittedAt || "", weekName: existing.weekName || submission.weekName, picks: [...existing.picks], bestBet: existing.bestBet, tiebreaker: existing.tiebreaker };
@@ -3529,7 +3523,7 @@ document.getElementById("website-picks-form").onsubmit = async event => {
     }
     status.textContent = selection.testMode ? "Saving test picks and building your confirmation..." : "Your picks are complete. Saving them and building your confirmation...";
     let result = { ok: true, identity: { status: "new", submittedName: submission.name.trim(), suggestedName: "" } };
-    if (WEBSITE_SUBMISSIONS_ENDPOINT) { const response = await fetch(WEBSITE_SUBMISSIONS_ENDPOINT, { method: "POST", headers: { "Content-Type": "text/plain;charset=utf-8" }, body: JSON.stringify(submission) }); result = await response.json(); if (!response.ok || !result.ok) throw new Error(result.error || "Submission failed."); }
+    if (WEBSITE_SUBMISSIONS_ENDPOINT) result = await websiteLiveClient.submit(submission, checked.lookup);
     const storageKey = selection.testMode ? `fbpPreseasonTest-${selection.week}` : "fbpWebsiteSubmissions";
     const stored = JSON.parse(localStorage.getItem(storageKey) || "[]"); stored.push(submission); localStorage.setItem(storageKey, JSON.stringify(stored));
     status.textContent = selection.testMode ? "Test picks submitted. Season records were not changed." : "Picks submitted successfully.";
@@ -6751,8 +6745,21 @@ function parsePayoutSheetRows(values) {
   }).filter(Boolean).sort((left, right) => right.year - left.year);
 }
 let payoutSheetLoadPromise = null;
-function loadPayoutSheet(forceRefresh = false) {
-  if (forceRefresh) payoutSheetLoadPromise = null;
+let payoutOwnerKey = '';
+async function loadPayoutSheet(forceRefresh = false) {
+  let owner;
+  try { owner = await websiteLiveClient.owner(true); }
+  catch (error) { error.operationalData = true; throw error; }
+  const ownerKey = `${owner.owner}:${owner.epoch}`;
+  if (forceRefresh || payoutOwnerKey !== ownerKey) payoutSheetLoadPromise = null;
+  payoutOwnerKey = ownerKey;
+  if (owner.owner === 'D1') {
+    if (!payoutSheetLoadPromise) payoutSheetLoadPromise = websiteLiveClient.request(WEBSITE_NOTIFICATION_ENDPOINT, 'payouts').then(data => {
+      if (data.owner !== owner.owner || data.epoch !== owner.epoch || !Array.isArray(data.seasons) || !data.seasons.length) throw new Error('Payout ownership changed. Refresh to try again.');
+      return data.seasons;
+    }).catch(error => { payoutSheetLoadPromise = null; error.operationalData = true; throw error; });
+    return payoutSheetLoadPromise;
+  }
   if (!payoutSheetLoadPromise) {
     const url = `https://docs.google.com/spreadsheets/d/19LkATudJU7W7bsnBBNy7iCI68P3Nhbt10XIJ5Q7HRCA/export?format=csv&gid=2&_=${Date.now()}`;
     payoutSheetLoadPromise = fetch(url).then(response => { if (!response.ok) throw new Error(`Payout sheet returned ${response.status}`); return response.text(); }).then(csv => { if (!globalThis.Papa) throw new Error("Payout sheet parser did not load"); const parsed = Papa.parse(csv, { skipEmptyLines: false }); if (parsed.errors.length) throw new Error(parsed.errors[0].message); const seasons = parsePayoutSheetRows(parsed.data); if (!seasons.length) throw new Error("Payout sheet contained no seasons"); return seasons; });
@@ -6794,6 +6801,15 @@ async function renderPayout(refreshSheet = false) {
     source.textContent = "";
     source.hidden = true;
   } catch (error) {
+    if (error.operationalData) {
+      websitePayouts = [];
+      document.getElementById('payout-weeks').replaceChildren();
+      document.getElementById('payout-history-weeks').replaceChildren();
+      select.replaceChildren();
+      source.textContent = 'Current payout data is temporarily unavailable. Refresh to try again.';
+      source.hidden = false;
+      return;
+    }
     source.textContent = "Showing the latest saved payout-sheet copy.";
     source.hidden = false;
   }

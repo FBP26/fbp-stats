@@ -37,7 +37,7 @@ export async function recordCandidateObservation(db: D1Database, observation: Ca
     || (game.status !== 'PREGAME' && (game.favoriteScore === null || game.underdogScore === null
       || !Number.isInteger(game.favoriteScore) || !Number.isInteger(game.underdogScore) || game.favoriteScore < 0 || game.underdogScore < 0)))) throw new Error('Invalid candidate game state.');
   if (new Set(feed.cards.map(card => card.name.trim().toLowerCase())).size !== feed.cards.length
-    || feed.cards.some(card => !card.name.trim() || card.picks.length !== games.length || !card.picks.includes(card.bestBet)
+    || feed.cards.some(card => !card.name.trim() || card.picks.length !== games.length || !games.some(game => [game.favorite, game.underdog].includes(card.bestBet))
       || card.picks.some((pick, index) => ![games[index].favorite, games[index].underdog].includes(pick))
       || !Number.isFinite(card.tiebreaker) || card.tiebreaker < -100 || card.tiebreaker > 1200)) throw new Error('Invalid candidate card.');
   const firstKickoff = Math.min(...games.map(game => Date.parse(game.kickoff)));
