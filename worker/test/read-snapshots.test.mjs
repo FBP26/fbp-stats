@@ -9,11 +9,42 @@ const current = { ok: true, season: 2026, week: 3, games, favorites: ['BUF'], un
 const race = { ok: true, season: 2026, week: 3, raceSnapshots: [{ players: [{ name: 'Jim', win_prob: 1 }] }] };
 
 function database() {
-  return memoryDatabase(['0007_public_read_snapshots.sql', '0008_shadow_card_sync.sql', '0010_candidate_lifecycle.sql']);
+  return memoryDatabase(['0007_public_read_snapshots.sql', '0008_shadow_card_sync.sql', '0009_admin_record_history.sql', '0010_candidate_lifecycle.sql']);
 }
 
 const source = async url => Response.json(({ 'active-week': active, 'current-week': current, 'current-week-race': race })[new URL(url).searchParams.get('action')]);
 const request = (kind, query = '') => new Request(`https://example.test/?action=public-read&kind=${kind}${query}`);
+
+test('D1 ownership stops legacy source reads and prevents serving saved Sheets snapshots', async () => {
+  const { sqlite, adapter } = database();
+  try {
+    await refreshPublicReadSnapshots(adapter, 'https://example.test', source);
+    sqlite.exec("UPDATE admin_control SET owner='D1',epoch=2");
+    await refreshPublicReadSnapshots(adapter, 'https://example.test', () => { throw new Error('Must not call Sheets'); }, true);
+    assert.equal((await publicReadSnapshot(request('current-week'), adapter, '*')).status, 409);
+  } finally { sqlite.close(); }
+});
+
+test('in-flight Sheets observations are fenced at each snapshot, shadow and candidate transaction', async () => {
+  for (const transitionBatch of [1, 2, 3]) {
+    const { sqlite, adapter } = database();
+    try {
+      const batch = adapter.batch;
+      let batches = 0;
+      adapter.batch = async statements => {
+        if (++batches === transitionBatch) sqlite.exec("UPDATE admin_control SET owner='D1',epoch=2");
+        return batch(statements);
+      };
+      const finalCurrent = { ...current, games: games.map(game => ({ ...game, kickoff: '2026-09-27T17:00:00Z', status: 'FINAL', favoriteScore: 24, underdogScore: 17 })), actualTiebreaker: 388, tiebreakStatus: 'final' };
+      await refreshPublicReadSnapshots(adapter, 'https://example.test', async url => new URL(url).searchParams.get('action') === 'current-week' ? Response.json(finalCurrent) : source(url), true);
+      assert.equal(sqlite.prepare('SELECT count(*) AS total FROM public_read_snapshots').get().total, transitionBatch === 1 ? 0 : 2);
+      assert.equal(sqlite.prepare('SELECT count(*) AS total FROM shadow_card_heads').get().total, transitionBatch <= 2 ? 0 : 1);
+      assert.equal(sqlite.prepare('SELECT count(*) AS total FROM candidate_weeks').get().total, 0);
+      assert.equal(sqlite.prepare('SELECT count(*) AS total FROM candidate_archives').get().total, 0);
+      assert.equal(sqlite.prepare('SELECT count(*) AS total FROM candidate_race_frames').get().total, 0);
+    } finally { sqlite.close(); }
+  }
+});
 
 test('public snapshots preserve source data and reject stale, missing, mismatched and private reads', async () => {
   const { sqlite, adapter } = database();

@@ -72,23 +72,28 @@ const findWeek = async (
 const activeWeek = async (db: D1Database): Promise<Record<string, unknown> | null> =>
   db
     .prepare(
-      "SELECT * FROM weeks WHERE phase = 'REGULAR_SEASON' AND status != 'finalized' ORDER BY season DESC, week DESC LIMIT 1",
+      `SELECT weeks.* FROM weeks JOIN admin_control ON admin_control.id=1
+       WHERE status != 'finalized' AND (phase='REGULAR_SEASON' OR (phase='PLAYOFFS' AND owner='D1'))
+       ORDER BY season DESC, CASE phase WHEN 'PLAYOFFS' THEN 1 ELSE 0 END DESC, week DESC LIMIT 1`,
     )
     .first();
 
-const refreshActiveGameStates = async (db: D1Database): Promise<{ refreshed: number; skipped: string }> => {
+export const refreshActiveGameStates = async (db: D1Database, fetchGame = fetchEspnGame, now = new Date()): Promise<{ refreshed: number; skipped: string }> => {
+  const control = await db.prepare('SELECT owner,epoch FROM admin_control WHERE id=1').first<{ owner: string; epoch: number }>();
+  if (!control || !['SHEETS', 'D1'].includes(control.owner)) return { refreshed: 0, skipped: 'ownership-unavailable' };
   const week = await activeWeek(db);
   if (!week) return { refreshed: 0, skipped: "no-active-week" };
   const result = await db
     .prepare(
-      `SELECT id, external_id, favorite, underdog, home_team, away_team, metadata_json
-       FROM games WHERE week_id = ? ORDER BY game_index`,
+      `SELECT games.id, external_id, kickoff_at, favorite, underdog, home_team, away_team, metadata_json, game_states.state AS previous_state
+       FROM games LEFT JOIN game_states ON game_states.game_id=games.id WHERE week_id = ? ORDER BY game_index`,
     )
     .bind(week.id)
     .all();
   const games: StoredGame[] = result.results.map((row) => ({
     id: Number(row.id),
     externalId: String(row.external_id),
+    kickoffAt: String(row.kickoff_at),
     favorite: String(row.favorite),
     underdog: String(row.underdog),
     homeTeam: String(row.home_team),
@@ -96,13 +101,20 @@ const refreshActiveGameStates = async (db: D1Database): Promise<{ refreshed: num
     metadata: JSON.parse(String(row.metadata_json || "{}")) as Record<string, unknown>,
   }));
   if (!games.length) return { refreshed: 0, skipped: "no-games" };
-  if (!isRefreshWindow(games)) return { refreshed: 0, skipped: "outside-game-window" };
+  if (!isRefreshWindow(games, now)) return { refreshed: 0, skipped: "outside-game-window" };
   const eventIds = games.map(espnEventId);
   if (eventIds.some((eventId) => !eventId)) return { refreshed: 0, skipped: "missing-espn-event-id" };
-  const payloads = await Promise.all(eventIds.map(fetchEspnGame));
-  const updatedAt = new Date().toISOString();
+  const lastGameIndex = games.findIndex(game => game.externalId === week.tiebreak_game_id);
+  if (lastGameIndex < 0) return { refreshed: 0, skipped: 'missing-approved-tiebreak-game' };
+  const payloads = await Promise.all(eventIds.map(eventId => fetchGame(eventId)));
+  const updatedAt = now.toISOString();
   const updates = games.map((game, index) => parseEspnGame(payloads[index], game));
-  const lastGameIndex = games.reduce((latest, game, index) => game.externalId > games[latest].externalId ? index : latest, 0);
+  if (updates.some((update, index) => (result.results[index].previous_state === 'FINAL' && update.state !== 'FINAL')
+    || (result.results[index].previous_state === 'LIVE' && update.state === 'PREGAME'))) return { refreshed: 0, skipped: 'regressive-game-state' };
+  const guard = `EXISTS(SELECT 1 FROM admin_control WHERE id=1 AND owner=? AND epoch=?)
+    AND EXISTS(SELECT 1 FROM weeks WHERE id=? AND status=? AND tiebreak_game_id IS ?)
+    AND NOT EXISTS(SELECT 1 FROM game_states JOIN games ON games.id=game_id WHERE week_id=? AND julianday(game_states.updated_at)>julianday(?))`;
+  const fenceValues = [control.owner, control.epoch, week.id, week.status, week.tiebreak_game_id, week.id, updatedAt];
   const statements: D1PreparedStatement[] = [];
   games.forEach((game, index) => {
     const update = updates[index];
@@ -125,23 +137,24 @@ const refreshActiveGameStates = async (db: D1Database): Promise<{ refreshed: num
       db.prepare(
         `INSERT INTO game_states
          (game_id, state, favorite_score, underdog_score, period, clock, net_passing_yards, source_updated_at, updated_at)
-         VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?)
+         SELECT ?, ?, ?, ?, ?, ?, ?, ?, ? WHERE ${guard}
          ON CONFLICT (game_id) DO UPDATE SET state = excluded.state,
            favorite_score = excluded.favorite_score, underdog_score = excluded.underdog_score,
            period = excluded.period, clock = excluded.clock,
            net_passing_yards = excluded.net_passing_yards,
            source_updated_at = excluded.source_updated_at, updated_at = excluded.updated_at`,
       ).bind(game.id, update.state, update.favoriteScore, update.underdogScore, update.period, update.clock,
-        index === lastGameIndex ? update.combinedNetPassingYards : null, updatedAt, updatedAt),
-      db.prepare("UPDATE games SET metadata_json = ? WHERE id = ?").bind(JSON.stringify(metadata), game.id),
+        index === lastGameIndex ? update.combinedNetPassingYards : null, updatedAt, updatedAt, ...fenceValues),
+      db.prepare(`UPDATE games SET metadata_json = ? WHERE id = ? AND ${guard}`).bind(JSON.stringify(metadata), game.id, ...fenceValues),
     );
   });
   const finalTiebreaker = updates[lastGameIndex].state === "FINAL" ? updates[lastGameIndex].combinedNetPassingYards : null;
   const weekStatus = updates.every((update) => update.state === "FINAL") ? "finalizing"
-    : updates.some((update) => update.state === "LIVE" || update.state === "FINAL") ? "live" : "staged";
-  statements.push(db.prepare("UPDATE weeks SET status = ?, tiebreak_actual = ? WHERE id = ?")
-    .bind(weekStatus, finalTiebreaker, week.id));
-  await db.batch(statements);
+    : updates.some((update) => update.state === "LIVE" || update.state === "FINAL") ? "live" : String(week.status);
+  statements.push(db.prepare(`UPDATE weeks SET status = ?, tiebreak_actual = ? WHERE id = ? AND ${guard}`)
+    .bind(weekStatus, finalTiebreaker, week.id, ...fenceValues));
+  const results = await db.batch(statements);
+  if (!results.at(-1)?.meta.changes) return { refreshed: 0, skipped: 'ownership-or-week-changed' };
   return { refreshed: games.length, skipped: "" };
 };
 
@@ -273,11 +286,25 @@ const sha256 = async (value: string): Promise<string> => {
   return [...new Uint8Array(digest)].map((byte) => byte.toString(16).padStart(2, "0")).join("");
 };
 
-const finalizeWeek = async (db: D1Database, week: Record<string, unknown>): Promise<boolean> => {
-  if (String(week.status) !== "finalizing" || week.tiebreak_actual === null) return false;
+export const finalizeWeek = async (db: D1Database, week: Record<string, unknown>): Promise<boolean> => {
+  const tiebreakRequired = week.phase !== 'PLAYOFFS' || Number(week.week) === 4;
+  if (String(week.status) !== 'finalizing' || (tiebreakRequired && (week.tiebreak_actual == null || !Number.isFinite(Number(week.tiebreak_actual))))) return false;
+  const control = await db.prepare('SELECT owner,epoch FROM admin_control WHERE id=1').first<{ owner: string; epoch: number }>();
+  if (!control || !['SHEETS', 'D1'].includes(control.owner)) return false;
   const weekId = Number(week.id);
+  const signatures = [
+    `SELECT json_group_array(json_array(id,game_index,external_id,kickoff_at,favorite,underdog,spread,home_team,away_team,metadata_json,state,favorite_score,underdog_score,period,clock,net_passing_yards,source_updated_at,updated_at)) FROM
+      (SELECT games.*,game_states.state,game_states.favorite_score,game_states.underdog_score,game_states.period,game_states.clock,game_states.net_passing_yards,game_states.source_updated_at,game_states.updated_at
+       FROM games LEFT JOIN game_states ON game_states.game_id=games.id WHERE week_id=? ORDER BY game_index)`,
+    `SELECT json_group_array(json_array(id,player_id,canonical_name,submitted_name,week_name,best_bet_game_index,best_bet_team,tiebreaker,source,submitted_at,superseded_at)) FROM
+      (SELECT submissions.*,players.canonical_name FROM submissions JOIN players ON players.id=player_id WHERE week_id=? ORDER BY submissions.id)`,
+    `SELECT json_group_array(json_array(submission_id,game_id,picked_team)) FROM
+      (SELECT submission_picks.* FROM submission_picks JOIN submissions ON submissions.id=submission_id WHERE week_id=? ORDER BY submission_id,game_id)`,
+  ];
+  const versions = await Promise.all(signatures.map(sql => db.prepare(`SELECT (${sql}) AS value`).bind(weekId).first<{ value: string }>()));
   const games = await getWeekConfig(db, weekId);
-  if (!games.length || games.some((game) => game.state !== "FINAL")) return false;
+  if (!games.length || games.some((game) => game.state !== 'FINAL' || game.favoriteScore == null || game.underdogScore == null)) return false;
+  if (await db.prepare('SELECT week_id FROM completed_week_archives WHERE week_id=?').bind(weekId).first()) return false;
   const submissions = await loadArchiveSubmissions(db, weekId, games.length);
   if (!submissions.length) throw new Error("A completed week must include at least one submission.");
   const season = Number(week.season);
@@ -289,7 +316,8 @@ const finalizeWeek = async (db: D1Database, week: Record<string, unknown>): Prom
     season: `${season}-${season + 1}`,
     seasonStart: season,
     week: weekNumber,
-    actualTiebreaker: Number(week.tiebreak_actual),
+    phase: String(week.phase),
+    actualTiebreaker: tiebreakRequired ? Number(week.tiebreak_actual) : null,
     games: games.map((game) => ({
       ...game,
       away: game.away || game.awayTeam,
@@ -300,18 +328,27 @@ const finalizeWeek = async (db: D1Database, week: Record<string, unknown>): Prom
       ...submission,
       season: `${season}-${season + 1}`,
       week: weekNumber,
+      phase: String(week.phase),
+      tiebreaker: tiebreakRequired ? submission.tiebreaker : null,
     })),
   };
   const payloadJson = JSON.stringify(payload);
-  await db.batch([
+  const checksum = await sha256(payloadJson);
+  const guard = `EXISTS(SELECT 1 FROM admin_control WHERE id=1 AND owner=? AND epoch=?)
+    AND EXISTS(SELECT 1 FROM weeks WHERE id=? AND status='finalizing' AND tiebreak_actual IS ?)
+    AND ${signatures.map(sql => `(${sql})=?`).join(' AND ')}`;
+  const fenceValues = [control.owner, control.epoch, weekId, week.tiebreak_actual,
+    ...versions.flatMap(version => [weekId, version!.value])];
+  const results = await db.batch([
     db.prepare(
       `INSERT INTO completed_week_archives (week_id, payload_json, checksum, finalized_at)
-       VALUES (?, ?, ?, ?) ON CONFLICT (week_id) DO NOTHING`,
-    ).bind(weekId, payloadJson, await sha256(payloadJson), finalizedAt),
-    db.prepare("UPDATE weeks SET status = 'finalized', finalized_at = ? WHERE id = ? AND status = 'finalizing'")
-      .bind(finalizedAt, weekId),
+       SELECT ?, ?, ?, ? WHERE ${guard} ON CONFLICT (week_id) DO NOTHING`,
+    ).bind(weekId, payloadJson, checksum, finalizedAt, ...fenceValues),
+    db.prepare(`UPDATE weeks SET status = 'finalized', finalized_at = ? WHERE id = ? AND ${guard}
+      AND EXISTS(SELECT 1 FROM completed_week_archives WHERE week_id=? AND checksum=?)`)
+      .bind(finalizedAt, weekId, ...fenceValues, weekId, checksum),
   ]);
-  return true;
+  return Boolean(results.at(-1)?.meta.changes);
 };
 
 const buildCurrentWeek = async (
@@ -337,6 +374,7 @@ const buildCurrentWeek = async (
     season: Number(week.season),
     seasonLabel: `${week.season}-${Number(week.season) + 1}`,
     week: Number(week.week),
+    phase: String(week.phase),
     updatedAt: new Date().toISOString(),
     favorites: games.map((game) => game.favorite),
     favoriteScores: games.map((game) => game.favoriteScore),
@@ -559,17 +597,27 @@ const reminderMinutes = (value: unknown): number => {
   return minutes;
 };
 
-const loadAlertFeed = async (env: Env, week: JsonObject): Promise<AlertFeed> => {
-  if (!env.PICKS_SOURCE_URL) throw new Error("Authoritative picks feed is not configured.");
-  const url = new URL(env.PICKS_SOURCE_URL);
-  url.search = new URLSearchParams({ action: "current-week", fast: "1", _: String(Date.now()) }).toString();
-  const response = await fetch(url, { signal: AbortSignal.timeout(50000), cache: "no-store" });
-  if (!response.ok) throw new Error("Authoritative picks feed unavailable; alerts withheld.");
-  const data = await response.json() as JsonObject;
-  if (data.staged !== true) throw new Error("No active staged picks; alerts withheld.");
+export const loadAlertFeed = async (env: Env, week: JsonObject, fetcher: typeof fetch = fetch): Promise<AlertFeed> => {
+  const control = await env.DB.prepare('SELECT owner,epoch FROM admin_control WHERE id=1').first<{ owner: string; epoch: number }>();
+  if (!control || !['SHEETS', 'D1'].includes(control.owner)) throw new Error('Pool ownership unavailable; alerts withheld.');
+  if (week.phase !== 'REGULAR_SEASON') throw new Error('Regular-season alerts cannot publish playoff picks.');
+  let data: JsonObject;
+  if (control.owner === 'D1') {
+    data = await buildCurrentWeek(env.DB, week);
+  } else {
+    if (!env.PICKS_SOURCE_URL) throw new Error("Authoritative picks feed is not configured.");
+    const url = new URL(env.PICKS_SOURCE_URL);
+    url.search = new URLSearchParams({ action: "current-week", fast: "1", _: String(Date.now()) }).toString();
+    const response = await fetcher(url, { signal: AbortSignal.timeout(50000), cache: "no-store" });
+    if (!response.ok) throw new Error("Authoritative picks feed unavailable; alerts withheld.");
+    data = await response.json() as JsonObject;
+    if (data.staged !== true) throw new Error("No active staged picks; alerts withheld.");
+  }
   const feed = parseAlertFeed(data, Number(week.season), Number(week.week));
   const approved = await getWeekConfig(env.DB, Number(week.id));
   if (feed.games.length !== approved.length || feed.games.some(game => !approved.some(row => String(row.gameId) === game.gameId && String(row.favorite).toUpperCase() === game.favorite && String(row.underdog).toUpperCase() === game.underdog && Number(row.spread) === game.spread))) throw new Error("Live slate does not match the approved slate; alerts withheld.");
+  const currentOwner = await env.DB.prepare('SELECT owner,epoch FROM admin_control WHERE id=1').first<{ owner: string; epoch: number }>();
+  if (currentOwner?.owner !== control.owner || currentOwner.epoch !== control.epoch) throw new Error('Pool ownership changed; alerts withheld.');
   return feed;
 };
 
@@ -1044,10 +1092,10 @@ export default {
     const weekBeforeRefresh = await activeWeek(env.DB);
     if (new Date(controller.scheduledTime).getUTCMinutes() % 5 === 0) await refreshActiveGameStates(env.DB);
     if (!weekBeforeRefresh) return;
-    let refreshedWeek = await findWeek(env.DB, Number(weekBeforeRefresh.season), Number(weekBeforeRefresh.week), "REGULAR_SEASON");
+    let refreshedWeek = await findWeek(env.DB, Number(weekBeforeRefresh.season), Number(weekBeforeRefresh.week), String(weekBeforeRefresh.phase));
     if (refreshedWeek?.status === "finalizing") await finalizeWeek(env.DB, refreshedWeek);
-    refreshedWeek = await findWeek(env.DB, Number(weekBeforeRefresh.season), Number(weekBeforeRefresh.week), "REGULAR_SEASON");
-    if (refreshedWeek) await dispatchWeekNotifications(env, refreshedWeek);
+    refreshedWeek = await findWeek(env.DB, Number(weekBeforeRefresh.season), Number(weekBeforeRefresh.week), String(weekBeforeRefresh.phase));
+    if (refreshedWeek?.phase === 'REGULAR_SEASON') await dispatchWeekNotifications(env, refreshedWeek);
     } finally {
       await env.DB.prepare("DELETE FROM notification_locks WHERE name = 'dispatch' AND expires_at = ?").bind(lease).run();
     }

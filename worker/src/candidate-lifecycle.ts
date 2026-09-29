@@ -23,7 +23,10 @@ export function playoffPicksVisible(cards: PlayerCard[], eligibleNames: string[]
   return now >= kickoff || eligibleNames.every(name => submitted.has(name.trim().toLowerCase()));
 }
 
-export async function recordCandidateObservation(db: D1Database, observation: CandidateObservation, observedAt: number): Promise<void> {
+export async function recordCandidateObservation(db: D1Database, observation: CandidateObservation, observedAt: number, sourceEpoch?: number): Promise<void> {
+  if (sourceEpoch != null && !Number.isSafeInteger(sourceEpoch)) throw new Error('Invalid source ownership epoch.');
+  const ownership = sourceEpoch == null ? '1=1' : "EXISTS(SELECT 1 FROM admin_control WHERE id=1 AND owner='SHEETS' AND epoch=?)";
+  const ownershipValues = sourceEpoch == null ? [] : [sourceEpoch];
   const { season, week, phase, feed } = observation;
   const expectedGames = phase === 'PLAYOFFS' ? [6, 4, 2, 1][week - 1] : null;
   if (!observation.staged || !Number.isInteger(season) || season < 2000 || !Number.isInteger(week)
@@ -69,25 +72,25 @@ export async function recordCandidateObservation(db: D1Database, observation: Ca
   const sameObservation = 'EXISTS (SELECT 1 FROM candidate_weeks WHERE season = ? AND week = ? AND phase = ? AND read_started_at = ? AND slate_hash = ?)';
   await db.batch([
     db.prepare(`INSERT INTO candidate_weeks (season, week, phase, slate_hash, status, observed_open, observed_live, read_started_at, latest_json)
-      VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?) ON CONFLICT (season, week, phase) DO UPDATE SET
+      SELECT ?, ?, ?, ?, ?, ?, ?, ?, ? WHERE ${ownership} ON CONFLICT (season, week, phase) DO UPDATE SET
       status = excluded.status, observed_open = MAX(candidate_weeks.observed_open, excluded.observed_open),
       observed_live = MAX(candidate_weeks.observed_live, excluded.observed_live), read_started_at = excluded.read_started_at, latest_json = excluded.latest_json
       WHERE excluded.read_started_at > candidate_weeks.read_started_at AND excluded.slate_hash = candidate_weeks.slate_hash
       AND NOT EXISTS (SELECT 1 FROM candidate_archives WHERE season = ? AND week = ? AND phase = ?)`)
-      .bind(season, week, phase, slateHash, status, status === 'open' && observedAt < firstKickoff ? 1 : 0, status === 'live' ? 1 : 0, observedAt, archivePayload, season, week, phase),
+      .bind(season, week, phase, slateHash, status, status === 'open' && observedAt < firstKickoff ? 1 : 0, status === 'live' ? 1 : 0, observedAt, archivePayload, ...ownershipValues, season, week, phase),
     db.prepare(`INSERT INTO candidate_race_frames (season, week, phase, interval_id, observed_at, payload_json)
-      SELECT ?, ?, ?, ?, ?, ? WHERE ${sameObservation} ON CONFLICT DO NOTHING`)
-      .bind(season, week, phase, Math.floor(observedAt / 300000), observedAt, frame, season, week, phase, observedAt, slateHash),
+      SELECT ?, ?, ?, ?, ?, ? WHERE ${ownership} AND ${sameObservation} ON CONFLICT DO NOTHING`)
+      .bind(season, week, phase, Math.floor(observedAt / 300000), observedAt, frame, ...ownershipValues, season, week, phase, observedAt, slateHash),
     db.prepare(`INSERT INTO candidate_archives (season, week, phase, checksum, payload_json, finalized_at)
-      SELECT ?, ?, ?, ?, ?, ? WHERE ? = 1 AND ${sameObservation} ON CONFLICT DO NOTHING`)
-      .bind(season, week, phase, checksum, archivePayload, observedAt, finalReady ? 1 : 0, season, week, phase, observedAt, slateHash),
+      SELECT ?, ?, ?, ?, ?, ? WHERE ${ownership} AND ? = 1 AND ${sameObservation} ON CONFLICT DO NOTHING`)
+      .bind(season, week, phase, checksum, archivePayload, observedAt, ...ownershipValues, finalReady ? 1 : 0, season, week, phase, observedAt, slateHash),
   ]);
 }
 
-export async function observeCandidatePublicWeek(db: D1Database, active: Record<string, unknown>, current: Record<string, unknown>, observedAt: number): Promise<void> {
+export async function observeCandidatePublicWeek(db: D1Database, active: Record<string, unknown>, current: Record<string, unknown>, observedAt: number, sourceEpoch?: number): Promise<void> {
   const season = Number(current.season), week = Number(current.week);
   const feed = parseAlertFeed(current, season, week);
   await recordCandidateObservation(db, { season, week, phase: 'REGULAR_SEASON', staged: active.staged === true, feed,
     actualTiebreaker: current.actualTiebreaker === '' || current.actualTiebreaker == null ? null : Number(current.actualTiebreaker),
-    tiebreakFinal: current.tiebreakStatus === 'final' }, observedAt);
+    tiebreakFinal: current.tiebreakStatus === 'final' }, observedAt, sourceEpoch);
 }

@@ -15,7 +15,8 @@ export function memoryDatabase(migrations) {
         async run() {
           const statement = sqlite.prepare(sql);
           if (statement.columns().length) return { results: statement.all(...values), meta: { changes: 0 } };
-          return statement.run(...values);
+          const result = statement.run(...values);
+          return { ...result, meta: { changes: Number(result.changes) } };
         },
       };
     },

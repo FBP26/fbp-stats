@@ -1,6 +1,7 @@
 export interface StoredGame {
   id: number;
   externalId: string;
+  kickoffAt?: string;
   favorite: string;
   underdog: string;
   homeTeam: string;
@@ -64,6 +65,9 @@ export const parseEspnGame = (payload: unknown, game: StoredGame): EspnGameUpdat
   }
   const homeScore = optionalNumber(home.score);
   const awayScore = optionalNumber(away.score);
+  if (state !== 'PREGAME' && [homeScore, awayScore].some(score => score === null || !Number.isInteger(score) || score < 0)) {
+    throw new Error('ESPN live or final game is missing valid scores.');
+  }
   const favoriteIsHome = normalizedTeam(game.favorite) === homeAbbreviation;
   const boxTeams = array(record(packageJson.boxscore).teams).map(record);
   const netPassingYards = boxTeams.map((team) => teamStatistic(team, "netPassingYards"));
@@ -92,6 +96,8 @@ export const espnEventId = (game: StoredGame): string =>
 
 export const isRefreshWindow = (games: StoredGame[], now = new Date()): boolean => {
   const dates = games.map((game) => {
+    const kickoff = Date.parse(game.kickoffAt || '');
+    if (Number.isFinite(kickoff)) return kickoff;
     const match = game.externalId.match(/(?:^|\D)(20\d{6})/);
     if (!match) return null;
     const value = match[1];
@@ -104,6 +110,7 @@ export const isRefreshWindow = (games: StoredGame[], now = new Date()): boolean 
 
 export const fetchEspnGame = async (eventId: string): Promise<unknown> => {
   const response = await fetch(`https://cdn.espn.com/core/nfl/game?xhr=1&gameId=${encodeURIComponent(eventId)}`, {
+    signal: AbortSignal.timeout(20000),
     headers: {
       Accept: "application/json, text/plain, */*",
       "User-Agent": "FBP-Worker/1.0",

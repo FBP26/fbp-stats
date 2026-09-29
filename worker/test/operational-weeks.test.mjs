@@ -3,7 +3,43 @@ import assert from 'node:assert/strict';
 import { memoryDatabase } from './helpers/d1.mjs';
 import { approveOperationalWeek, operationalPicksVisible } from '../src/operational-weeks.ts';
 import { submitOperationalCard } from '../src/operational-submissions.ts';
-import worker, { syncApprovedStagedWeek } from '../src/index.ts';
+import worker, { finalizeWeek, loadAlertFeed, refreshActiveGameStates, syncApprovedStagedWeek } from '../src/index.ts';
+test('score refresh preserves approval, follows the approved tiebreaker and fences concurrent ownership changes', async () => {
+  const { sqlite, adapter } = memoryDatabase(['0001_initial.sql','0009_admin_record_history.sql']);
+  const refreshTime = new Date('2026-09-29T18:00:00Z');
+  try {
+    sqlite.exec("UPDATE admin_control SET owner='D1',epoch=2; INSERT INTO weeks(id,season,week,phase,status,tiebreak_game_id) VALUES(1,2026,4,'REGULAR_SEASON','open','nfl.g.20260929001');");
+    for (const [index, suffix] of ['999','001'].entries()) {
+      sqlite.prepare('INSERT INTO games(week_id,game_index,external_id,kickoff_at,favorite,underdog,spread,home_team,away_team,metadata_json) VALUES(1,?,?,?,?,?,?,?,?,?)')
+        .run(index, `nfl.g.20260929${suffix}`, '2026-09-29T17:00:00Z', 'BUF', 'pit', 3, 'BUF', 'PIT', JSON.stringify({ espnEventId: suffix }));
+    }
+    const source = (eventId, final) => ({ gamepackageJSON: {
+      header: { competitions: [{ status: { type: { state: final ? 'post' : 'pre', completed: final } }, competitors: [
+        { homeAway: 'home', score: final ? '24' : '', team: { abbreviation: 'BUF' } },
+        { homeAway: 'away', score: final ? '17' : '', team: { abbreviation: 'PIT' } },
+      ] }] },
+      boxscore: { teams: [100, Number(eventId)].map(value => ({ statistics: [{ name: 'netPassingYards', value }] })) },
+    } });
+    assert.equal((await refreshActiveGameStates(adapter, async eventId => source(eventId, false), refreshTime)).refreshed, 2);
+    assert.equal(sqlite.prepare('SELECT status FROM weeks').get().status, 'open');
+    assert.equal((await refreshActiveGameStates(adapter, async eventId => source(eventId, true), refreshTime)).refreshed, 2);
+    assert.equal(sqlite.prepare('SELECT tiebreak_actual FROM weeks').get().tiebreak_actual, 101);
+    assert.equal((await refreshActiveGameStates(adapter, async eventId => source(eventId, false), refreshTime)).skipped, 'regressive-game-state');
+    const before = sqlite.prepare('SELECT * FROM game_states ORDER BY game_id').all();
+    const batch = adapter.batch;
+    adapter.batch = async statements => { sqlite.exec("UPDATE admin_control SET owner='SHEETS',epoch=3"); return batch(statements); };
+    assert.equal((await refreshActiveGameStates(adapter, async eventId => source(eventId, true), refreshTime)).skipped, 'ownership-or-week-changed');
+    assert.deepEqual(sqlite.prepare('SELECT * FROM game_states ORDER BY game_id').all(), before);
+    assert.equal(sqlite.prepare('SELECT status FROM weeks').get().status, 'finalizing');
+    adapter.batch = async statements => {
+      sqlite.exec("UPDATE game_states SET updated_at='2026-09-29T18:01:00Z',favorite_score=31");
+      return batch(statements);
+    };
+    assert.equal((await refreshActiveGameStates(adapter, async eventId => source(eventId, true), refreshTime)).refreshed, 0);
+    assert.equal(sqlite.prepare('SELECT min(favorite_score) AS score FROM game_states').get().score, 31);
+  } finally { sqlite.close(); }
+});
+
 test('legacy staging is atomic and cannot cross ownership or fabricate prior finalization', async () => {
   const { sqlite, adapter } = memoryDatabase(['0001_initial.sql','0009_admin_record_history.sql','0010_candidate_lifecycle.sql']);
   const env = { DB: adapter, CORS_ORIGIN: '*' };
@@ -70,4 +106,81 @@ test('eligible entries reveal only when complete or kicked off, without requirin
     await submitOperationalCard(adapter,{...card,name:'Other',operationId:'playoff-card-other-0001'},now);
     assert.equal(await operationalPicksVisible(adapter,1,now),true);
   }finally{sqlite.close();}
+});
+
+test('playoff rounds refresh by approved kickoff and finalize without an early-round tiebreaker', async () => {
+  const { sqlite, adapter } = fixture();
+  try {
+    for (const round of [1, 2, 3, 4]) {
+      const slate = approval(round);
+      slate.games = slate.games.map((game, index) => ({ ...game, espnEventId: String(index) }));
+      await approveOperationalWeek(adapter, slate, 'owner', now);
+      await submitOperationalCard(adapter, { operationId: `playoff-lifecycle-card-${round}`, name: 'Example', weekName: 'None', season: 2026, week: round, phase: 'PLAYOFFS', picks: slate.games.map(game => game.favorite), bestBet: 'BUF', tiebreaker: 400 }, now);
+      const response = await worker.fetch(new Request('https://example.test/?action=active-week'), { DB: adapter, CORS_ORIGIN: '*' });
+      assert.equal((await response.json()).phase, 'PLAYOFFS');
+      const refreshed = await refreshActiveGameStates(adapter, async eventId => {
+        const game = slate.games[Number(eventId)];
+        return { gamepackageJSON: { header: { competitions: [{ status: { type: { state: 'post', completed: true } }, competitors: [
+          { homeAway: 'home', score: '24', team: { abbreviation: game.home } },
+          { homeAway: 'away', score: '17', team: { abbreviation: game.away } },
+        ] }] } } };
+      }, new Date('2027-01-10T21:00:00Z'));
+      assert.equal(refreshed.refreshed, slate.games.length);
+      let week = sqlite.prepare('SELECT * FROM weeks WHERE week=?').get(round);
+      assert.equal(week.tiebreak_actual, null);
+      if (round === 4) {
+        assert.equal(await finalizeWeek(adapter, week), false);
+        sqlite.prepare('UPDATE weeks SET tiebreak_actual=388 WHERE id=?').run(week.id);
+        week = sqlite.prepare('SELECT * FROM weeks WHERE id=?').get(week.id);
+      }
+      assert.equal(await finalizeWeek(adapter, week), true);
+      const archive = sqlite.prepare('SELECT * FROM completed_week_archives WHERE week_id=?').get(week.id);
+      const payload = JSON.parse(archive.payload_json);
+      assert.equal(payload.phase, 'PLAYOFFS');
+      assert.equal(payload.actualTiebreaker, round === 4 ? 388 : null);
+      assert.equal(payload.submissions[0].weekName, 'None');
+      assert.equal(payload.submissions[0].tiebreaker, round === 4 ? 400 : null);
+      assert.equal(await finalizeWeek(adapter, week), false);
+      assert.deepEqual(sqlite.prepare('SELECT * FROM completed_week_archives WHERE week_id=?').get(week.id), archive);
+    }
+    assert.equal(sqlite.prepare('SELECT count(*) AS total FROM completed_week_archives').get().total, 4);
+  } finally { sqlite.close(); }
+});
+
+test('finalization commits neither archive nor status across ownership or card changes', async () => {
+  for (const change of ["UPDATE admin_control SET epoch=3", "UPDATE submissions SET week_name='Corrected'"]) {
+    const { sqlite, adapter } = fixture();
+    try {
+      await approveOperationalWeek(adapter, approval(1), 'owner', now);
+      await submitOperationalCard(adapter, { operationId: 'finalization-fenced-card', name: 'Example', weekName: 'None', season: 2026, week: 1, phase: 'PLAYOFFS', picks: games(6).map(game => game.favorite), bestBet: 'BUF' }, now);
+      sqlite.exec("INSERT INTO game_states(game_id,state,favorite_score,underdog_score) SELECT id,'FINAL',24,17 FROM games; UPDATE weeks SET status='finalizing'");
+      const week = sqlite.prepare('SELECT * FROM weeks').get();
+      const batch = adapter.batch;
+      adapter.batch = async statements => { sqlite.exec(change); return batch(statements); };
+      assert.equal(await finalizeWeek(adapter, week), false);
+      assert.equal(sqlite.prepare('SELECT count(*) AS total FROM completed_week_archives').get().total, 0);
+      assert.equal(sqlite.prepare('SELECT status FROM weeks').get().status, 'finalizing');
+    } finally { sqlite.close(); }
+  }
+});
+
+test('D1 alerts read operational cards without Sheets and withhold cross-owner or playoff feeds', async () => {
+  const { sqlite, adapter } = fixture();
+  try {
+    await approveOperationalWeek(adapter, { ...approval(1), phase: 'REGULAR_SEASON' }, 'owner', now);
+    await submitOperationalCard(adapter, { operationId: 'operational-alert-feed-01', name: 'Example', weekName: 'None', season: 2026, week: 1, picks: games(6).map(game => game.favorite), bestBet: 'BUF', tiebreaker: 400 }, now);
+    const week = sqlite.prepare('SELECT * FROM weeks').get();
+    const env = { DB: adapter, CORS_ORIGIN: '*', PICKS_SOURCE_URL: 'https://example.test/sheets' };
+    const unexpectedFetch = () => { throw new Error('Must not read Sheets'); };
+    const feed = await loadAlertFeed(env, week, unexpectedFetch);
+    assert.equal(feed.cards[0].name, 'Example');
+    assert.equal(feed.cards[0].bestBet, 'BUF');
+    assert.equal(feed.games.length, 6);
+    await assert.rejects(loadAlertFeed(env, { ...week, phase: 'PLAYOFFS' }, unexpectedFetch), /playoff picks/);
+    sqlite.exec("UPDATE admin_control SET owner='SHEETS',epoch=3");
+    await assert.rejects(loadAlertFeed(env, week, async () => {
+      sqlite.exec("UPDATE admin_control SET owner='D1',epoch=4");
+      return Response.json({ ok: true, staged: true, season: 2026, week: 1, games: games(6).map(game => ({ ...game, status: 'PREGAME' })), players: [{ ...feed.cards[0], picks: feed.cards[0].picks }] });
+    }), /ownership changed/);
+  } finally { sqlite.close(); }
 });

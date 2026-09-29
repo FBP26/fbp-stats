@@ -66,6 +66,7 @@ test("dispatch sends a lone one-minute reminder, skips submitted cards, deduplic
         throw new Error(`Unexpected all query: ${sql}`);
       },
       async first() {
+        if (sql.includes('admin_control')) return { owner: 'SHEETS', epoch: 1 };
         if (sql.includes("notification_observations")) return observation ? { payload_json: observation } : null;
         if (sql.includes("notification_deliveries")) return { status: deliveries.get(String(args[1])) };
         throw new Error(`Unexpected first query: ${sql}`);
@@ -91,7 +92,7 @@ test("dispatch sends a lone one-minute reminder, skips submitted cards, deduplic
     throw new Error("Unexpected network call");
   };
   try {
-    const week = { id: 3, season: 2026, week: 3, status: "staged" };
+    const week = { id: 3, season: 2026, week: 3, phase: 'REGULAR_SEASON', status: "staged" };
     assert.equal((await dispatchWeekNotifications(env, week)).sent, 1);
     assert.match(sent[0].htmlBody, /Open FBP.*Stop notifications/s);
     assert.equal((await dispatchWeekNotifications(env, week)).sent, 0);

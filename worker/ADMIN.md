@@ -14,6 +14,42 @@ writer is not fenced by this administrative epoch. Worker submissions, legacy
 staging, and browser race writes now check ownership, but this does not fence
 every production writer or constitute a live ownership handoff.
 
+## September 29 lifecycle and ownership follow-up
+
+The owner upgraded the account to Workers Paid. Cloudflare confirmed Standard
+usage for FBP and the Golf Workers with no custom CPU override. A live FBP cron
+completed with 42 ms CPU, no exceptions, and successful snapshot, card-sync and
+candidate processing. This removes the Free plan's 10 ms constraint; it is not
+a sustained-load certificate or a fix for upstream source timeouts.
+
+The operational score refresh now uses approved kickoff timestamps and the
+approved tiebreak game, preserves an open pregame week, rejects invalid scores
+and regressive game states, and bounds ESPN fetches to 20 seconds. Transaction
+guards reject changed ownership, changed weeks and newer score observations.
+Under D1 ownership it handles approved playoff rounds as well as regular weeks.
+
+Operational finalization supports all four playoff rounds. Rounds 1-3 do not
+require a tiebreaker; the Super Bowl and regular weeks do. Archive insertion and
+week finalization are atomic, preserve existing archives, and compare ownership,
+game states, cards and picks again at commit. Concurrent edits leave the week
+unfinalized for a fresh retry. This is the finalization primitive, not the complete
+playoff entry, cumulative standings or publication workflow.
+
+Legacy public snapshot polling stops under D1 ownership. In-flight snapshot,
+shadow-card and candidate transactions carry the original Sheets ownership epoch;
+the legacy cache refuses public reads while D1 owns the pool. Operational
+regular-season alert feeds read D1 without a Sheets fallback and reject ownership
+changes during loading. Playoff cards cannot enter the regular-season alert path.
+Email transport still uses the existing relay, and all-writer dispatch/handoff
+coordination remains required before cutover.
+
+Verification: 88 backend tests passed, two optional live tests skipped; TypeScript,
+frontend regressions, editor diagnostics and the production bundle dry run passed.
+Worker version `67784d3d-2107-4467-a832-cef5cffde440` is deployed with the owner
+still SHEETS, epoch 1, and operational writes disabled. The actual Week 3 archive
+comparison still passes for 31 players, 16 games and tiebreaker 388. No new schema,
+source-data edit, financial posting or test notification was needed.
+
 ## September 29 integration
 
 Week 3's canonical CSV/JSON publication and actual D1 candidate final-result
@@ -138,7 +174,8 @@ slate checks, and the existing late-new-player exception. Field limits match the
 live form. Private week approval validates ordered matchups and an explicit fixed
 playoff roster; hidden playoff reads reveal only after all eligible entries or
 kickoff. These paths have synthetic coverage, but the approval interface, public
-entry client, playoff finalization and cumulative archive workflow are not complete.
+entry client and cumulative archive workflow are not complete. The operational
+round finalization primitive is covered by the follow-up above.
 
 ## Private import and recovery
 

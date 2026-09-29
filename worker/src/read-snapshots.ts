@@ -35,12 +35,12 @@ async function compressPayload(payload: PublicPayload): Promise<ArrayBuffer> {
   return compressed;
 }
 
-async function snapshotStatement(db: D1Database, name: string, season: number, week: number, startedAt: number, payload: PublicPayload): Promise<D1PreparedStatement> {
+async function snapshotStatement(db: D1Database, name: string, season: number, week: number, startedAt: number, payload: PublicPayload, epoch: number): Promise<D1PreparedStatement> {
   return db.prepare(`INSERT INTO public_read_snapshots (name, season, week, read_started_at, payload)
-    VALUES (?, ?, ?, ?, ?) ON CONFLICT(name) DO UPDATE SET
+    SELECT ?, ?, ?, ?, ? WHERE EXISTS(SELECT 1 FROM admin_control WHERE id=1 AND owner='SHEETS' AND epoch=?) ON CONFLICT(name) DO UPDATE SET
     season = excluded.season, week = excluded.week, read_started_at = excluded.read_started_at,
     payload = excluded.payload WHERE excluded.read_started_at > public_read_snapshots.read_started_at`)
-    .bind(name, season, week, startedAt, await compressPayload(payload));
+    .bind(name, season, week, startedAt, await compressPayload(payload), epoch);
 }
 
 async function sourceRead(source: string, parameters: Record<string, string>, fetcher: typeof fetch): Promise<PublicPayload> {
@@ -71,6 +71,9 @@ async function sourceRead(source: string, parameters: Record<string, string>, fe
 
 export async function refreshPublicReadSnapshots(db: D1Database, source: string | undefined, fetcher: typeof fetch = fetch, candidateEnabled = false): Promise<void> {
   if (!source) return;
+  const control = await db.prepare('SELECT owner,epoch FROM admin_control WHERE id=1').first<{ owner: string; epoch: number }>();
+  if (control?.owner !== 'SHEETS') return;
+  const stillOwner = () => db.prepare("SELECT id FROM admin_control WHERE id=1 AND owner='SHEETS' AND epoch=?").bind(control.epoch).first();
   const startedAt = Date.now();
   const [active, current] = await Promise.all([
     sourceRead(source, { action: 'active-week', enrich: '0' }, fetcher),
@@ -79,24 +82,27 @@ export async function refreshPublicReadSnapshots(db: D1Database, source: string 
   validatePublicReadPair(active, current);
   const season = Number(current.season), week = Number(current.week);
   await db.batch(await Promise.all([
-    snapshotStatement(db, 'active-week', season, week, startedAt, active),
-    snapshotStatement(db, 'current-week', season, week, startedAt, current),
+    snapshotStatement(db, 'active-week', season, week, startedAt, active, control.epoch),
+    snapshotStatement(db, 'current-week', season, week, startedAt, current, control.epoch),
   ]));
+  if (!await stillOwner()) return;
   console.info('Public read pair stored:', season, week, startedAt);
   try {
-    await synchronizeShadowCards(db, current, startedAt);
+    await synchronizeShadowCards(db, current, startedAt, control.epoch);
     console.info('Shadow card synchronization completed:', season, week, startedAt);
   } catch (error) {
     console.error('Shadow card synchronization failed:', error instanceof Error ? error.message : 'Unexpected error');
   }
   if (candidateEnabled) {
+    if (!await stillOwner()) return;
     try {
-      await observeCandidatePublicWeek(db, active, current, startedAt);
+      await observeCandidatePublicWeek(db, active, current, startedAt, control.epoch);
       console.info('Candidate lifecycle processed:', season, week, startedAt);
     } catch (error) {
       console.error('Candidate lifecycle observation failed:', error instanceof Error ? error.message : 'Unexpected error');
     }
   }
+  if (!await stillOwner()) return;
   const raceStartedAt = Date.now();
   const race = await sourceRead(source, { action: 'current-week-race', season: String(season), week: String(week) }, fetcher);
   if (!Array.isArray(race.raceSnapshots)
@@ -104,7 +110,7 @@ export async function refreshPublicReadSnapshots(db: D1Database, source: string 
     || (race.week != null && Number(race.week) !== week)) {
     throw new Error('Public race snapshot does not match the requested week.');
   }
-  await (await snapshotStatement(db, 'current-week-race', season, week, raceStartedAt, race)).run();
+  await (await snapshotStatement(db, 'current-week-race', season, week, raceStartedAt, race, control.epoch)).run();
 }
 
 export async function publicReadSnapshot(request: Request, db: D1Database, origin: string, now = Date.now()): Promise<Response> {
@@ -117,6 +123,8 @@ export async function publicReadSnapshot(request: Request, db: D1Database, origi
     'Content-Type': 'application/json;charset=UTF-8',
   };
   if (!snapshotNames.has(name)) return Response.json({ ok: false, error: 'Unsupported public read.' }, { status: 400, headers });
+  const control = await db.prepare('SELECT owner FROM admin_control WHERE id=1').first<{ owner: string }>();
+  if (control?.owner !== 'SHEETS') return Response.json({ ok: false, error: 'Legacy source snapshots are unavailable under the current owner.' }, { status: 409, headers });
   const row = await db.prepare('SELECT season, week, read_started_at, payload FROM public_read_snapshots WHERE name = ?')
     .bind(name).first<{ season: number; week: number; read_started_at: number; payload: number[] }>();
   const age = row ? now - row.read_started_at : Infinity;

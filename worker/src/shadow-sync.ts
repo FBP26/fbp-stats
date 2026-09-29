@@ -1,6 +1,9 @@
 type SourcePayload = Record<string, unknown>;
 
-export async function synchronizeShadowCards(db: D1Database, current: SourcePayload, observedAt: number): Promise<void> {
+export async function synchronizeShadowCards(db: D1Database, current: SourcePayload, observedAt: number, sourceEpoch?: number): Promise<void> {
+  if (sourceEpoch != null && !Number.isSafeInteger(sourceEpoch)) throw new Error('Invalid source ownership epoch.');
+  const ownership = sourceEpoch == null ? '1=1' : "EXISTS(SELECT 1 FROM admin_control WHERE id=1 AND owner='SHEETS' AND epoch=?)";
+  const ownershipValues = sourceEpoch == null ? [] : [sourceEpoch];
   if (current.ok !== true || !Number.isInteger(current.season) || !Number.isInteger(current.week)
     || Number(current.week) < 1 || Number(current.week) > 18
     || !Number.isSafeInteger(observedAt) || observedAt <= 0
@@ -46,25 +49,25 @@ export async function synchronizeShadowCards(db: D1Database, current: SourcePayl
       (season, week, player_key, revision_id, content_hash, observed_at, submitted_at, card_json)
       SELECT ?, ?, json_extract(card.value, '$.playerKey'), json_extract(card.value, '$.revisionId'),
         json_extract(card.value, '$.contentHash'), ?, json_extract(card.value, '$.submittedAt'), json_extract(card.value, '$.cardJson')
-      FROM json_each(?) AS card WHERE ${newerObservation}
+      FROM json_each(?) AS card WHERE ${ownership} AND ${newerObservation}
         AND NOT EXISTS (SELECT 1 FROM shadow_card_heads WHERE season = ? AND week = ?
           AND player_key = json_extract(card.value, '$.playerKey') AND content_hash = json_extract(card.value, '$.contentHash'))
       ON CONFLICT DO NOTHING`)
-      .bind(season, week, observedAt, encodedCards, season, week, observedAt, season, week),
+      .bind(season, week, observedAt, encodedCards, ...ownershipValues, season, week, observedAt, season, week),
     db.prepare(`INSERT INTO shadow_card_heads (season, week, player_key, revision_id, content_hash, observed_at)
       SELECT ?, ?, json_extract(card.value, '$.playerKey'), json_extract(card.value, '$.revisionId'),
         json_extract(card.value, '$.contentHash'), ? FROM json_each(?) AS card
-      WHERE ${newerObservation} AND EXISTS (SELECT 1 FROM shadow_card_revisions
+      WHERE ${ownership} AND ${newerObservation} AND EXISTS (SELECT 1 FROM shadow_card_revisions
         WHERE season = ? AND week = ? AND player_key = json_extract(card.value, '$.playerKey')
           AND revision_id = json_extract(card.value, '$.revisionId'))
       ON CONFLICT (season, week, player_key) DO UPDATE SET revision_id = excluded.revision_id,
         content_hash = excluded.content_hash, observed_at = excluded.observed_at
       WHERE excluded.observed_at > shadow_card_heads.observed_at`)
-      .bind(season, week, observedAt, encodedCards, season, week, observedAt, season, week),
+      .bind(season, week, observedAt, encodedCards, ...ownershipValues, season, week, observedAt, season, week),
     db.prepare(`INSERT INTO shadow_sync_weeks (season, week, observed_at, source_updated_at, members_json)
-      VALUES (?, ?, ?, ?, ?) ON CONFLICT (season, week) DO UPDATE SET
+      SELECT ?, ?, ?, ?, ? WHERE ${ownership} ON CONFLICT (season, week) DO UPDATE SET
       observed_at = excluded.observed_at, source_updated_at = excluded.source_updated_at, members_json = excluded.members_json
       WHERE excluded.observed_at > shadow_sync_weeks.observed_at`)
-      .bind(season, week, observedAt, String(current.updatedAt || ''), JSON.stringify([...seen].sort())),
+      .bind(season, week, observedAt, String(current.updatedAt || ''), JSON.stringify([...seen].sort()), ...ownershipValues),
   ]);
 }

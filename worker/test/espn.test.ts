@@ -52,6 +52,9 @@ test("parseEspnGame maps live scores, possession, and net passing yards", () => 
 test("parseEspnGame maps final state and rejects mismatched teams", () => {
   assert.equal(parseEspnGame(payload("post", true, "27", "20"), game).state, "FINAL");
   assert.throws(() => parseEspnGame(payload("post", true, "27", "20"), { ...game, homeTeam: "MIA" }), /do not match/);
+  for (const score of ['', '-1', '1.5', 'unknown']) {
+    assert.throws(() => parseEspnGame(payload('post', true, score, '20'), game), /valid scores/);
+  }
 });
 
 test("isRefreshWindow bounds scheduled polling around encoded game dates", () => {
