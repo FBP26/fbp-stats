@@ -188,6 +188,7 @@
   .website-best-bet-picker[open] > summary { border-color: var(--accent); }
   .website-best-bet-menu { position: absolute; z-index: 20; top: calc(100% + 4px); left: 0; width: min(280px, 80vw); max-height: 290px; overflow-y: auto; border: 1px solid var(--border); border-radius: 5px; padding: 4px; background: var(--panel); box-shadow: 0 10px 28px #0009; }
   .website-best-bet-option { display: grid; grid-template-columns: 30px minmax(0, 1fr) auto; align-items: center; gap: 8px; width: 100%; min-height: 38px; border: 0; border-radius: 3px; padding: 4px 7px; background: transparent; color: var(--text); text-align: left; cursor: pointer; }
+  .website-best-bet-option[hidden] { display: none; }
   .website-best-bet-option:hover, .website-best-bet-option[aria-selected="true"], .website-best-bet-option.keyboard-active { background: #3b3315; }
   .website-best-bet-logo { width: 28px; height: 28px; object-fit: contain; }
   .website-best-bet-name { overflow: hidden; font: 12px Arial, sans-serif; text-overflow: ellipsis; white-space: nowrap; }
@@ -1140,9 +1141,19 @@ function websiteBestBetTeam(team) {
   const metadata = isAway ? game.awayTeam : game.homeTeam;
   return { team, name: metadata?.name || websiteNaturalTeamName(team), logo: websiteTeamLogoUrl(team) };
 }
-function updateWebsiteBestBetPicker() {
+function updateWebsiteBestBetPicker(restoredBestBet) {
   const bestBet = document.getElementById("website-best-bet"), picker = document.querySelector(".website-best-bet-picker");
   if (!bestBet || !picker) return;
+  const form = document.getElementById("website-picks-form"), previous = typeof restoredBestBet === "string" ? restoredBestBet : bestBet.value;
+  const teams = websiteActiveGames.map((game, index) => form.elements[`game-${index + 1}`]?.value).filter(Boolean);
+  const selectedTeams = new Set(teams.map(team => String(team).toUpperCase()));
+  bestBet.replaceChildren(new Option("Choose a best bet", ""), ...teams.map(team => new Option(websiteBestBetTeam(team).name, team)));
+  bestBet.value = teams.find(team => String(team).toUpperCase() === String(previous).toUpperCase()) || "";
+  picker.querySelectorAll("[role=option]").forEach(option => {
+    option.hidden = !selectedTeams.has(String(option.dataset.team).toUpperCase());
+    option.disabled = option.hidden;
+  });
+  picker.querySelector("summary").setAttribute("aria-disabled", String(!teams.length));
   const selected = bestBet.value ? websiteBestBetTeam(bestBet.value) : null;
   picker.classList.toggle("selected", Boolean(selected));
   picker.querySelector("summary").innerHTML = selected ? `<img class="website-best-bet-logo" src="${websiteEscapeHtml(selected.logo)}" alt=""><span class="website-best-bet-name">${websiteEscapeHtml(selected.name)}</span><span class="website-best-bet-code">${websiteEscapeHtml(selected.team)}</span>` : "Choose a best bet";
@@ -1171,7 +1182,7 @@ function renderWebsiteBestBetPicker(teams, enabled) {
   sortOptions();
   mediaQuery.addEventListener("change", sortOptions);
   picker.hidden = !enabled;
-  const summary = picker.querySelector("summary"), pickerOptions = () => [...picker.querySelectorAll("[role=option]")];
+  const summary = picker.querySelector("summary"), pickerOptions = () => [...picker.querySelectorAll("[role=option]")].filter(option => !option.hidden && !option.disabled);
   let activeIndex = -1, typeBuffer = "", typeTimer = null;
   summary.setAttribute("role", "combobox");
   summary.setAttribute("aria-controls", "website-best-bet-menu");
@@ -1185,9 +1196,9 @@ function renderWebsiteBestBetPicker(teams, enabled) {
     summary.setAttribute("aria-activedescendant", active?.id || "");
     active?.scrollIntoView({ block: "nearest" });
   };
-  const open = () => { picker.open = true; summary.setAttribute("aria-expanded", "true"); const selectedIndex = pickerOptions().findIndex(option => option.dataset.team === bestBet.value); setActive(selectedIndex >= 0 ? selectedIndex : 0); };
+  const open = () => { if (!pickerOptions().length) return; picker.open = true; summary.setAttribute("aria-expanded", "true"); const selectedIndex = pickerOptions().findIndex(option => option.dataset.team === bestBet.value); setActive(selectedIndex >= 0 ? selectedIndex : 0); };
   const close = () => { picker.open = false; summary.setAttribute("aria-expanded", "false"); summary.removeAttribute("aria-activedescendant"); pickerOptions().forEach(option => option.classList.remove("keyboard-active")); activeIndex = -1; };
-  const choose = option => { if (!option) return; bestBet.value = option.dataset.team; bestBet.dispatchEvent(new Event("change", { bubbles: true })); updateWebsiteBestBetPicker(); close(); };
+  const choose = option => { if (!option || option.hidden || option.disabled) return; bestBet.value = option.dataset.team; bestBet.dispatchEvent(new Event("change", { bubbles: true })); updateWebsiteBestBetPicker(); close(); };
   pickerOptions().forEach((option, index) => { option.id = `website-best-bet-option-${index}`; option.onclick = event => { event.preventDefault(); event.stopPropagation(); choose(option); }; });
   summary.onclick = event => { event.preventDefault(); event.stopPropagation(); picker.open ? close() : open(); };
   summary.onkeydown = event => {
@@ -2724,13 +2735,13 @@ function websiteRestorePickDraft(key) {
     if (!draft) { try { draft = JSON.parse(localStorage.getItem(`fbp-pick-draft:${key}`) || "null"); } catch (error) { return; } }
     if (!draft) return;
     for (const [id, value] of Object.entries(draft.fields || {})) {
-      if (["website-picks-name", "website-week-name", "website-tiebreaker", "website-best-bet"].includes(id)) document.getElementById(id).value = value;
+      if (["website-picks-name", "website-week-name", "website-tiebreaker"].includes(id)) document.getElementById(id).value = value;
     }
     websiteActiveGames.forEach((game, index) => {
       const team = draft.picks?.find(pick => pick.game === websitePickDraftGameKey(game))?.team;
       document.querySelectorAll(`#website-game-picks input[name="game-${index + 1}"]`).forEach(input => { input.checked = !input.disabled && input.value.toUpperCase() === String(team || "").toUpperCase(); });
     });
-    updateWebsiteBestBetPicker();
+    updateWebsiteBestBetPicker(draft.fields?.["website-best-bet"] || "");
   } catch (error) { console.warn("Saved pick draft could not be restored."); }
 }
 function websiteClearPickDraft() {
@@ -3439,16 +3450,9 @@ function websiteBestBetMismatch(submission) {
   return { bestBet, pick, gameIndex, signature: `${gameIndex}:${pick}:${bestBet}` };
 }
 function confirmWebsiteBestBetMismatch(submission, status) {
-  const mismatch = websiteBestBetMismatch(submission);
-  if (!mismatch) { websiteBestBetMismatchAttempts = 0; websiteBestBetMismatchSignature = ""; return true; }
-  if (mismatch.signature !== websiteBestBetMismatchSignature) { websiteBestBetMismatchAttempts = 0; websiteBestBetMismatchSignature = mismatch.signature; }
-  websiteBestBetMismatchAttempts += 1;
-  if (websiteBestBetMismatchAttempts > 2) return true;
-  const bestBetName = websiteFormTeamName(mismatch.bestBet);
-  const pickName = websiteFormTeamName(mismatch.pick);
-  status.textContent = websiteBestBetMismatchAttempts === 1
-    ? `Best Bet warning 1 of 2: You picked the ${pickName} in that game, but your Best Bet is the ${bestBetName}. Submit again if you really mean to bet against your own pick.`
-    : `Best Bet warning 2 of 2: The ${bestBetName} are still against your ${pickName} pick. Submit once more and we will accept it exactly this way.`;
+  const bestBet = String(submission.bestBet || "").trim().toUpperCase();
+  if (bestBet && submission.picks.some(pick => String(pick).trim().toUpperCase() === bestBet)) return true;
+  status.textContent = "Choose a Best Bet from the teams you selected.";
   status.focus();
   return false;
 }
@@ -3480,6 +3484,8 @@ document.getElementById("website-picks-form").addEventListener("change", event =
   websiteTrackEvent("picks_started", "enter-picks");
   if (event.target.matches("#website-picks-name")) websiteApprovedNewPlayerName = "";
   if (!event.target.matches('input[type="radio"][name^="game-"], #website-best-bet')) return;
+  updateWebsiteBestBetPicker();
+  websiteSavePickDraft();
   websiteBestBetMismatchAttempts = 0;
   websiteBestBetMismatchSignature = "";
 });

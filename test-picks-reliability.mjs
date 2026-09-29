@@ -7,6 +7,49 @@ for (const script of html.matchAll(/<script\b[^>]*>([\s\S]*?)<\/script>/gi)) {
   if (script[1].trim()) new vm.Script(script[1]);
 }
 const context = vm.createContext({ Intl, Date, websiteGameStatus: game => game.status });
+const bestBetOptions = ['BUF', 'mia', 'PIT', 'bal'].map(team => ({ dataset: { team }, setAttribute() {} }));
+const bestBetSelect = { value: '', options: [], replaceChildren(...options) { this.options = options; this.value = ''; } };
+const picksForm = { elements: { 'game-1': { value: '' }, 'game-2': { value: '' } } };
+const bestBetSummary = { setAttribute() {} };
+const bestBetContext = vm.createContext({
+  Option: class { constructor(text, value) { this.text = text; this.value = value; } },
+  websiteActiveGames: [{ favorite: 'BUF', underdog: 'mia' }, { favorite: 'PIT', underdog: 'bal' }],
+  websiteBestBetTeam: team => ({ team, name: team, logo: '' }), websiteEscapeHtml: value => value,
+  document: {
+    getElementById: id => id === 'website-best-bet' ? bestBetSelect : picksForm,
+    querySelector: () => ({ classList: { toggle() {} }, querySelector: () => bestBetSummary, querySelectorAll: () => bestBetOptions }),
+  },
+});
+for (const name of ['updateWebsiteBestBetPicker', 'confirmWebsiteBestBetMismatch']) {
+  const start = html.indexOf(`function ${name}(`);
+  const end = html.indexOf('\nfunction ', start + 1);
+  vm.runInContext(html.slice(start, end), bestBetContext);
+}
+bestBetContext.updateWebsiteBestBetPicker();
+assert.deepEqual(bestBetSelect.options.map(option => option.value), ['']);
+assert.ok(bestBetOptions.every(option => option.hidden && option.disabled));
+picksForm.elements['game-1'].value = 'BUF';
+picksForm.elements['game-2'].value = 'bal';
+bestBetContext.updateWebsiteBestBetPicker();
+assert.deepEqual(bestBetSelect.options.map(option => option.value), ['', 'BUF', 'bal']);
+bestBetSelect.value = 'BUF';
+bestBetContext.updateWebsiteBestBetPicker();
+assert.equal(bestBetSelect.value, 'BUF');
+picksForm.elements['game-1'].value = 'mia';
+bestBetContext.updateWebsiteBestBetPicker();
+assert.equal(bestBetSelect.value, '');
+assert.deepEqual(bestBetSelect.options.map(option => option.value), ['', 'mia', 'bal']);
+assert.deepEqual(bestBetOptions.filter(option => !option.hidden).map(option => option.dataset.team), ['mia', 'bal']);
+bestBetContext.updateWebsiteBestBetPicker('MIA');
+assert.equal(bestBetSelect.value, 'mia', 'A valid saved Best Bet is restored after choices are rebuilt');
+bestBetContext.updateWebsiteBestBetPicker('BUF');
+assert.equal(bestBetSelect.value, '', 'An opposing draft Best Bet cannot become an available choice');
+const savedOpposingCard = { picks: ['BUF', 'bal'], bestBet: 'mia' };
+const originalCard = JSON.stringify(savedOpposingCard);
+for (let attempt = 0; attempt < 4; attempt += 1) assert.equal(bestBetContext.confirmWebsiteBestBetMismatch(savedOpposingCard, { focus() {} }), false);
+assert.equal(JSON.stringify(savedOpposingCard), originalCard);
+assert.equal(bestBetContext.confirmWebsiteBestBetMismatch({ picks: ['BUF', 'bal'], bestBet: 'BAL' }, {}), true);
+console.log('Best Bet options follow selected teams, clear invalidated choices, reject repeated overrides, and do not mutate saved cards.');
 for (const name of ['websiteKeepCompletedWeek', 'websiteGamePickShare']) {
   const start = html.indexOf(`function ${name}(`);
   const rest = html.slice(start);
