@@ -3379,13 +3379,13 @@ async function renderConfirmationHistory(submission) {
       { label: "Most picked team · all games", value: metricValue(mostPickedTeam, mostPickedCount, "No completed picks") },
       { label: "Most picked against · all games", value: metricValue(mostFadedTeam, mostFadedCount, "No completed fades") },
       { label: "Current pick run · team opportunities", value: metricValue(pickRepeat.team, pickRepeat.length) },
-      { label: "Current fade run · team opportunities", value: metricValue(fadeRepeat.team, fadeRepeat.length) },
+      { label: "Current picked-against run · team opportunities", value: metricValue(fadeRepeat.team, fadeRepeat.length) },
       { label: "Longest time since you picked", value: gapValue(longestPickGap.team, longestPickGap.missed, "No current picks") },
-      { label: "Team you finally faded", value: gapValue(longestFadeGap.team, longestFadeGap.missed, "No current fades") },
+      { label: "Longest time since you picked against", value: gapValue(longestFadeGap.team, longestFadeGap.missed, "No current picked-against teams") },
       { label: "Best ATS record when picked", value: recordValue(bestTeamRecord(false), "No qualified pick record") },
       { label: "Worst ATS record when picked", value: recordValue(worstTeamRecord(false), "No qualified pick record") },
-      { label: "Best ATS record when faded", value: recordValue(bestTeamRecord(true), "No qualified fade record") },
-      { label: "Worst ATS record when faded", value: recordValue(worstTeamRecord(true), "No qualified fade record") }
+      { label: "Best ATS record when picked against", value: recordValue(bestTeamRecord(true), "No qualified picked-against record") },
+      { label: "Worst ATS record when picked against", value: recordValue(worstTeamRecord(true), "No qualified picked-against record") }
     ])}<h3>Best Bet patterns</h3>${confirmationMetricTable([
       { label: "Most selected as Best Bet · all games", value: metricValue(mostBestBetTeam, mostBestBetCount, "No Best Bets") },
       { label: "Current Best Bet run · team opportunities", value: metricValue(bestBetRepeat.team, bestBetRepeat.length, "No current Best Bet") },
