@@ -615,6 +615,35 @@ const pushSubscriptionFromPayload = (value: unknown): PushSubscriptionRecord => 
   return { endpoint, p256dh, auth };
 };
 
+const sendAdministratorPush = async (env: Env, title: string, body: string): Promise<{ sent: number; failed: number }> => {
+  if (!env.VAPID_PUBLIC_KEY || !env.VAPID_PRIVATE_KEY || !env.VAPID_SUBJECT) return { sent: 0, failed: 0 };
+  const devices = await env.DB.prepare(
+    `SELECT devices.id, devices.endpoint, devices.p256dh, devices.auth
+     FROM push_admin_devices administrators
+     JOIN push_devices devices ON devices.id = administrators.device_id
+     WHERE devices.status = 'active'`,
+  ).all<{ id: number; endpoint: string; p256dh: string; auth: string }>();
+  let sent = 0, failed = 0;
+  for (const device of devices.results) {
+    const result = await sendWebPush(
+      device,
+      { title: cleanText(title, 80), body: cleanText(body, 240), url: `${env.PUBLIC_SITE_URL || "https://fbp26.github.io/fbp-stats/"}#live-analysis`, tag: `fbp-admin-${crypto.randomUUID()}` },
+      { publicKey: env.VAPID_PUBLIC_KEY, privateKey: env.VAPID_PRIVATE_KEY, subject: env.VAPID_SUBJECT },
+    );
+    if (result.expired) await env.DB.prepare("UPDATE push_devices SET status='unsubscribed', unsubscribed_at=CURRENT_TIMESTAMP, updated_at=CURRENT_TIMESTAMP WHERE id=?").bind(device.id).run();
+    if (result.ok) sent++;
+    else failed++;
+  }
+  return { sent, failed };
+};
+
+const sendAdministratorPushEvent = async (payload: JsonObject, env: Env): Promise<Response> => {
+  if (!env.EMAIL_RELAY_SECRET?.trim() || cleanText(payload.secret, 200) !== env.EMAIL_RELAY_SECRET.trim()) return json({ ok: false, error: "Unauthorized." }, 401, env.CORS_ORIGIN);
+  const title = cleanText(payload.title, 80), body = cleanText(payload.body, 240);
+  if (!title || !body) return json({ ok: false, error: "An administrator notification needs a title and body." }, 400, env.CORS_ORIGIN);
+  return json({ ok: true, ...await sendAdministratorPush(env, title, body) }, 200, env.CORS_ORIGIN);
+};
+
 const savePushDevice = async (payload: JsonObject, env: Env): Promise<Response> => {
   if (!env.VAPID_PUBLIC_KEY || !env.VAPID_PRIVATE_KEY || !env.VAPID_SUBJECT) return json({ ok: false, error: "Push notifications are not configured yet." }, 503, env.CORS_ORIGIN);
   const subscription = pushSubscriptionFromPayload(payload.subscription);
@@ -633,6 +662,7 @@ const savePushDevice = async (payload: JsonObject, env: Env): Promise<Response> 
        before_snf=excluded.before_snf, before_mnf=excluded.before_mnf, weekly_result=excluded.weekly_result,
        unsubscribed_at=NULL, updated_at=CURRENT_TIMESTAMP`,
   ).bind(subscription.endpoint, subscription.p256dh, subscription.auth, deviceToken, await sha256(deviceToken), values[0], values[1], reminderMinutes(payload.picksDueMinutes), ...values.slice(2)).run();
+  await sendAdministratorPush(env, existing ? "FBP push preferences updated" : "FBP push notifications enabled", existing ? "A device changed its FBP notification preferences." : "A device enabled FBP push notifications.");
   return json({ ok: true, deviceToken, status: "active" }, 200, env.CORS_ORIGIN);
 };
 
@@ -1191,6 +1221,7 @@ const handlePost = async (request: Request, env: Env): Promise<Response> => {
   const action = cleanText(payload.action, 50);
   if (action === "notification-subscribers") return listNotificationSubscribers(payload, env);
   if (action === "release-picks-ready") return releasePicksReady(payload, env);
+  if (action === "send-administrator-push") return sendAdministratorPushEvent(payload, env);
   if (action === "log-visit") return handleAnalytics(payload, env);
   if (action === "subscribe-push") return savePushDevice(payload, env);
   if (action === "link-push-player") return linkPushDevicePlayer(payload, env);

@@ -1,0 +1,4 @@
+CREATE TABLE push_admin_devices (
+  device_id INTEGER PRIMARY KEY REFERENCES push_devices(id) ON DELETE CASCADE,
+  created_at TEXT NOT NULL DEFAULT CURRENT_TIMESTAMP
+);
