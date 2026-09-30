@@ -3325,9 +3325,9 @@ async function renderConfirmationHistory(submission) {
       }
       return { team, missed };
     };
-    const [mostPickedTeam, mostPickedCount] = countTeams(completedHistory.map(row => String(row.pick).toUpperCase()));
-    const [mostFadedTeam, mostFadedCount] = countTeams(completedHistory.map(opponentFor));
-    const teamRecords = against => [...completedHistory.reduce((records, row) => {
+    const [mostPickedTeam, mostPickedCount] = countTeams(regularHistory.map(row => String(row.pick).toUpperCase()).concat(currentRows.map(row => row.pick).filter(Boolean)));
+    const [mostFadedTeam, mostFadedCount] = countTeams(regularHistory.map(opponentFor).concat(currentRows.map(row => [row.game.favorite, row.game.underdog].map(team => String(team).toUpperCase()).find(team => team !== row.pick)).filter(Boolean)));
+    const teamRecords = against => [...regularHistory.reduce((records, row) => {
       const team = against ? opponentFor(row) : String(row.pick).toUpperCase();
       const result = String(row.result).toLowerCase();
       if (!team || !["win", "loss", "push"].includes(result)) return records;
@@ -3338,7 +3338,7 @@ async function renderConfirmationHistory(submission) {
       records.set(team, record);
       return records;
     }, new Map()).values()].filter(record => record.wins + record.losses >= 3);
-    const compareTeamPerformance = (left, right) => (right.wins - right.losses) - (left.wins - left.losses) || right.wins - left.wins || (right.wins + right.losses) - (left.wins + left.losses) || websiteNaturalTeamName(left.team).localeCompare(websiteNaturalTeamName(right.team));
+    const compareTeamPerformance = (left, right) => (right.wins / (right.wins + right.losses)) - (left.wins / (left.wins + left.losses)) || (right.wins + right.losses) - (left.wins + left.losses) || right.wins - left.wins || websiteNaturalTeamName(left.team).localeCompare(websiteNaturalTeamName(right.team));
     const bestTeamRecord = against => [...teamRecords(against)].sort(compareTeamPerformance)[0] || null;
     const worstTeamRecord = against => [...teamRecords(against)].sort(compareTeamPerformance).at(-1) || null;
     const pickRepeat = currentTeams.map(team => currentChoiceRun(team)).sort((left, right) => right.length - left.length || websiteNaturalTeamName(left.team).localeCompare(websiteNaturalTeamName(right.team)))[0] || { team: "", length: 0 };
@@ -3347,18 +3347,18 @@ async function renderConfirmationHistory(submission) {
     const longestFadeGap = currentOpponents.map(team => regularOpportunityGap(team, true)).sort((left, right) => right.missed - left.missed || websiteNaturalTeamName(left.team).localeCompare(websiteNaturalTeamName(right.team)))[0] || { team: "", missed: 0 };
     const metricValue = (team, count, empty = "No completed history") => team && count ? `${teamLabel(team)} · ${count}` : empty;
     const recordValue = (record, empty) => record ? `${teamLabel(record.team)} · ${record.wins}-${record.losses}${record.pushes ? `-${record.pushes}` : ""}` : empty;
-    const gapValue = (team, missed, empty) => team ? `${teamLabel(team)} · ${missed ? `${missed} ${missed === 1 ? "game" : "games"} ago` : "first chance"}` : empty;
+    const gapValue = (team, missed, empty) => team ? `${teamLabel(team)} · ${missed || "first chance"}` : empty;
     host.innerHTML = `<h3>Your pick patterns</h3>${confirmationMetricTable([
-      { label: "Most picked team · total", value: metricValue(mostPickedTeam, mostPickedCount, "No completed picks") },
-      { label: "Most picked against · total", value: metricValue(mostFadedTeam, mostFadedCount, "No completed fades") },
-      { label: "Current consecutive picks", value: metricValue(pickRepeat.team, pickRepeat.length) },
-      { label: "Current consecutive fades", value: metricValue(fadeRepeat.team, fadeRepeat.length) },
+      { label: "Most picked team · regular season", value: metricValue(mostPickedTeam, mostPickedCount, "No regular-season picks") },
+      { label: "Most picked against · regular season", value: metricValue(mostFadedTeam, mostFadedCount, "No regular-season fades") },
+      { label: "Current pick run · team opportunities", value: metricValue(pickRepeat.team, pickRepeat.length) },
+      { label: "Current fade run · team opportunities", value: metricValue(fadeRepeat.team, fadeRepeat.length) },
       { label: "Longest time since you picked", value: gapValue(longestPickGap.team, longestPickGap.missed, "No current picks") },
       { label: "Team you finally faded", value: gapValue(longestFadeGap.team, longestFadeGap.missed, "No current fades") },
-      { label: "Best betting for", value: recordValue(bestTeamRecord(false), "No qualified pick record") },
-      { label: "Worst betting for", value: recordValue(worstTeamRecord(false), "No qualified pick record") },
-      { label: "Best betting against", value: recordValue(bestTeamRecord(true), "No qualified fade record") },
-      { label: "Worst betting against", value: recordValue(worstTeamRecord(true), "No qualified fade record") }
+      { label: "Best ATS record when picked", value: recordValue(bestTeamRecord(false), "No qualified pick record") },
+      { label: "Worst ATS record when picked", value: recordValue(worstTeamRecord(false), "No qualified pick record") },
+      { label: "Best ATS record when faded", value: recordValue(bestTeamRecord(true), "No qualified fade record") },
+      { label: "Worst ATS record when faded", value: recordValue(worstTeamRecord(true), "No qualified fade record") }
     ])}`;
     return;
     const activeWinningRun = rows => {
