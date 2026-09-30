@@ -253,7 +253,12 @@
   .confirmation-block { min-width: 0; padding: 16px 0; border-bottom: 1px solid var(--border); }
   .confirmation-block:last-child { border-bottom: 0; }
   .confirmation-block h3 { margin: 0 0 8px; color: var(--accent); font: 11px Arial, sans-serif; letter-spacing: .8px; text-transform: uppercase; }
-  .confirmation-block p { margin: 5px 0; font-size: 13px; }
+  .confirmation-metrics { width: 100%; border-collapse: collapse; font: 13px/1.4 Arial, sans-serif; }
+  .confirmation-metrics th, .confirmation-metrics td { padding: 8px 0; border-bottom: 1px solid var(--border); text-align: left; vertical-align: top; }
+  .confirmation-metrics tr:last-child th, .confirmation-metrics tr:last-child td { border-bottom: 0; }
+  .confirmation-metrics th { width: 42%; color: var(--muted); font-size: 11px; font-weight: normal; text-transform: uppercase; letter-spacing: .5px; }
+  .confirmation-metrics td { color: var(--text); font-weight: bold; }
+  .confirmation-metrics td small { display: block; margin-top: 2px; color: var(--muted); font-size: 11px; font-weight: normal; }
   .confirmation-metrics { display: grid; grid-template-columns: repeat(4, minmax(0, 1fr)); gap: 7px; margin-top: 10px; }
   .confirmation-metric { min-width: 0; padding: 12px 7px; border: 1px solid var(--border); background: var(--panel-2); text-align: center; }
   .confirmation-metric strong { display: block; overflow-wrap: anywhere; color: var(--text); font-size: 18px; }
@@ -3109,7 +3114,7 @@ function websitePlayerWeekHistory(name) {
 function websiteParticipationSummary(name) {
   const normalized = String(name || "").trim().toLowerCase();
   const player = websitePlayers.find(row => String(row.name || "").trim().toLowerCase() === normalized);
-  if (!player) return "";
+  if (!player) return null;
   const periods = [...new Map(websiteWeeks.map(row => [`${row.season}|${row.week}`, { season: String(row.season), week: String(row.week), order: Number(row.weekOrder || 0) }])).values()].sort((left, right) => left.season.localeCompare(right.season) || left.order - right.order);
   const periodIndex = new Map(periods.map((period, index) => [`${period.season}|${period.week}`, index]));
   const rowsByPlayer = websiteWeeks.reduce((map, row) => { const rows = map.get(row.playerId) || []; rows.push(row); map.set(row.playerId, rows); return map; }, new Map());
@@ -3124,7 +3129,10 @@ function websiteParticipationSummary(name) {
   const current = { weeks: historical.weeks + 1, streak: historical.streak + 1 };
   const weekRank = 1 + allMetrics.filter(row => row.playerId !== player.playerId && row.weeks > current.weeks).length;
   const streakRank = 1 + allMetrics.filter(row => row.playerId !== player.playerId && row.streak > current.streak).length;
-  return `This is your <strong>${websiteOrdinal(current.weeks)}</strong> pool week and your <strong>${websiteOrdinal(current.streak)} in a row</strong>. That ranks ${websiteOrdinal(weekRank)} of ${allMetrics.length} all time in weeks entered and ${websiteOrdinal(streakRank)} in active attendance streaks.`;
+  return { weeks: current.weeks, streak: current.streak, weekRank, streakRank, playerCount: allMetrics.length };
+}
+function confirmationMetricTable(rows) {
+  return `<table class="confirmation-metrics"><tbody>${rows.map(row => `<tr><th scope="row">${websiteEscapeHtml(row.label)}</th><td>${row.value}${row.detail ? `<small>${row.detail}</small>` : ""}</td></tr>`).join("")}</tbody></table>`;
 }
 function interpretWebsiteWeekName(weekName, playerName) {
   const text = String(weekName || "").trim();
@@ -3201,19 +3209,17 @@ function renderConfirmationIdentity(submission, identity) {
   const host = document.getElementById("confirmation-identity");
   const effective = identity || { status: "new", submittedName: submission.name.trim(), suggestedName: "" };
   const approvedNewPlayer = websiteApprovedNewPlayerName === String(effective.submittedName || submission.name).trim().toLowerCase();
-  const spacingOnly = effective.canonicalizedFrom && String(effective.canonicalizedFrom).trim() === effective.submittedName;
-  const formattingNote = effective.canonicalizedFrom ? spacingOnly ? " We removed the extra spacing from your name." : ` You entered <strong>${websiteEscapeHtml(effective.canonicalizedFrom)}</strong>; we saved it as <strong>${websiteEscapeHtml(effective.submittedName)}</strong>.` : "";
-  let message = `Welcome back, ${websiteEscapeHtml(effective.submittedName)}.${formattingNote}`;
   const isNewPlayer = approvedNewPlayer || ["new", "suggestion", "reversed"].includes(effective.status);
-  if (isNewPlayer) message = `Welcome, ${websiteEscapeHtml(effective.submittedName)}. Your picks appear on Current Week immediately; live scores and probability update there after kickoff.`;
-  const participation = isNewPlayer ? "" : websiteParticipationSummary(effective.submittedName);
-  const overall = (tableData.overall || []).find(row => String(row.Name || "").trim().toLowerCase() === String(effective.submittedName || "").trim().toLowerCase());
-  const career = overall ? `Career record: <strong>${Number(overall.Wins || 0) + Number(overall.Losses || 0)}</strong> picks, <strong>${(Number(overall["%"] || 0) * 100).toFixed(1)}%</strong> wins, and <strong>${Number(overall["Plus/Minus"] || 0) > 0 ? "+" : ""}${Number(overall["Plus/Minus"] || 0)}</strong> plus/minus.` : "";
-  host.innerHTML = `<h3>Your pool history</h3><p>${message}</p>${participation ? `<p>${participation}</p>` : ""}${career ? `<p>${career}</p>` : ""}`;
+  const participation = isNewPlayer ? null : websiteParticipationSummary(effective.submittedName);
+  const rows = participation ? [
+    { label: "Pool weeks", value: websiteEscapeHtml(String(participation.weeks)), detail: `${websiteOrdinal(participation.weekRank)} of ${participation.playerCount} all time` },
+    { label: "Active attendance streak", value: websiteEscapeHtml(`${participation.streak} in a row`), detail: `${websiteOrdinal(participation.streakRank)} of ${participation.playerCount} all time` }
+  ] : [{ label: "Pool status", value: isNewPlayer ? "New player" : "No completed pool history yet" }];
+  host.innerHTML = `<h3>Your pool history</h3>${confirmationMetricTable(rows)}`;
 }
 function renderConfirmationPicks(submission) {
   const host = document.getElementById("confirmation-picks");
-  host.innerHTML = `<h3>Live outlook</h3><div id="confirmation-probability" class="confirmation-status"><p>Comparing your form with the field...</p></div>`;
+  host.innerHTML = `<h3>Live outlook</h3><div id="confirmation-probability" class="confirmation-status">${confirmationMetricTable([{ label: "Status", value: "Calculating live outlook" }])}</div>`;
 }
 async function loadConfirmationProbability(submission) {
   const host = document.getElementById("confirmation-probability");
@@ -3247,16 +3253,19 @@ async function loadConfirmationProbability(submission) {
       const supporters = field.filter(row => String(row.picks?.[index] || "").toUpperCase() === pick).length;
       return { game, index, pick, opponents, supporters, bestBet: pick === String(submission.bestBet || "").toUpperCase() };
     }).filter(row => row.pick && row.opponents).sort((left, right) => (right.opponents + Number(right.bestBet)) - (left.opponents + Number(left.bestBet)) || left.supporters - right.supporters)[0];
-    const chanceText = `As the field stands now, your chance to win is <strong>${websiteEscapeHtml(player.winProbability)}</strong>. That ranks ${tied ? "tied for " : ""}<strong>${websiteOrdinal(probabilityRank)}</strong> out of ${field.length} entries.`;
-    const pathsText = `You currently have <strong>${Math.round(pathCount).toLocaleString()}</strong> modeled paths to victory. This changes as more picks arrive and games are played.`;
     const leverageOpponent = leverage ? [leverage.game.favorite, leverage.game.underdog].map(team => String(team).toUpperCase()).find(team => team !== leverage.pick) : "";
     const leverageSpread = leverage ? Number(leverage.game.spread || 0) : 0;
     const leverageOpponentLine = leverage ? `${websiteNaturalTeamName(leverageOpponent)} ${leverageSpread ? `${leverageOpponent === String(leverage.game.favorite).toUpperCase() ? "-" : "+"}${leverageSpread}` : "PK"}` : "";
     const otherEntries = Math.max(1, field.length - 1);
     const leveragePercent = leverage ? (leverage.opponents / otherEntries * 100).toFixed(1) : "0.0";
-    const leverageText = leverage ? `Your <strong>${websiteEscapeHtml(websiteNaturalTeamName(leverage.pick))}</strong> pick gives you the most separation from the current field. If it hits, you gain ground on <strong>${leveragePercent}%</strong> of the other entries (${leverage.opponents} of ${otherEntries}) backing <strong>${websiteEscapeHtml(leverageOpponentLine)}</strong>.${leverage.bestBet ? " It is also your Best Bet, so it carries an extra point." : ""}` : "No pick separates you from the current field yet.";
-    host.innerHTML = [chanceText, pathsText, leverageText].map(text => `<p>${text}</p>`).join("");
-  } catch (error) { host.innerHTML = `<p>The live field could not be calculated right now: ${websiteEscapeHtml(error.message)}</p>`; }
+    const separation = leverage ? `${websiteEscapeHtml(websiteNaturalTeamName(leverage.pick))} vs ${websiteEscapeHtml(websiteNaturalTeamName(leverageOpponent))}` : "No separation yet";
+    const separationDetail = leverage ? `${leveragePercent}% of other entries back ${websiteEscapeHtml(leverageOpponentLine)}${leverage.bestBet ? " · Best Bet" : ""}` : "All current entries match this card";
+    host.innerHTML = confirmationMetricTable([
+      { label: "Chance to win", value: websiteEscapeHtml(player.winProbability), detail: `${tied ? "Tied " : ""}${websiteOrdinal(probabilityRank)} of ${field.length}` },
+      { label: "Paths to victory", value: websiteEscapeHtml(Math.round(pathCount).toLocaleString()) },
+      { label: "Most separation", value: separation, detail: separationDetail }
+    ]);
+  } catch (error) { host.innerHTML = confirmationMetricTable([{ label: "Live outlook", value: "Unavailable" }]); }
 }
 async function renderConfirmationHistory(submission) {
   const host = document.getElementById("confirmation-history");
@@ -3273,6 +3282,37 @@ async function renderConfirmationHistory(submission) {
     const currentTeams = [...new Set(currentRows.map(row => row.pick).filter(Boolean))];
     const currentOpponents = [...new Set(currentRows.map(row => [row.game.favorite, row.game.underdog].map(team => String(team).toUpperCase()).find(team => team !== row.pick)).filter(Boolean))];
     const completedHistory = history.filter(row => ["win", "loss", "push"].includes(String(row.result).toLowerCase()));
+    const teamLabel = team => websiteEscapeHtml(websiteNaturalTeamName(team));
+    const opponentFor = row => [row.game.favorite, row.game.underdog].map(team => String(team).toUpperCase()).find(team => team !== String(row.pick).toUpperCase()) || "";
+    const countTeams = teams => [...teams.reduce((counts, team) => counts.set(team, (counts.get(team) || 0) + 1), new Map()).entries()].sort((left, right) => right[1] - left[1] || websiteNaturalTeamName(left[0]).localeCompare(websiteNaturalTeamName(right[0])))[0] || ["", 0];
+    const longestRepeat = teams => {
+      let best = { team: "", length: 0 }, team = "", length = 0;
+      teams.forEach(value => { if (value && value === team) length += 1; else { team = value; length = value ? 1 : 0; } if (length > best.length) best = { team, length }; });
+      return best;
+    };
+    const bestResultRun = result => {
+      const teams = [...new Set(completedHistory.map(row => String(row.pick).toUpperCase()))];
+      return teams.reduce((best, team) => {
+        let current = 0, longest = 0;
+        completedHistory.filter(row => String(row.pick).toUpperCase() === team).forEach(row => { current = String(row.result).toLowerCase() === result ? current + 1 : 0; longest = Math.max(longest, current); });
+        return longest > best.length ? { team, length: longest } : best;
+      }, { team: "", length: 0 });
+    };
+    const [mostPickedTeam, mostPickedCount] = countTeams(completedHistory.map(row => String(row.pick).toUpperCase()));
+    const [mostFadedTeam, mostFadedCount] = countTeams(completedHistory.map(opponentFor));
+    const pickRepeat = longestRepeat(completedHistory.map(row => String(row.pick).toUpperCase()));
+    const fadeRepeat = longestRepeat(completedHistory.map(opponentFor));
+    const bestWinRun = bestResultRun("win"), worstLossRun = bestResultRun("loss");
+    const metricValue = (team, count, empty = "No completed history") => team && count ? `${teamLabel(team)} · ${count}` : empty;
+    host.innerHTML = `<h3>Your pick patterns</h3>${confirmationMetricTable([
+      { label: "Most picked team", value: metricValue(mostPickedTeam, mostPickedCount, "No completed picks") },
+      { label: "Most picked against", value: metricValue(mostFadedTeam, mostFadedCount, "No completed fades") },
+      { label: "Most picked in a row", value: metricValue(pickRepeat.team, pickRepeat.length) },
+      { label: "Most picked against in a row", value: metricValue(fadeRepeat.team, fadeRepeat.length) },
+      { label: "Best team picked streak", value: metricValue(bestWinRun.team, bestWinRun.length, "No winning streak") },
+      { label: "Worst team picked streak", value: metricValue(worstLossRun.team, worstLossRun.length, "No losing streak") }
+    ])}`;
+    return;
     const activeWinningRun = rows => {
       let length = 0;
       for (let index = rows.length - 1; index >= 0 && String(rows[index].result).toLowerCase() === "win"; index--) length += 1;
