@@ -10,16 +10,35 @@
 <title>FBP</title>
 <script>
 (() => {
-  const key = "fbp-color-theme";
-  try { document.documentElement.dataset.theme = localStorage.getItem(key) === "light" ? "light" : "dark"; } catch {}
+  const themeKey = "fbp-color-theme", zoomKey = "fbp-app-zoom", zoomSteps = [0.8, 0.9, 1, 1.1, 1.2];
+  let appZoom = 1;
+  try {
+    document.documentElement.dataset.theme = localStorage.getItem(themeKey) === "light" ? "light" : "dark";
+    const savedZoom = Number(localStorage.getItem(zoomKey));
+    if (zoomSteps.includes(savedZoom)) appZoom = savedZoom;
+  } catch {}
+  document.documentElement.style.setProperty("--app-zoom", String(appZoom));
   document.addEventListener("DOMContentLoaded", () => {
     const toggle = document.getElementById("theme-toggle");
     toggle.checked = document.documentElement.dataset.theme !== "light";
     toggle.addEventListener("change", () => {
       document.documentElement.dataset.theme = toggle.checked ? "dark" : "light";
-      try { localStorage.setItem(key, document.documentElement.dataset.theme); } catch {}
+      try { localStorage.setItem(themeKey, document.documentElement.dataset.theme); } catch {}
       Object.values(window.Chart?.instances || {}).forEach(chart => chart.update("none"));
     });
+    const zoomOut = document.getElementById("app-zoom-out"), zoomIn = document.getElementById("app-zoom-in"), zoomStatus = document.getElementById("app-zoom-status");
+    const setAppZoom = nextZoom => {
+      appZoom = Math.min(zoomSteps.at(-1), Math.max(zoomSteps[0], nextZoom));
+      document.documentElement.style.setProperty("--app-zoom", String(appZoom));
+      zoomOut.disabled = appZoom === zoomSteps[0];
+      zoomIn.disabled = appZoom === zoomSteps.at(-1);
+      zoomStatus.value = `App zoom ${Math.round(appZoom * 100)}%`;
+      try { localStorage.setItem(zoomKey, String(appZoom)); } catch {}
+      Object.values(window.Chart?.instances || {}).forEach(chart => chart.resize());
+    };
+    zoomOut.addEventListener("click", () => setAppZoom(zoomSteps[Math.max(0, zoomSteps.indexOf(appZoom) - 1)]));
+    zoomIn.addEventListener("click", () => setAppZoom(zoomSteps[Math.min(zoomSteps.length - 1, zoomSteps.indexOf(appZoom) + 1)]));
+    setAppZoom(appZoom);
     window.Chart?.register({ id: "pageTheme", beforeUpdate(chart) {
       const style = getComputedStyle(document.documentElement);
       const race = chart.canvas.closest(".live-race-line-wrap");
@@ -45,11 +64,17 @@
 <style>
   :root { color-scheme: dark; }
   :root[data-theme="light"] { color-scheme: light; --bg: #f5f7f8; --panel: #ffffff; --panel-2: #e9eef1; --border: #bac6cd; --text: #18262f; --muted: #52636e; --accent: #755600; --accent-2: #8a6200; --positive: #17683f; --positive-bg: #e0f1e6; --danger: #a72938; --danger-bg: #fae3e6; }
-  html .theme-switch { display: inline-flex; align-items: center; gap: 8px; padding: 8px 0; margin-right: 14px; color: var(--text); font: 12px Arial, sans-serif; text-transform: none; letter-spacing: 0; white-space: nowrap; cursor: pointer; }
+  html .theme-switch { display: inline-flex; align-items: center; gap: 8px; padding: 8px 0; margin-right: 10px; color: var(--text); font: 12px Arial, sans-serif; text-transform: none; letter-spacing: 0; white-space: nowrap; cursor: pointer; }
   html .theme-switch input { width: 34px; height: 20px; margin: 0; padding: 0; appearance: none; border: 1px solid var(--muted); border-radius: 12px; background: var(--panel-2); cursor: pointer; }
   html .theme-switch input::before { content: ""; display: block; width: 14px; height: 14px; margin: 2px; border-radius: 50%; background: var(--text); transition: transform .15s; }
   html .theme-switch input:checked::before { transform: translateX(14px); background: var(--accent); }
   html .theme-switch input:focus-visible { outline: 2px solid var(--accent); outline-offset: 3px; }
+  .app-zoom-controls { display: inline-flex; gap: 4px; margin-right: 14px; }
+  .app-zoom-controls button { display: grid; width: 28px; height: 28px; place-items: center; border: 1px solid var(--border); border-radius: 4px; background: transparent; color: var(--text); font: bold 18px/1 Arial, sans-serif; cursor: pointer; }
+  .app-zoom-controls button:hover:not(:disabled) { background: var(--panel-2); border-color: var(--accent); color: var(--accent); }
+  .app-zoom-controls button:focus-visible { outline: 2px solid var(--accent); outline-offset: 2px; }
+  .app-zoom-controls button:disabled { opacity: .45; cursor: not-allowed; }
+  .app-zoom-status { position: absolute; width: 1px; height: 1px; overflow: hidden; clip: rect(0 0 0 0); white-space: nowrap; }
   html[data-theme="light"] body { background: linear-gradient(120deg, #eef3f5, var(--bg) 50%, #f5f6ee); }
   html[data-theme="light"] :is(.teams-sheet th,.analysis-table th,.scenario-player-row td,.turning-point,.lead-change,.live-superlative,.outcome-team,.outcome-reset,button.outcome-spread,.submission-status-list li,.pg-game,.pg-round,.pg-sum-hdr,.weekly-rank-sheet th,.payout-table th,.payout-table thead th:first-child,.install-help,.profile-chart-tooltip,.game-cover-popover,.pull-refresh) { background: var(--panel-2); color: var(--text); }
   html[data-theme="light"] :is(.tabulator-header,.tabulator-col,.tabulator-row.tabulator-row-even) { background: var(--panel-2) !important; }
@@ -60,7 +85,7 @@
   html[data-theme="light"] #website-race-event-panel { background: var(--panel-2); color: var(--text); }
   :root { --bg: #0d1117; --panel: #171a1f; --panel-2: #20242a; --border: #3a3d42; --text: #f3f1e8; --muted: #aaa69b; --accent: #ffcf40; --accent-2: #e6a817; --positive: #39c982; --positive-bg: #123c2d; --danger: #ff6b6b; --danger-bg: #481f24; }
   * { box-sizing: border-box; }
-  body { margin: 0; font-family: Georgia, "Times New Roman", serif; background: radial-gradient(circle at 85% 0%, #403514 0, transparent 34rem), var(--bg); color: var(--text); }
+  body { margin: 0; zoom: var(--app-zoom, 1); font-family: Georgia, "Times New Roman", serif; background: radial-gradient(circle at 85% 0%, #403514 0, transparent 34rem), var(--bg); color: var(--text); }
   header { padding: 22px clamp(8px, 1.5vw, 20px); border-bottom: 1px solid var(--border); display: flex; align-items: center; flex-wrap: wrap; }
   nav { display: flex; flex-wrap: wrap; gap: 6px; }
   nav button, button, select { font: inherit; }
@@ -822,7 +847,7 @@
 </head>
 <body>
 <div id="website-pull-refresh" class="pull-refresh" role="status" aria-live="polite"><span class="pull-refresh-icon" aria-hidden="true">↻</span><span class="pull-refresh-label">Pull to refresh</span></div>
-<header><label class="theme-switch"><input id="theme-toggle" type="checkbox" role="switch" checked>Dark mode</label><nav id="nav"><button data-view="enter-picks">Enter Picks</button><button data-view="week-one">Week 3</button><button data-view="live-analysis">Live</button><button data-view="players">Players</button><button data-view="alltime">All Time</button><button data-view="season">Seasons</button><button data-view="weeks">Weeks</button><button data-view="games">Games</button><button data-view="streaks">Streaks</button><button data-view="teams">Teams</button><button data-view="names">Names</button><button data-view="payout">Payout</button><button data-view="faq">FAQ</button></nav></header>
+<header><label class="theme-switch"><input id="theme-toggle" type="checkbox" role="switch" checked>Dark mode</label><div class="app-zoom-controls" aria-label="App zoom"><button id="app-zoom-out" type="button" title="Zoom out" aria-label="Zoom out">−</button><button id="app-zoom-in" type="button" title="Zoom in" aria-label="Zoom in">+</button><output id="app-zoom-status" class="app-zoom-status" aria-live="polite"></output></div><nav id="nav"><button data-view="enter-picks">Enter Picks</button><button data-view="week-one">Week 3</button><button data-view="live-analysis">Live</button><button data-view="players">Players</button><button data-view="alltime">All Time</button><button data-view="season">Seasons</button><button data-view="weeks">Weeks</button><button data-view="games">Games</button><button data-view="streaks">Streaks</button><button data-view="teams">Teams</button><button data-view="names">Names</button><button data-view="payout">Payout</button><button data-view="faq">FAQ</button></nav></header>
 <aside id="website-install-help" class="install-help" hidden><div><strong>Add FBP to your Home Screen</strong><span id="website-install-copy"></span></div><button id="website-install-action" type="button" hidden>Install</button><button id="website-install-close" class="install-help-close" type="button" aria-label="Dismiss home-screen instructions">×</button></aside>
 <main>
   <section id="view-enter-picks" class="view">
