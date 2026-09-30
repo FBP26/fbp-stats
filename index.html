@@ -253,12 +253,12 @@
   .confirmation-block { min-width: 0; padding: 16px 0; border-bottom: 1px solid var(--border); }
   .confirmation-block:last-child { border-bottom: 0; }
   .confirmation-block h3 { margin: 0 0 8px; color: var(--accent); font: 11px Arial, sans-serif; letter-spacing: .8px; text-transform: uppercase; }
-  .confirmation-metrics { width: 100%; border-collapse: collapse; font: 13px/1.4 Arial, sans-serif; }
-  .confirmation-metrics th, .confirmation-metrics td { padding: 8px 0; border-bottom: 1px solid var(--border); text-align: left; vertical-align: top; }
-  .confirmation-metrics tr:last-child th, .confirmation-metrics tr:last-child td { border-bottom: 0; }
-  .confirmation-metrics th { width: 42%; color: var(--muted); font-size: 11px; font-weight: normal; text-transform: uppercase; letter-spacing: .5px; }
-  .confirmation-metrics td { color: var(--text); font-weight: bold; }
-  .confirmation-metrics td small { display: block; margin-top: 2px; color: var(--muted); font-size: 11px; font-weight: normal; }
+  .confirmation-metric-table { width: 100%; border-collapse: collapse; font: 13px/1.4 Arial, sans-serif; }
+  .confirmation-metric-table th, .confirmation-metric-table td { padding: 8px 0; border-bottom: 1px solid var(--border); text-align: left; vertical-align: top; }
+  .confirmation-metric-table tr:last-child th, .confirmation-metric-table tr:last-child td { border-bottom: 0; }
+  .confirmation-metric-table th { width: 58%; color: var(--muted); font-size: 11px; font-weight: normal; text-transform: uppercase; letter-spacing: .5px; white-space: nowrap; }
+  .confirmation-metric-table td { color: var(--text); font-weight: bold; }
+  .confirmation-metric-table td small { display: block; margin-top: 2px; color: var(--muted); font-size: 11px; font-weight: normal; }
   .confirmation-metrics { display: grid; grid-template-columns: repeat(4, minmax(0, 1fr)); gap: 7px; margin-top: 10px; }
   .confirmation-metric { min-width: 0; padding: 12px 7px; border: 1px solid var(--border); background: var(--panel-2); text-align: center; }
   .confirmation-metric strong { display: block; overflow-wrap: anywhere; color: var(--text); font-size: 18px; }
@@ -3132,7 +3132,7 @@ function websiteParticipationSummary(name) {
   return { weeks: current.weeks, streak: current.streak, weekRank, streakRank, playerCount: allMetrics.length };
 }
 function confirmationMetricTable(rows) {
-  return `<table class="confirmation-metrics"><tbody>${rows.map(row => `<tr><th scope="row">${websiteEscapeHtml(row.label)}</th><td>${row.value}${row.detail ? `<small>${row.detail}</small>` : ""}</td></tr>`).join("")}</tbody></table>`;
+  return `<table class="confirmation-metric-table"><tbody>${rows.map(row => `<tr><th scope="row">${websiteEscapeHtml(row.label)}</th><td>${row.value}${row.detail ? `<small>${row.detail}</small>` : ""}</td></tr>`).join("")}</tbody></table>`;
 }
 function interpretWebsiteWeekName(weekName, playerName) {
   const text = String(weekName || "").trim();
@@ -3213,7 +3213,7 @@ function renderConfirmationIdentity(submission, identity) {
   const participation = isNewPlayer ? null : websiteParticipationSummary(effective.submittedName);
   const rows = participation ? [
     { label: "Pool weeks", value: websiteEscapeHtml(String(participation.weeks)), detail: `${websiteOrdinal(participation.weekRank)} of ${participation.playerCount} all time` },
-    { label: "Active attendance streak", value: websiteEscapeHtml(`${participation.streak} in a row`), detail: `${websiteOrdinal(participation.streakRank)} of ${participation.playerCount} all time` }
+    { label: "Current attendance streak", value: websiteEscapeHtml(`${participation.streak} in a row`), detail: `Current-streak rank: ${websiteOrdinal(participation.streakRank)} of ${participation.playerCount}` }
   ] : [{ label: "Pool status", value: isNewPlayer ? "New player" : "No completed pool history yet" }];
   host.innerHTML = `<h3>Your pool history</h3>${confirmationMetricTable(rows)}`;
 }
@@ -3285,32 +3285,75 @@ async function renderConfirmationHistory(submission) {
     const teamLabel = team => websiteEscapeHtml(websiteNaturalTeamName(team));
     const opponentFor = row => [row.game.favorite, row.game.underdog].map(team => String(team).toUpperCase()).find(team => team !== String(row.pick).toUpperCase()) || "";
     const countTeams = teams => [...teams.reduce((counts, team) => counts.set(team, (counts.get(team) || 0) + 1), new Map()).entries()].sort((left, right) => right[1] - left[1] || websiteNaturalTeamName(left[0]).localeCompare(websiteNaturalTeamName(right[0])))[0] || ["", 0];
-    const longestRepeat = teams => {
-      let best = { team: "", length: 0 }, team = "", length = 0;
-      teams.forEach(value => { if (value && value === team) length += 1; else { team = value; length = value ? 1 : 0; } if (length > best.length) best = { team, length }; });
-      return best;
+    const isRegularSeasonGame = game => /^\d+$/.test(String(game.week || "").trim());
+    const regularGames = websiteGames.filter(isRegularSeasonGame);
+    const regularHistory = completedHistory.filter(row => isRegularSeasonGame(row.game));
+    const periodKey = game => `${game.season}|${String(game.week).padStart(2, "0")}`;
+    const periods = [...new Map(regularGames.map(game => [periodKey(game), { key: periodKey(game), season: String(game.season), week: Number(game.week), date: String(game.gameDate || "") }])).values()].sort((left, right) => left.date.localeCompare(right.date) || left.season.localeCompare(right.season) || left.week - right.week);
+    const gamesByPeriod = regularGames.reduce((groups, game) => { const key = periodKey(game); const games = groups.get(key) || []; games.push(game); groups.set(key, games); return groups; }, new Map());
+    const picksByPeriod = regularHistory.reduce((groups, row) => { const key = periodKey(row.game); const picks = groups.get(key) || []; picks.push(row); groups.set(key, picks); return groups; }, new Map());
+    const teamPlayed = (team, games) => games.some(game => [game.favorite, game.underdog].some(value => String(value).toUpperCase() === team));
+    const pickedInPeriod = (team, picks, against) => picks.some(row => against ? opponentFor(row) === team : String(row.pick).toUpperCase() === team);
+    const currentRegularKey = `${submission.season}-${Number(submission.season) + 1}|${String(submission.week).padStart(2, "0")}`;
+    const currentChoiceRun = (team, against = false) => {
+      let length = 0;
+      const currentGame = currentRows.find(row => [row.game.favorite, row.game.underdog].some(value => String(value).toUpperCase() === team));
+      if (currentGame) {
+        const currentMatches = against ? String(currentGame.pick).toUpperCase() !== team : String(currentGame.pick).toUpperCase() === team;
+        if (!currentMatches) return { team, length: 0 };
+        length += 1;
+      }
+      for (let index = periods.length - 1; index >= 0; index--) {
+        const period = periods[index];
+        if (period.key === currentRegularKey) continue;
+        const games = gamesByPeriod.get(period.key) || [];
+        if (!teamPlayed(team, games)) continue;
+        if (!pickedInPeriod(team, picksByPeriod.get(period.key) || [], against)) break;
+        length += 1;
+      }
+      return { team, length };
     };
-    const bestResultRun = result => {
-      const teams = [...new Set(completedHistory.map(row => String(row.pick).toUpperCase()))];
-      return teams.reduce((best, team) => {
-        let current = 0, longest = 0;
-        completedHistory.filter(row => String(row.pick).toUpperCase() === team).forEach(row => { current = String(row.result).toLowerCase() === result ? current + 1 : 0; longest = Math.max(longest, current); });
-        return longest > best.length ? { team, length: longest } : best;
-      }, { team: "", length: 0 });
+    const regularOpportunityGap = (team, against = false) => {
+      let missed = 0;
+      for (let index = periods.length - 1; index >= 0; index--) {
+        const period = periods[index];
+        if (period.key === currentRegularKey) continue;
+        const games = gamesByPeriod.get(period.key) || [];
+        if (!teamPlayed(team, games)) continue;
+        if (pickedInPeriod(team, picksByPeriod.get(period.key) || [], against)) break;
+        missed += 1;
+      }
+      return { team, missed };
+    };
+    const currentResultRun = (team, result) => {
+      let length = 0;
+      for (let index = regularHistory.length - 1; index >= 0; index--) {
+        const row = regularHistory[index];
+        if (String(row.pick).toUpperCase() !== team) continue;
+        if (String(row.result).toLowerCase() !== result) break;
+        length += 1;
+      }
+      return { team, length };
     };
     const [mostPickedTeam, mostPickedCount] = countTeams(completedHistory.map(row => String(row.pick).toUpperCase()));
     const [mostFadedTeam, mostFadedCount] = countTeams(completedHistory.map(opponentFor));
-    const pickRepeat = longestRepeat(completedHistory.map(row => String(row.pick).toUpperCase()));
-    const fadeRepeat = longestRepeat(completedHistory.map(opponentFor));
-    const bestWinRun = bestResultRun("win"), worstLossRun = bestResultRun("loss");
+    const pickRepeat = currentTeams.map(team => currentChoiceRun(team)).sort((left, right) => right.length - left.length || websiteNaturalTeamName(left.team).localeCompare(websiteNaturalTeamName(right.team)))[0] || { team: "", length: 0 };
+    const fadeRepeat = currentOpponents.map(team => currentChoiceRun(team, true)).sort((left, right) => right.length - left.length || websiteNaturalTeamName(left.team).localeCompare(websiteNaturalTeamName(right.team)))[0] || { team: "", length: 0 };
+    const longestPickGap = currentTeams.map(team => regularOpportunityGap(team)).sort((left, right) => right.missed - left.missed || websiteNaturalTeamName(left.team).localeCompare(websiteNaturalTeamName(right.team)))[0] || { team: "", missed: 0 };
+    const longestFadeGap = currentOpponents.map(team => regularOpportunityGap(team, true)).sort((left, right) => right.missed - left.missed || websiteNaturalTeamName(left.team).localeCompare(websiteNaturalTeamName(right.team)))[0] || { team: "", missed: 0 };
+    const bestWinRun = currentTeams.map(team => currentResultRun(team, "win")).sort((left, right) => right.length - left.length || websiteNaturalTeamName(left.team).localeCompare(websiteNaturalTeamName(right.team)))[0] || { team: "", length: 0 };
+    const worstLossRun = currentTeams.map(team => currentResultRun(team, "loss")).sort((left, right) => right.length - left.length || websiteNaturalTeamName(left.team).localeCompare(websiteNaturalTeamName(right.team)))[0] || { team: "", length: 0 };
     const metricValue = (team, count, empty = "No completed history") => team && count ? `${teamLabel(team)} · ${count}` : empty;
+    const gapValue = (team, missed, empty) => team ? `${teamLabel(team)} · ${missed ? `${missed} team ${missed === 1 ? "game" : "games"}` : "first chance"}` : empty;
     host.innerHTML = `<h3>Your pick patterns</h3>${confirmationMetricTable([
       { label: "Most picked team", value: metricValue(mostPickedTeam, mostPickedCount, "No completed picks") },
       { label: "Most picked against", value: metricValue(mostFadedTeam, mostFadedCount, "No completed fades") },
-      { label: "Most picked in a row", value: metricValue(pickRepeat.team, pickRepeat.length) },
-      { label: "Most picked against in a row", value: metricValue(fadeRepeat.team, fadeRepeat.length) },
-      { label: "Best team picked streak", value: metricValue(bestWinRun.team, bestWinRun.length, "No winning streak") },
-      { label: "Worst team picked streak", value: metricValue(worstLossRun.team, worstLossRun.length, "No losing streak") }
+      { label: "Current picked-team streak", value: metricValue(pickRepeat.team, pickRepeat.length) },
+      { label: "Current fade streak", value: metricValue(fadeRepeat.team, fadeRepeat.length) },
+      { label: "Longest time since you picked", value: gapValue(longestPickGap.team, longestPickGap.missed, "No current picks") },
+      { label: "Team you finally faded", value: gapValue(longestFadeGap.team, longestFadeGap.missed, "No current fades") },
+      { label: "Current best team-picked streak", value: metricValue(bestWinRun.team, bestWinRun.length, "No winning streak") },
+      { label: "Current worst team-picked streak", value: metricValue(worstLossRun.team, worstLossRun.length, "No losing streak") }
     ])}`;
     return;
     const activeWinningRun = rows => {
