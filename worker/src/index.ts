@@ -896,6 +896,16 @@ export const dispatchWeekNotifications = async (
   return result;
 };
 
+const pushDestination = (event: NotificationEvent): string => {
+  if (event === "picksReady" || event === "picksDue") return "enter-picks";
+  return "live-analysis";
+};
+
+const ordinalRank = (rank: number): string => {
+  const suffix = rank % 100 >= 11 && rank % 100 <= 13 ? "th" : ({ 1: "st", 2: "nd", 3: "rd" }[rank % 10] || "th");
+  return `${rank}${suffix}`;
+};
+
 const dispatchPushNotifications = async (
   env: Env,
   week: Record<string, unknown>,
@@ -909,6 +919,15 @@ const dispatchPushNotifications = async (
   const events = onlyEvents || new Set(scheduledNotificationEvents(now, games, String(week.status)));
   const players: JsonObject[] = feed ? scoreWeekWithoutProbabilities(feed.cards, feed.games, null).map(player => ({ ...player })) : [];
   players.forEach(player => { player.rank = 1 + players.filter(other => Number(other.wins) > Number(player.wins)).length; });
+  let observation: AlertObservation | null = null;
+  if (feed) {
+    const previous = await env.DB.prepare("SELECT payload_json FROM notification_observations WHERE week_id = ?").bind(week.id).first<{ payload_json: string }>();
+    observation = observeLeads(feed, previous ? JSON.parse(previous.payload_json) as AlertObservation : null, now.toISOString());
+    await env.DB.prepare("INSERT INTO notification_observations (week_id, observed_at, payload_json) VALUES (?, ?, ?) ON CONFLICT (week_id) DO UPDATE SET observed_at = excluded.observed_at, payload_json = excluded.payload_json").bind(week.id, observation.at, JSON.stringify(observation)).run();
+  }
+  const weeklyRecapReady = String(week.status) === "finalized" && Boolean(
+    await env.DB.prepare("SELECT 1 FROM completed_week_archives WHERE week_id = ?").bind(week.id).first(),
+  );
   const hasStarted = games.some(game => ["LIVE", "FINAL"].includes(String(game.state)));
   if (!onlyEvents && hasStarted && players.length) events.add("firstPlace");
   const devices = await env.DB.prepare("SELECT * FROM push_devices WHERE status = 'active'").all();
@@ -924,19 +943,38 @@ const dispatchPushNotifications = async (
       if (!Number(device[notificationPreferenceColumns[event]])) continue;
       if (event === "picksDue" && !missing.length) continue;
       const leaders = submitted.filter(name => players.find(player => String(player.name).toLowerCase() === name.toLowerCase() && Number(player.rank) === 1));
-      if (event === "firstPlace" && !leaders.length) continue;
+      const newLeaders = leaders.filter(name => {
+        const player = players.find(row => String(row.name).toLowerCase() === name.toLowerCase());
+        const lead = player && observation?.changes[String(player.name)];
+        const createdAt = Date.parse(`${String(device.created_at || "").replace(/Z$/, "")}Z`);
+        return lead && (!Number.isFinite(createdAt) || Date.parse(lead.at) >= createdAt);
+      });
+      if (event === "firstPlace" && !newLeaders.length) continue;
       if (["earlyWindow", "lateWindow", "beforeSnf", "beforeMnf", "weeklyResult"].includes(event) && !submitted.length) continue;
-      const key = `${event}:${week.id}`;
+      if (event === "weeklyResult" && !weeklyRecapReady) continue;
+      const paths = (event === "beforeSnf" || event === "beforeMnf") && feed
+        ? submitted.map(name => ({ name, paths: nightPaths(feed, name) })).filter(candidate => candidate.paths.eligible)
+        : [];
+      if ((event === "beforeSnf" || event === "beforeMnf") && !paths.length) continue;
+      const key = `${event}:${week.id}${event === "firstPlace" ? `:${newLeaders.map(name => observation?.changes[name]?.at || name).join(",")}` : ""}`;
       const reserved = await env.DB.prepare("INSERT INTO push_deliveries (device_id, week_id, event_type, deduplication_key, status) VALUES (?, ?, ?, ?, 'queued') ON CONFLICT(device_id, deduplication_key) DO NOTHING").bind(device.id, week.id, event, key).run();
       if (!reserved.meta.changes) { result.skipped += 1; continue; }
+      const personalResults = submitted.map(name => {
+        const player = players.find(row => String(row.name).toLowerCase() === name.toLowerCase())!;
+        const tied = players.filter(row => Number(row.wins) === Number(player.wins)).length > 1;
+        return `${name}: ${Number(player.wins)} wins, ${tied ? "tied for " : ""}${ordinalRank(Number(player.rank))}`;
+      });
+      const winners = players.filter(player => Number(player.rank) === 1).map(player => String(player.name));
       const body = event === "picksDue"
-        ? `${missing.join(" and ")} still need${missing.length === 1 ? "s" : ""} to submit.`
+        ? "Your picks still need to be submitted."
         : event === "picksReady" ? `Week ${week.week} is ready for picks.`
-        : event === "firstPlace" ? `${leaders.join(" and ")} ${leaders.length === 1 ? "is" : "are"} in first.`
-        : `${submitted.join(" and ")} · Week ${week.week} update.`;
+        : event === "firstPlace" ? "You jumped into first place."
+        : event === "weeklyResult" ? `Your Week ${week.week} recap: ${personalResults.join("; ")}. Winner${winners.length === 1 ? "" : "s"}: ${winners.join(" and ")}.`
+        : event === "beforeSnf" || event === "beforeMnf" ? `You are still in the hunt. ${paths.map(candidate => `${candidate.name}: ${candidate.paths.count}/${candidate.paths.total} paths to first`).join("; ")}.`
+        : `Your Current Week: ${personalResults.join("; ")}.`;
       const sent = await sendWebPush(
         { endpoint: String(device.endpoint), p256dh: String(device.p256dh), auth: String(device.auth) },
-        { title: `FBP Week ${week.week}`, body, url: `${env.PUBLIC_SITE_URL || "https://fbp26.github.io/fbp-stats/"}#${event === "picksReady" || event === "picksDue" ? "enter-picks" : "live-analysis"}`, tag: `fbp-${key}` },
+        { title: `FBP Week ${week.week}${event === "weeklyResult" ? " recap" : ""}`, body, url: `${env.PUBLIC_SITE_URL || "https://fbp26.github.io/fbp-stats/"}#${pushDestination(event)}`, tag: `fbp-${key}` },
         { publicKey: env.VAPID_PUBLIC_KEY, privateKey: env.VAPID_PRIVATE_KEY, subject: env.VAPID_SUBJECT },
       );
       if (sent.expired) await env.DB.prepare("UPDATE push_devices SET status='unsubscribed', unsubscribed_at=CURRENT_TIMESTAMP, updated_at=CURRENT_TIMESTAMP WHERE id=?").bind(device.id).run();
