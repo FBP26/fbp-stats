@@ -197,6 +197,10 @@
   .notification-settings > summary { padding: 9px 0; color: var(--accent); font: bold 12px Arial, sans-serif; cursor: pointer; }
   .notification-form { display: grid; gap: 9px; max-width: 720px; padding: 1px 0 12px; }
   .notification-choice { display: flex; flex-wrap: wrap; gap: 7px; }
+  .notification-install { display: grid; gap: 6px; padding: 10px; border: 1px solid var(--accent); border-radius: 5px; background: var(--panel-2); }
+  .notification-install strong { color: var(--accent); font: bold 11px Arial, sans-serif; }
+  .notification-install span { color: var(--muted); font: 11px/1.4 Arial, sans-serif; }
+  .notification-install button { justify-self: start; border-color: var(--accent); background: var(--accent); color: #17212b; font-weight: bold; }
   .notification-choice label { display: flex; align-items: center; gap: 6px; min-height: 34px; padding: 7px 10px; border: 1px solid var(--border); border-radius: 5px; background: var(--panel-2); color: var(--text); font: 12px Arial, sans-serif; text-transform: none; letter-spacing: 0; cursor: pointer; }
   .notification-choice label:has(input:checked) { border-color: var(--accent); color: var(--accent); }
   .notification-choice label:has(input:disabled) { opacity: .52; cursor: not-allowed; }
@@ -858,7 +862,6 @@
 <body>
 <div id="website-pull-refresh" class="pull-refresh" role="status" aria-live="polite"><span class="pull-refresh-icon" aria-hidden="true">↻</span><span class="pull-refresh-label">Pull to refresh</span></div>
 <header><label class="theme-switch"><input id="theme-toggle" type="checkbox" role="switch" checked>Dark mode</label><div class="app-zoom-controls" aria-label="App zoom"><button id="app-zoom-out" type="button" title="Zoom out" aria-label="Zoom out">−</button><button id="app-zoom-in" type="button" title="Zoom in" aria-label="Zoom in">+</button><output id="app-zoom-status" class="app-zoom-status" aria-live="polite"></output></div><nav id="nav"><button data-view="enter-picks">Enter Picks</button><button data-view="week-one">Week 3</button><button data-view="live-analysis">Live</button><button data-view="players">Players</button><button data-view="alltime">All Time</button><button data-view="season">Seasons</button><button data-view="weeks">Weeks</button><button data-view="games">Games</button><button data-view="streaks">Streaks</button><button data-view="teams">Teams</button><button data-view="names">Names</button><button data-view="payout">Payout</button><button data-view="faq">FAQ</button></nav></header>
-<aside id="website-install-help" class="install-help" hidden><div><strong>Add FBP to your Home Screen</strong><span id="website-install-copy"></span></div><button id="website-install-action" type="button" hidden>Install</button><button id="website-install-close" class="install-help-close" type="button" aria-label="Dismiss home-screen instructions">×</button></aside>
 <main>
   <section id="view-enter-picks" class="view">
     <section class="intro"><div><h2>Enter Picks</h2></div><p>Week 1 · 2026-2027</p></section>
@@ -1005,7 +1008,17 @@ if (websiteLaunchUrl.searchParams.has("app-refresh")) {
 const requestedRouteValue = websitePlayersReloadOpensSubmissionStatus ? "submission-status" : websiteFaqReloadOpensMap ? "map" : standaloneAppLaunch && websiteRoutes.includes(savedStartupRoute) ? savedStartupRoute : location.hash.slice(1);
 const requestedRoute = requestedRouteValue === "current-week" ? "week-one" : requestedRouteValue;
 const requestedStartupRoute = requestedRoute === "weekly-rank" ? "weeks" : websiteRoutes.includes(requestedRoute) ? requestedRoute : "week-one";
-let websiteRefreshInstallHelp = () => {};
+const websiteRefreshInstallHelp = () => {};
+const websiteIsStandalone = matchMedia("(display-mode: standalone)").matches || navigator.standalone === true;
+const websiteIsAppleMobile = /iPhone|iPad|iPod/i.test(navigator.userAgent) || navigator.platform === "MacIntel" && navigator.maxTouchPoints > 1;
+let websiteDeferredInstallPrompt = null;
+const websiteInstallStateListeners = new Set();
+const websiteNotifyInstallState = () => websiteInstallStateListeners.forEach(listener => listener());
+window.addEventListener("beforeinstallprompt", event => {
+  event.preventDefault();
+  websiteDeferredInstallPrompt = event;
+  websiteNotifyInstallState();
+});
 if (location.hash === "#weekly-rank") history.replaceState(null, "", "#weeks");
 let startupRoutePending = true;
 const WEBSITE_SHEETS_ENDPOINT = "https://script.google.com/macros/s/AKfycbxZUgJm6LstCEomhmrlJYa_nH7tsmxC_4UZwYdroIZbs-PeI6KdPqUZtsF9fZvr_YuNWQ/exec";
@@ -2669,10 +2682,40 @@ async function initializePushNotifications() {
   settings.querySelector("summary").textContent = "Push notification preferences";
   form.innerHTML = '<div class="notification-events"><label><input type="checkbox" name="picksReady" checked><span>Picks are ready<small>A new weekly slate is open.</small></span></label><label><input type="checkbox" name="picksDue" checked><span>Picks due reminder<small><input type="number" name="picksDueMinutes" min="1" max="240" value="60"> min before the first game · only when your picks are missing.</small></span></label><label><input type="checkbox" name="firstPlace" checked><span>First-place jump<small>When you jump into first place.</small></span></label><label><input type="checkbox" name="earlyWindow" checked><span>After early games<small>Your Current Week position after every Sunday 1 PM game is final.</small></span></label><label><input type="checkbox" name="beforeSnf" checked><span>Before Sunday Night Football<small>Only when you are still in the hunt, with a short what-you-need recap.</small></span></label><label><input type="checkbox" name="beforeMnf" checked><span>Before Monday Night Football<small>Only when you are still in the hunt, with a short what-you-need recap.</small></span></label><label><input type="checkbox" name="weeklyResult" checked><span>Weekly recap<small>Your final finish, score, and the weekly winner after the completed week is archived.</small></span></label></div><div class="notification-choice"><button id="notification-save" type="submit">Enable notifications</button><button id="notification-disable" type="button" hidden>Disable notifications</button></div>';
   const save = document.getElementById("notification-save"), disable = document.getElementById("notification-disable");
+  const installHelp = document.createElement("div");
+  installHelp.id = "notification-install-help";
+  installHelp.className = "notification-install";
+  installHelp.innerHTML = '<strong>Save FBP to your Home Screen first</strong><span id="notification-install-copy"></span><button id="notification-install-action" type="button">Save to Home Screen</button>';
+  form.querySelector(".notification-choice").before(installHelp);
+  const installCopy = document.getElementById("notification-install-copy"), installAction = document.getElementById("notification-install-action");
+  const browserCanPush = () => "serviceWorker" in navigator && "PushManager" in window && !(websiteIsAppleMobile && !websiteIsStandalone);
+  const refreshPushSupport = () => {
+    const needsHomeScreen = websiteIsAppleMobile && !websiteIsStandalone;
+    const mobileUnsupported = !browserCanPush() && matchMedia("(max-width: 760px)").matches;
+    installHelp.hidden = !needsHomeScreen && !mobileUnsupported;
+    if (needsHomeScreen) installCopy.textContent = "On iPhone or iPad: tap Save to Home Screen, choose Share, then tap Add to Home Screen. Open FBP from that new icon before enabling notifications.";
+    else if (mobileUnsupported) installCopy.textContent = "This browser cannot receive FBP notifications. Save FBP to your Home Screen, then open it from the new icon.";
+    save.disabled = !browserCanPush();
+    save.title = browserCanPush() ? "" : "Save FBP to your Home Screen, then open the installed app to enable notifications.";
+  };
+  websiteInstallStateListeners.add(refreshPushSupport);
+  refreshPushSupport();
+  installAction.addEventListener("click", async () => {
+    if (websiteDeferredInstallPrompt) {
+      await websiteDeferredInstallPrompt.prompt();
+      websiteDeferredInstallPrompt = null;
+      refreshPushSupport();
+      return;
+    }
+    if (navigator.share) {
+      try { await navigator.share({ title: document.title, url: location.href }); } catch {}
+    }
+    status.textContent = "In the Share menu, choose Add to Home Screen, then open FBP from the new icon.";
+  });
   const deviceToken = () => localStorage.getItem(WEBSITE_PUSH_DEVICE_TOKEN);
   const preferences = () => Object.fromEntries(notificationEventsForForm().map(name => [name, Boolean(form.elements[name]?.checked)]));
   const savePreferences = async requestPermission => {
-    if (!("serviceWorker" in navigator) || !("PushManager" in window)) { status.textContent = "Push notifications are not supported by this browser."; return; }
+    if (!browserCanPush()) { status.textContent = websiteIsAppleMobile ? "Save FBP to your Home Screen, then open the installed app to enable notifications." : "Push notifications are not supported by this browser."; return; }
     save.disabled = true;
     try {
       const response = await fetch(`${WEBSITE_NOTIFICATION_ENDPOINT}/?action=notification-status`, { signal: AbortSignal.timeout(10000) });
@@ -7905,40 +7948,7 @@ if (["week-one", "live-analysis"].includes(startupRoute) && !WEBSITE_SUBMISSIONS
   window.addEventListener("pageshow", event => { if (event.persisted) refreshVisiblePicks(); });
   window.addEventListener("online", refreshVisiblePicks);
   document.addEventListener("visibilitychange", refreshVisiblePicks);
-  {
-    const installHelp = document.getElementById("website-install-help"), installCopy = document.getElementById("website-install-copy"), installAction = document.getElementById("website-install-action");
-    const standalone = matchMedia("(display-mode: standalone)").matches || navigator.standalone === true;
-    const isAppleMobile = /iPhone|iPad|iPod/i.test(navigator.userAgent) || navigator.platform === "MacIntel" && navigator.maxTouchPoints > 1;
-    const isAndroid = /Android/i.test(navigator.userAgent);
-    const mobileViewport = matchMedia("(max-width: 760px)");
-    let deferredInstallPrompt = null;
-    let installHelpCopy = "";
-    let installHelpDismissed = false;
-    const hideInstallHelp = () => { installHelp.hidden = true; };
-    websiteRefreshInstallHelp = (view = location.hash.slice(1)) => {
-      const shouldShow = view === "enter-picks" && installHelpCopy && !installHelpDismissed && !standalone && mobileViewport.matches;
-      installHelp.hidden = !shouldShow;
-    };
-    const showInstallHelp = copy => { installHelpCopy = copy; installCopy.textContent = copy; websiteRefreshInstallHelp(); };
-    document.getElementById("website-install-close").onclick = () => { installHelpDismissed = true; hideInstallHelp(); };
-    if (isAppleMobile) showInstallHelp("Press and hold the URL, tap Share, scroll to Add to Home Screen, then tap Add.");
-    else if (isAndroid) showInstallHelp("Open Chrome’s menu, tap Add to Home screen, then Install.");
-    window.addEventListener("beforeinstallprompt", event => {
-      event.preventDefault();
-      deferredInstallPrompt = event;
-      installAction.hidden = false;
-      showInstallHelp("Tap Install, then confirm.");
-    });
-    installAction.onclick = async () => {
-      if (!deferredInstallPrompt) return;
-      await deferredInstallPrompt.prompt();
-      const choice = await deferredInstallPrompt.userChoice;
-      if (choice.outcome === "accepted") hideInstallHelp();
-      deferredInstallPrompt = null;
-      installAction.hidden = true;
-    };
-    window.addEventListener("appinstalled", hideInstallHelp);
-  }
+  window.addEventListener("appinstalled", websiteNotifyInstallState);
 </script>
 </body>
 </html>
