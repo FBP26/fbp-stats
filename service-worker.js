@@ -1,4 +1,4 @@
-const CACHE_NAME = "fbp-shell-v39";
+const CACHE_NAME = "fbp-shell-v40";
 const APP_SHELL = ["./", "./index.html", "./live-client.js", "./historical-ui.js", "./teams.js", "./map.js", "./map.css", "./manifest.webmanifest"];
 
 self.addEventListener("install", event => {
@@ -25,4 +25,20 @@ self.addEventListener("fetch", event => {
     event.waitUntil(caches.open(CACHE_NAME).then(cache => cache.put(event.request, copy)));
     return response;
   }).catch(() => caches.match(event.request)));
+});
+
+self.addEventListener("push", event => {
+  const message = event.data?.json?.() || { title: "FBP", body: "New pool update", url: "./", tag: "fbp-update" };
+  event.waitUntil(self.registration.showNotification(message.title || "FBP", {
+    body: message.body || "New pool update",
+    tag: message.tag || "fbp-update",
+    data: { url: message.url || "./" },
+    icon: "icons/fbp-icon-192.png",
+    badge: "icons/fbp-icon-192.png",
+  }));
+});
+
+self.addEventListener("notificationclick", event => {
+  event.notification.close();
+  event.waitUntil(clients.openWindow(event.notification.data?.url || "./"));
 });

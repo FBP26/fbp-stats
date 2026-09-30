@@ -7,12 +7,16 @@ import { espnEventId, fetchEspnGame, isRefreshWindow, parseEspnGame, type Stored
 import { validateRaceSnapshotPlayers } from "./race.ts";
 import { alertEmailHtml, nightPaths, observeLeads, parseAlertFeed, type AlertFeed, type AlertObservation } from "./alert-details.ts";
 import { maskNotificationDestination, normalizeNotificationDestination, notificationEvents, notificationPreferenceColumns, parseNotificationPreferences, picksDueReminderIsEligible, scheduledNotificationEvents, type NotificationChannel, type NotificationEvent } from "./notifications.ts";
+import { sendWebPush, type PushSubscriptionRecord } from "./web-push.ts";
 
 interface Env {
   DB: D1Database;
   CORS_ORIGIN: string;
   EMAIL_RELAY_URL?: string;
   EMAIL_RELAY_SECRET?: string;
+  VAPID_PUBLIC_KEY?: string;
+  VAPID_PRIVATE_KEY?: string;
+  VAPID_SUBJECT?: string;
   PUBLIC_API_URL?: string;
   PUBLIC_SITE_URL?: string;
   PICKS_SOURCE_URL?: string;
@@ -423,7 +427,8 @@ const handleGet = async (request: Request, env: Env): Promise<Response> => {
   if (action === "notification-status") return json({
     ok: true,
     players: await notificationRoster(env),
-    channels: { email: Boolean(env.EMAIL_RELAY_URL && env.EMAIL_RELAY_SECRET), sms: false },
+    channels: { push: Boolean(env.VAPID_PUBLIC_KEY && env.VAPID_PRIVATE_KEY && env.VAPID_SUBJECT), email: false, sms: false },
+    vapidPublicKey: env.VAPID_PUBLIC_KEY || "",
     reminderMinutes: { min: 1, max: 240, default: 60 },
     checkIntervalMinutes: 1,
   }, 200, env.CORS_ORIGIN);
@@ -596,6 +601,49 @@ const reminderMinutes = (value: unknown): number => {
   const minutes = value == null ? 60 : Number(value);
   if (!Number.isInteger(minutes) || minutes < 1 || minutes > 240) throw new Error("Reminder must be a whole number from 1 through 240 minutes.");
   return minutes;
+};
+
+const pushSubscriptionFromPayload = (value: unknown): PushSubscriptionRecord => {
+  const source = value && typeof value === "object" ? value as Record<string, unknown> : {};
+  const keys = source.keys && typeof source.keys === "object" ? source.keys as Record<string, unknown> : {};
+  const endpoint = cleanText(source.endpoint, 2000);
+  const p256dh = cleanText(keys.p256dh, 200);
+  const auth = cleanText(keys.auth, 100);
+  if (!/^https:\/\//.test(endpoint) || !/^[A-Za-z0-9_-]{80,}$/.test(p256dh) || !/^[A-Za-z0-9_-]{20,}$/.test(auth)) {
+    throw new Error("This browser did not provide a valid push subscription.");
+  }
+  return { endpoint, p256dh, auth };
+};
+
+const savePushDevice = async (payload: JsonObject, env: Env): Promise<Response> => {
+  if (!env.VAPID_PUBLIC_KEY || !env.VAPID_PRIVATE_KEY || !env.VAPID_SUBJECT) return json({ ok: false, error: "Push notifications are not configured yet." }, 503, env.CORS_ORIGIN);
+  const subscription = pushSubscriptionFromPayload(payload.subscription);
+  const preferences = parseNotificationPreferences(payload.preferences);
+  if (!notificationEvents.some(event => preferences[event])) return json({ ok: false, error: "Choose at least one alert." }, 400, env.CORS_ORIGIN);
+  const existing = await env.DB.prepare("SELECT device_token FROM push_devices WHERE endpoint = ?").bind(subscription.endpoint).first<{ device_token: string }>();
+  const deviceToken = existing?.device_token || randomToken();
+  const values = notificationEvents.map(event => preferences[event] ? 1 : 0);
+  await env.DB.prepare(
+    `INSERT INTO push_devices
+     (endpoint, p256dh, auth, device_token, device_token_hash, status, picks_ready, picks_due, picks_due_minutes, first_place, early_window, late_window, before_snf, before_mnf, weekly_result, updated_at)
+     VALUES (?, ?, ?, ?, ?, 'active', ?, ?, ?, ?, ?, ?, ?, ?, ?, CURRENT_TIMESTAMP)
+     ON CONFLICT(endpoint) DO UPDATE SET p256dh=excluded.p256dh, auth=excluded.auth, status='active',
+       picks_ready=excluded.picks_ready, picks_due=excluded.picks_due, picks_due_minutes=excluded.picks_due_minutes,
+       first_place=excluded.first_place, early_window=excluded.early_window, late_window=excluded.late_window,
+       before_snf=excluded.before_snf, before_mnf=excluded.before_mnf, weekly_result=excluded.weekly_result,
+       unsubscribed_at=NULL, updated_at=CURRENT_TIMESTAMP`,
+  ).bind(subscription.endpoint, subscription.p256dh, subscription.auth, deviceToken, await sha256(deviceToken), values[0], values[1], reminderMinutes(payload.picksDueMinutes), ...values.slice(2)).run();
+  return json({ ok: true, deviceToken, status: "active" }, 200, env.CORS_ORIGIN);
+};
+
+const linkPushDevicePlayer = async (payload: JsonObject, env: Env): Promise<Response> => {
+  const deviceToken = cleanText(payload.deviceToken, 64);
+  if (!/^[a-f0-9]{64}$/.test(deviceToken)) return json({ ok: false, error: "Push notifications are not enabled on this device." }, 404, env.CORS_ORIGIN);
+  const playerName = await notificationPlayerName(payload.playerName, env);
+  const device = await env.DB.prepare("SELECT id FROM push_devices WHERE device_token_hash = ? AND status = 'active'").bind(await sha256(deviceToken)).first<{ id: number }>();
+  if (!device) return json({ ok: false, error: "Push notifications are no longer active on this device." }, 404, env.CORS_ORIGIN);
+  await env.DB.prepare("INSERT INTO push_device_players (device_id, player_name) VALUES (?, ?) ON CONFLICT(device_id, player_name) DO NOTHING").bind(device.id, playerName).run();
+  return json({ ok: true, playerName }, 200, env.CORS_ORIGIN);
 };
 
 export const loadAlertFeed = async (env: Env, week: JsonObject, fetcher: typeof fetch = fetch): Promise<AlertFeed> => {
@@ -841,6 +889,58 @@ export const dispatchWeekNotifications = async (
   return result;
 };
 
+const dispatchPushNotifications = async (
+  env: Env,
+  week: Record<string, unknown>,
+  onlyEvents?: Set<NotificationEvent>,
+): Promise<NotificationDispatchResult> => {
+  const result = { sent: 0, skipped: 0, failed: 0 };
+  if (!env.VAPID_PUBLIC_KEY || !env.VAPID_PRIVATE_KEY || !env.VAPID_SUBJECT) return result;
+  const feed = onlyEvents ? null : await loadAlertFeed(env, week);
+  const games: JsonObject[] = feed ? feed.games.map(game => ({ ...game, state: game.status })) : await getWeekConfig(env.DB, Number(week.id));
+  const now = new Date();
+  const events = onlyEvents || new Set(scheduledNotificationEvents(now, games, String(week.status)));
+  const players: JsonObject[] = feed ? scoreWeekWithoutProbabilities(feed.cards, feed.games, null).map(player => ({ ...player })) : [];
+  players.forEach(player => { player.rank = 1 + players.filter(other => Number(other.wins) > Number(player.wins)).length; });
+  const hasStarted = games.some(game => ["LIVE", "FINAL"].includes(String(game.state)));
+  if (!onlyEvents && hasStarted && players.length) events.add("firstPlace");
+  const devices = await env.DB.prepare("SELECT * FROM push_devices WHERE status = 'active'").all();
+  const playerNames = new Set(players.map(player => String(player.name).toLowerCase()));
+  for (const device of devices.results) {
+    const linked = await env.DB.prepare("SELECT player_name FROM push_device_players WHERE device_id = ? ORDER BY player_name COLLATE NOCASE").bind(device.id).all<{ player_name: string }>();
+    const names = linked.results.map(row => row.player_name);
+    const submitted = names.filter(name => playerNames.has(name.toLowerCase()));
+    const missing = names.filter(name => !playerNames.has(name.toLowerCase()));
+    const deviceEvents = new Set(events);
+    if (!onlyEvents && picksDueReminderIsEligible(now, games, hasStarted ? "live" : "staged", Number(device.picks_due_minutes) || 60)) deviceEvents.add("picksDue");
+    for (const event of deviceEvents) {
+      if (!Number(device[notificationPreferenceColumns[event]])) continue;
+      if (event === "picksDue" && !missing.length) continue;
+      const leaders = submitted.filter(name => players.find(player => String(player.name).toLowerCase() === name.toLowerCase() && Number(player.rank) === 1));
+      if (event === "firstPlace" && !leaders.length) continue;
+      if (["earlyWindow", "lateWindow", "beforeSnf", "beforeMnf", "weeklyResult"].includes(event) && !submitted.length) continue;
+      const key = `${event}:${week.id}`;
+      const reserved = await env.DB.prepare("INSERT INTO push_deliveries (device_id, week_id, event_type, deduplication_key, status) VALUES (?, ?, ?, ?, 'queued') ON CONFLICT(device_id, deduplication_key) DO NOTHING").bind(device.id, week.id, event, key).run();
+      if (!reserved.meta.changes) { result.skipped += 1; continue; }
+      const body = event === "picksDue"
+        ? `${missing.join(" and ")} still need${missing.length === 1 ? "s" : ""} to submit.`
+        : event === "picksReady" ? `Week ${week.week} is ready for picks.`
+        : event === "firstPlace" ? `${leaders.join(" and ")} ${leaders.length === 1 ? "is" : "are"} in first.`
+        : `${submitted.join(" and ")} · Week ${week.week} update.`;
+      const sent = await sendWebPush(
+        { endpoint: String(device.endpoint), p256dh: String(device.p256dh), auth: String(device.auth) },
+        { title: `FBP Week ${week.week}`, body, url: `${env.PUBLIC_SITE_URL || "https://fbp26.github.io/fbp-stats/"}#${event === "picksReady" || event === "picksDue" ? "enter-picks" : "live-analysis"}`, tag: `fbp-${key}` },
+        { publicKey: env.VAPID_PUBLIC_KEY, privateKey: env.VAPID_PRIVATE_KEY, subject: env.VAPID_SUBJECT },
+      );
+      if (sent.expired) await env.DB.prepare("UPDATE push_devices SET status='unsubscribed', unsubscribed_at=CURRENT_TIMESTAMP, updated_at=CURRENT_TIMESTAMP WHERE id=?").bind(device.id).run();
+      await env.DB.prepare("UPDATE push_deliveries SET status=?, sent_at=?, error_message=? WHERE device_id=? AND deduplication_key=?").bind(sent.ok ? "sent" : "failed", sent.ok ? new Date().toISOString() : null, sent.error || null, device.id, key).run();
+      if (sent.ok) result.sent += 1;
+      else result.failed += 1;
+    }
+  }
+  return result;
+};
+
 export const syncApprovedStagedWeek = async (payload: JsonObject, env: Env): Promise<Record<string, unknown>> => {
   const control = await env.DB.prepare('SELECT owner,epoch FROM admin_control WHERE id=1').first<{ owner: string; epoch: number }>();
   if (control?.owner !== 'SHEETS') throw new SubmissionError('Legacy staging is disabled while D1 owns the pool.');
@@ -905,7 +1005,7 @@ const releasePicksReady = async (payload: JsonObject, env: Env): Promise<Respons
     return json({ ok: false, error: "Unauthorized." }, 401, env.CORS_ORIGIN);
   }
   const week = await syncApprovedStagedWeek(payload, env);
-  const result = await dispatchWeekNotifications(env, week, new Set<NotificationEvent>(["picksReady"]));
+  const result = await dispatchPushNotifications(env, week, new Set<NotificationEvent>(["picksReady"]));
   return json({ ok: result.failed === 0, ...result }, result.failed ? 502 : 200, env.CORS_ORIGIN);
 };
 
@@ -1047,6 +1147,8 @@ const handlePost = async (request: Request, env: Env): Promise<Response> => {
   if (action === "notification-subscribers") return listNotificationSubscribers(payload, env);
   if (action === "release-picks-ready") return releasePicksReady(payload, env);
   if (action === "log-visit") return handleAnalytics(payload, env);
+  if (action === "subscribe-push") return savePushDevice(payload, env);
+  if (action === "link-push-player") return linkPushDevicePlayer(payload, env);
   if (action === "subscribe-notifications") return subscribeNotifications(request, payload, env);
   if (action === "update-notifications") return updateNotificationPreferences(payload, env);
   if (action === "correct-submission-name") return correctSubmission(payload, env);
@@ -1096,7 +1198,7 @@ export default {
     let refreshedWeek = await findWeek(env.DB, Number(weekBeforeRefresh.season), Number(weekBeforeRefresh.week), String(weekBeforeRefresh.phase));
     if (refreshedWeek?.status === "finalizing") await finalizeWeek(env.DB, refreshedWeek);
     refreshedWeek = await findWeek(env.DB, Number(weekBeforeRefresh.season), Number(weekBeforeRefresh.week), String(weekBeforeRefresh.phase));
-    if (refreshedWeek?.phase === 'REGULAR_SEASON') await dispatchWeekNotifications(env, refreshedWeek);
+    if (refreshedWeek?.phase === 'REGULAR_SEASON') await dispatchPushNotifications(env, refreshedWeek);
     } finally {
       await env.DB.prepare("DELETE FROM notification_locks WHERE name = 'dispatch' AND expires_at = ?").bind(lease).run();
     }

@@ -2659,6 +2659,44 @@ function notificationPlayerValidation(value) {
   if (capitalizationMatch) return { name: capitalizationMatch, message: "" };
   return { name: "", message: `Choose an existing player from the list. "${trimmed || value}" is not a current player.` };
 }
+const WEBSITE_PUSH_DEVICE_TOKEN = "fbpPushDeviceToken";
+const websiteBase64UrlBytes = value => Uint8Array.from(atob(value.replace(/-/g, "+").replace(/_/g, "/") + "===".slice((value.length + 3) % 4)), character => character.charCodeAt(0));
+async function initializePushNotifications() {
+  const settings = document.querySelector(".notification-settings"), form = document.getElementById("notification-preferences-form"), status = document.getElementById("notification-status");
+  if (!settings || !form || !status) return;
+  settings.open = false;
+  settings.querySelector("summary").textContent = "Push notification preferences";
+  form.innerHTML = '<p class="notification-note">Enable concise FBP updates on this device. Players are linked automatically after they submit picks here.</p><div class="notification-events"><label><input type="checkbox" name="picksReady" checked><span>Picks are ready</span></label><label><input type="checkbox" name="picksDue" checked><span>Picks due reminder <small><input type="number" name="picksDueMinutes" min="1" max="240" value="60"> min before kickoff</small></span></label><label><input type="checkbox" name="firstPlace"><span>First-place jump</span></label><label><input type="checkbox" name="earlyWindow"><span>After early games</span></label><label><input type="checkbox" name="beforeSnf"><span>Before Sunday Night Football</span></label><label><input type="checkbox" name="beforeMnf"><span>Before Monday Night Football</span></label><label><input type="checkbox" name="weeklyResult" checked><span>Weekly result</span></label></div><button id="notification-save" type="submit">Enable notifications</button>';
+  status.textContent = "No player name is needed. This device will link each player after their picks are submitted.";
+  form.addEventListener("submit", async event => {
+    event.preventDefault();
+    const save = document.getElementById("notification-save");
+    if (!("serviceWorker" in navigator) || !("PushManager" in window)) { status.textContent = "Push notifications are not supported by this browser."; return; }
+    save.disabled = true;
+    try {
+      const response = await fetch(`${WEBSITE_NOTIFICATION_ENDPOINT}/?action=notification-status`, { signal: AbortSignal.timeout(10000) });
+      const config = await response.json();
+      if (!response.ok || !config.channels?.push || !config.vapidPublicKey) throw new Error("Push notifications are not ready yet.");
+      const permission = await Notification.requestPermission();
+      if (permission !== "granted") throw new Error("Notification permission was not granted.");
+      const registration = await navigator.serviceWorker.ready;
+      const subscription = await registration.pushManager.getSubscription() || await registration.pushManager.subscribe({ userVisibleOnly: true, applicationServerKey: websiteBase64UrlBytes(config.vapidPublicKey) });
+      const preferences = Object.fromEntries(notificationEventsForForm().map(name => [name, Boolean(form.elements[name]?.checked)]));
+      const saved = await fetch(WEBSITE_NOTIFICATION_ENDPOINT, { method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify({ action: "subscribe-push", subscription: subscription.toJSON(), picksDueMinutes: Number(form.elements.picksDueMinutes.value) || 60, preferences }) });
+      const data = await saved.json();
+      if (!saved.ok || !data.ok) throw new Error(data.error || "Push preferences could not be saved.");
+      localStorage.setItem(WEBSITE_PUSH_DEVICE_TOKEN, data.deviceToken);
+      status.textContent = "Notifications are enabled on this device.";
+      save.textContent = "Notifications enabled";
+    } catch (error) { status.textContent = error.message || "Push preferences could not be saved."; }
+    finally { save.disabled = false; }
+  });
+}
+async function websiteLinkPushPlayer(name) {
+  const deviceToken = localStorage.getItem(WEBSITE_PUSH_DEVICE_TOKEN);
+  if (!deviceToken || !name) return;
+  try { await fetch(WEBSITE_NOTIFICATION_ENDPOINT, { method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify({ action: "link-push-player", deviceToken, playerName: name }), keepalive: true }); } catch {}
+}
 async function initializeNotificationPreferences() {
   const sms = document.getElementById("notification-sms-channel"), save = document.getElementById("notification-save"), status = document.getElementById("notification-status");
   const form = document.getElementById("notification-preferences-form");
@@ -3665,6 +3703,7 @@ document.getElementById("website-picks-form").onsubmit = async event => {
       status.textContent = "Those exact picks are already saved. The original submission was kept.";
       document.querySelector("#view-picks-confirmation .intro p").textContent = selection.testMode ? `Preseason Week ${selection.week} test` : `Week ${selection.week} · ${selection.season}-${selection.season + 1}`;
       await renderWebsiteConfirmation(original, { unchanged: true, submittedAt: original.submittedAt, identity: { status: "known", submittedName: original.name.trim(), suggestedName: "" } });
+      websiteLinkPushPlayer(original.name);
       websiteClearPickDraft(); form.reset(); resetWebsiteBestBet(); showWebsiteConfirmation();
       return;
     }
@@ -3680,6 +3719,7 @@ document.getElementById("website-picks-form").onsubmit = async event => {
     const stored = JSON.parse(localStorage.getItem(storageKey) || "[]"); stored.push(submission); localStorage.setItem(storageKey, JSON.stringify(stored));
     status.textContent = selection.testMode ? "Test picks submitted. Season records were not changed." : "Picks submitted successfully.";
     websiteTrackEvent("submission", "enter-picks");
+    if (!selection.testMode) websiteLinkPushPlayer(result.identity?.submittedName || submission.name);
     document.querySelector("#view-picks-confirmation .intro p").textContent = selection.testMode ? `Preseason Week ${selection.week} test` : `Week ${selection.week} · ${selection.season}-${selection.season + 1}`;
     const confirmationReady = renderWebsiteConfirmation(submission, result);
     websiteClearPickDraft(); form.reset(); resetWebsiteBestBet(); showWebsiteConfirmation();
@@ -7712,7 +7752,7 @@ function applyHistoricalLabels() {
 }
 applyHistoricalLabels();
 document.getElementById("notification-preferences-form")?.addEventListener("submit", saveNotificationPreferences);
-initializeNotificationPreferences();
+initializePushNotifications();
 let historicalInitializationPromise = null;
 function startHistoricalInitialization() {
   if (!historicalInitializationPromise) historicalInitializationPromise = init().then(async () => { applyHistoricalLabels(); if (location.hash === "#weeks") { await loadDrilldown(); populateWeekSeasons(); renderWinnerContributions(true); renderPicksGrid(); setTimeout(() => { orientWeekChart(); addGamePushMarkers(); }, 0); } if (location.hash === "#season") populateSeasonChoices(); if (location.hash === "#map") initFbpMap(); if (location.hash === "#submission-status") renderSubmissionStatus(); if (websiteLastWeekData) renderWebsiteWeekRecap(websiteLastWeekData); });
