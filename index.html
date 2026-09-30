@@ -1267,7 +1267,7 @@ function websiteTeamChoice(game, abbreviation) {
   const displayName = abbreviation === abbreviation.toUpperCase() ? String(name).toUpperCase() : String(name).toLowerCase();
   const logo = websiteTeamLogoUrl(abbreviation);
   const homeMarker = isHome ? '<span class="website-home-marker">at </span>' : "";
-  return `<span class="website-team-choice"><img class="website-team-logo" src="${websiteEscapeHtml(logo)}" alt="" loading="lazy"><span class="website-team-name">${homeMarker}${websiteEscapeHtml(displayName)}</span><span class="website-team-abbreviation">${homeMarker}${websiteEscapeHtml(abbreviation)}</span><span class="website-team-record">${websiteEscapeHtml(metadata?.record || "0-0")}</span></span>`;
+  return `<span class="website-team-choice"><img class="website-team-logo" src="${websiteEscapeHtml(logo)}" alt="" loading="lazy"><span class="website-team-name">${homeMarker}${websiteEscapeHtml(displayName)}</span><span class="website-team-abbreviation">${homeMarker}${websiteEscapeHtml(abbreviation)}</span><span class="website-team-record">${websiteEscapeHtml(metadata?.record || "")}</span></span>`;
 }
 const WEBSITE_WEEK_ONE_GAMES = [["wed 8:20","SEA","3.5","ne"],["thu 8:35","LAR","3.5","sf"],["sun 1:00","HOU","1.5","buf"],["sun 1:00","PIT","3","atl"],["sun 1:00","JAX","7.5","cle"],["sun 1:00","TEN","2.5","nyj"],["sun 1:00","DET","6.5","no"],["sun 1:00","bal","3.5","IND"],["sun 1:00","chi","2.5","CAR"],["sun 1:00","CIN","3.5","tb"],["sun 4:25","MIN","1.5","gb"],["sun 4:25","PHI","5.5","was"],["sun 4:25","LAC","10.5","ari"],["sun 4:25","LV","3.5","mia"],["sun 8:20","dal","2.5","NYG"],["mon 8:15","KC","2.5","den"]].map(([time,favorite,spread,underdog],index)=>({id:`game-${index+1}`,time,favorite,spread,underdog}));
 function renderWebsitePicksForm() { const host = document.getElementById("website-game-picks"); if (!host || host.dataset.ready) return; host.dataset.ready = "true"; const choices = WEBSITE_WEEK_ONE_GAMES.flatMap(game => [game.favorite, game.underdog]).sort((a, b) => websiteTeamName(a).localeCompare(websiteTeamName(b), undefined, { sensitivity: "base" })); const groups = []; WEBSITE_WEEK_ONE_GAMES.forEach((game, index) => { const previous = WEBSITE_WEEK_ONE_GAMES[index - 1]; if (!previous || previous.time !== game.time) groups.push({ time: game.time, games: [] }); groups[groups.length - 1].games.push({ game, index }); }); host.innerHTML = groups.map(group => `<fieldset class="website-game-group"><legend>${group.time}</legend>${group.games.map(({ game, index }) => `<div class="website-game-row"><label class="website-side"><input type="radio" name="game-${index + 1}" value="${game.favorite}" required><span>${websiteTeamName(game.favorite)}</span></label><span class="website-spread">${game.spread}</span><label class="website-side right"><span>${websiteTeamName(game.underdog)}</span><input type="radio" name="game-${index + 1}" value="${game.underdog}" required></label></div>`).join("")}</fieldset>`).join(""); const bestBet = document.getElementById("website-best-bet"); choices.forEach(team => bestBet.add(new Option(websiteTeamName(team), team))); document.getElementById("website-picks-form").onsubmit = async event => { event.preventDefault(); const form = event.currentTarget; const submission = { submittedAt: new Date().toISOString(), name: document.getElementById("website-picks-name").value.trim(), weekName: document.getElementById("website-week-name").value.trim(), picks: WEBSITE_WEEK_ONE_GAMES.map((game, index) => form.elements[`game-${index + 1}`].value), bestBet: bestBet.value, tiebreaker: document.getElementById("website-tiebreaker").value }; const stored = JSON.parse(localStorage.getItem("fbpWebsiteSubmissions") || "[]"); stored.push(submission); localStorage.setItem("fbpWebsiteSubmissions", JSON.stringify(stored)); if (WEBSITE_SUBMISSIONS_ENDPOINT) await fetch(WEBSITE_SUBMISSIONS_ENDPOINT, { method: "POST", mode: "no-cors", headers: { "Content-Type": "text/plain" }, body: JSON.stringify(submission) }); document.getElementById("website-picks-status").textContent = WEBSITE_SUBMISSIONS_ENDPOINT ? "Submitted to the test workbook." : "Saved in this browser test. Add the Apps Script URL to submit to Sheets."; renderWebsiteWeekOne(); }; }
@@ -2881,7 +2881,7 @@ async function loadWebsiteStagedGames(selection, forceRefresh = false) {
     websiteDiscoveredPreseasonData = null;
     websiteStagedGamesCache.set(cacheKey, { games: discoveredGames, storedAt: Date.now() });
   } else if (cached?.games?.length && !forceRefresh) {
-    return cached.games.map((game, index) => ({ ...game, id: game.gameId || `game-${index + 1}`, time: game.kickoffGroup || game.kickoff || `Game ${index + 1}` }));
+    return cached.games.map((game, index) => ({ ...game, id: game.gameId || `game-${index + 1}`, time: game.kickoffGroup || websiteKickoffLabel(game.kickoff) || `Game ${index + 1}` }));
   }
   const rawGames = discoveredGames?.length ? discoveredGames : await (async () => {
     const data = await websiteLiveClient.read('week-config', { season: selection.season, week: selection.week, phase: selection.phase, enrich: forceRefresh ? '1' : '0' }, forceRefresh ? 60000 : 30000);
@@ -2889,14 +2889,20 @@ async function loadWebsiteStagedGames(selection, forceRefresh = false) {
     websiteStagedGamesCache.set(cacheKey, { games, storedAt: Date.now() });
     return games;
   })();
-  return rawGames.map((game, index) => ({ ...game, id: game.gameId || `game-${index + 1}`, time: game.kickoffGroup || game.kickoff || `Game ${index + 1}` }));
+  return rawGames.map((game, index) => ({ ...game, id: game.gameId || `game-${index + 1}`, time: game.kickoffGroup || websiteKickoffLabel(game.kickoff) || `Game ${index + 1}` }));
+}
+function websiteKickoffLabel(value) {
+  const kickoff = new Date(value);
+  if (Number.isNaN(kickoff.getTime())) return "";
+  return new Intl.DateTimeFormat("en-US", { timeZone: "America/New_York", weekday: "short", hour: "numeric", minute: "2-digit", timeZoneName: "short" }).format(kickoff);
 }
 function websiteGameContext(game) {
   const location = [game.venueCity, game.venueState].filter(Boolean).join(", ");
   const condition = String(game.weather || ""), normalizedCondition = condition.toLowerCase();
   const hasTemperature = game.temperature !== "" && game.temperature != null;
   const weatherIcon = game.indoor ? "🏟️" : /thunder|storm/.test(normalizedCondition) ? "⛈️" : /snow|flurr/.test(normalizedCondition) ? "❄️" : /rain|shower/.test(normalizedCondition) ? "🌧️" : /cloud|overcast/.test(normalizedCondition) ? "☁️" : /fog|mist/.test(normalizedCondition) ? "🌫️" : /wind/.test(normalizedCondition) ? "💨" : /sun|clear/.test(normalizedCondition) ? "☀️" : hasTemperature ? "🌡️" : "🌤️";
-  const weather = [hasTemperature ? `${game.temperature}°` : "", condition].filter(Boolean).join(" ");
+  const wind = game.windMph !== "" && game.windMph != null ? `Wind ${game.windMph} mph` : game.wind ? `Wind ${game.wind}` : "";
+  const weather = [hasTemperature ? `${game.temperature}°F` : "", condition, wind].filter(Boolean).join(" · ");
   const weatherDetail = game.indoor ? "Indoor" : weather;
   const details = [["venue", game.venueName || game.venue], ["location", location], ["weather", weatherDetail], ["broadcast", game.broadcast || game.tv]].filter(([, value]) => value);
   return details.length ? `<div class="website-game-context${websiteIsNeutralSite(game) ? " website-game-context-neutral" : ""}">${details.map(([type, value]) => `<span class="website-context-${type}">${type === "weather" ? `<span class="website-weather-icon" aria-hidden="true">${weatherIcon}</span>` : ""}${websiteEscapeHtml(value)}</span>`).join("")}</div>` : "";
