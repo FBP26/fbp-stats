@@ -2894,7 +2894,7 @@ async function loadWebsiteStagedGames(selection, forceRefresh = false) {
 function websiteKickoffLabel(value) {
   const kickoff = new Date(value);
   if (Number.isNaN(kickoff.getTime())) return "";
-  return new Intl.DateTimeFormat("en-US", { timeZone: "America/New_York", weekday: "short", hour: "numeric", minute: "2-digit" }).format(kickoff);
+  return new Intl.DateTimeFormat("en-US", { timeZone: "America/New_York", weekday: "short", hour: "numeric", minute: "2-digit" }).formatToParts(kickoff).filter(part => part.type !== "dayPeriod").map(part => part.value).join("").trim();
 }
 function websiteGameContext(game) {
   const location = [game.venueCity, game.venueState].filter(Boolean).join(", ");
