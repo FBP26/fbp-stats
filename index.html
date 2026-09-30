@@ -3344,12 +3344,12 @@ async function renderConfirmationHistory(submission) {
     const bestWinRun = currentTeams.map(team => currentResultRun(team, "win")).sort((left, right) => right.length - left.length || websiteNaturalTeamName(left.team).localeCompare(websiteNaturalTeamName(right.team)))[0] || { team: "", length: 0 };
     const worstLossRun = currentTeams.map(team => currentResultRun(team, "loss")).sort((left, right) => right.length - left.length || websiteNaturalTeamName(left.team).localeCompare(websiteNaturalTeamName(right.team)))[0] || { team: "", length: 0 };
     const metricValue = (team, count, empty = "No completed history") => team && count ? `${teamLabel(team)} · ${count}` : empty;
-    const gapValue = (team, missed, empty) => team ? `${teamLabel(team)} · ${missed ? `${missed} team ${missed === 1 ? "game" : "games"}` : "first chance"}` : empty;
+    const gapValue = (team, missed, empty) => team ? `${teamLabel(team)} · ${missed ? `${missed} ${missed === 1 ? "game" : "games"} ago` : "first chance"}` : empty;
     host.innerHTML = `<h3>Your pick patterns</h3>${confirmationMetricTable([
-      { label: "Most picked team", value: metricValue(mostPickedTeam, mostPickedCount, "No completed picks") },
-      { label: "Most picked against", value: metricValue(mostFadedTeam, mostFadedCount, "No completed fades") },
-      { label: "Current picked-team streak", value: metricValue(pickRepeat.team, pickRepeat.length) },
-      { label: "Current fade streak", value: metricValue(fadeRepeat.team, fadeRepeat.length) },
+      { label: "Most picked team · total", value: metricValue(mostPickedTeam, mostPickedCount, "No completed picks") },
+      { label: "Most picked against · total", value: metricValue(mostFadedTeam, mostFadedCount, "No completed fades") },
+      { label: "Current consecutive picks", value: metricValue(pickRepeat.team, pickRepeat.length) },
+      { label: "Current consecutive fades", value: metricValue(fadeRepeat.team, fadeRepeat.length) },
       { label: "Longest time since you picked", value: gapValue(longestPickGap.team, longestPickGap.missed, "No current picks") },
       { label: "Team you finally faded", value: gapValue(longestFadeGap.team, longestFadeGap.missed, "No current fades") },
       { label: "Current best team-picked streak", value: metricValue(bestWinRun.team, bestWinRun.length, "No winning streak") },
