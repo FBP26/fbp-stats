@@ -3285,16 +3285,12 @@ async function renderConfirmationHistory(submission) {
     const teamLabel = team => websiteEscapeHtml(websiteNaturalTeamName(team));
     const opponentFor = row => [row.game.favorite, row.game.underdog].map(team => String(team).toUpperCase()).find(team => team !== String(row.pick).toUpperCase()) || "";
     const countTeams = teams => [...teams.reduce((counts, team) => counts.set(team, (counts.get(team) || 0) + 1), new Map()).entries()].sort((left, right) => right[1] - left[1] || websiteNaturalTeamName(left[0]).localeCompare(websiteNaturalTeamName(right[0])))[0] || ["", 0];
-    const isRegularSeasonGame = game => /^\d+$/.test(String(game.week || "").trim());
-    const regularGames = websiteGames.filter(isRegularSeasonGame);
-    const regularHistory = completedHistory.filter(row => isRegularSeasonGame(row.game));
-    const periodKey = game => `${game.season}|${String(game.week).padStart(2, "0")}`;
-    const periods = [...new Map(regularGames.map(game => [periodKey(game), { key: periodKey(game), season: String(game.season), week: Number(game.week), date: String(game.gameDate || "") }])).values()].sort((left, right) => left.date.localeCompare(right.date) || left.season.localeCompare(right.season) || left.week - right.week);
-    const gamesByPeriod = regularGames.reduce((groups, game) => { const key = periodKey(game); const games = groups.get(key) || []; games.push(game); groups.set(key, games); return groups; }, new Map());
-    const picksByPeriod = regularHistory.reduce((groups, row) => { const key = periodKey(row.game); const picks = groups.get(key) || []; picks.push(row); groups.set(key, picks); return groups; }, new Map());
+    const periodKey = game => String(game.gameId || `${game.season}|${game.week}|${game.gameDate}|${game.gameTime}`);
+    const periods = [...new Map(websiteGames.map(game => [periodKey(game), { key: periodKey(game), date: `${game.gameDate || ""} ${game.gameTime || ""}` }])).values()].sort((left, right) => left.date.localeCompare(right.date));
+    const gamesByPeriod = websiteGames.reduce((groups, game) => { const key = periodKey(game); const games = groups.get(key) || []; games.push(game); groups.set(key, games); return groups; }, new Map());
+    const picksByPeriod = completedHistory.reduce((groups, row) => { const key = periodKey(row.game); const picks = groups.get(key) || []; picks.push(row); groups.set(key, picks); return groups; }, new Map());
     const teamPlayed = (team, games) => games.some(game => [game.favorite, game.underdog].some(value => String(value).toUpperCase() === team));
     const pickedInPeriod = (team, picks, against) => picks.some(row => against ? opponentFor(row) === team : String(row.pick).toUpperCase() === team);
-    const currentRegularKey = `${submission.season}-${Number(submission.season) + 1}|${String(submission.week).padStart(2, "0")}`;
     const currentChoiceRun = (team, against = false) => {
       let length = 0;
       const currentGame = currentRows.find(row => [row.game.favorite, row.game.underdog].some(value => String(value).toUpperCase() === team));
@@ -3305,7 +3301,6 @@ async function renderConfirmationHistory(submission) {
       }
       for (let index = periods.length - 1; index >= 0; index--) {
         const period = periods[index];
-        if (period.key === currentRegularKey) continue;
         const games = gamesByPeriod.get(period.key) || [];
         if (!teamPlayed(team, games)) continue;
         if (!pickedInPeriod(team, picksByPeriod.get(period.key) || [], against)) break;
@@ -3317,7 +3312,6 @@ async function renderConfirmationHistory(submission) {
       let missed = 0;
       for (let index = periods.length - 1; index >= 0; index--) {
         const period = periods[index];
-        if (period.key === currentRegularKey) continue;
         const games = gamesByPeriod.get(period.key) || [];
         if (!teamPlayed(team, games)) continue;
         if (pickedInPeriod(team, picksByPeriod.get(period.key) || [], against)) break;
@@ -3325,9 +3319,13 @@ async function renderConfirmationHistory(submission) {
       }
       return { team, missed };
     };
-    const [mostPickedTeam, mostPickedCount] = countTeams(regularHistory.map(row => String(row.pick).toUpperCase()).concat(currentRows.map(row => row.pick).filter(Boolean)));
-    const [mostFadedTeam, mostFadedCount] = countTeams(regularHistory.map(opponentFor).concat(currentRows.map(row => [row.game.favorite, row.game.underdog].map(team => String(team).toUpperCase()).find(team => team !== row.pick)).filter(Boolean)));
-    const teamRecords = against => [...regularHistory.reduce((records, row) => {
+    const bestBetFor = row => {
+      const value = row.bestBet ?? row.best_bet ?? row.bestBetTeam ?? row.best_bet_team ?? row.isBestBet ?? row.is_best_bet;
+      return typeof value === "boolean" ? (value ? String(row.pick).toUpperCase() : "") : String(value || "").trim().toUpperCase();
+    };
+    const [mostPickedTeam, mostPickedCount] = countTeams(completedHistory.map(row => String(row.pick).toUpperCase()).concat(currentRows.map(row => row.pick).filter(Boolean)));
+    const [mostFadedTeam, mostFadedCount] = countTeams(completedHistory.map(opponentFor).concat(currentRows.map(row => [row.game.favorite, row.game.underdog].map(team => String(team).toUpperCase()).find(team => team !== row.pick)).filter(Boolean)));
+    const teamRecords = against => [...completedHistory.reduce((records, row) => {
       const team = against ? opponentFor(row) : String(row.pick).toUpperCase();
       const result = String(row.result).toLowerCase();
       if (!team || !["win", "loss", "push"].includes(result)) return records;
@@ -3341,16 +3339,45 @@ async function renderConfirmationHistory(submission) {
     const compareTeamPerformance = (left, right) => (right.wins / (right.wins + right.losses)) - (left.wins / (left.wins + left.losses)) || (right.wins + right.losses) - (left.wins + left.losses) || right.wins - left.wins || websiteNaturalTeamName(left.team).localeCompare(websiteNaturalTeamName(right.team));
     const bestTeamRecord = against => [...teamRecords(against)].sort(compareTeamPerformance)[0] || null;
     const worstTeamRecord = against => [...teamRecords(against)].sort(compareTeamPerformance).at(-1) || null;
+    const bestBetHistory = history.filter(row => bestBetFor(row) === String(row.pick).toUpperCase());
+    const completedBestBetHistory = completedHistory.filter(row => bestBetFor(row) === String(row.pick).toUpperCase());
+    const currentBestBet = String(submission.bestBet || "").toUpperCase();
+    const bestBetTeams = [...new Set(bestBetHistory.map(bestBetFor).concat(currentBestBet).filter(Boolean))];
+    const bestBetInPeriod = (team, picks) => picks.some(row => bestBetFor(row) === team && String(row.pick).toUpperCase() === team);
+    const currentBestBetRun = team => {
+      let length = currentBestBet === team ? 1 : 0;
+      if (!length) return { team, length };
+      for (let index = periods.length - 1; index >= 0; index--) {
+        const games = gamesByPeriod.get(periods[index].key) || [];
+        if (!teamPlayed(team, games)) continue;
+        if (!bestBetInPeriod(team, picksByPeriod.get(periods[index].key) || [])) break;
+        length += 1;
+      }
+      return { team, length };
+    };
+    const [mostBestBetTeam, mostBestBetCount] = countTeams(bestBetHistory.map(bestBetFor).concat(currentBestBet).filter(Boolean));
+    const bestBetRecord = [...completedBestBetHistory.reduce((records, row) => {
+      const team = bestBetFor(row), result = String(row.result).toLowerCase();
+      const record = records.get(team) || { team, wins: 0, losses: 0, pushes: 0 };
+      if (result === "win") record.wins += 1;
+      else if (result === "loss") record.losses += 1;
+      else if (result === "push") record.pushes += 1;
+      records.set(team, record);
+      return records;
+    }, new Map()).values()].filter(record => record.team && record.wins + record.losses >= 3);
+    const bestBestBetRecord = [...bestBetRecord].sort(compareTeamPerformance)[0] || null;
+    const worstBestBetRecord = [...bestBetRecord].sort(compareTeamPerformance).at(-1) || null;
     const pickRepeat = currentTeams.map(team => currentChoiceRun(team)).sort((left, right) => right.length - left.length || websiteNaturalTeamName(left.team).localeCompare(websiteNaturalTeamName(right.team)))[0] || { team: "", length: 0 };
     const fadeRepeat = currentOpponents.map(team => currentChoiceRun(team, true)).sort((left, right) => right.length - left.length || websiteNaturalTeamName(left.team).localeCompare(websiteNaturalTeamName(right.team)))[0] || { team: "", length: 0 };
     const longestPickGap = currentTeams.map(team => regularOpportunityGap(team)).sort((left, right) => right.missed - left.missed || websiteNaturalTeamName(left.team).localeCompare(websiteNaturalTeamName(right.team)))[0] || { team: "", missed: 0 };
     const longestFadeGap = currentOpponents.map(team => regularOpportunityGap(team, true)).sort((left, right) => right.missed - left.missed || websiteNaturalTeamName(left.team).localeCompare(websiteNaturalTeamName(right.team)))[0] || { team: "", missed: 0 };
+    const bestBetRepeat = bestBetTeams.map(currentBestBetRun).sort((left, right) => right.length - left.length || websiteNaturalTeamName(left.team).localeCompare(websiteNaturalTeamName(right.team)))[0] || { team: "", length: 0 };
     const metricValue = (team, count, empty = "No completed history") => team && count ? `${teamLabel(team)} · ${count}` : empty;
     const recordValue = (record, empty) => record ? `${teamLabel(record.team)} · ${record.wins}-${record.losses}${record.pushes ? `-${record.pushes}` : ""}` : empty;
     const gapValue = (team, missed, empty) => team ? `${teamLabel(team)} · ${missed || "first chance"}` : empty;
     host.innerHTML = `<h3>Your pick patterns</h3>${confirmationMetricTable([
-      { label: "Most picked team · regular season", value: metricValue(mostPickedTeam, mostPickedCount, "No regular-season picks") },
-      { label: "Most picked against · regular season", value: metricValue(mostFadedTeam, mostFadedCount, "No regular-season fades") },
+      { label: "Most picked team · all games", value: metricValue(mostPickedTeam, mostPickedCount, "No completed picks") },
+      { label: "Most picked against · all games", value: metricValue(mostFadedTeam, mostFadedCount, "No completed fades") },
       { label: "Current pick run · team opportunities", value: metricValue(pickRepeat.team, pickRepeat.length) },
       { label: "Current fade run · team opportunities", value: metricValue(fadeRepeat.team, fadeRepeat.length) },
       { label: "Longest time since you picked", value: gapValue(longestPickGap.team, longestPickGap.missed, "No current picks") },
@@ -3359,6 +3386,11 @@ async function renderConfirmationHistory(submission) {
       { label: "Worst ATS record when picked", value: recordValue(worstTeamRecord(false), "No qualified pick record") },
       { label: "Best ATS record when faded", value: recordValue(bestTeamRecord(true), "No qualified fade record") },
       { label: "Worst ATS record when faded", value: recordValue(worstTeamRecord(true), "No qualified fade record") }
+    ])}<h3>Best Bet patterns</h3>${confirmationMetricTable([
+      { label: "Most selected as Best Bet · all games", value: metricValue(mostBestBetTeam, mostBestBetCount, "No Best Bets") },
+      { label: "Current Best Bet run · team opportunities", value: metricValue(bestBetRepeat.team, bestBetRepeat.length, "No current Best Bet") },
+      { label: "Best ATS record as Best Bet", value: recordValue(bestBestBetRecord, "No qualified Best Bet record") },
+      { label: "Worst ATS record as Best Bet", value: recordValue(worstBestBetRecord, "No qualified Best Bet record") }
     ])}`;
     return;
     const activeWinningRun = rows => {
