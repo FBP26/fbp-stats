@@ -646,6 +646,13 @@ const linkPushDevicePlayer = async (payload: JsonObject, env: Env): Promise<Resp
   return json({ ok: true, playerName }, 200, env.CORS_ORIGIN);
 };
 
+const disablePushDevice = async (payload: JsonObject, env: Env): Promise<Response> => {
+  const deviceToken = cleanText(payload.deviceToken, 64);
+  if (!/^[a-f0-9]{64}$/.test(deviceToken)) return json({ ok: false, error: "Push notifications are not enabled on this device." }, 404, env.CORS_ORIGIN);
+  const result = await env.DB.prepare("UPDATE push_devices SET status='unsubscribed', unsubscribed_at=CURRENT_TIMESTAMP, updated_at=CURRENT_TIMESTAMP WHERE device_token_hash=? AND status='active'").bind(await sha256(deviceToken)).run();
+  return result.meta.changes ? json({ ok: true, status: "unsubscribed" }, 200, env.CORS_ORIGIN) : json({ ok: false, error: "Push notifications are already disabled." }, 404, env.CORS_ORIGIN);
+};
+
 export const loadAlertFeed = async (env: Env, week: JsonObject, fetcher: typeof fetch = fetch): Promise<AlertFeed> => {
   const control = await env.DB.prepare('SELECT owner,epoch FROM admin_control WHERE id=1').first<{ owner: string; epoch: number }>();
   if (!control || !['SHEETS', 'D1'].includes(control.owner)) throw new Error('Pool ownership unavailable; alerts withheld.');
@@ -1149,6 +1156,7 @@ const handlePost = async (request: Request, env: Env): Promise<Response> => {
   if (action === "log-visit") return handleAnalytics(payload, env);
   if (action === "subscribe-push") return savePushDevice(payload, env);
   if (action === "link-push-player") return linkPushDevicePlayer(payload, env);
+  if (action === "disable-push") return disablePushDevice(payload, env);
   if (action === "subscribe-notifications") return subscribeNotifications(request, payload, env);
   if (action === "update-notifications") return updateNotificationPreferences(payload, env);
   if (action === "correct-submission-name") return correctSubmission(payload, env);
