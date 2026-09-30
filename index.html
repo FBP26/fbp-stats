@@ -973,9 +973,10 @@ const requestedStartupRoute = requestedRoute === "weekly-rank" ? "weeks" : websi
 let websiteRefreshInstallHelp = () => {};
 if (location.hash === "#weekly-rank") history.replaceState(null, "", "#weeks");
 let startupRoutePending = true;
-const WEBSITE_SUBMISSIONS_ENDPOINT = "https://script.google.com/macros/s/AKfycbxZUgJm6LstCEomhmrlJYa_nH7tsmxC_4UZwYdroIZbs-PeI6KdPqUZtsF9fZvr_YuNWQ/exec";
+const WEBSITE_SHEETS_ENDPOINT = "https://script.google.com/macros/s/AKfycbxZUgJm6LstCEomhmrlJYa_nH7tsmxC_4UZwYdroIZbs-PeI6KdPqUZtsF9fZvr_YuNWQ/exec";
+const WEBSITE_SUBMISSIONS_ENDPOINT = "https://fbp-api.fbp-api-worker.workers.dev";
 const WEBSITE_NOTIFICATION_ENDPOINT = "https://fbp-api.fbp-api-worker.workers.dev";
-const websiteLiveClient = new FBPLiveClient({ workerUrl: WEBSITE_NOTIFICATION_ENDPOINT, sheetsUrl: WEBSITE_SUBMISSIONS_ENDPOINT });
+const websiteLiveClient = new FBPLiveClient({ workerUrl: WEBSITE_NOTIFICATION_ENDPOINT, sheetsUrl: WEBSITE_SHEETS_ENDPOINT });
 const WEBSITE_ANALYTICS_HOST = location.hostname === "fbp26.github.io";
 let websiteAnalyticsReady = false;
 let websiteLastTrackedView = "";
