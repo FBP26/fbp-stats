@@ -10,7 +10,7 @@
 <title>FBP</title>
 <script>
 (() => {
-  const themeKey = "fbp-color-theme", zoomKey = "fbp-app-zoom", zoomSteps = [0.8, 0.9, 1, 1.1, 1.2];
+  const themeKey = "fbp-color-theme", zoomKey = "fbp-app-zoom", zoomSteps = [0.5, 0.67, 0.75, 0.8, 0.9, 1, 1.1, 1.25, 1.33, 1.5, 1.75, 2];
   let appZoom = 1;
   try {
     document.documentElement.dataset.theme = localStorage.getItem(themeKey) === "light" ? "light" : "dark";
@@ -3325,25 +3325,28 @@ async function renderConfirmationHistory(submission) {
       }
       return { team, missed };
     };
-    const currentResultRun = (team, result) => {
-      let length = 0;
-      for (let index = regularHistory.length - 1; index >= 0; index--) {
-        const row = regularHistory[index];
-        if (String(row.pick).toUpperCase() !== team) continue;
-        if (String(row.result).toLowerCase() !== result) break;
-        length += 1;
-      }
-      return { team, length };
-    };
     const [mostPickedTeam, mostPickedCount] = countTeams(completedHistory.map(row => String(row.pick).toUpperCase()));
     const [mostFadedTeam, mostFadedCount] = countTeams(completedHistory.map(opponentFor));
+    const teamRecords = against => [...completedHistory.reduce((records, row) => {
+      const team = against ? opponentFor(row) : String(row.pick).toUpperCase();
+      const result = String(row.result).toLowerCase();
+      if (!team || !["win", "loss", "push"].includes(result)) return records;
+      const record = records.get(team) || { team, wins: 0, losses: 0, pushes: 0 };
+      if (result === "win") record.wins += 1;
+      else if (result === "loss") record.losses += 1;
+      else record.pushes += 1;
+      records.set(team, record);
+      return records;
+    }, new Map()).values()].filter(record => record.wins + record.losses >= 3);
+    const compareTeamPerformance = (left, right) => (right.wins - right.losses) - (left.wins - left.losses) || right.wins - left.wins || (right.wins + right.losses) - (left.wins + left.losses) || websiteNaturalTeamName(left.team).localeCompare(websiteNaturalTeamName(right.team));
+    const bestTeamRecord = against => [...teamRecords(against)].sort(compareTeamPerformance)[0] || null;
+    const worstTeamRecord = against => [...teamRecords(against)].sort(compareTeamPerformance).at(-1) || null;
     const pickRepeat = currentTeams.map(team => currentChoiceRun(team)).sort((left, right) => right.length - left.length || websiteNaturalTeamName(left.team).localeCompare(websiteNaturalTeamName(right.team)))[0] || { team: "", length: 0 };
     const fadeRepeat = currentOpponents.map(team => currentChoiceRun(team, true)).sort((left, right) => right.length - left.length || websiteNaturalTeamName(left.team).localeCompare(websiteNaturalTeamName(right.team)))[0] || { team: "", length: 0 };
     const longestPickGap = currentTeams.map(team => regularOpportunityGap(team)).sort((left, right) => right.missed - left.missed || websiteNaturalTeamName(left.team).localeCompare(websiteNaturalTeamName(right.team)))[0] || { team: "", missed: 0 };
     const longestFadeGap = currentOpponents.map(team => regularOpportunityGap(team, true)).sort((left, right) => right.missed - left.missed || websiteNaturalTeamName(left.team).localeCompare(websiteNaturalTeamName(right.team)))[0] || { team: "", missed: 0 };
-    const bestWinRun = currentTeams.map(team => currentResultRun(team, "win")).sort((left, right) => right.length - left.length || websiteNaturalTeamName(left.team).localeCompare(websiteNaturalTeamName(right.team)))[0] || { team: "", length: 0 };
-    const worstLossRun = currentTeams.map(team => currentResultRun(team, "loss")).sort((left, right) => right.length - left.length || websiteNaturalTeamName(left.team).localeCompare(websiteNaturalTeamName(right.team)))[0] || { team: "", length: 0 };
     const metricValue = (team, count, empty = "No completed history") => team && count ? `${teamLabel(team)} · ${count}` : empty;
+    const recordValue = (record, empty) => record ? `${teamLabel(record.team)} · ${record.wins}-${record.losses}${record.pushes ? `-${record.pushes}` : ""}` : empty;
     const gapValue = (team, missed, empty) => team ? `${teamLabel(team)} · ${missed ? `${missed} ${missed === 1 ? "game" : "games"} ago` : "first chance"}` : empty;
     host.innerHTML = `<h3>Your pick patterns</h3>${confirmationMetricTable([
       { label: "Most picked team · total", value: metricValue(mostPickedTeam, mostPickedCount, "No completed picks") },
@@ -3352,8 +3355,10 @@ async function renderConfirmationHistory(submission) {
       { label: "Current consecutive fades", value: metricValue(fadeRepeat.team, fadeRepeat.length) },
       { label: "Longest time since you picked", value: gapValue(longestPickGap.team, longestPickGap.missed, "No current picks") },
       { label: "Team you finally faded", value: gapValue(longestFadeGap.team, longestFadeGap.missed, "No current fades") },
-      { label: "Current best team-picked streak", value: metricValue(bestWinRun.team, bestWinRun.length, "No winning streak") },
-      { label: "Current worst team-picked streak", value: metricValue(worstLossRun.team, worstLossRun.length, "No losing streak") }
+      { label: "Best betting for", value: recordValue(bestTeamRecord(false), "No qualified pick record") },
+      { label: "Worst betting for", value: recordValue(worstTeamRecord(false), "No qualified pick record") },
+      { label: "Best betting against", value: recordValue(bestTeamRecord(true), "No qualified fade record") },
+      { label: "Worst betting against", value: recordValue(worstTeamRecord(true), "No qualified fade record") }
     ])}`;
     return;
     const activeWinningRun = rows => {
