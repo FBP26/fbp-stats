@@ -2032,7 +2032,11 @@ function websiteRaceProbabilitySnapshot(data, snapshot) {
     underdogScores.push(favoriteIsAway ? homeScore : awayScore);
     return { ...game, ...state, favorite: data.favorites[index], underdog: data.underdogs[index], espnStatus: websiteGameStatus(state) || websiteGameStatus(game), espnAwayScore: awayScore, espnHomeScore: homeScore };
   });
-  const probabilities = websiteConditionalProbabilities({ ...data, games, favoriteScores, underdogScores }, {}, WEBSITE_SIMULATION_LIMIT);
+  const snapshotData = { ...data, games, favoriteScores, underdogScores };
+  const probabilities = websitePresentationProbabilities(
+    snapshotData,
+    websiteConditionalProbabilities(snapshotData, {}, WEBSITE_SIMULATION_LIMIT),
+  );
   const priorPlayers = new Map((snapshot.players || []).map(player => [String(player.name || "").trim().toLowerCase(), player]));
   return { ...snapshot, probabilityModel: "website", players: data.players.map((player, index) => ({ ...priorPlayers.get(String(player.name || "").trim().toLowerCase()), name: player.name, winProbability: probabilities[index] || 0 })) };
 }
@@ -2198,6 +2202,18 @@ function websiteCalculationScenarioIndexes(total) {
     ? Array.from({ length: total }, (value, index) => index)
     : websiteSampleScenarioIndexes(total, WEBSITE_SIMULATION_LIMIT);
 }
+function websiteProbabilityEvidence(data) {
+  const totalGames = (data.games || []).length;
+  if (!totalGames) return 1;
+  const completedGames = data.games.filter((game, index) => websiteGameWinner(data, index) !== null).length;
+  return Math.sqrt(completedGames / totalGames);
+}
+function websitePresentationProbabilities(data, probabilities) {
+  if (!probabilities.length) return probabilities;
+  const evenFieldProbability = 100 / probabilities.length;
+  const evidence = websiteProbabilityEvidence(data);
+  return probabilities.map(probability => evenFieldProbability + (Number(probability) - evenFieldProbability) * evidence);
+}
 function websiteConditionalProbabilities(data, forced = {}, calculationLimit = WEBSITE_EXACT_CALCULATION_LIMIT) {
   const scenarios = websiteScenarioOutcomes(data, forced);
   const indexes = scenarios.total <= calculationLimit ? Array.from({ length: scenarios.total }, (value, index) => index) : websiteSampleScenarioIndexes(scenarios.total, Math.min(calculationLimit, WEBSITE_SIMULATION_LIMIT));
@@ -2241,7 +2257,7 @@ function websiteCachedConditionalProbabilities(data, forced = {}) {
 }
 function websitePreparePlayers(data) {
   if (data.testMode) data.players.forEach(player => { player.name = String(player.name).replace(/\s+Test$/i, ""); });
-  const probabilities = websiteCachedConditionalProbabilities(data);
+  const probabilities = websitePresentationProbabilities(data, websiteCachedConditionalProbabilities(data));
   data.players.forEach((player, index) => {
     player.winProbability = websiteProbabilityText(probabilities[index]);
     player.pathsToVictory = probabilities.pathCounts[index];
