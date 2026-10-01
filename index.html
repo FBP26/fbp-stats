@@ -7080,21 +7080,8 @@ function parsePayoutSheetRows(values) {
   }).filter(Boolean).sort((left, right) => right.year - left.year);
 }
 let payoutSheetLoadPromise = null;
-let payoutOwnerKey = '';
-async function loadPayoutSheet(forceRefresh = false) {
-  let owner;
-  try { owner = await websiteLiveClient.owner(true); }
-  catch (error) { error.operationalData = true; throw error; }
-  const ownerKey = `${owner.owner}:${owner.epoch}`;
-  if (forceRefresh || payoutOwnerKey !== ownerKey) payoutSheetLoadPromise = null;
-  payoutOwnerKey = ownerKey;
-  if (owner.owner === 'D1') {
-    if (!payoutSheetLoadPromise) payoutSheetLoadPromise = websiteLiveClient.read('payouts').then(data => {
-      if (data.owner !== owner.owner || data.epoch !== owner.epoch || !Array.isArray(data.seasons) || !data.seasons.length) throw new Error('Payout ownership changed. Refresh to try again.');
-      return data.seasons;
-    }).catch(error => { payoutSheetLoadPromise = null; error.operationalData = true; throw error; });
-    return payoutSheetLoadPromise;
-  }
+function loadPayoutSheet(forceRefresh = false) {
+  if (forceRefresh) payoutSheetLoadPromise = null;
   if (!payoutSheetLoadPromise) {
     const url = `https://docs.google.com/spreadsheets/d/19LkATudJU7W7bsnBBNy7iCI68P3Nhbt10XIJ5Q7HRCA/export?format=csv&gid=2&_=${Date.now()}`;
     payoutSheetLoadPromise = fetch(url).then(response => { if (!response.ok) throw new Error(`Payout sheet returned ${response.status}`); return response.text(); }).then(csv => { if (!globalThis.Papa) throw new Error("Payout sheet parser did not load"); const parsed = Papa.parse(csv, { skipEmptyLines: false }); if (parsed.errors.length) throw new Error(parsed.errors[0].message); const seasons = parsePayoutSheetRows(parsed.data); if (!seasons.length) throw new Error("Payout sheet contained no seasons"); return seasons; });
