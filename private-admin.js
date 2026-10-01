@@ -1,6 +1,6 @@
 const API = 'https://fbp-private-ledger-api.fbp-api-worker.workers.dev/';
 const TOKEN_KEY = 'fbp-private-ledger-token-v2';
-let records = [], control, selected;
+let records = [], control, selected, pendingTransaction;
 const element = id => document.getElementById(id);
 const money = value => value === 'even' ? 'Even' : value.startsWith('+') ? `+$${value.slice(1)}` : `$${value}`;
 
@@ -31,11 +31,14 @@ function drawPlayers() {
   document.querySelectorAll('.player').forEach(button => button.addEventListener('click', () => { selected = records.find(record => record.record_id === button.dataset.id); drawPlayers(); drawDetail(); }));
 }
 async function drawDetail() {
+  pendingTransaction = null;
   if (!selected) { element('detail').innerHTML = '<p>Select a player.</p>'; return; }
   const body = selected.body;
   const periods = body.periods.map((period, index) => `<span class="period">${period === 'Playoffs' ? 'PO' : `W${period}`}<b>${body.weeks[index] || '—'}</b></span>`).join('');
-  element('detail').innerHTML = `<h2>${body.name}</h2><p class="balance">${money(body.balance)}</p><div class="periods">${periods}</div><form id="cash-form" class="transaction"><h2>Record cash movement</h2><label>Direction<select id="direction"><option value="CASH_PAID_OUT">Money paid to player</option><option value="PAYMENT_RECEIVED">Money received from player</option></select></label><label>Amount ($)<input id="amount" type="number" min="0.01" step="0.01" required></label><label>Reason<input id="reason" maxlength="500" placeholder="Gary surplus paid out" required></label><button type="submit">Record transaction</button><p id="transaction-message" class="message" role="status"></p></form><div id="history" class="history">Loading history...</div>`;
+  element('detail').innerHTML = `<h2>${body.name}</h2><p class="balance">${money(body.balance)}</p><div class="periods">${periods}</div><form id="cash-form" class="transaction"><h2>Record cash movement</h2><label>Direction<select id="direction"><option value="CASH_PAID_OUT">Money paid to player</option><option value="PAYMENT_RECEIVED">Money received from player</option></select></label><label>Amount ($)<input id="amount" type="number" min="0.01" step="0.01" required></label><label>Reason<input id="reason" maxlength="500" placeholder="Gary surplus paid out" required></label><button type="submit">Review transaction</button><div id="transaction-review" hidden><p id="transaction-review-text" class="message"></p><button id="confirm-transaction" type="button">Confirm transaction</button><button id="cancel-transaction" type="button">Cancel</button></div><p id="transaction-message" class="message" role="status"></p></form><div id="history" class="history">Loading history...</div>`;
   element('cash-form').addEventListener('submit', postTransaction);
+  element('confirm-transaction').addEventListener('click', confirmTransaction);
+  element('cancel-transaction').addEventListener('click', () => { pendingTransaction = null; element('transaction-review').hidden = true; });
   try {
     const result = await api('private-ledger-history', {}, { id: selected.record_id });
     element('history').innerHTML = `<h2>History</h2><ul>${result.history.slice(0, 8).map(item => `<li>v${item.version}: ${item.reason}<br><small>${item.recorded_at}</small></li>`).join('')}</ul>`;
@@ -45,10 +48,17 @@ async function postTransaction(event) {
   event.preventDefault();
   const amount = element('amount').value, reason = element('reason').value.trim(), type = element('direction').value;
   const direction = type === 'CASH_PAID_OUT' ? 'paid to' : 'received from';
-  if (!confirm(`Record $${amount} ${direction} ${selected.body.name}?\n\n${reason}`)) return;
-  const button = event.currentTarget.querySelector('button'); button.disabled = true;
+  pendingTransaction = { recordId: selected.record_id, operationId: crypto.randomUUID(), type, amount, reason };
+  element('transaction-review-text').textContent = `Review: $${amount} ${direction} ${selected.body.name}. ${reason}`;
+  element('transaction-review').hidden = false;
+}
+async function confirmTransaction() {
+  if (!pendingTransaction) return;
+  const transaction = pendingTransaction;
+  const button = element('confirm-transaction'); button.disabled = true;
   try {
-    const receipt = await api('private-ledger-transaction', { method: 'POST', body: JSON.stringify({ recordId: selected.record_id, operationId: crypto.randomUUID(), type, amount, reason }) });
+    const receipt = await api('private-ledger-transaction', { method: 'POST', body: JSON.stringify(transaction) });
+    pendingTransaction = null;
     setMessage(`Transaction recorded at revision ${receipt.version}.`); await load();
   } catch (error) {
     const message = error instanceof Error ? error.message : 'Transaction failed.';
