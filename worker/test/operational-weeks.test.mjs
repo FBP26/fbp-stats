@@ -3,7 +3,7 @@ import assert from 'node:assert/strict';
 import { memoryDatabase } from './helpers/d1.mjs';
 import { approveOperationalWeek, operationalPicksVisible } from '../src/operational-weeks.ts';
 import { submitOperationalCard } from '../src/operational-submissions.ts';
-import worker, { finalizeWeek, loadAlertFeed, refreshActiveGameStates, syncApprovedStagedWeek } from '../src/index.ts';
+import worker, { awardFinalizedRegularWeek, finalizeWeek, loadAlertFeed, refreshActiveGameStates, syncApprovedStagedWeek } from '../src/index.ts';
 test('score refresh preserves approval, follows the approved tiebreaker and fences concurrent ownership changes', async () => {
   const { sqlite, adapter } = memoryDatabase(['0001_initial.sql','0009_admin_record_history.sql']);
   const refreshTime = new Date('2026-09-29T18:00:00Z');
@@ -67,7 +67,7 @@ test('legacy staging is atomic and cannot cross ownership or fabricate prior fin
 const now='2026-09-24T19:00:00Z';
 const teams=['BUF','MIA','PIT','BAL','KC','DEN','NYG','NYJ','SEA','LAR','DAL','PHI'];
 const games=count=>Array.from({length:count},(_,index)=>({gameId:`game-${index}`,kickoff:'2027-01-10T17:00:00Z',favorite:teams[index*2],underdog:teams[index*2+1].toLowerCase(),home:teams[index*2],away:teams[index*2+1],spread:3}));
-function fixture(){const memory=memoryDatabase(['0001_initial.sql','0009_admin_record_history.sql','0012_submission_admin_projection.sql','0013_operational_receipts.sql','0014_playoff_eligibility.sql','0016_independent_best_bet.sql']);memory.sqlite.exec("UPDATE admin_control SET owner='D1',epoch=2");return memory;}
+function fixture(){const memory=memoryDatabase(['0001_initial.sql','0009_admin_record_history.sql','0011_payout_journal.sql','0012_submission_admin_projection.sql','0013_operational_receipts.sql','0014_playoff_eligibility.sql','0016_independent_best_bet.sql']);memory.sqlite.exec("UPDATE admin_control SET owner='D1',epoch=2");return memory;}
 const approval=round=>({operationId:`playoff-approval-round-${round}`,expectedEpoch:2,season:2026,week:round,phase:'PLAYOFFS',reason:'Owner approved slate and roster',eligiblePlayers:['Example','Other'],games:games([6,4,2,1][round-1])});
 
 test('owner approves four immutable rounds; prior-round completion and fixed roster are mandatory',async()=>{
@@ -168,6 +168,11 @@ test('playoff rounds refresh by approved kickoff and finalize without an early-r
       assert.deepEqual(sqlite.prepare('SELECT * FROM completed_week_archives WHERE week_id=?').get(week.id), archive);
     }
     assert.equal(sqlite.prepare('SELECT count(*) AS total FROM completed_week_archives').get().total, 4);
+    const fees = sqlite.prepare("SELECT * FROM payout_journal WHERE transaction_type='ENTRY_FEE'").all();
+    assert.equal(fees.length, 1);
+    assert.equal(fees[0].amount_cents, 2000);
+    assert.equal(fees[0].after_cents, 2000);
+    assert.equal(fees[0].money_in_cents + fees[0].money_out_cents, 0);
   } finally { sqlite.close(); }
 });
 
@@ -237,5 +242,21 @@ test('D1 alerts read operational cards without Sheets and withhold cross-owner o
       sqlite.exec("UPDATE admin_control SET owner='D1',epoch=4");
       return Response.json({ ok: true, staged: true, season: 2026, week: 1, games: games(6).map(game => ({ ...game, status: 'PREGAME' })), players: [{ ...feed.cards[0], picks: feed.cards[0].picks }] });
     }), /ownership changed/);
+  } finally { sqlite.close(); }
+});
+
+test('a finalized D1 regular week creates replay-safe reserve-aware award postings', async () => {
+  const { sqlite, adapter } = fixture();
+  try {
+    sqlite.exec("INSERT INTO weeks(id,season,week,phase,status,tiebreak_actual) VALUES(1,2026,1,'REGULAR_SEASON','open',400); INSERT INTO games(id,week_id,game_index,external_id,kickoff_at,favorite,underdog,spread,home_team,away_team) VALUES(1,1,0,'award-game','2027-01-10T17:00:00Z','BUF','mia',3,'BUF','MIA');");
+    for (const name of ['Amy', 'Bob', 'Zed']) await submitOperationalCard(adapter, { operationId: `award-card-${name}-0001`, name, weekName: 'None', season: 2026, week: 1, picks: ['BUF'], bestBet: 'BUF', tiebreaker: 400 }, now);
+    sqlite.exec("INSERT INTO game_states(game_id,state,favorite_score,underdog_score) VALUES(1,'FINAL',24,17); UPDATE weeks SET status='finalized'");
+    assert.equal((await awardFinalizedRegularWeek(adapter, sqlite.prepare('SELECT * FROM weeks').get())).awarded, 3);
+    assert.equal((await awardFinalizedRegularWeek(adapter, sqlite.prepare('SELECT * FROM weeks').get())).awarded, 0);
+    const awards = sqlite.prepare("SELECT * FROM payout_journal WHERE transaction_type='WEEKLY_AWARD' ORDER BY record_id").all();
+    assert.equal(awards.length, 3);
+    assert.equal(awards.reduce((total, row) => total + row.amount_cents, 0), 1000);
+    const records = sqlite.prepare("SELECT body FROM admin_records WHERE kind='payout' ORDER BY record_id").all().map(row => JSON.parse(row.body));
+    assert.deepEqual(records.map(record => record.weeks[0]), ['tie', 'tie', 'tie']);
   } finally { sqlite.close(); }
 });

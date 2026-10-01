@@ -64,6 +64,27 @@ for (const script of html.matchAll(/<script\b[^>]*>([\s\S]*?)<\/script>/gi)) {
   if (script[1].trim()) new vm.Script(script[1]);
 }
 const context = vm.createContext({ Intl, Date, websiteGameStatus: game => game.status });
+const selectionFunctionStart = html.indexOf('function websiteCompetitiveSelection(');
+const selectionFunctionEnd = html.indexOf('\nfunction updateWebsiteWeekLabels(', selectionFunctionStart);
+vm.runInContext(html.slice(selectionFunctionStart, selectionFunctionEnd), context);
+for (const phase of ['REGULAR_SEASON', 'PLAYOFFS']) {
+  const selection = context.websiteCompetitiveSelection({ season: 2026, week: 3, phase, staged: true });
+  assert.equal(selection.phase, phase);
+  assert.equal(selection.staged, true);
+  assert.equal(context.websiteCompetitiveSelection({ ...selection, staged: false, games: [{}] }).staged, false);
+}
+assert.equal(context.websiteCompetitiveSelection({ season: 2026, week: 3, games: [{}] }).phase, 'REGULAR_SEASON');
+assert.throws(() => context.websiteCompetitiveSelection({ phase: 'UNKNOWN' }), /Invalid/);
+const kickoffDisplayStart = html.indexOf('function websiteKickoffDisplay(');
+const kickoffDisplayEnd = html.indexOf('\nfunction decorateWebsiteWeekOneHeaders(', kickoffDisplayStart);
+vm.runInContext(html.slice(kickoffDisplayStart, kickoffDisplayEnd), context);
+assert.match(context.websiteKickoffDisplay('2026-10-02T00:15:00.000Z'), /^Thu, Oct 1, 8:15 PM EDT$/);
+assert.equal(context.websiteKickoffDisplay('Not started'), 'Not started');
+for (const week of [1, 2, 3, 4]) {
+  assert.equal(context.websiteRequiresTiebreak({ phase: 'PLAYOFFS', week }), week === 4);
+  assert.equal(context.websiteRequiresTiebreak({ phase: 'REGULAR_SEASON', week }), true);
+}
+assert.equal(context.websiteRoundLabel({ phase: 'PLAYOFFS', week: 4 }), 'Super Bowl');
 const bestBetOptions = ['BUF', 'mia', 'PIT', 'bal'].map(team => ({ dataset: { team }, setAttribute() {} }));
 const bestBetSelect = { value: '', options: [], replaceChildren(...options) { this.options = options; this.value = ''; } };
 const picksForm = { elements: { 'game-1': { value: '' }, 'game-2': { value: '' } } };
@@ -166,6 +187,8 @@ for (const cachedWeek of [3, 2, null]) {
   const raceWeeks = [];
   const refreshContext = vm.createContext({
     console,
+    websiteCompetitiveSelection: context.websiteCompetitiveSelection,
+    websiteRoundLabel: context.websiteRoundLabel,
     clearTimeout() {},
     websiteLiveRefreshTimer: null,
     websiteLiveRefreshGeneration: 0,

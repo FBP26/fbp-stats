@@ -5,8 +5,8 @@ import { userInfo } from 'node:os';
 import { saveAdminRecord, AdminConflict } from '../src/admin-store.ts';
 import { importSourceRecords, prepareSourceRecords, refreshSourceSubmissions, reconcileSubmissionWeek } from './admin-import.mjs';
 import { createAdminCheckpoint } from './admin-checkpoint.mjs';
-import { postPayoutTransaction } from './payout-transactions.mjs';
-import { approveOperationalWeek } from '../src/operational-weeks.ts';
+import { postPayoutTransaction, planPayoutBaselineAdoptions } from './payout-transactions.mjs';
+import { approveOperationalWeek, readOperationalSeasonStatus } from '../src/operational-weeks.ts';
 import { SubmissionError } from '../src/operational-submissions.ts';
 
 export function validateAdminChanges(current, changes, kind) {
@@ -53,6 +53,15 @@ export function createAdminServer(db, { port, actor, demo = false }) {
           .bind(url.searchParams.get('kind'), url.searchParams.get('id')).all();
         return send(200, { history: history.results.map(record => ({ ...record, body: JSON.parse(record.body) })) });
       }
+      if (request.method === 'GET' && url.pathname === '/api/week-approval-status') {
+        try { return send(200, await readOperationalSeasonStatus(db)); }
+        catch (error) {
+          if (!(error instanceof SubmissionError) || error.status !== 404) throw error;
+          const control = await db.prepare('SELECT owner,epoch FROM admin_control WHERE id=1').first();
+          if (control?.owner !== 'D1') throw new SubmissionError('Season status requires D1 ownership.');
+          return send(200, { ok: true, ...control, season: new Date().getUTCFullYear(), week: 0, phase: 'REGULAR_SEASON', playedThisSeason: [], submittedCurrentWeek: [], notYetSubmittedCurrentWeek: [] });
+        }
+      }
       if (request.method === 'POST' && ['/api/records', '/api/payout-transactions', '/api/week-approvals'].includes(url.pathname)) {
         if (request.headers.origin !== origin || !String(request.headers['content-type']).startsWith('application/json')) return send(403, { error: 'Same-origin JSON required.' });
         const chunks = [];
@@ -76,7 +85,7 @@ export function createAdminServer(db, { port, actor, demo = false }) {
     } catch (error) {
       if (error instanceof AdminConflict) return send(409, { error: error.message });
       if (error instanceof SubmissionError) return send(error.status, { error: error.message });
-      if (/Invalid|editable|required|require|Accept the|JSON|size limit/.test(error.message)) return send(400, { error: error.message });
+      if (/Invalid|editable|required|require|Accept the|JSON|size limit|Select distinct|Only blank|Allocation amount|Insufficient surplus/.test(error.message)) return send(400, { error: error.message });
       console.error('Administrative request failed:', error.constructor.name);
       return send(500, { error: 'Administrative request failed; no successful write is assumed.' });
     }
@@ -85,6 +94,14 @@ export function createAdminServer(db, { port, actor, demo = false }) {
 
 async function main() {
   const args = process.argv.slice(2);
+  const payoutSource = args.find(arg => arg.startsWith('--reconcile-payouts='))?.slice('--reconcile-payouts='.length);
+  const applyPayouts = args.includes('--apply-payout-baselines');
+  const payoutBackup = args.find(arg => arg.startsWith('--payout-backup='))?.slice('--payout-backup='.length);
+  if (applyPayouts && (!payoutSource || !payoutBackup)) throw new Error('Payout baseline acceptance requires a source export and a new private --payout-backup file.');
+  const completedSlate = args.find(arg => arg.startsWith('--completed-slate='))?.slice('--completed-slate='.length);
+  const applyCompletedSlate = args.includes('--apply-completed-slate');
+  const slateBackup = args.find(arg => arg.startsWith('--slate-backup='))?.slice('--slate-backup='.length);
+  if (applyCompletedSlate && (!completedSlate || !slateBackup)) throw new Error('Completed slate import requires a CSV and a new private --slate-backup file.');
   const mappingArgument = args.find(arg => arg.startsWith('--map-originals='));
   const mapping = mappingArgument?.match(/^--map-originals=(20\d{2}):([1-9]|1[0-8])$/);
   if ((mappingArgument && !mapping) || (args.includes('--apply-originals') && !mapping)) throw new Error('Original mapping requires --map-originals=2026:3; omit --apply-originals for a read-only plan.');
@@ -99,7 +116,7 @@ async function main() {
     dispose = async () => memory.sqlite.close();
     for (const [kind, body] of [
       ['submission', { name: 'Example Player', weekName: 'Week Three', season: '2026-2027', week: 3, picks: Array(16).fill('BUF'), bestBet: 'BUF', tiebreaker: 400, submittedAt: '9/24/2026 12:00:00' }],
-      ['payout', { name: 'Example Player', season: '2026', periods: Array.from({ length: 19 }, (_, index) => `Week ${index + 1}`), weeks: Array(19).fill(''), balance: '20', notes: '' }],
+      ['payout', { name: 'Example Player', season: '2026', periods: [...Array.from({ length: 18 }, (_, index) => String(index + 1)), 'Playoffs'], weeks: Array(19).fill(''), balance: '20', notes: '' }],
     ]) await saveAdminRecord(db, { kind, recordId: `${kind}:demo`, body, expectedVersion: 0, expectedEpoch: 1, operationId: `demo-initial-${kind}`, reason: 'Demonstration fixture' }, 'demo');
   } else {
     if (!args.includes('--remote')) throw new Error('Choose --remote for authenticated cloud records or --demo for disposable sample data.');
@@ -107,6 +124,57 @@ async function main() {
     const proxy = await getPlatformProxy({ configPath: fileURLToPath(new URL('../wrangler.admin.toml', import.meta.url)), persist: false, remoteBindings: true });
     db = proxy.env.DB;
     dispose = proxy.dispose;
+  }
+  if (completedSlate) {
+    try {
+      const { importCompletedOperationalSlate, importOperationalOriginals } = await import('./operational-source-import.mjs');
+      const csv = await readFile(completedSlate, 'utf8');
+      const preview = await importCompletedOperationalSlate(db, csv);
+      if (!applyCompletedSlate) { console.log(JSON.stringify(preview)); return; }
+      if (!preview.replayed) {
+        const { createOperationalCheckpoint, rehearseOperationalCheckpoint } = await import('./operational-checkpoint.mjs');
+        const checkpoint = await createOperationalCheckpoint(db);
+        await rehearseOperationalCheckpoint(checkpoint, async ({ adapter }) => {
+          await importCompletedOperationalSlate(adapter, csv, { apply: true });
+          await importOperationalOriginals(adapter, preview.season, preview.week, { apply: true });
+          await importCompletedOperationalSlate(adapter, csv, { apply: true });
+          await importOperationalOriginals(adapter, preview.season, preview.week, { apply: true });
+        });
+        await writeFile(slateBackup, JSON.stringify(checkpoint), { flag: 'wx' });
+      }
+      const slate = await importCompletedOperationalSlate(db, csv, { apply: true });
+      const originals = await importOperationalOriginals(db, slate.season, slate.week, { apply: true });
+      console.log(JSON.stringify({ slate, originals }));
+    } finally { await dispose(); }
+    return;
+  }
+  if (payoutSource) {
+    try {
+      const source = await prepareSourceRecords(JSON.parse(await readFile(payoutSource, 'utf8')));
+      const control = await db.prepare('SELECT owner,epoch FROM admin_control WHERE id=1').first();
+      const stored = (await db.prepare("SELECT kind,record_id,version,body FROM admin_records WHERE kind='payout'").all()).results;
+      const plan = planPayoutBaselineAdoptions(source, stored, control);
+      if (applyPayouts && plan.commands.length) {
+        const checkpoint = await createAdminCheckpoint(db);
+        await writeFile(payoutBackup, JSON.stringify(checkpoint), { flag: 'wx' });
+        await importSourceRecords(db, source.filter(record => record.kind === 'source-ledger'));
+        for (const command of plan.commands) {
+          const current = await db.prepare('SELECT owner,epoch FROM admin_control WHERE id=1').first();
+          if (current.owner !== control.owner || current.epoch !== control.epoch) throw new Error('Ownership changed during baseline acceptance.');
+          await postPayoutTransaction(db, command, userInfo().username);
+        }
+        const saved = (await db.prepare("SELECT kind,record_id,version,body FROM admin_records WHERE kind='payout'").all()).results;
+        if (planPayoutBaselineAdoptions(source, saved, control).commands.length) throw new Error('Payout baseline verification failed.');
+      }
+      console.log(JSON.stringify({ season: plan.season, total: plan.total, previouslyAccepted: plan.accepted,
+        pending: applyPayouts ? 0 : plan.commands.length,
+        adopted: applyPayouts ? plan.commands.filter(command => command.type === 'ADOPT_PAYOUT_BASELINE').length : 0,
+        sourceFeeUpdates: plan.commands.filter(command => command.type === 'SOURCE_ENTRY_FEES').length,
+        sourceFeePeriods: plan.commands.reduce((total, command) => total + (command.sourceEntryPeriods?.length || 0), 0),
+        carriedDebtsPreserved: plan.carriedDebts.length, carriedDebtCents: plan.carriedDebts.reduce((total, item) => total + item.carriedCents, 0),
+        sourceWrites: 0, cashMovementCents: 0 }));
+    } finally { await dispose(); }
+    return;
   }
   if (mapping) {
     try {

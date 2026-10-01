@@ -49,6 +49,12 @@ export async function submitOperationalCard(db: D1Database, payload: Record<stri
   const weekName = String(payload.weekName || '').trim();
   const season = Number(payload.season), weekNumber = Number(payload.week);
   const phase = payload.mode === 'test' ? 'PRESEASON' : String(payload.phase || 'REGULAR_SEASON');
+  const confirmationRequested = payload.confirmationEmailConsent === true;
+  const confirmationEmail = String(payload.confirmationEmail || '').trim().toLowerCase();
+  if (confirmationRequested && (confirmationEmail.length > 254 || !/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(confirmationEmail))) {
+    throw new SubmissionError('A valid confirmation email is required when email confirmation is selected.', 400);
+  }
+  if (!confirmationRequested && confirmationEmail) throw new SubmissionError('Email confirmation requires explicit consent.', 400);
   if (!name || name.length > 13 || !weekName || weekName.length > 255 || !Number.isInteger(season) || !Number.isInteger(weekNumber)
     || !['PRESEASON', 'REGULAR_SEASON', 'PLAYOFFS'].includes(phase)) throw new SubmissionError('Invalid name, week or phase.', 400);
   const tiebreakValue = phase === 'PLAYOFFS' && weekNumber < 4 ? 0 : payload.tiebreaker;
@@ -81,13 +87,52 @@ export async function submitOperationalCard(db: D1Database, payload: Record<stri
   const cardBody = JSON.stringify({ name: canonicalName, weekName, season: `${season}-${season + 1}`, week: weekNumber, phase,
     picks: games.map((game, index) => picks[index] === game.favorite.toUpperCase() ? game.favorite : game.underdog),
     bestBet, tiebreaker, submittedAt: now, provenance: { source: 'D1', operationId } });
+  const financialStatements: D1PreparedStatement[] = [];
+  let financialGuard = '';
+  const financialBindings: (string | number)[] = [];
+  if (phase !== 'PRESEASON') {
+    const matches = (await db.prepare("SELECT record_id,version,body FROM admin_records WHERE kind='payout' AND CAST(json_extract(body,'$.season') AS INTEGER)=? AND json_extract(body,'$.name')=? COLLATE NOCASE")
+      .bind(season, canonicalName).all<{ record_id: string; version: number; body: string }>()).results;
+    if (matches.length > 1) throw new SubmissionError('Player financial identity requires owner reconciliation.');
+    const account = matches[0];
+    const periods = [...Array.from({ length: 18 }, (_, index) => String(index + 1)), 'Playoffs'];
+    const financialBody = account ? JSON.parse(account.body) : { name: canonicalName, season: String(season), periods, weeks: Array(19).fill(''), balanceCents: 0, balance: 'even', reconciliation: { status: 'accepted-payout-baseline', source: 'new-D1-account' } };
+    if (!Number.isSafeInteger(financialBody.balanceCents) || financialBody.reconciliation?.status !== 'accepted-payout-baseline'
+      || JSON.stringify(financialBody.periods) !== JSON.stringify(periods) || financialBody.weeks?.length !== 19) throw new SubmissionError('Player financial baseline requires owner reconciliation.');
+    const periodIndex = phase === 'PLAYOFFS' ? 18 : weekNumber - 1;
+    if (periodIndex < 0 || periodIndex > 18 || (phase === 'REGULAR_SEASON' && periodIndex === 18)) throw new SubmissionError('Invalid fee period.', 400);
+    const payoutId = account?.record_id ?? `payout:${await adminDigest(`${season}:${canonicalName.toLowerCase()}`)}`;
+    financialGuard = ` AND (SELECT count(*) FROM admin_records WHERE kind='payout' AND CAST(json_extract(body,'$.season') AS INTEGER)=? AND json_extract(body,'$.name')=? COLLATE NOCASE)=?
+      AND COALESCE((SELECT version FROM admin_records WHERE kind='payout' AND record_id=?),0)=?`;
+    financialBindings.push(season, canonicalName, matches.length, payoutId, account?.version ?? 0);
+    if (!current && String(financialBody.weeks[periodIndex]).trim() === '') {
+      const amountCents = phase === 'PLAYOFFS' ? 2000 : 1000;
+      const beforeCents = financialBody.balanceCents;
+      const balanceCents = beforeCents + amountCents;
+      const unpaidCents = Math.min(amountCents, Math.max(0, balanceCents));
+      const formatAmount = (cents: number) => (Math.abs(cents) / 100).toFixed(2).replace(/\.00$/, '');
+      const weeks = [...financialBody.weeks];
+      weeks[periodIndex] = unpaidCents ? formatAmount(unpaidCents) : 'paid';
+      const postingId = `entry:${operationId}`;
+      const next = { ...financialBody, weeks, balanceCents, balance: balanceCents ? `${balanceCents < 0 ? '+' : ''}${formatAmount(balanceCents)}` : 'even',
+        posting: { operationId: postingId, requestHash, type: 'ENTRY_FEE', amountCents, beforeCents, period: periods[periodIndex], submissionOperationId: operationId, moneyInCents: 0, moneyOutCents: 0 } };
+      financialStatements.push(
+        db.prepare(`INSERT INTO admin_events(operation_id,request_hash,kind,record_id,version,epoch,actor,reason,recorded_at,body)
+          SELECT ?,?,'payout',?,?,?,'website','Entry fee for accepted original card',?,? WHERE EXISTS(SELECT 1 FROM operational_receipts WHERE operation_id=?)`)
+          .bind(postingId, requestHash, payoutId, (account?.version ?? 0) + 1, control.epoch, now, canonicalAdminJson(next), operationId),
+        db.prepare(`INSERT INTO admin_records(kind,record_id,version,operation_id,body) SELECT kind,record_id,version,operation_id,body FROM admin_events WHERE operation_id=?
+          ON CONFLICT(kind,record_id) DO UPDATE SET version=excluded.version,operation_id=excluded.operation_id,body=excluded.body`)
+          .bind(postingId),
+      );
+    }
+  }
   const guard = `INSERT INTO operational_receipts(operation_id, request_hash, epoch, kind, body, recorded_at)
     SELECT ?, ?, ?, 'submission', ?, ? WHERE EXISTS (SELECT 1 FROM weeks WHERE id = ? AND status IN ('open','live'))
     AND COALESCE((SELECT submissions.id FROM submissions JOIN players ON players.id = player_id WHERE week_id = ? AND canonical_name = ? COLLATE NOCASE AND superseded_at IS NULL),0) = ?
     AND (? = 0 OR julianday(?) < (SELECT min(julianday(kickoff_at)) FROM games WHERE week_id = ?))
-    AND (SELECT json_group_array(json_array(id,game_index,favorite,underdog,kickoff_at)) FROM (SELECT * FROM games WHERE week_id = ? ORDER BY game_index)) = ?`;
+    AND (SELECT json_group_array(json_array(id,game_index,favorite,underdog,kickoff_at)) FROM (SELECT * FROM games WHERE week_id = ? ORDER BY game_index)) = ?${financialGuard}`;
   const statements = [
-    db.prepare(guard).bind(operationId, requestHash, control.epoch, JSON.stringify(receipt), now, week.id, week.id, name, current?.id || 0, current?.id || 0, now, week.id, week.id, slate),
+    db.prepare(guard).bind(operationId, requestHash, control.epoch, JSON.stringify(receipt), now, week.id, week.id, name, current?.id || 0, current?.id || 0, now, week.id, week.id, slate, ...financialBindings),
     db.prepare('INSERT INTO players(canonical_name) SELECT ? WHERE EXISTS(SELECT 1 FROM operational_receipts WHERE operation_id = ?) ON CONFLICT DO NOTHING').bind(name, operationId),
     db.prepare('UPDATE submissions SET superseded_at = ? WHERE id = ? AND EXISTS(SELECT 1 FROM operational_receipts WHERE operation_id = ?)').bind(now, current?.id || 0, operationId),
     db.prepare(`INSERT INTO submissions(week_id,player_id,submitted_name,week_name,best_bet_game_index,best_bet_team,tiebreaker,source,submitted_at)
@@ -105,6 +150,12 @@ export async function submitOperationalCard(db: D1Database, payload: Record<stri
     db.prepare(`INSERT INTO admin_submission_links(record_id,submission_id)
       SELECT ?, submissions.id FROM submissions JOIN players ON players.id = player_id WHERE week_id = ? AND canonical_name = ? COLLATE NOCASE AND submitted_at = ?
       AND superseded_at IS NULL AND EXISTS(SELECT 1 FROM operational_receipts WHERE operation_id = ?)`).bind(recordId, week.id, name, now, operationId),
+    ...(confirmationRequested ? [db.prepare(`INSERT INTO submission_confirmation_outbox(submission_id,operation_id,destination,payload_json)
+      SELECT submissions.id,?,?,? FROM submissions JOIN players ON players.id=player_id
+      WHERE week_id=? AND canonical_name=? COLLATE NOCASE AND submitted_at=? AND superseded_at IS NULL
+      AND EXISTS(SELECT 1 FROM operational_receipts WHERE operation_id=?)`)
+      .bind(operationId, confirmationEmail, JSON.stringify({ name: canonicalName, season, week: weekNumber, phase, weekName, picks: JSON.parse(cardBody).picks, bestBet, tiebreaker, submittedAt: now }), week.id, name, now, operationId)] : []),
+    ...financialStatements,
   ];
   try { await db.batch(statements); }
   catch (error) {

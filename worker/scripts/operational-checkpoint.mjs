@@ -11,14 +11,20 @@ const tables = {
   admin_events: 'kind,record_id,version', admin_records: 'kind,record_id',
   payout_journal: 'record_id,version', operational_receipts: 'operation_id',
   playoff_eligibility: 'season,player_name', admin_submission_links: 'record_id',
+  submission_confirmation_outbox: 'operation_id',
 };
-const migrations = ['0001_initial.sql', '0009_admin_record_history.sql', '0010_candidate_lifecycle.sql', '0011_payout_journal.sql', '0012_submission_admin_projection.sql', '0013_operational_receipts.sql', '0014_playoff_eligibility.sql'];
+const migrations = ['0001_initial.sql', '0009_admin_record_history.sql', '0010_candidate_lifecycle.sql', '0011_payout_journal.sql', '0012_submission_admin_projection.sql', '0013_operational_receipts.sql', '0014_playoff_eligibility.sql', '0017_submission_confirmation_outbox.sql'];
 
 export async function createOperationalCheckpoint(db) {
   const columns = (await db.prepare('PRAGMA table_info(submissions)').all()).results;
-  const results = await db.batch(Object.entries(tables).map(([table, order]) => db.prepare(`SELECT * FROM ${table} ORDER BY ${order}`)));
-  const payload = { version: columns.some(column => column.name === 'best_bet_team') ? 3 : 2, tables: Object.fromEntries(Object.keys(tables).map((table, index) => [table, results[index].results])) };
-  return { sha256: await adminDigest(canonicalAdminJson(payload)), payload };
+  const available = new Set((await db.prepare("SELECT name FROM sqlite_master WHERE type='table'").all()).results.map(row => String(row.name)));
+  const presentTables = Object.entries(tables).filter(([table]) => available.has(table));
+  const results = await db.batch(presentTables.map(([table, order]) => db.prepare(`SELECT * FROM ${table} ORDER BY ${order}`)));
+  const captured = new Map(presentTables.map(([table], index) => [table, results[index].results]));
+  const payload = { version: columns.some(column => column.name === 'best_bet_team') ? 3 : 2,
+    tables: Object.fromEntries(Object.keys(tables).map(table => [table, captured.get(table) || []])) };
+  return { sha256: await adminDigest(canonicalAdminJson(payload)), payload,
+    absentTables: Object.keys(tables).filter(table => !available.has(table)) };
 }
 
 export async function rehearseOperationalCheckpoint(checkpoint, inspectRestored = null) {

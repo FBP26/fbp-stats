@@ -8,7 +8,7 @@ import { saveAdminRecord } from '../src/admin-store.ts';
 test('admin rejects cross-origin and forged-host access and records validated edits', async () => {
   const { sqlite, adapter } = memoryDatabase(['0009_admin_record_history.sql', '0011_payout_journal.sql']);
   const port = 18819;
-  const body = { name: 'Example', season: '2026', weeks: Array(19).fill(''), balance: '20', notes: '', provenance: { original: true } };
+  const body = { name: 'Example', season: '2026', periods: [...Array.from({ length: 18 }, (_, index) => String(index + 1)), 'Playoffs'], weeks: Array(19).fill(''), balance: '20', notes: '', provenance: { original: true } };
   await saveAdminRecord(adapter, { kind: 'payout', recordId: 'payout:test', operationId: 'initial-admin-record', expectedVersion: 0, expectedEpoch: 1, reason: 'Import', body }, 'source');
   const server = createAdminServer(adapter, { port, actor: 'owner' });
   await new Promise(resolve => server.listen(port, '127.0.0.1', resolve));

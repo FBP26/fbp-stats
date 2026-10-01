@@ -1,7 +1,7 @@
 let records = [];
 let control;
 const initialLocation = new URL(location.href);
-let kind = initialLocation.searchParams.get('view') === 'payout' ? 'payout' : 'submission';
+let kind = initialLocation.searchParams.get('view') === 'ledger' || initialLocation.searchParams.get('view') === 'payout' ? 'payout' : 'submission';
 let selected;
 let dirty = false;
 let pending = null;
@@ -26,11 +26,19 @@ function markDirty(formId) {
   document.querySelectorAll(`#${otherForm} input, #${otherForm} textarea, #${otherForm} select, #${otherForm} button[type="submit"]`).forEach(element => { element.disabled = true; });
 }
 function drawList() {
+  if (kind === 'approval') {
+    const reviewFilter = byId('review-filter');
+    if (reviewFilter) reviewFilter.hidden = true;
+    byId('count').textContent = '';
+    byId('records').innerHTML = '';
+    return drawApproval();
+  }
   const search = byId('search').value.trim().toLowerCase();
   const season = byId('season').value;
-  byId('review-filter').hidden = kind !== 'payout';
+  const reviewFilter = byId('review-filter');
+  if (reviewFilter) reviewFilter.hidden = kind !== 'payout';
   const viewLocation = new URL(location.href);
-  viewLocation.searchParams.set('view', kind);
+  viewLocation.searchParams.set('view', kind === 'payout' ? 'ledger' : kind);
   if (kind === 'payout' && byId('needs-review').checked) viewLocation.searchParams.set('review', '1');
   else viewLocation.searchParams.delete('review');
   history.replaceState(null, '', viewLocation);
@@ -67,9 +75,21 @@ async function drawDetail() {
       const transactionTypes = opening ? [['ADOPT_PAYOUT_BASELINE', 'Imported Payout opening balance']] : [
         ['PAYMENT_RECEIVED', 'Payment received'], ['PRIZE_CREDIT', 'Prize credited'], ['CASH_PAID_OUT', 'Credit paid out'],
         ['PRIZE_PAID', 'Prize paid immediately'], ['PLAYER_DEBT_ADJUSTMENT', 'Increase amount owed'], ['PLAYER_CREDIT_ADJUSTMENT', 'Increase player credit'],
+        ['PREPAID_ALLOCATION', 'Cover future entry fees from surplus'],
       ];
       byId('editor').insertAdjacentHTML('afterend', `<section class="history"><h3>Payout Transaction</h3><form id="transaction"><div class="fields"><div><label for="transactionType">Type</label><select id="transactionType">${transactionTypes.map(([value, label]) => `<option value="${value}">${label}</option>`).join('')}</select></div>${opening ? `<div><label>Imported balance</label><output>${escapeHtml(body.balance)}</output></div>` : '<div><label for="transactionAmount">Amount ($)</label><input id="transactionAmount" type="number" min="0.01" step="0.01" required></div>'}</div><label for="transactionReason">Transaction reason</label><input id="transactionReason" required maxlength="500"><div class="save-row"><button type="submit" class="primary" id="postTransaction">${opening ? 'Use imported Payout balance' : 'Post rehearsal transaction'}</button></div></form></section>`);
       byId('transaction').addEventListener('input', () => markDirty('transaction'));
+      if (!opening) {
+        byId('transactionReason').previousElementSibling.insertAdjacentHTML('beforebegin', `<fieldset id="allocationPeriods" hidden><legend>Prepaid periods</legend><div class="allocation-periods">${body.periods.map((period, index) => `<label><input type="checkbox" name="allocationPeriod" value="${escapeHtml(period)}"${String(body.weeks[index]).trim() ? ' disabled' : ''}>${escapeHtml(period === 'Playoffs' ? 'Playoffs ($20)' : `Week ${period} ($10)`)}</label>`).join('')}</div></fieldset>`);
+        const updateAllocation = () => {
+          const allocation = byId('transactionType').value === 'PREPAID_ALLOCATION';
+          byId('allocationPeriods').hidden = !allocation;
+          byId('transactionAmount').readOnly = allocation;
+          if (allocation) byId('transactionAmount').value = [...document.querySelectorAll('[name="allocationPeriod"]:checked')].reduce((total, input) => total + (input.value === 'Playoffs' ? 20 : 10), 0);
+        };
+        byId('transactionType').addEventListener('change', updateAllocation);
+        byId('allocationPeriods').addEventListener('change', updateAllocation);
+      }
       byId('transaction').addEventListener('submit', postTransaction);
     }
   }
@@ -81,11 +101,39 @@ async function drawDetail() {
     byId('history').innerHTML = result.history.map(revision => `<div class="revision">v${revision.version} / ${escapeHtml(revision.reason)}<small>${escapeHtml(revision.recorded_at)} / ${escapeHtml(revision.actor)}</small><details><summary>Recorded values</summary><pre>${escapeHtml(JSON.stringify(revision.body, null, 2))}</pre></details></div>`).join('');
   } catch (error) { if (selected === record) byId('history').textContent = error.message; }
 }
+function approvalGame(index) {
+  return `<fieldset class="approval-game"><legend>Game ${index + 1}</legend><div class="fields">${field(`game-id-${index}`, 'Game ID', '')}${field(`kickoff-${index}`, 'Kickoff', '', 'datetime-local')}${field(`favorite-${index}`, 'Favorite', '')}${field(`underdog-${index}`, 'Underdog', '')}${field(`spread-${index}`, 'Spread', '0', 'number')}${field(`home-${index}`, 'Home', '')}${field(`away-${index}`, 'Away', '')}</div></fieldset>`;
+}
+async function drawApproval() {
+  byId('detail').innerHTML = '<div class="empty">Loading approval status</div>';
+  try {
+    const status = await api('/api/week-approval-status');
+    if (kind !== 'approval') return;
+    const nextWeek = status.phase === 'PLAYOFFS' ? status.week + 1 : status.week + 1;
+    byId('detail').innerHTML = `<h2>Approve Competitive Week</h2><p class="meta">D1 / Epoch ${escapeHtml(status.epoch)} / Latest: ${escapeHtml(status.phase)} Week ${escapeHtml(status.week)}</p><form id="approval"><div class="fields"><div><label for="approval-season">Season</label><input id="approval-season" type="number" min="2020" max="2100" step="1" value="${escapeHtml(status.season)}"></div><div><label for="approval-week">Week</label><input id="approval-week" type="number" min="1" max="18" step="1" value="${escapeHtml(nextWeek)}"></div><div><label for="approval-phase">Phase</label><select id="approval-phase"><option value="REGULAR_SEASON">Regular season</option><option value="PLAYOFFS">Playoffs</option></select></div></div><p class="meta">Prior participants: ${escapeHtml(status.playedThisSeason.join(', ') || 'None')}</p><label for="approval-roster">Playoff roster (one player per line)</label><textarea id="approval-roster" rows="5"></textarea><div id="approval-games">${approvalGame(0)}</div><div class="save-row"><button type="button" id="add-game">Add game</button><button class="primary" type="submit">Approve week</button></div><label for="approval-reason">Approval reason</label><input id="approval-reason" required maxlength="500"></form>`;
+    const phase = byId('approval-phase');
+    const roster = byId('approval-roster');
+    const update = () => { document.querySelector('label[for="approval-roster"]').hidden = phase.value !== 'PLAYOFFS'; roster.hidden = phase.value !== 'PLAYOFFS'; };
+    phase.addEventListener('change', update); update();
+    byId('add-game').addEventListener('click', () => byId('approval-games').insertAdjacentHTML('beforeend', approvalGame(byId('approval-games').children.length)));
+    byId('approval').addEventListener('submit', async event => {
+      event.preventDefault();
+      const gameRows = [...byId('approval-games').children].map((_, index) => ({ gameId: byId(`game-id-${index}`).value.trim(), kickoff: byId(`kickoff-${index}`).value, favorite: byId(`favorite-${index}`).value.trim(), underdog: byId(`underdog-${index}`).value.trim(), spread: Number(byId(`spread-${index}`).value), home: byId(`home-${index}`).value.trim(), away: byId(`away-${index}`).value.trim() }));
+      if (gameRows.some(game => !game.gameId || !game.kickoff || !game.favorite || !game.underdog || !game.home || !game.away || !Number.isFinite(game.spread))) return message('Complete every structured game field before approval.', true);
+      const games = gameRows.map(game => ({ ...game, kickoff: new Date(game.kickoff).toISOString() }));
+      const command = { operationId: crypto.randomUUID(), expectedEpoch: status.epoch, season: Number(byId('approval-season').value), week: Number(byId('approval-week').value), phase: phase.value, games, eligiblePlayers: roster.value.split('\n').map(name => name.trim()).filter(Boolean), reason: byId('approval-reason').value.trim() };
+      if (!confirm(`Approve ${command.phase} Week ${command.week} with ${games.length} games? This locks the slate under D1 ownership.`)) return;
+      try { const receipt = await api('/api/week-approvals', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify(command) }); message(`Week approved: ${receipt.phase} Week ${receipt.week}.`); drawApproval(); }
+      catch (error) { message(error.message, true); }
+    });
+  } catch (error) { byId('detail').innerHTML = `<div class="empty">${escapeHtml(error.message)}</div>`; }
+}
 async function postTransaction(event) {
   event.preventDefault();
   const record = selected;
   pendingTransaction ||= { recordId: record.record_id, expectedVersion: record.version, expectedEpoch: control.epoch,
-    operationId: crypto.randomUUID(), type: byId('transactionType').value, amount: byId('transactionAmount')?.value || '', reason: byId('transactionReason').value };
+    operationId: crypto.randomUUID(), type: byId('transactionType').value, amount: byId('transactionAmount')?.value || '', reason: byId('transactionReason').value,
+    ...(byId('transactionType').value === 'PREPAID_ALLOCATION' ? { periods: [...document.querySelectorAll('[name="allocationPeriod"]:checked')].map(input => input.value) } : {}) };
   if (!confirm(`${byId('transactionType').selectedOptions[0].text}: ${record.body.name}\n${pendingTransaction.type === 'ADOPT_PAYOUT_BASELINE' ? `Imported balance: ${record.body.balance}` : `Amount: $${pendingTransaction.amount}`}\n\nConfirm this rehearsal transaction? Live Sheets remains unchanged.`)) return;
   byId('postTransaction').disabled = true;
   try {
@@ -122,7 +170,8 @@ async function load(recordId) {
     byId('season').innerHTML = '<option value="">All seasons</option>' + [...new Set(records.map(record => record.body.season))].sort().reverse().map(value => `<option value="${escapeHtml(value)}">${escapeHtml(value)}</option>`).join('');
     byId('season').value = season;
     selected = recordId ? records.find(record => record.record_id === recordId && record.kind === kind) : null;
-    drawList(); await drawDetail();
+    drawList();
+    if (kind !== 'approval') await drawDetail();
   } catch (error) { message(error.message, true); }
 }
 document.querySelectorAll('[data-kind]').forEach(button => button.addEventListener('click', () => {

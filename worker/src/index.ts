@@ -1,8 +1,12 @@
 import { scoreWeekWithoutProbabilities, type PlayerCard, type ScoringGame } from "./scoring.ts";
 import { existingOperationalCard, submitOperationalCard, SubmissionError } from './operational-submissions.ts';
 import { readOperationalPayouts } from './payouts.ts';
+// The private Ledger implementation is JavaScript because its supervised CLI shares these transactions.
+// @ts-ignore -- typed at the Worker boundary below.
+import { planWeeklyAward, postPayoutTransaction } from '../scripts/payout-transactions.mjs';
 import { operationalPicksVisible, readOperationalSeasonStatus } from './operational-weeks.ts';
 import { publicReadSnapshot, refreshPublicReadSnapshots } from "./read-snapshots.ts";
+import { adaptCompletedArchive } from './completed-history-adapter.ts';
 import { espnEventId, fetchEspnGame, isRefreshWindow, parseEspnGame, type StoredGame } from "./espn.ts";
 import { validateRaceSnapshotPlayers } from "./race.ts";
 import { alertEmailHtml, nightPaths, observeLeads, parseAlertFeed, type AlertFeed, type AlertObservation } from "./alert-details.ts";
@@ -25,6 +29,7 @@ interface Env {
 }
 
 type JsonObject = Record<string, unknown>;
+type WeeklyAwardPlan = { grossCents: number; reserveCents: number; awards: { name: string; amountCents: number; periodStatus: 'win' | 'tie' }[] };
 
 const json = (body: JsonObject, status = 200, origin = "*"): Response =>
   Response.json(body, {
@@ -290,6 +295,41 @@ const sha256 = async (value: string): Promise<string> => {
   return [...new Uint8Array(digest)].map((byte) => byte.toString(16).padStart(2, "0")).join("");
 };
 
+export const readCompletedHistory = async (db: D1Database): Promise<JsonObject> => {
+  const control = await db.prepare('SELECT owner FROM admin_control WHERE id=1').first<{ owner: string }>();
+  if (control?.owner !== 'D1') throw new Error('D1 completed history is not active.');
+  const rows = (await db.prepare(`SELECT w.season,w.week,w.phase,w.finalized_at,a.payload_json,a.checksum
+    FROM completed_week_archives a JOIN weeks w ON w.id=a.week_id
+    WHERE w.status='finalized' ORDER BY w.season,w.phase,w.week`).all()).results;
+  const weeks = await Promise.all(rows.map(async row => {
+    const payload = String(row.payload_json);
+    if (await sha256(payload) !== String(row.checksum)) throw new Error(`Archive digest mismatch for ${row.season} Week ${row.week}.`);
+    const archive = JSON.parse(payload) as JsonObject;
+    if (Number(archive.seasonStart) !== Number(row.season) || Number(archive.week) !== Number(row.week)
+      || String(archive.phase) !== String(row.phase) || !Array.isArray(archive.games) || !Array.isArray(archive.submissions)) {
+      throw new Error(`Archive contract mismatch for ${row.season} Week ${row.week}.`);
+    }
+    return { season: Number(row.season), week: Number(row.week), phase: String(row.phase), finalizedAt: String(row.finalized_at),
+      archiveChecksum: String(row.checksum), sourceChecksum: String(archive.sourceChecksum || ''), actualTiebreaker: archive.actualTiebreaker,
+      games: archive.games, submissions: archive.submissions };
+  }));
+  return { ok: true, version: 1, generatedFrom: 'D1 completed_week_archives', weeks };
+};
+
+export const readCompletedHistoryRecords = async (db: D1Database): Promise<JsonObject> => {
+  const history = await readCompletedHistory(db) as unknown as { weeks: Array<Record<string, unknown>> };
+  const records = history.weeks.map((week) => adaptCompletedArchive({
+    season: `${Number(week.season)}-${Number(week.season) + 1}`,
+    week: Number(week.week), phase: String(week.phase), actualTiebreaker: week.actualTiebreaker as number | null,
+    games: week.games as never[], submissions: week.submissions as never[],
+  }));
+  return {
+    ok: true, version: 1, generatedFrom: 'D1 completed_week_archives',
+    archives: history.weeks.map((week) => ({ season: week.season, week: week.week, checksum: week.archiveChecksum })),
+    games: records.flatMap((record) => record.games), picks: records.flatMap((record) => record.picks),
+  };
+};
+
 export const finalizeWeek = async (db: D1Database, week: Record<string, unknown>): Promise<boolean> => {
   const tiebreakRequired = week.phase !== 'PLAYOFFS' || Number(week.week) === 4;
   if (String(week.status) !== 'finalizing' || (tiebreakRequired && (week.tiebreak_actual == null || !Number.isFinite(Number(week.tiebreak_actual))))) return false;
@@ -353,6 +393,35 @@ export const finalizeWeek = async (db: D1Database, week: Record<string, unknown>
       .bind(finalizedAt, weekId, ...fenceValues, weekId, checksum),
   ]);
   return Boolean(results.at(-1)?.meta.changes);
+};
+
+export const awardFinalizedRegularWeek = async (db: D1Database, week: Record<string, unknown>, actor = 'system'): Promise<{ awarded: number; skipped: string }> => {
+  if (week.phase !== 'REGULAR_SEASON' || week.status !== 'finalized' || !Number.isInteger(Number(week.season)) || !Number.isInteger(Number(week.week))) return { awarded: 0, skipped: 'not-finalized-regular-week' };
+  const control = await db.prepare('SELECT owner,epoch FROM admin_control WHERE id=1').first<{ owner: string; epoch: number }>();
+  if (control?.owner !== 'D1') return { awarded: 0, skipped: 'sheets-owner' };
+  const games = await getWeekConfig(db, Number(week.id));
+  const cards = await loadPlayerCards(db, Number(week.id));
+  if (!cards.length || games.some(game => game.state !== 'FINAL')) throw new Error('Finalized weekly awards require complete final cards and games.');
+  const scored = scoreWeekWithoutProbabilities(cards, games.map(game => ({ favorite: String(game.favorite), underdog: String(game.underdog), spread: Number(game.spread), status: String(game.state) as ScoringGame['status'], favoriteScore: Number(game.favoriteScore), underdogScore: Number(game.underdogScore) })), Number(week.tiebreak_actual));
+  const top = Math.max(...scored.map(card => card.total));
+  const tied = scored.filter(card => card.total === top);
+  const closest = Math.min(...tied.map(card => card.tiebreakDifference ?? Number.POSITIVE_INFINITY));
+  const winners = tied.filter(card => card.tiebreakDifference === closest).map(card => card.name);
+  const award = planWeeklyAward(cards.length, winners) as WeeklyAwardPlan;
+  const payouts = (await db.prepare("SELECT record_id,version,body FROM admin_records WHERE kind='payout' AND CAST(json_extract(body,'$.season') AS INTEGER)=?").bind(Number(week.season)).all<{ record_id: string; version: number; body: string }>()).results;
+  const byName = new Map(payouts.map(record => [String(JSON.parse(record.body).name).toLowerCase(), record]));
+  if (byName.size !== payouts.length || award.awards.some(item => !byName.has(item.name.toLowerCase()))) throw new Error('Finalized weekly award payout records require reconciliation.');
+  let awarded = 0;
+  for (const item of award.awards) {
+    const record = byName.get(item.name.toLowerCase())!;
+    const operationId = `weekly-award:${week.season}:${week.week}:${item.name.toLowerCase().replace(/[^a-z0-9]+/g, '-')}`;
+    if (await db.prepare('SELECT operation_id FROM admin_events WHERE operation_id=?').bind(operationId).first()) continue;
+    const result = await postPayoutTransaction(db, { recordId: record.record_id, expectedVersion: record.version, expectedEpoch: control.epoch, operationId,
+      type: 'WEEKLY_AWARD', amount: (item.amountCents / 100).toFixed(2), awardPeriod: String(week.week), awardStatus: item.periodStatus,
+      reason: `Automatic Week ${week.week} award: ${award.grossCents / 100} pot less ${award.reserveCents / 100} season champion reserve.` }, actor);
+    if (!result.replayed) awarded++;
+  }
+  return { awarded, skipped: '' };
 };
 
 const buildCurrentWeek = async (
@@ -493,6 +562,24 @@ const handleGet = async (request: Request, env: Env): Promise<Response> => {
     if (!week) return json({ ok: false, error: "No regular-season week is staged." }, 404, env.CORS_ORIGIN);
     const body = await buildCurrentWeek(env.DB, week);
     return json(body, 200, env.CORS_ORIGIN);
+  }
+
+  if (action === 'completed-history') {
+    try {
+      return json(await readCompletedHistory(env.DB), 200, env.CORS_ORIGIN);
+    } catch (error) {
+      const message = error instanceof Error ? error.message : 'D1 completed history is unavailable.';
+      return json({ ok: false, error: message }, message === 'D1 completed history is not active.' ? 409 : 503, env.CORS_ORIGIN);
+    }
+  }
+
+  if (action === 'completed-history-records') {
+    try {
+      return json(await readCompletedHistoryRecords(env.DB), 200, env.CORS_ORIGIN);
+    } catch (error) {
+      const message = error instanceof Error ? error.message : 'D1 completed history is unavailable.';
+      return json({ ok: false, error: message }, message === 'D1 completed history is not active.' ? 409 : 503, env.CORS_ORIGIN);
+    }
   }
 
   const season = requiredInteger(url.searchParams.get("season"), 2026);
@@ -729,6 +816,27 @@ const sendRelayEmail = async (env: Env, to: string, subject: string, body: strin
   });
   const result = await response.json().catch(() => null) as { ok?: boolean } | null;
   return response.ok && result?.ok === true;
+};
+
+export const dispatchSubmissionConfirmationOutbox = async (db: D1Database, send: (to: string, subject: string, body: string) => Promise<boolean>, limit = 20) => {
+  let sent = 0, failed = 0;
+  for (let index = 0; index < limit; index++) {
+    const row = await db.prepare(`SELECT id,destination,payload_json FROM submission_confirmation_outbox
+      WHERE status IN ('queued','failed') ORDER BY created_at,id LIMIT 1`).first<{id:number;destination:string;payload_json:string}>();
+    if (!row) break;
+    const claimed = await db.prepare("UPDATE submission_confirmation_outbox SET status='sending',updated_at=CURRENT_TIMESTAMP WHERE id=? AND status IN ('queued','failed')")
+      .bind(row.id).run();
+    if (!claimed.meta.changes) continue;
+    const payload = JSON.parse(row.payload_json) as {name:string;season:number;week:number;phase:string;weekName:string;bestBet:string;submittedAt:string};
+    const subject = `FBP ${payload.season} Week ${payload.week}: picks received`;
+    const body = `${payload.name}, your picks were received for Week ${payload.week}.\n\nWeek name: ${payload.weekName}\nBest Bet: ${payload.bestBet}\nSubmitted: ${payload.submittedAt}`;
+    let delivered = false;
+    try { delivered = await send(row.destination, subject, body); } catch { delivered = false; }
+    await db.prepare(`UPDATE submission_confirmation_outbox SET status=?,attempts=attempts+1,last_error=?,sent_at=?,updated_at=CURRENT_TIMESTAMP WHERE id=? AND status='sending'`)
+      .bind(delivered ? 'sent' : 'failed', delivered ? null : 'Email relay rejected the confirmation.', delivered ? new Date().toISOString() : null, row.id).run();
+    if (delivered) sent++; else { failed++; break; }
+  }
+  return { sent, failed };
 };
 
 const subscribeNotifications = async (request: Request, payload: JsonObject, env: Env): Promise<Response> => {
@@ -1310,7 +1418,10 @@ export default {
     let refreshedWeek = await findWeek(env.DB, Number(weekBeforeRefresh.season), Number(weekBeforeRefresh.week), String(weekBeforeRefresh.phase));
     if (refreshedWeek?.status === "finalizing") await finalizeWeek(env.DB, refreshedWeek);
     refreshedWeek = await findWeek(env.DB, Number(weekBeforeRefresh.season), Number(weekBeforeRefresh.week), String(weekBeforeRefresh.phase));
-    if (refreshedWeek?.phase === 'REGULAR_SEASON') await dispatchPushNotifications(env, refreshedWeek);
+    if (refreshedWeek) await awardFinalizedRegularWeek(env.DB, refreshedWeek);
+  if (refreshedWeek?.phase === 'REGULAR_SEASON') await dispatchPushNotifications(env, refreshedWeek);
+    if (refreshedWeek?.phase === 'REGULAR_SEASON') await dispatchWeekNotifications(env, refreshedWeek);
+    await dispatchSubmissionConfirmationOutbox(env.DB, (to, subject, body) => sendRelayEmail(env, to, subject, body));
     } finally {
       await env.DB.prepare("DELETE FROM notification_locks WHERE name = 'dispatch' AND expires_at = ?").bind(lease).run();
     }

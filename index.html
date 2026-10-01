@@ -1316,7 +1316,8 @@ function websiteTeamChoice(game, abbreviation) {
   const displayName = abbreviation === abbreviation.toUpperCase() ? String(name).toUpperCase() : String(name).toLowerCase();
   const logo = websiteTeamLogoUrl(abbreviation);
   const homeMarker = isHome ? '<span class="website-home-marker">at </span>' : "";
-  return `<span class="website-team-choice"><img class="website-team-logo" src="${websiteEscapeHtml(logo)}" alt="" loading="lazy"><span class="website-team-name">${homeMarker}${websiteEscapeHtml(displayName)}</span><span class="website-team-abbreviation">${homeMarker}${websiteEscapeHtml(abbreviation)}</span><span class="website-team-record">${websiteEscapeHtml(metadata?.record || "")}</span></span>`;
+  const record = String(metadata?.record || "").trim();
+  return `<span class="website-team-choice"><img class="website-team-logo" src="${websiteEscapeHtml(logo)}" alt="" loading="lazy"><span class="website-team-name">${homeMarker}${websiteEscapeHtml(displayName)}</span><span class="website-team-abbreviation">${homeMarker}${websiteEscapeHtml(abbreviation)}</span>${record ? `<span class="website-team-record">${websiteEscapeHtml(record)}</span>` : ""}</span>`;
 }
 const WEBSITE_WEEK_ONE_GAMES = [["wed 8:20","SEA","3.5","ne"],["thu 8:35","LAR","3.5","sf"],["sun 1:00","HOU","1.5","buf"],["sun 1:00","PIT","3","atl"],["sun 1:00","JAX","7.5","cle"],["sun 1:00","TEN","2.5","nyj"],["sun 1:00","DET","6.5","no"],["sun 1:00","bal","3.5","IND"],["sun 1:00","chi","2.5","CAR"],["sun 1:00","CIN","3.5","tb"],["sun 4:25","MIN","1.5","gb"],["sun 4:25","PHI","5.5","was"],["sun 4:25","LAC","10.5","ari"],["sun 4:25","LV","3.5","mia"],["sun 8:20","dal","2.5","NYG"],["mon 8:15","KC","2.5","den"]].map(([time,favorite,spread,underdog],index)=>({id:`game-${index+1}`,time,favorite,spread,underdog}));
 function renderWebsitePicksForm() { const host = document.getElementById("website-game-picks"); if (!host || host.dataset.ready) return; host.dataset.ready = "true"; const choices = WEBSITE_WEEK_ONE_GAMES.flatMap(game => [game.favorite, game.underdog]).sort((a, b) => websiteTeamName(a).localeCompare(websiteTeamName(b), undefined, { sensitivity: "base" })); const groups = []; WEBSITE_WEEK_ONE_GAMES.forEach((game, index) => { const previous = WEBSITE_WEEK_ONE_GAMES[index - 1]; if (!previous || previous.time !== game.time) groups.push({ time: game.time, games: [] }); groups[groups.length - 1].games.push({ game, index }); }); host.innerHTML = groups.map(group => `<fieldset class="website-game-group"><legend>${group.time}</legend>${group.games.map(({ game, index }) => `<div class="website-game-row"><label class="website-side"><input type="radio" name="game-${index + 1}" value="${game.favorite}" required><span>${websiteTeamName(game.favorite)}</span></label><span class="website-spread">${game.spread}</span><label class="website-side right"><span>${websiteTeamName(game.underdog)}</span><input type="radio" name="game-${index + 1}" value="${game.underdog}" required></label></div>`).join("")}</fieldset>`).join(""); const bestBet = document.getElementById("website-best-bet"); choices.forEach(team => bestBet.add(new Option(websiteTeamName(team), team))); document.getElementById("website-picks-form").onsubmit = async event => { event.preventDefault(); const form = event.currentTarget; const submission = { submittedAt: new Date().toISOString(), name: document.getElementById("website-picks-name").value.trim(), weekName: document.getElementById("website-week-name").value.trim(), picks: WEBSITE_WEEK_ONE_GAMES.map((game, index) => form.elements[`game-${index + 1}`].value), bestBet: bestBet.value, tiebreaker: document.getElementById("website-tiebreaker").value }; const stored = JSON.parse(localStorage.getItem("fbpWebsiteSubmissions") || "[]"); stored.push(submission); localStorage.setItem("fbpWebsiteSubmissions", JSON.stringify(stored)); if (WEBSITE_SUBMISSIONS_ENDPOINT) await fetch(WEBSITE_SUBMISSIONS_ENDPOINT, { method: "POST", mode: "no-cors", headers: { "Content-Type": "text/plain" }, body: JSON.stringify(submission) }); document.getElementById("website-picks-status").textContent = WEBSITE_SUBMISSIONS_ENDPOINT ? "Submitted to the test workbook." : "Saved in this browser test. Add the Apps Script URL to submit to Sheets."; renderWebsiteWeekOne(); }; }
@@ -2657,9 +2658,9 @@ try {
   const cachedSlate = JSON.parse(localStorage.getItem(WEBSITE_ACTIVE_SLATE_CACHE_KEY) || "null");
   const cachedSelection = cachedSlate?.selection;
   if (requestedRoute === "enter-picks" && cachedSelection?.staged && Array.isArray(cachedSlate.games) && cachedSlate.games.length) {
-    websiteRegularSelection = { season: Number(cachedSelection.season), week: Number(cachedSelection.week), phase: "REGULAR_SEASON", staged: true };
+    websiteRegularSelection = websiteCompetitiveSelection(cachedSelection);
     websiteEntrySelection = { testMode: false, ...websiteRegularSelection };
-    websiteStagedGamesCache.set(`REGULAR_SEASON-${websiteRegularSelection.season}-${websiteRegularSelection.week}`, { games: cachedSlate.games, storedAt: cachedSlate.storedAt || 0 });
+    websiteStagedGamesCache.set(`${websiteRegularSelection.phase}-${websiteRegularSelection.season}-${websiteRegularSelection.week}`, { games: cachedSlate.games, storedAt: cachedSlate.storedAt || 0 });
     websiteActiveRegularWeekLoadedAt = 0;
     updateWebsiteWeekLabels(websiteEntrySelection);
     updateWebsiteTiebreakLabel(cachedSlate.games);
@@ -2939,9 +2940,20 @@ async function refreshWebsitePickShares() {
     });
   } catch (error) { console.warn("Pick percentages could not refresh."); }
 }
+function websiteCompetitiveSelection(data) {
+  const phase = data.phase || "REGULAR_SEASON";
+  if (!["REGULAR_SEASON", "PLAYOFFS"].includes(phase)) throw new Error("Invalid competitive phase.");
+  return { season: Number(data.season) || 2026, week: Number(data.week) || 1, phase, staged: Boolean(data.staged ?? data.games?.length) };
+}
+function websiteRoundLabel(selection) {
+  return selection.phase === "PLAYOFFS" ? ["Wild Card", "Divisional", "Conference Championships", "Super Bowl"][Number(selection.week) - 1] || "Playoffs" : `${selection.testMode ? "Preseason Week" : "Week"} ${selection.week}`;
+}
+function websiteRequiresTiebreak(selection) {
+  return selection.phase !== "PLAYOFFS" || Number(selection.week) === 4;
+}
 function updateWebsiteWeekLabels(selection) {
   const seasonLabel = `${selection.season}-${selection.season + 1}`;
-  const weekLabel = `${selection.testMode ? "Preseason Week" : "Week"} ${selection.week}`;
+  const weekLabel = websiteRoundLabel(selection);
   const navButton = document.querySelector('#nav button[data-view="week-one"]');
   if (navButton) navButton.textContent = weekLabel;
   document.querySelector("#view-enter-picks .intro p").textContent = selection.testMode ? `${weekLabel} test` : `${weekLabel} · ${seasonLabel}`;
@@ -2950,6 +2962,9 @@ function updateWebsiteWeekLabels(selection) {
   document.getElementById("website-entry-context").textContent = selection.testMode ? `${weekLabel} rehearsal · results stay out of season records` : `${weekLabel} · ${seasonLabel}`;
 }
 function updateWebsiteTiebreakLabel(games) {
+  const input = document.getElementById("website-tiebreaker");
+  const required = websiteRequiresTiebreak(websitePickSelection());
+  if (input) { input.required = required; input.disabled = !required; input.parentElement.hidden = !required; }
   const finalGame = games?.at(-1);
   const matchup = finalGame ? [finalGame.away || finalGame.favorite, finalGame.home || finalGame.underdog].filter(Boolean).map(team => String(team).toUpperCase()).join(" vs ") : "";
   const label = document.getElementById("website-tiebreaker")?.parentElement;
@@ -3003,11 +3018,11 @@ async function loadActiveRegularWeek(forceRefresh = false) {
   if (!forceRefresh && websiteActiveRegularWeekLoadedAt && Date.now() - websiteActiveRegularWeekLoadedAt < 5 * 60 * 1000) return websiteRegularSelection;
   if (!websiteActiveRegularWeekPromise) websiteActiveRegularWeekPromise = (async () => {
     const data = await websiteFetchPublicRead("active-week", { enrich: "0" }, 30000);
-    websiteRegularSelection = { season: Number(data.season) || 2026, week: Number(data.week) || 1, phase: "REGULAR_SEASON", staged: Boolean(data.staged) };
+    websiteRegularSelection = websiteCompetitiveSelection(data);
     if (websiteRegularSelection.staged) {
       websiteEntrySelection = { testMode: false, ...websiteRegularSelection };
       if (data.games?.length) {
-        const storedAt = Date.now(), cacheKey = `REGULAR_SEASON-${websiteRegularSelection.season}-${websiteRegularSelection.week}`, previousGames = websiteStagedGamesCache.get(cacheKey)?.games || [], games = data.games.map(game => websiteMergeGameContext(previousGames.find(previous => websiteGamesMatch(previous, game)), game));
+        const storedAt = Date.now(), cacheKey = `${websiteRegularSelection.phase}-${websiteRegularSelection.season}-${websiteRegularSelection.week}`, previousGames = websiteStagedGamesCache.get(cacheKey)?.games || [], games = data.games.map(game => websiteMergeGameContext(previousGames.find(previous => websiteGamesMatch(previous, game)), game));
         websiteStagedGamesCache.set(cacheKey, { games, storedAt });
         try { localStorage.setItem(WEBSITE_ACTIVE_SLATE_CACHE_KEY, JSON.stringify({ selection: websiteRegularSelection, games, storedAt })); } catch (error) { console.warn(`Active slate could not be saved: ${error.message}`); }
       }
@@ -3029,7 +3044,7 @@ async function loadWebsiteStagedGames(selection, forceRefresh = false) {
     websiteDiscoveredPreseasonData = null;
     websiteStagedGamesCache.set(cacheKey, { games: discoveredGames, storedAt: Date.now() });
   } else if (cached?.games?.length && !forceRefresh) {
-    return cached.games.map((game, index) => ({ ...game, id: game.gameId || `game-${index + 1}`, time: game.kickoffGroup || websiteKickoffLabel(game.kickoff) || `Game ${index + 1}` }));
+  return cached.games.map((game, index) => ({ ...game, id: game.gameId || `game-${index + 1}`, time: game.kickoffGroup || websiteKickoffLabel(game.kickoff) || `Game ${index + 1}` }));
   }
   const rawGames = discoveredGames?.length ? discoveredGames : await (async () => {
     const data = await websiteLiveClient.read('week-config', { season: selection.season, week: selection.week, phase: selection.phase, enrich: forceRefresh ? '1' : '0' }, forceRefresh ? 60000 : 30000);
@@ -3169,7 +3184,7 @@ async function renderWebsitePicksFormNow(forceRefresh = false) {
   if (!host.querySelector('input[type="radio"]')) host.innerHTML = '<p class="website-instructions">Loading games...</p>';
   document.getElementById("website-test-notice").classList.toggle("active", selection.testMode);
   const weekNameLabel = document.getElementById("website-week-name-label");
-  weekNameLabel.textContent = `${selection.testMode ? "Preseason" : "Week"} ${selection.week} name`;
+  weekNameLabel.textContent = `${websiteRoundLabel(selection)} name`;
   weekNameLabel.style.visibility = "visible";
   try {
     const stagedGames = await loadWebsiteStagedGames(selection, selection.testMode && forceRefresh && !useCachedSlate);
@@ -3627,8 +3642,17 @@ async function renderConfirmationHistory(submission) {
       bestBetForRows.length && historyRow({ type: "Current Best Bet", team: currentBestBetTeam, choice: "Best Bet on", rows: bestBetForRows, last: bestBetForRows.at(-1) }),
       mostBestBetsAgainst && historyRow({ type: "Most Best Bets against", team: mostBestBetsAgainst.team, choice: "Best Bet against", rows: mostBestBetsAgainst.rows, last: mostBestBetsAgainst.last })
     ].filter(Boolean);
-    const ledger = ledgerRows.length ? `<div class="confirmation-history-table-wrap"><table class="confirmation-history-table"><thead><tr><th>History</th><th>Team / side</th><th>Active run</th><th>Run record</th><th>Since last</th><th>Career record</th><th>Last result</th></tr></thead><tbody>${ledgerRows.join("")}</tbody></table></div>` : "";
-    host.innerHTML = `<h3>Pick form</h3>${stories.map(story => `<p>${story}</p>`).join("")}${ledger}`;
+    const mostPickedAgainst = [...currentOpponents.map(team => ({ team, rows: completedHistory.filter(row => String(row.pick).toUpperCase() !== team && [row.game.favorite, row.game.underdog].some(value => String(value).toUpperCase() === team)) }))].sort((left, right) => right.rows.length - left.rows.length)[0];
+    const metric = (label, value) => `<tr><th>${websiteEscapeHtml(label)}</th><td>${value}</td></tr>`;
+    const teamMetric = item => item?.rows?.length ? `${teamName(item.team)} · ${item.rows.length} times` : "No completed history";
+    host.innerHTML = `<h3>Card history</h3><div class="confirmation-history-table-wrap"><table class="confirmation-history-table"><tbody>${[
+      metric("Most picked team", teamMetric(mostFamiliar)),
+      metric("Most picked against", teamMetric(mostPickedAgainst)),
+      metric("Picked-team streak", bestActiveTeamRun ? `${teamName(bestActiveTeamRun.team)} · ${bestActiveTeamRun.length} correct` : "No active streak"),
+      metric("Picked-against streak", bestActiveFadeRun ? `${teamName(bestActiveFadeRun.team)} · ${bestActiveFadeRun.length} correct` : "No active streak"),
+      metric("Best team picked streak", backingHabit ? `${teamName(backingHabit.team)} · ${backingHabit.length} including this card` : "—"),
+      metric("Worst team picked streak", fadingHabit ? `${teamName(fadingHabit.team)} · ${fadingHabit.length} including this card` : "—")
+    ].join("")}</tbody></table></div>`;
   } catch (error) { host.innerHTML = '<h3>Pick form</h3><p>The archive is taking the week off. Your submitted picks are still saved.</p>'; }
 }
 async function renderWebsiteConfirmation(submission, result) {
@@ -3761,6 +3785,11 @@ document.getElementById("website-picks-form").addEventListener("invalid", event 
     ? "Choose one team in every matchup before submitting."
     : `Complete the ${event.target.closest("label")?.childNodes[0]?.textContent?.trim() || "required"} field before submitting.`;
 }, true);
+const websiteConfirmationEmailControls = document.createElement("div");
+websiteConfirmationEmailControls.className = "explorer-controls";
+websiteConfirmationEmailControls.style.marginTop = "12px";
+websiteConfirmationEmailControls.innerHTML = '<label>Confirmation email (optional)<input id="website-confirmation-email" type="email" autocomplete="email" inputmode="email"></label><label style="align-items:center"><input id="website-confirmation-email-consent" type="checkbox"> Email my pick confirmation to this address</label>';
+document.querySelector("#website-picks-form button[type=submit]")?.before(websiteConfirmationEmailControls);
 document.getElementById("website-picks-form").onsubmit = async event => {
   event.preventDefault();
   const form = event.currentTarget;
@@ -3769,7 +3798,12 @@ document.getElementById("website-picks-form").onsubmit = async event => {
   if (websitePicksSubmissionPending) return;
   if (!websiteActiveGames.length) { status.textContent = "Stage this week before submitting test picks."; return; }
   const selection = websitePickSelection();
-  const submission = { mode: selection.testMode ? "test" : "production", season: selection.season, week: selection.week, phase: selection.phase, name: document.getElementById("website-picks-name").value, weekName: document.getElementById("website-week-name").value.trim(), picks: websiteActiveGames.map((game, index) => form.elements[`game-${index + 1}`].value), bestBet: document.getElementById("website-best-bet").value, tiebreaker: document.getElementById("website-tiebreaker").value, includeConfirmationInEmail: !selection.testMode, browserId: websiteAnonymousId(localStorage, "fbpAnonymousBrowserId") };
+  const confirmationEmail = document.getElementById("website-confirmation-email").value.trim();
+  const confirmationEmailConsent = document.getElementById("website-confirmation-email-consent").checked;
+  if (confirmationEmail && !confirmationEmailConsent) { status.textContent = "Check the email confirmation box to use this address."; status.focus(); return; }
+  if (confirmationEmailConsent && !confirmationEmail) { status.textContent = "Enter an email address to receive a pick confirmation."; status.focus(); return; }
+  const submission = { mode: selection.testMode ? "test" : "production", season: selection.season, week: selection.week, phase: selection.phase, name: document.getElementById("website-picks-name").value, weekName: document.getElementById("website-week-name").value.trim(), picks: websiteActiveGames.map((game, index) => form.elements[`game-${index + 1}`].value), bestBet: document.getElementById("website-best-bet").value, tiebreaker: document.getElementById("website-tiebreaker").value, includeConfirmationInEmail: !selection.testMode, confirmationEmail, confirmationEmailConsent, browserId: websiteAnonymousId(localStorage, "fbpAnonymousBrowserId") };
+  if (!websiteRequiresTiebreak(selection)) submission.tiebreaker = "0";
   websitePicksSubmissionPending = true;
   submitButton.disabled = true;
   const submitButtonLabel = submitButton.textContent;
@@ -3876,6 +3910,11 @@ function renderWebsiteWeekRecap(data) {
   const lateStart = Math.max(0, gameWinners.length - 4);
   const lateGames = gameWinners.slice(lateStart);
   const lateCorrect = lateGames.filter((gameWinner, offset) => winner.picks[lateStart + offset] === gameWinner).length;
+  const kickoffWindow = index => {
+    const game = data.games[index] || {};
+    const label = String(game.kickoffGroup || game.kickoff || game.gameTime || '').trim();
+    return label ? `the ${label} window` : `Game ${index + 1}`;
+  };
   const bestBetIndex = winner.picks.findIndex(pick => pick === winner.bestBet);
   const bestBetHit = bestBetIndex >= 0 && gameWinners[bestBetIndex] === winner.bestBet;
   const underdogWins = winner.picks.filter((pick, index) => pick === data.underdogs[index] && gameWinners[index] === pick).length;
@@ -3895,9 +3934,9 @@ function renderWebsiteWeekRecap(data) {
   const takeoverOnFinalGame = firstSoleLead && firstSoleLead.game === finalGame;
   const reclaimOnFinalGame = reclaimedLead && reclaimedLead.game === finalGame;
   const journey = lastTrailing && firstSoleLead
-    ? `${winner.name} trailed ${trailingLeaders} by ${lastTrailing.deficit} win${lastTrailing.deficit === 1 ? "" : "s"} after Game ${lastTrailing.game}, then ${leadInterrupted && reclaimedLead
-        ? `took sole possession of first after Game ${firstSoleLead.game}. ${interruptionStory}, but ${winner.name} ${reclaimOnFinalGame ? "reclaimed sole first on the final game to win the pool." : `reclaimed sole first after Game ${reclaimedLead.game} and held it through the finish.`}`
-        : takeoverOnFinalGame ? "won the pool by taking sole possession of first on the final game." : `took sole possession of first after Game ${firstSoleLead.game}. The lead held through the finish.`}`
+    ? `${winner.name} trailed ${trailingLeaders} by ${lastTrailing.deficit} win${lastTrailing.deficit === 1 ? "" : "s"} after ${kickoffWindow(lastTrailing.game - 1)}, then ${leadInterrupted && reclaimedLead
+        ? `took sole possession of first after ${kickoffWindow(firstSoleLead.game - 1)}. ${interruptionStory}, but ${winner.name} ${reclaimOnFinalGame ? "reclaimed sole first in the final kickoff window to win the pool." : `reclaimed sole first after ${kickoffWindow(reclaimedLead.game - 1)} and held it through the finish.`}`
+        : takeoverOnFinalGame ? "won the pool by taking sole possession of first in the final kickoff window." : `took sole possession of first after ${kickoffWindow(firstSoleLead.game - 1)}. The lead held through the finish.`}`
     : `${winner.name} never fell more than one win off the pace and held the lead through the finish.`;
   const tiebreakRange = tiedWinners.length === 1 ? websiteWinningTiebreakRange(winner, tiedOnWins, actual) : null;
   const tiebreakStory = Number.isFinite(actual) ? tiedOnWins.length > 1 && tiebreakRange
@@ -3934,7 +3973,7 @@ function renderWebsiteWeekRecap(data) {
     historicalDataReady ? `This is weekly win number ${careerWins} for ${winner.name}, ranking #${careerWinRank} all time.` : "Career weekly-win history will appear after the archive data loads.",
     historicalDataReady ? (lastWin ? `${winner.name}'s last weekly win was ${lastWin.season} Week ${lastWin.week}, ${weeksSinceLastWin} completed pool week${weeksSinceLastWin === 1 ? "" : "s"} ago.` : `This is ${winner.name}'s first archived weekly win.`) : "",
     careerMoney != null ? `${winner.name}'s career winnings rise to $${careerMoney.toLocaleString()}.` : "Career winnings will appear after the archive data loads.",
-    lateCorrect ? `${winner.name} went ${lateCorrect}-${lateGames.length - lateCorrect} over the final ${lateGames.length} games.` : "The winner survived the final four games without adding another win.",
+    lateCorrect ? `${winner.name} went ${lateCorrect}-${lateGames.length - lateCorrect} from ${kickoffWindow(lateStart)} onward.` : `The winner survived from ${kickoffWindow(lateStart)} onward without adding another win.`,
     `${bestBetHit ? "The best bet hit" : "The best bet missed"}: ${String(winner.bestBet || "none").toUpperCase()}.`,
     underdogWins ? `${winner.name} picked ${underdogWins} winning underdog${underdogWins === 1 ? "" : "s"}.` : `${winner.name} won without a successful underdog pick.`,
     tiebreakStory,
@@ -3943,8 +3982,14 @@ function renderWebsiteWeekRecap(data) {
   const winnerNames = tiedWinners.map(player => player.name).join(" and ");
   const greeting = tiedWinners.length > 1 ? `Congratulations to ${winnerNames} on sharing Week ${currentWeek}!` : `Congratulations, ${winner.name}, on winning Week ${currentWeek}!`;
   const winCountLine = historicalDataReady ? `This is weekly win number ${careerWins} for ${winner.name}, ranking #${careerWinRank} all time.${lastWin ? ` The last one came in ${lastWin.season} Week ${lastWin.week}, ${weeksSinceLastWin} completed pool weeks ago.` : ""}` : "Career weekly-win history will appear after the archive data loads.";
-  const draft = [greeting, "", journey, closeCall, `${winner.name} finished with ${score(winner)} wins, ${lateCorrect ? `going ${lateCorrect}-${lateGames.length - lateCorrect} over the last ${lateGames.length} games` : "and had already done enough before the closing stretch"}. ${bestBetHit ? `The ${String(winner.bestBet).toUpperCase()} Best Bet delivered the extra win.` : `The win held up even without help from the ${String(winner.bestBet || "").toUpperCase()} Best Bet.`}`, underdogWins ? `${winner.name} also picked ${underdogWins} winning underdog${underdogWins === 1 ? "" : "s"}.` : "", runnerUp && score(winner) !== score(runnerUp) ? tiebreakStory : "", "", historicalPercentile != null ? `${winner.wins}-${winner.losses} is better than ${historicalPercentile}% of weekly winners all time.` : "", winCountLine, careerMoney != null ? `Career winnings now stand at $${careerMoney.toLocaleString()}.` : "", "", "Great week and a well-earned win."].filter(line => line !== "").join("\n");
+  const draft = [greeting, "", journey, closeCall, `${winner.name} finished with ${score(winner)} wins, ${lateCorrect ? `going ${lateCorrect}-${lateGames.length - lateCorrect} from ${kickoffWindow(lateStart)} onward` : `and had already done enough before ${kickoffWindow(lateStart)}`}. ${bestBetHit ? `The ${String(winner.bestBet).toUpperCase()} Best Bet delivered the extra win.` : `The win held up even without help from the ${String(winner.bestBet || "").toUpperCase()} Best Bet.`}`, underdogWins ? `${winner.name} also picked ${underdogWins} winning underdog${underdogWins === 1 ? "" : "s"}.` : "", runnerUp && score(winner) !== score(runnerUp) ? tiebreakStory : "", "", historicalPercentile != null ? `${winner.wins}-${winner.losses} is better than ${historicalPercentile}% of weekly winners all time.` : "", winCountLine, careerMoney != null ? `Career winnings now stand at $${careerMoney.toLocaleString()}.` : "", "", "Great week and a well-earned win."].filter(line => line !== "").join("\n");
   host.innerHTML = `<section class="week-recap"><h3 class="compact-live-title">Week ${currentWeek} story</h3><div class="week-recap-grid"><div class="week-recap-item"><span>Winner</span><strong>${websiteEscapeHtml(winnerNames)} · ${score(winner)} wins</strong></div><div class="week-recap-item"><span>Decisive result</span><strong>${websiteEscapeHtml(decisiveResult)}</strong></div><div class="week-recap-item"><span>Journey</span><strong>${websiteEscapeHtml(journey)}</strong></div><div class="week-recap-item"><span>Came up just short</span><strong>${websiteEscapeHtml(closeCall)}</strong></div></div><h3 class="compact-live-title">Winner message draft</h3><div class="winner-draft">${websiteEscapeHtml(draft)}</div></section>`;
+}
+function websiteKickoffDisplay(value) {
+  const text = String(value || "").trim();
+  const timestamp = Date.parse(text);
+  if (!text || Number.isNaN(timestamp)) return text;
+  return new Intl.DateTimeFormat("en-US", { timeZone: "America/New_York", weekday: "short", month: "short", day: "numeric", hour: "numeric", minute: "2-digit", timeZoneName: "short" }).format(new Date(timestamp));
 }
 function decorateWebsiteWeekOneHeaders(data) { const headers = [...document.querySelectorAll("#week-one-table th.pg-game")].slice(1, 17); headers.forEach((header, index) => { const favorite = data.favorites[index]; const underdog = data.underdogs[index]; const favoriteScore = data.favoriteScores[index]; const underdogScore = data.underdogScores[index]; const game = (data.games || []).find(item => item.favorite?.toLowerCase() === favorite.toLowerCase() && item.underdog?.toLowerCase() === underdog.toLowerCase()); const gameStatus = String(game?.status || "").toUpperCase(); const started = ["IN_PROGRESS", "FINAL", "COMPLETED"].includes(gameStatus); const status = gameStatus === "IN_PROGRESS" ? game.statusText : ["FINAL", "COMPLETED"].includes(gameStatus) ? "Final" : ""; const spread = `<small class="pg-header-spread">${data.spreads[index]}</small>`; if (!started && game) { const kickoff = game.kickoffGroup || websiteKickoffLabel(game.kickoff) || game.statusText || ""; header.innerHTML = `${favorite}${spread}${underdog}${kickoff ? `<small class="pg-header-kickoff">${kickoff}</small>` : ""}`; return; } const score = value => `<span class="pg-header-score">${value === "" ? "-" : value}</span>`; header.innerHTML = `${favorite}${score(favoriteScore)}${spread}${score(underdogScore)}${underdog}${status ? `<small class="pg-header-kickoff">${status}</small>` : ""}`; }); }
 function renderWebsiteWeekOneGrid(data, source) { const rows = data.players || []; const status = document.getElementById("week-one-status"); const gamesFinal = (data.games || []).length ? data.games.filter(game => ["FINAL", "COMPLETED"].includes(String(game.status || "").toUpperCase())).length : (data.favoriteScores || []).filter((score, index) => score !== "" && data.underdogScores[index] !== "").length; status.innerHTML = [["Submissions", rows.length], ["Games final", gamesFinal], ["Source", source]].map(([label,value]) => `<div class="metric"><span>${label}</span><strong>${value}</strong></div>`).join(""); const table = document.getElementById("week-one-table"); if (!rows.length) { table.innerHTML = `<p style="color:var(--muted)">No Week 1 submissions yet.</p>`; return; } let html = '<table class="picks-grid"><thead><tr><th class="pg-player">Player</th><th class="pg-game">Week name</th>'; data.favorites.forEach((favorite, index) => { html += `<th class="pg-game">${favorite}<br><small>${data.spreads[index]}</small><br>${data.underdogs[index]}</th>`; }); html += `<th class="pg-bb-hdr">BB</th><th class="pg-sum-hdr">TB${data.actualTiebreaker ? `<br><small>${data.actualTiebreaker}</small>` : ""}</th><th class="pg-sum-hdr pg-w">W</th><th class="pg-sum-hdr pg-l">L</th><th class="pg-sum-hdr">Total</th><th class="pg-sum-hdr">Win%</th><th class="pg-sum-hdr">Prob</th><th class="pg-sum-hdr">Paths</th></tr></thead><tbody>`; rows.forEach(row => { html += `<tr><td class="pg-player">${row.name}</td><td class="pg-sum-cell">${row.weekName || ""}</td>`; row.picks.forEach((pick, index) => { html += `<td class="${websiteWeekOnePickClass(data, index, pick)}">${pick}</td>`; }); const bestBetIndex = row.picks.findIndex(pick => pick === row.bestBet); const bestBetClass = bestBetIndex < 0 ? "pg-bb-none" : websiteWeekOnePickClass(data, bestBetIndex, row.bestBet).replace("pg-pick", "pg-bb"); html += `<td class="${bestBetClass}">${row.bestBet || ""}</td><td class="pg-sum-cell">${row.tiebreaker || ""}</td><td class="pg-sum-cell pg-w">${row.wins || ""}</td><td class="pg-sum-cell pg-l">${row.losses || ""}</td><td class="pg-sum-cell">${row.total || ""}</td><td class="pg-sum-cell">${row.winPercent || ""}</td><td class="pg-sum-cell">${row.winProbability || ""}</td><td class="pg-sum-cell">${row.pathsToVictory || ""}</td></tr>`; }); table.innerHTML = html + '</tbody></table>'; }
@@ -3964,7 +4009,7 @@ function websiteReadCurrentWeekCache() {
 function websiteRenderCachedCurrentWeek() {
   const cached = websiteReadCurrentWeekCache();
   if (!cached) return false;
-  websiteRegularSelection = { season: Number(cached.season) || 2026, week: Number(cached.week) || 1, phase: "REGULAR_SEASON", staged: Boolean(cached.games.length) };
+  websiteRegularSelection = websiteCompetitiveSelection(cached);
   updateWebsiteWeekLabels(websiteRegularSelection);
   renderWebsiteWeekOneGrid(cached, "Cached while refreshing");
   document.getElementById("week-one-table").dataset.instantWeek = "true";
@@ -4292,7 +4337,7 @@ function renderWebsiteLiveAnalysis(data) {
 function websiteRenderCachedLive() {
   const cached = websiteReadCurrentWeekCache();
   if (!cached) return false;
-  websiteRegularSelection = { season: Number(cached.season) || 2026, week: Number(cached.week) || 1, phase: "REGULAR_SEASON", staged: Boolean(cached.games.length) };
+  websiteRegularSelection = websiteCompetitiveSelection(cached);
   updateWebsiteWeekLabels(websiteRegularSelection);
   renderWebsiteLiveAnalysis(cached);
   const status = document.getElementById("live-analysis-refresh-status");
@@ -4303,8 +4348,8 @@ function websiteRenderCachedLive() {
 async function fetchWebsiteCurrentWeek() {
   return websiteFetchPublicRead("current-week", { fast: "1" });
 }
-async function fetchWebsiteCurrentWeekRace(season, week) {
-  const data = await websiteFetchPublicRead("current-week-race", { season: String(season), week: String(week) }, 20000);
+async function fetchWebsiteCurrentWeekRace(season, week, phase = "REGULAR_SEASON") {
+  const data = await websiteFetchPublicRead("current-week-race", { season: String(season), week: String(week), phase }, 20000);
   return data.raceSnapshots || [];
 }
 async function renderWebsiteWeekOne(currentWeekRequest = null, currentRaceRequest = null, refreshGeneration = ++websiteLiveRefreshGeneration) {
@@ -4317,9 +4362,9 @@ async function renderWebsiteWeekOne(currentWeekRequest = null, currentRaceReques
   try {
     const data = await (currentWeekRequest || fetchWebsiteCurrentWeek());
     if (refreshGeneration !== websiteLiveRefreshGeneration) return;
-    websiteRegularSelection = { season: Number(data.season) || 2026, week: Number(data.week) || 1, phase: "REGULAR_SEASON", staged: Boolean((data.games || []).length) };
+    websiteRegularSelection = websiteCompetitiveSelection(data);
     updateWebsiteWeekLabels(websiteRegularSelection);
-    const raceRequest = liveView ? (currentRaceRequest || fetchWebsiteCurrentWeekRace(websiteRegularSelection.season, websiteRegularSelection.week)).catch(error => { console.warn(error.message); return null; }) : null;
+    const raceRequest = liveView ? (currentRaceRequest || fetchWebsiteCurrentWeekRace(websiteRegularSelection.season, websiteRegularSelection.week, websiteRegularSelection.phase)).catch(error => { console.warn(error.message); return null; }) : null;
     if (!/^\d+(?:\.\d+)?$/.test(String(data.actualTiebreaker || ""))) data.actualTiebreaker = "";
     await new Promise(resolve => requestAnimationFrame(() => requestAnimationFrame(resolve)));
     startWebsiteAnalytics();
@@ -4424,7 +4469,7 @@ function decorateWebsiteWeekOneHeadersLive(data) {
     const started = ["IN", "LIVE", "POST", "IN_PROGRESS", "FINAL", "COMPLETED"].includes(gameStatus);
     const spread = `<small class="pg-header-spread">${data.spreads[index]}</small>`;
     if (!started) { const kickoff = game?.kickoffGroup || websiteKickoffLabel(game?.kickoff) || game?.statusText || ""; header.innerHTML = `${favorite}${spread}${underdog}${kickoff ? `<small class="pg-header-kickoff">${kickoff}</small>` : ""}`; return; }
-    const score = value => `<span class="pg-header-score">${value === "" ? "-" : value}</span>`;
+  const score = value => `<span class="pg-header-score">${value == null || value === "" ? "-" : value}</span>`;
     const final = ["POST", "FINAL", "COMPLETED"].includes(gameStatus);
     const liveState = final ? "" : game?.espnStatusText || game?.statusText || [game?.period ? `Q${game.period}` : "", game?.clock, game?.possession ? `${game.possession} ball` : ""].filter(Boolean).join(" · ");
     const stateClass = ["IN", "LIVE", "IN_PROGRESS"].includes(gameStatus) ? " live" : "";
@@ -4451,7 +4496,7 @@ async function renderSelectedWebsiteWeek(activeWeekKnown = false, currentWeekReq
     const pendingCurrentWeek = currentWeekRequest || (WEBSITE_SUBMISSIONS_ENDPOINT ? fetchWebsiteCurrentWeek() : null);
     pendingCurrentWeek?.catch(() => {});
     const raceSelection = websiteReadCurrentWeekCache() || (selection.staged && websiteActiveRegularWeekLoadedAt ? selection : null);
-    const prefetchedRace = liveView && pendingCurrentWeek && raceSelection ? fetchWebsiteCurrentWeekRace(Number(raceSelection.season), Number(raceSelection.week)) : null;
+    const prefetchedRace = liveView && pendingCurrentWeek && raceSelection ? fetchWebsiteCurrentWeekRace(Number(raceSelection.season), Number(raceSelection.week), raceSelection.phase || "REGULAR_SEASON") : null;
     prefetchedRace?.catch(() => {});
     if (liveView) websiteRenderCachedLive();
     else if (!document.querySelector("#week-one-table .picks-grid")) websiteRenderCachedCurrentWeek();
@@ -4465,16 +4510,16 @@ async function renderSelectedWebsiteWeek(activeWeekKnown = false, currentWeekReq
       try {
         const prefetched = await pendingCurrentWeek;
         if (prefetched?.ok) {
-          websiteRegularSelection = { season: Number(prefetched.season) || 2026, week: Number(prefetched.week) || 1, phase: "REGULAR_SEASON", staged: Boolean((prefetched.games || []).length) };
+          websiteRegularSelection = websiteCompetitiveSelection(prefetched);
           websiteEntrySelection = { testMode: false, ...websiteRegularSelection };
           updateWebsiteWeekLabels(websiteEntrySelection);
         }
       } catch (error) { console.warn(error.message); }
     }
     const active = websitePickSelection();
-    document.querySelector("#view-week-one .intro h2").textContent = `Week ${active.week}`;
+    document.querySelector("#view-week-one .intro h2").textContent = websiteRoundLabel(active);
     document.querySelector("#view-week-one .intro p").textContent = `${active.season}-${active.season + 1} submissions and weekly standings.`;
-    const pendingRace = liveView && pendingCurrentWeek ? Promise.resolve(pendingCurrentWeek).then(data => prefetchedRace && Number(data.season) === Number(raceSelection.season) && Number(data.week) === Number(raceSelection.week) ? prefetchedRace : fetchWebsiteCurrentWeekRace(Number(data.season) || 2026, Number(data.week) || 1)) : null;
+    const pendingRace = liveView && pendingCurrentWeek ? Promise.resolve(pendingCurrentWeek).then(data => prefetchedRace && Number(data.season) === Number(raceSelection.season) && Number(data.week) === Number(raceSelection.week) && (data.phase || "REGULAR_SEASON") === (raceSelection.phase || "REGULAR_SEASON") ? prefetchedRace : fetchWebsiteCurrentWeekRace(Number(data.season) || 2026, Number(data.week) || 1, data.phase || "REGULAR_SEASON")) : null;
     pendingRace?.catch(() => {});
     return renderWebsiteWeekOne(pendingCurrentWeek, pendingRace, refreshGeneration);
   }
