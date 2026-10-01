@@ -45,6 +45,20 @@ const json = (body: JsonObject, status = 200, origin = "*"): Response =>
     },
   });
 
+export const isLoopbackOrigin = (origin: string): boolean => {
+  try {
+    const url = new URL(origin);
+    return url.protocol === "http:" && ["localhost", "127.0.0.1", "[::1]"].includes(url.hostname);
+  } catch {
+    return false;
+  }
+};
+
+export const requestCorsOrigin = (request: Request, configuredOrigin: string): string => {
+  const origin = request.headers.get("Origin") || "";
+  return request.method === "GET" && isLoopbackOrigin(origin) ? origin : configuredOrigin;
+};
+
 const html = (body: string, status = 200): Response => new Response(body, {
   status,
   headers: { "Content-Type": "text/html;charset=UTF-8", "Cache-Control": "no-store" },
@@ -1430,14 +1444,19 @@ const handlePost = async (request: Request, env: Env): Promise<Response> => {
 
 export default {
   async fetch(request: Request, env: Env): Promise<Response> {
+    const origin = request.headers.get("Origin") || "";
+    if (request.method !== "GET" && isLoopbackOrigin(origin)) {
+      return json({ ok: false, error: "Local previews are read-only." }, 403, env.CORS_ORIGIN);
+    }
     if (request.method === "OPTIONS") return json({ ok: true }, 200, env.CORS_ORIGIN);
+    const requestEnv = { ...env, CORS_ORIGIN: requestCorsOrigin(request, env.CORS_ORIGIN) };
     try {
-      if (request.method === "GET") return await handleGet(request, env);
-      if (request.method === "POST") return await handlePost(request, env);
-      return json({ ok: false, error: "Method not allowed." }, 405, env.CORS_ORIGIN);
+      if (request.method === "GET") return await handleGet(request, requestEnv);
+      if (request.method === "POST") return await handlePost(request, requestEnv);
+      return json({ ok: false, error: "Method not allowed." }, 405, requestEnv.CORS_ORIGIN);
     } catch (error) {
       const message = error instanceof Error ? error.message : "Unexpected error.";
-      return json({ ok: false, error: message }, error instanceof SubmissionError ? error.status : 400, env.CORS_ORIGIN);
+      return json({ ok: false, error: message }, error instanceof SubmissionError ? error.status : 400, requestEnv.CORS_ORIGIN);
     }
   },
   async scheduled(controller: ScheduledController, env: Env, context: ExecutionContext): Promise<void> {
