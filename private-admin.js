@@ -4,9 +4,12 @@ let records = [], control, selected;
 const element = id => document.getElementById(id);
 const money = value => value === 'even' ? 'Even' : value.startsWith('+') ? `+$${value.slice(1)}` : `$${value}`;
 
-async function api(action, options = {}) {
+async function api(action, options = {}, parameters = {}) {
   const token = sessionStorage.getItem(TOKEN_KEY);
-  const response = await fetch(`${API}?action=${encodeURIComponent(action)}`, {
+  const url = new URL(API);
+  url.searchParams.set('action', action);
+  Object.entries(parameters).forEach(([key, value]) => url.searchParams.set(key, value));
+  const response = await fetch(url, {
     ...options,
     headers: { Authorization: `Bearer ${token || ''}`, ...(options.body ? { 'Content-Type': 'application/json' } : {}), ...options.headers },
   });
@@ -28,7 +31,7 @@ async function drawDetail() {
   element('detail').innerHTML = `<h2>${body.name}</h2><p class="balance">${money(body.balance)}</p><div class="periods">${periods}</div><form id="cash-form" class="transaction"><h2>Record cash paid out</h2><label>Amount paid ($)<input id="amount" type="number" min="0.01" step="0.01" required></label><label>Reason<input id="reason" maxlength="500" placeholder="Gary surplus paid out" required></label><button type="submit">Record payout</button></form><div id="history" class="history">Loading history...</div>`;
   element('cash-form').addEventListener('submit', postCashPaidOut);
   try {
-    const result = await api(`private-ledger-history&id=${encodeURIComponent(selected.record_id)}`);
+    const result = await api('private-ledger-history', {}, { id: selected.record_id });
     element('history').innerHTML = `<h2>History</h2><ul>${result.history.slice(0, 8).map(item => `<li>v${item.version}: ${item.reason}<br><small>${item.recorded_at}</small></li>`).join('')}</ul>`;
   } catch (error) { element('history').textContent = error.message; }
 }
