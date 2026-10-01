@@ -19,6 +19,7 @@ interface Env {
   CORS_ORIGIN: string;
   EMAIL_RELAY_URL?: string;
   EMAIL_RELAY_SECRET?: string;
+  ADMIN_SUBMISSION_EMAIL?: string;
   VAPID_PUBLIC_KEY?: string;
   VAPID_PRIVATE_KEY?: string;
   VAPID_SUBJECT?: string;
@@ -831,9 +832,19 @@ export const dispatchSubmissionConfirmationOutbox = async (db: D1Database, send:
     const claimed = await db.prepare("UPDATE submission_confirmation_outbox SET status='sending',updated_at=CURRENT_TIMESTAMP WHERE id=? AND status IN ('queued','failed')")
       .bind(row.id).run();
     if (!claimed.meta.changes) continue;
-    const payload = JSON.parse(row.payload_json) as {name:string;season:number;week:number;phase:string;weekName:string;bestBet:string;submittedAt:string};
-    const subject = `FBP ${payload.season} Week ${payload.week}: picks received`;
-    const body = `${payload.name}, your picks were received for Week ${payload.week}.\n\nWeek name: ${payload.weekName}\nBest Bet: ${payload.bestBet}\nSubmitted: ${payload.submittedAt}`;
+    const payload = JSON.parse(row.payload_json) as { name: string; season: number; week: number; phase: string; weekName: string; picks?: string[]; bestBet: string; tiebreaker?: number; submittedAt: string; confirmationText?: string };
+    const subject = `FBP Week ${payload.week}: ${payload.name} submitted picks`;
+    const fallback = [
+      `${payload.name} submitted picks for ${payload.season} Week ${payload.week}.`,
+      `Week name: ${payload.weekName}`,
+      `Best Bet: ${payload.bestBet}`,
+      `Tiebreaker: ${payload.tiebreaker ?? "-"}`,
+      `Submitted: ${payload.submittedAt}`,
+      payload.picks?.length ? `Picks: ${payload.picks.join(", ")}` : "",
+    ].filter(Boolean).join("\n");
+    const body = payload.confirmationText?.trim()
+      ? `${fallback}\n\nConfirmation details\n${payload.confirmationText.trim()}`
+      : fallback;
     let delivered = false;
     try { delivered = await send(row.destination, subject, body); } catch { delivered = false; }
     await db.prepare(`UPDATE submission_confirmation_outbox SET status=?,attempts=attempts+1,last_error=?,sent_at=?,updated_at=CURRENT_TIMESTAMP WHERE id=? AND status='sending'`)
@@ -1280,7 +1291,26 @@ const handleAnalytics = async (payload: JsonObject, env: Env): Promise<Response>
 const submitCard = async (payload: JsonObject, env: Env): Promise<Response> => {
   if (env.OPERATIONAL_WRITES_ENABLED !== 'true') return json({ ok: false, error: 'Replacement submissions are disabled. Sheets currently owns the live submission path.' }, 409, env.CORS_ORIGIN);
   if (!Number.isSafeInteger(payload.expectedEpoch) || !Object.hasOwn(payload, 'expectedSubmissionId')) return json({ ok: false, error: 'Reload and check the current entry before submitting.' }, 409, env.CORS_ORIGIN);
-  return json(await submitOperationalCard(env.DB, payload), 200, env.CORS_ORIGIN);
+  const adminEmail = String(env.ADMIN_SUBMISSION_EMAIL || '').trim().toLowerCase();
+  const cardPayload = adminEmail && payload.mode !== 'test'
+    ? { ...payload, confirmationEmailConsent: true, confirmationEmail: adminEmail }
+    : payload;
+  return json(await submitOperationalCard(env.DB, cardPayload), 200, env.CORS_ORIGIN);
+};
+
+const saveSubmissionConfirmationDetails = async (payload: JsonObject, env: Env): Promise<Response> => {
+  const operationId = cleanText(payload.operationId, 100);
+  const confirmationText = cleanText(payload.confirmationText, 15_000);
+  if (!/^[A-Za-z0-9_-]{16,100}$/.test(operationId) || !confirmationText) {
+    return json({ ok: false, error: 'A submitted confirmation is required.' }, 400, env.CORS_ORIGIN);
+  }
+  const row = await env.DB.prepare("SELECT id,payload_json FROM submission_confirmation_outbox WHERE operation_id=? AND status IN ('queued','failed')")
+    .bind(operationId).first<{ id: number; payload_json: string }>();
+  if (!row) return json({ ok: false, error: 'The confirmation email is no longer available.' }, 404, env.CORS_ORIGIN);
+  const stored = JSON.parse(row.payload_json) as JsonObject;
+  await env.DB.prepare("UPDATE submission_confirmation_outbox SET payload_json=?,updated_at=CURRENT_TIMESTAMP WHERE id=? AND status IN ('queued','failed')")
+    .bind(JSON.stringify({ ...stored, confirmationText }), row.id).run();
+  return json({ ok: true }, 200, env.CORS_ORIGIN);
 };
 
 const correctSubmission = async (_payload: JsonObject, env: Env): Promise<Response> => {
@@ -1376,6 +1406,7 @@ const handlePost = async (request: Request, env: Env): Promise<Response> => {
   if (action === "subscribe-notifications") return subscribeNotifications(request, payload, env);
   if (action === "update-notifications") return updateNotificationPreferences(payload, env);
   if (action === "correct-submission-name") return correctSubmission(payload, env);
+  if (action === "submission-confirmation-details") return saveSubmissionConfirmationDetails(payload, env);
   if (action === "race-snapshot") return storeRaceSnapshot(payload, env);
   if (action === "assess-player-identity") {
     const submittedName = cleanText(payload.name, 100).replace(/\s+/g, " ");
