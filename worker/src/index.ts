@@ -615,7 +615,19 @@ const pushSubscriptionFromPayload = (value: unknown): PushSubscriptionRecord => 
   return { endpoint, p256dh, auth };
 };
 
-const sendAdministratorPush = async (env: Env, title: string, body: string): Promise<{ sent: number; failed: number }> => {
+const administratorPushUrl = (candidate: unknown, env: Env): string => {
+  const fallback = `${env.PUBLIC_SITE_URL || "https://fbp26.github.io/fbp-stats/"}#live-analysis`;
+  const url = String(candidate || "").trim();
+  if (!url) return fallback;
+  try {
+    const parsed = new URL(url);
+    return parsed.origin === new URL(env.PUBLIC_SITE_URL || fallback).origin || parsed.origin === "https://script.google.com"
+      ? parsed.toString()
+      : fallback;
+  } catch { return fallback; }
+};
+
+const sendAdministratorPush = async (env: Env, title: string, body: string, url?: string): Promise<{ sent: number; failed: number }> => {
   if (!env.VAPID_PUBLIC_KEY || !env.VAPID_PRIVATE_KEY || !env.VAPID_SUBJECT) return { sent: 0, failed: 0 };
   const devices = await env.DB.prepare(
     `SELECT devices.id, devices.endpoint, devices.p256dh, devices.auth
@@ -627,7 +639,7 @@ const sendAdministratorPush = async (env: Env, title: string, body: string): Pro
   for (const device of devices.results) {
     const result = await sendWebPush(
       device,
-      { title: cleanText(title, 80), body: cleanText(body, 240), url: `${env.PUBLIC_SITE_URL || "https://fbp26.github.io/fbp-stats/"}#live-analysis`, tag: `fbp-admin-${crypto.randomUUID()}` },
+      { title: cleanText(title, 80), body: cleanText(body, 240), url: administratorPushUrl(url, env), tag: `fbp-admin-${crypto.randomUUID()}` },
       { publicKey: env.VAPID_PUBLIC_KEY, privateKey: env.VAPID_PRIVATE_KEY, subject: env.VAPID_SUBJECT },
     );
     if (result.expired) await env.DB.prepare("UPDATE push_devices SET status='unsubscribed', unsubscribed_at=CURRENT_TIMESTAMP, updated_at=CURRENT_TIMESTAMP WHERE id=?").bind(device.id).run();
@@ -641,7 +653,7 @@ const sendAdministratorPushEvent = async (payload: JsonObject, env: Env): Promis
   if (!env.EMAIL_RELAY_SECRET?.trim() || cleanText(payload.secret, 200) !== env.EMAIL_RELAY_SECRET.trim()) return json({ ok: false, error: "Unauthorized." }, 401, env.CORS_ORIGIN);
   const title = cleanText(payload.title, 80), body = cleanText(payload.body, 240);
   if (!title || !body) return json({ ok: false, error: "An administrator notification needs a title and body." }, 400, env.CORS_ORIGIN);
-  return json({ ok: true, ...await sendAdministratorPush(env, title, body) }, 200, env.CORS_ORIGIN);
+  return json({ ok: true, ...await sendAdministratorPush(env, title, body, String(payload.url || "")) }, 200, env.CORS_ORIGIN);
 };
 
 const savePushDevice = async (payload: JsonObject, env: Env): Promise<Response> => {
