@@ -194,6 +194,7 @@
   .notification-form button:disabled, #website-picks-form > button:disabled { opacity: .55; cursor: not-allowed; }
   .notification-settings { display: block; margin: 0 0 14px; border-block: 1px solid var(--border); }
   .notification-settings.notification-preview { display: block; }
+  @media (min-width: 561px) { #view-enter-picks .notification-settings { display: none !important; } }
   .notification-settings > summary { padding: 9px 0; color: var(--accent); font: bold 12px Arial, sans-serif; cursor: pointer; }
   .notification-form { display: grid; gap: 9px; max-width: 720px; padding: 1px 0 12px; }
   .notification-choice { display: flex; flex-wrap: wrap; gap: 7px; }
@@ -3556,10 +3557,17 @@ async function renderConfirmationHistory(submission) {
     const bestBetRow = currentRows.find(row => row.pick === String(submission.bestBet || "").toUpperCase());
     const bestBetOpponent = bestBetRow ? [bestBetRow.game.favorite, bestBetRow.game.underdog].map(team => String(team).toUpperCase()).find(team => team !== bestBetRow.pick) : "";
     const currentBestBetTeam = String(submission.bestBet || "").toUpperCase();
-    const bestBetForRows = currentBestBetTeam ? completedHistory.filter(row => String(row.bestBet).toUpperCase() === currentBestBetTeam && String(row.bestBet).toUpperCase() === String(row.pick).toUpperCase()) : [];
-    const bestBetAgainstRows = bestBetOpponent ? completedHistory.filter(row => String(row.bestBet).toUpperCase() === String(row.pick).toUpperCase() && String(row.pick).toUpperCase() !== bestBetOpponent && [row.game.favorite, row.game.underdog].map(team => String(team).toUpperCase()).includes(bestBetOpponent)) : [];
-    const bestBetCandidates = [{ mode: "for", team: currentBestBetTeam, opponent: bestBetOpponent, rows: bestBetForRows, last: bestBetForRows.at(-1) }, { mode: "against", team: bestBetOpponent, currentPick: currentBestBetTeam, rows: bestBetAgainstRows, last: bestBetAgainstRows.at(-1) }].filter(candidate => candidate.mode === "for" ? candidate.team && candidate.opponent : candidate.team && candidate.currentPick && candidate.currentPick !== candidate.team);
-    const bestBetCallback = bestBetCandidates.sort((left, right) => gapSince(right.last).days - gapSince(left.last).days || left.rows.length - right.rows.length)[0];
+    const bestBetRows = completedHistory.filter(row => String(row.bestBet).toUpperCase() === String(row.pick).toUpperCase());
+    const bestBetForRows = currentBestBetTeam ? bestBetRows.filter(row => String(row.bestBet).toUpperCase() === currentBestBetTeam) : [];
+    const bestBetsAgainst = new Map();
+    bestBetRows.forEach(row => {
+      const team = opponentIn(row);
+      if (!team) return;
+      const rows = bestBetsAgainst.get(team) || [];
+      rows.push(row);
+      bestBetsAgainst.set(team, rows);
+    });
+    const mostBestBetsAgainst = [...bestBetsAgainst.entries()].map(([team, rows]) => ({ team, rows, last: rows.at(-1) })).sort((left, right) => right.rows.length - left.rows.length || right.last.game.gameDate.localeCompare(left.last.game.gameDate))[0];
     const activeTeamRuns = currentTeams.map(team => ({ team, length: activeWinningRun(completedHistory.filter(row => String(row.pick).toUpperCase() === team)) })).sort((left, right) => right.length - left.length || websiteNaturalTeamName(left.team).localeCompare(websiteNaturalTeamName(right.team)));
     const bestActiveTeamRun = activeTeamRuns.find(run => run.length > 0);
     const teamStreakText = bestActiveTeamRun ? `Your longest active streak among teams you picked this week is <strong>${bestActiveTeamRun.length} straight correct ${bestActiveTeamRun.length === 1 ? "pick" : "picks"}</strong> with the <strong>${websiteEscapeHtml(websiteNaturalTeamName(bestActiveTeamRun.team))}</strong>.` : "None of the teams you picked this week currently carries an active correct-pick streak from your archived picks.";
@@ -3614,9 +3622,10 @@ async function renderConfirmationHistory(submission) {
     const ledgerRows = [
       backingHabit && historyRow({ type: "Team pick run", team: backingHabit.team, choice: "Picked", run: `${backingHabit.length} including this card`, runRows: backingHabit.rows, rows: completedHistory.filter(row => String(row.pick).toUpperCase() === backingHabit.team), last: backingHabit.rows.at(-1) }),
       fadingHabit && historyRow({ type: "Fade run", team: fadingHabit.team, choice: "Picked against", run: `${fadingHabit.length} including this card`, runRows: fadingHabit.rows, rows: completedHistory.filter(row => String(row.pick).toUpperCase() !== fadingHabit.team && [row.game.favorite, row.game.underdog].map(value => String(value).toUpperCase()).includes(fadingHabit.team)), last: fadingHabit.rows.at(-1) }),
-      pickGap && historyRow({ type: "Longest pick gap", team: pickGap.team, choice: "Picked", run: `${opportunityRun(pickGap.team).length} active`, runRows: opportunityRun(pickGap.team).rows, rows: pickGap.rows, last: pickGap.last }),
-      fadeGap && historyRow({ type: "Longest fade gap", team: fadeGap.team, choice: "Picked against", run: `${opportunityRun(fadeGap.team, true).length} active`, runRows: opportunityRun(fadeGap.team, true).rows, rows: fadeGap.rows, last: fadeGap.last }),
-      bestBetCallback && historyRow({ type: "Best Bet", team: bestBetCallback.team, choice: bestBetCallback.mode === "for" ? "Best Bet on" : "Best Bet against", run: "This card", rows: bestBetCallback.rows.map(row => ({ ...row, result: row.bestBetResult })), last: bestBetCallback.last })
+      pickGap && historyRow({ type: "Longest time since picked", team: pickGap.team, choice: "Picked", run: `${opportunityRun(pickGap.team).length} active`, runRows: opportunityRun(pickGap.team).rows, rows: pickGap.rows, last: pickGap.last }),
+      fadeGap && historyRow({ type: "Longest time since picked against", team: fadeGap.team, choice: "Picked against", run: `${opportunityRun(fadeGap.team, true).length} active`, runRows: opportunityRun(fadeGap.team, true).rows, rows: fadeGap.rows, last: fadeGap.last }),
+      bestBetForRows.length && historyRow({ type: "Current Best Bet", team: currentBestBetTeam, choice: "Best Bet on", rows: bestBetForRows, last: bestBetForRows.at(-1) }),
+      mostBestBetsAgainst && historyRow({ type: "Most Best Bets against", team: mostBestBetsAgainst.team, choice: "Best Bet against", rows: mostBestBetsAgainst.rows, last: mostBestBetsAgainst.last })
     ].filter(Boolean);
     const ledger = ledgerRows.length ? `<div class="confirmation-history-table-wrap"><table class="confirmation-history-table"><thead><tr><th>History</th><th>Team / side</th><th>Active run</th><th>Run record</th><th>Since last</th><th>Career record</th><th>Last result</th></tr></thead><tbody>${ledgerRows.join("")}</tbody></table></div>` : "";
     host.innerHTML = `<h3>Pick form</h3>${stories.map(story => `<p>${story}</p>`).join("")}${ledger}`;
