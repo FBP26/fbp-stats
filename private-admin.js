@@ -1,5 +1,5 @@
-const API = 'https://fbp-api.fbp-api-worker.workers.dev/';
-const TOKEN_KEY = 'fbp-private-ledger-token';
+const API = 'https://fbp-private-ledger-api.fbp-api-worker.workers.dev/';
+const TOKEN_KEY = 'fbp-private-ledger-token-v2';
 let records = [], control, selected;
 const element = id => document.getElementById(id);
 const money = value => value === 'even' ? 'Even' : value.startsWith('+') ? `+$${value.slice(1)}` : `$${value}`;
