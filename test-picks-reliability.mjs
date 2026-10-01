@@ -80,6 +80,17 @@ const kickoffDisplayEnd = html.indexOf('\nfunction decorateWebsiteWeekOneHeaders
 vm.runInContext(html.slice(kickoffDisplayStart, kickoffDisplayEnd), context);
 assert.match(context.websiteKickoffDisplay('2026-10-02T00:15:00.000Z'), /^Thu, Oct 1, 8:15 PM EDT$/);
 assert.equal(context.websiteKickoffDisplay('Not started'), 'Not started');
+context.websiteGameWinner = (data, index) => data.games[index].winner ?? null;
+const probabilityPresentationStart = html.indexOf('function websiteProbabilityEvidence(');
+const probabilityPresentationEnd = html.indexOf('\nfunction websiteConditionalProbabilities(', probabilityPresentationStart);
+vm.runInContext(html.slice(probabilityPresentationStart, probabilityPresentationEnd), context);
+const openingProbabilities = context.websitePresentationProbabilities({ games: [{}, {}] }, [75, 25]);
+assert.equal(openingProbabilities.reduce((total, probability) => total + probability, 0), 100);
+assert.ok(openingProbabilities[0] > openingProbabilities[1], 'Pregame display keeps the weighted model ordering');
+assert.ok(openingProbabilities[0] - openingProbabilities[1] <= 4, 'Pregame display limits the probability spread');
+const postgameProbabilities = context.websitePresentationProbabilities({ games: [{ winner: 'BUF' }, {}] }, [75, 25]);
+assert.deepEqual(postgameProbabilities, [50 + 25 * Math.sqrt(.5), 50 - 25 * Math.sqrt(.5)], 'Completed games retain the existing evidence calibration');
+console.log('Opening probabilities retain capped model-based differentiation before kickoff.');
 for (const week of [1, 2, 3, 4]) {
   assert.equal(context.websiteRequiresTiebreak({ phase: 'PLAYOFFS', week }), week === 4);
   assert.equal(context.websiteRequiresTiebreak({ phase: 'REGULAR_SEASON', week }), true);
@@ -273,21 +284,21 @@ for (const fails of [false, true]) {
   assert.deepEqual(requests, ['current-week-race']);
 }
 console.log('D1 live reads never fall back to Sheets, including when the operational read fails.');
-for (const fails of [false, true]) {
-  const payoutContext = vm.createContext({
-    Date, WEBSITE_NOTIFICATION_ENDPOINT: 'https://worker.test/',
-    websiteLiveClient: { owner: async () => ({ owner: 'D1', epoch: 2 }), read: async () => {
-      if (fails) throw new Error('Unreconciled payout');
-      return { ok: true, owner: 'D1', epoch: 2, seasons: [{ year: 2026 }] };
-    } },
-    fetch: () => { throw new Error('D1 payouts must not fetch the Sheets CSV'); },
-  });
-  const start = html.indexOf('let payoutSheetLoadPromise =');
-  vm.runInContext(html.slice(start, html.indexOf('function payoutUnpaidTooltip(', start)), payoutContext);
-  if (fails) await assert.rejects(payoutContext.loadPayoutSheet(), error => error.operationalData === true);
-  else assert.equal((await payoutContext.loadPayoutSheet())[0].year, 2026);
-}
-console.log('Payouts use the selected owner and reject stale saved-copy fallback after D1 cutover.');
+const payoutRequests = [];
+const payoutContext = vm.createContext({
+  Date,
+  Papa: { parse: () => ({ errors: [], data: [['2026']] }) },
+  parsePayoutSheetRows: rows => [{ year: Number(rows[0][0]) }],
+  fetch: async url => {
+    payoutRequests.push(String(url));
+    return { ok: true, text: async () => '2026' };
+  },
+});
+const payoutStart = html.indexOf('let payoutSheetLoadPromise =');
+vm.runInContext(html.slice(payoutStart, html.indexOf('function payoutUnpaidTooltip(', payoutStart)), payoutContext);
+assert.equal((await payoutContext.loadPayoutSheet())[0].year, 2026);
+assert.match(payoutRequests[0], /docs\.google\.com\/spreadsheets\/d\/19LkATudJU7W7bsnBBNy7iCI68P3Nhbt10XIJ5Q7HRCA\/export\?format=csv&gid=2/);
+console.log('Payouts refresh from the Sheets CSV regardless of separate pool ownership.');
 for (const action of ['season-status', 'race-archive']) assert.ok(html.includes(`websiteLiveClient.read('${action}'`));
 const archiveReads = [];
 let archiveOwner = { owner:'SHEETS', epoch:1 };

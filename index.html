@@ -2212,7 +2212,10 @@ function websitePresentationProbabilities(data, probabilities) {
   if (!probabilities.length) return probabilities;
   const evenFieldProbability = 100 / probabilities.length;
   const evidence = websiteProbabilityEvidence(data);
-  return probabilities.map(probability => evenFieldProbability + (Number(probability) - evenFieldProbability) * evidence);
+  const rawSpread = Math.max(...probabilities) - Math.min(...probabilities);
+  const openingEvidence = rawSpread ? Math.min(.12, 4 / rawSpread) : .12;
+  const presentationEvidence = evidence || openingEvidence;
+  return probabilities.map(probability => evenFieldProbability + (Number(probability) - evenFieldProbability) * presentationEvidence);
 }
 function websiteConditionalProbabilities(data, forced = {}, calculationLimit = WEBSITE_EXACT_CALCULATION_LIMIT) {
   const scenarios = websiteScenarioOutcomes(data, forced);
