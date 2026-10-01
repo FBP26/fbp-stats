@@ -53,7 +53,7 @@ export async function privateLedgerHistory(request: Request, env: PrivateLedgerE
   return privateJson({ ok: true, history: rows.results.map(row => ({ ...row, body: JSON.parse(String(row.body)) })) }, 200, env.CORS_ORIGIN);
 }
 
-const postMobileCashPaidOut = async (db: D1Database, payload: Record<string, unknown>, actor: string): Promise<{ version: number; replayed: boolean }> => {
+const postMobileCashTransaction = async (db: D1Database, payload: Record<string, unknown>, actor: string): Promise<{ version: number; replayed: boolean }> => {
   const recordId = String(payload.recordId || '');
   const operationId = String(payload.operationId || '');
   const reason = String(payload.reason || '').trim();
@@ -61,13 +61,14 @@ const postMobileCashPaidOut = async (db: D1Database, payload: Record<string, unk
     throw new Error('Invalid payout transaction.');
   }
   const amountCents = moneyCents(String(payload.amount || ''));
-  if (amountCents <= 0) throw new Error('Enter a positive cash payout amount.');
+  if (amountCents <= 0) throw new Error('Enter a positive cash amount.');
   const [record, control] = await Promise.all([
     db.prepare("SELECT version,body FROM admin_records WHERE kind='payout' AND record_id=?").bind(recordId).first<{ version: number; body: string }>(),
     db.prepare('SELECT epoch FROM admin_control WHERE id=1').first<{ epoch: number }>(),
   ]);
   if (!record || !control) throw new Error('The payout ledger is unavailable. Try again shortly.');
-  const command = { recordId, operationId, expectedVersion: Number(record.version), expectedEpoch: Number(control.epoch), type: 'CASH_PAID_OUT', amount: String(payload.amount), reason };
+  const type = String(payload.type);
+  const command = { recordId, operationId, expectedVersion: Number(record.version), expectedEpoch: Number(control.epoch), type, amount: String(payload.amount), reason };
   const requestHash = await adminDigest(canonicalAdminJson({ command, actor }));
   const prior = await db.prepare('SELECT request_hash,version FROM admin_events WHERE operation_id=?').bind(operationId).first<{ request_hash: string; version: number }>();
   if (prior) {
@@ -77,12 +78,14 @@ const postMobileCashPaidOut = async (db: D1Database, payload: Record<string, unk
   const body = JSON.parse(record.body) as Record<string, unknown>;
   const beforeCents = Number(body.balanceCents);
   if (!Number.isSafeInteger(beforeCents)) throw new Error('This payout balance needs reconciliation before cash can be recorded.');
-  const balanceCents = beforeCents + amountCents;
+  const balanceCents = beforeCents + (type === 'CASH_PAID_OUT' ? amountCents : -amountCents);
   const next = {
     ...body,
     balanceCents,
     balance: payoutBalanceText(balanceCents),
-    posting: { operationId, requestHash, type: 'CASH_PAID_OUT', amountCents, beforeCents, moneyInCents: 0, moneyOutCents: amountCents },
+    posting: { operationId, requestHash, type, amountCents, beforeCents,
+      moneyInCents: type === 'PAYMENT_RECEIVED' ? amountCents : 0,
+      moneyOutCents: type === 'CASH_PAID_OUT' ? amountCents : 0 },
   };
   const eventBody = canonicalAdminJson(next);
   const recordedAt = new Date().toISOString();
@@ -107,8 +110,8 @@ export async function privateLedgerTransaction(request: Request, env: PrivateLed
     return privateJson({ ok: false, error: 'Select money received from or paid out to the player.' }, 400, env.CORS_ORIGIN);
   }
   try {
-    if (payload.type === 'CASH_PAID_OUT') {
-      const receipt = await postMobileCashPaidOut(env.DB, payload, 'mobile-admin');
+    if (['CASH_PAID_OUT', 'PAYMENT_RECEIVED'].includes(String(payload.type))) {
+      const receipt = await postMobileCashTransaction(env.DB, payload, 'mobile-admin');
       return privateJson({ ok: true, ...receipt }, 200, env.CORS_ORIGIN);
     }
     const recordId = String(payload.recordId || '');
