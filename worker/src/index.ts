@@ -1,6 +1,7 @@
 import { scoreWeekWithoutProbabilities, type PlayerCard, type ScoringGame } from "./scoring.ts";
 import { existingOperationalCard, submitOperationalCard, SubmissionError } from './operational-submissions.ts';
 import { readOperationalPayouts } from './payouts.ts';
+import { privateLedgerCashPaidOut, privateLedgerHistory, privateLedgerRecords } from './private-ledger.ts';
 // The private Ledger implementation is JavaScript because its supervised CLI shares these transactions.
 // @ts-ignore -- typed at the Worker boundary below.
 import { planWeeklyAward, postPayoutTransaction } from '../scripts/payout-transactions.mjs';
@@ -26,6 +27,7 @@ interface Env {
   PICKS_SOURCE_URL?: string;
   CANDIDATE_LIFECYCLE_ENABLED?: string;
   OPERATIONAL_WRITES_ENABLED?: string;
+  ADMIN_ACCESS_TOKEN?: string;
 }
 
 type JsonObject = Record<string, unknown>;
@@ -36,7 +38,7 @@ const json = (body: JsonObject, status = 200, origin = "*"): Response =>
     status,
     headers: {
       "Access-Control-Allow-Origin": origin,
-      "Access-Control-Allow-Headers": "Content-Type",
+      "Access-Control-Allow-Headers": "Content-Type,Authorization",
       "Access-Control-Allow-Methods": "GET,POST,OPTIONS",
       "Cache-Control": "no-store",
     },
@@ -466,6 +468,8 @@ const buildCurrentWeek = async (
 const handleGet = async (request: Request, env: Env): Promise<Response> => {
   const url = new URL(request.url);
   const action = url.searchParams.get("action") || "current-week";
+  if (action === 'private-ledger-records') return privateLedgerRecords(request, env);
+  if (action === 'private-ledger-history') return privateLedgerHistory(request, env, url.searchParams.get('id') || '');
   if (action === 'backend-status') {
     const control = await env.DB.prepare('SELECT owner,epoch FROM admin_control WHERE id=1').first<{ owner: string; epoch: number }>();
     if (!control) return json({ ok: false, error: 'Pool ownership is unavailable.' }, 503, env.CORS_ORIGIN);
@@ -1388,6 +1392,7 @@ const handlePost = async (request: Request, env: Env): Promise<Response> => {
       },
     }, 200, env.CORS_ORIGIN);
   }
+  if (action === 'private-ledger-cash-paid-out') return privateLedgerCashPaidOut(request, env, payload);
   if (!action) return submitCard(payload, env);
   return json({ ok: false, error: "Unknown action." }, 400, env.CORS_ORIGIN);
 };

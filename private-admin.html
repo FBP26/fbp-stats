@@ -1,0 +1,26 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>FBP Private Ledger</title>
+  <link rel="stylesheet" href="private-admin.css">
+  <script src="private-admin.js" defer></script>
+</head>
+<body>
+  <header><span>FBP</span><h1>Private Ledger</h1><button id="sign-out" hidden>Lock</button></header>
+  <main>
+    <section id="unlock" class="panel">
+      <h2>Owner access</h2>
+      <p>Enter your private admin access token. It is kept only in this browser session.</p>
+      <form id="unlock-form"><label>Access token<input id="access-token" type="password" autocomplete="current-password" required></label><button type="submit">Unlock ledger</button></form>
+      <p id="unlock-message" class="message" role="status"></p>
+    </section>
+    <section id="ledger" hidden>
+      <div class="toolbar"><label>Season<select id="season"></select></label><button id="refresh">Refresh</button><span id="status" class="message" role="status"></span></div>
+      <div id="players" class="players" aria-label="Players"></div>
+      <section id="detail" class="panel"><p>Select a player.</p></section>
+    </section>
+  </main>
+</body>
+</html>
