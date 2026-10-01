@@ -208,7 +208,7 @@
   .notification-contact-note { display: block; margin-top: 3px; color: var(--muted); font: 10px/1.3 Arial, sans-serif; text-transform: none; letter-spacing: 0; }
   .notification-events { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 2px 14px; }
   .notification-events label { display: grid; grid-template-columns: 18px minmax(0, 1fr); align-items: start; gap: 6px; padding: 3px 0; color: var(--text); font: 12px/1.25 Arial, sans-serif; text-transform: none; letter-spacing: 0; }
-  .notification-reminder-time input[type="number"] { width: 76px; min-height: 40px; margin: 2px 2px 0 0; padding: 6px; }
+  .notification-reminder-time input[type="number"] { width: 52px; min-height: 40px; margin: 2px 2px 0 0; padding: 6px; }
   .notification-reminder-time input[type="range"] { width: 100%; margin: 8px 0; }
   .notification-events small, .notification-note { display: block; color: var(--muted); font: 10px/1.25 Arial, sans-serif; }
   .notification-form button { justify-self: start; }
@@ -2680,7 +2680,7 @@ async function initializePushNotifications() {
   document.querySelector(".website-notification-row")?.remove();
   settings.open = false;
   settings.querySelector("summary").textContent = "Push notifications";
-  form.innerHTML = '<div class="notification-events"><label><input type="checkbox" name="picksReady" checked><span>Picks are ready<small>A new weekly slate is open.</small></span></label><label><input type="checkbox" name="picksDue" checked><span>Picks due reminder<small><input type="number" name="picksDueMinutes" min="1" max="240" value="60"> min before the first game · only when your picks are missing.</small></span></label><label><input type="checkbox" name="firstPlace" checked><span>First-place jump<small>When you jump into first place.</small></span></label><label><input type="checkbox" name="earlyWindow" checked><span>After early games<small>Your Current Week position after every Sunday 1 PM game is final.</small></span></label><label><input type="checkbox" name="beforeSnf" checked><span>Before Sunday Night Football<small>Only when you are still in the hunt, with a short what-you-need recap.</small></span></label><label><input type="checkbox" name="beforeMnf" checked><span>Before Monday Night Football<small>Only when you are still in the hunt, with a short what-you-need recap.</small></span></label><label><input type="checkbox" name="weeklyResult" checked><span>Weekly recap<small>Your final finish, score, and the weekly winner after the completed week is archived.</small></span></label></div><div class="notification-choice"><button id="notification-save" type="submit">Enable notifications</button><button id="notification-disable" type="button" hidden>Disable notifications</button></div>';
+  form.innerHTML = '<div class="notification-events"><label><input type="checkbox" name="picksReady" checked><span>Picks are ready<small>A new weekly slate is open.</small></span></label><label><input type="checkbox" name="picksDue" checked><span>Picks due reminder<small><input type="number" name="picksDueMinutes" min="1" max="240" value="60"> min before the first game · only when your picks are missing. <span class="notification-reminder-limit"></span></small></span></label><label><input type="checkbox" name="firstPlace" checked><span>First-place jump<small>When you jump into first place.</small></span></label><label><input type="checkbox" name="topFive"><span>Top-5 jump<small>When you jump into the top 5.</small></span></label><label><input type="checkbox" name="topTen"><span>Top-10 jump<small>When you jump into the top 10.</small></span></label><label><input type="checkbox" name="leadChange"><span>Lead change<small>When anyone takes the pool lead.</small></span></label><label><input type="checkbox" name="earlyWindow"><span>After early games<small>Your Current Week position after every Sunday 1 PM game is final.</small></span></label><label><input type="checkbox" name="beforeSnf" checked><span>Before Sunday Night Football<small>Only when you are still in the hunt, with a short what-you-need recap.</small></span></label><label><input type="checkbox" name="beforeMnf" checked><span>Before Monday Night Football<small>Only when you are still in the hunt, with a short what-you-need recap.</small></span></label><label><input type="checkbox" name="weeklyResult" checked><span>Weekly recap<small>Your final finish, score, and the weekly winner after the completed week is archived.</small></span></label></div><div class="notification-choice"><button id="notification-save" type="submit">Enable notifications</button><button id="notification-disable" type="button" hidden>Disable notifications</button></div>';
   const save = document.getElementById("notification-save"), disable = document.getElementById("notification-disable");
   const installHelp = document.createElement("div");
   installHelp.id = "notification-install-help";
@@ -2713,6 +2713,17 @@ async function initializePushNotifications() {
     status.textContent = "In the Share menu, choose Add to Home Screen, then open FBP from the new icon.";
   });
   const deviceToken = () => localStorage.getItem(WEBSITE_PUSH_DEVICE_TOKEN);
+  const refreshReminderLimit = () => {
+    const cacheKey = `${websiteEntrySelection.phase}-${websiteEntrySelection.season}-${websiteEntrySelection.week}`;
+    const nextKickoff = Math.min(...(websiteStagedGamesCache.get(cacheKey)?.games || []).map(game => Date.parse(game.kickoff)).filter(Number.isFinite).filter(kickoff => kickoff > Date.now()));
+    const reminder = form.elements.picksDueMinutes, limit = form.querySelector(".notification-reminder-limit");
+    if (!Number.isFinite(nextKickoff)) { limit.textContent = "No upcoming kickoff is available."; return; }
+    const minutes = Math.max(1, Math.ceil((nextKickoff - Date.now()) / 60000));
+    reminder.max = String(minutes);
+    if (Number(reminder.value) > minutes) reminder.value = String(minutes);
+    limit.textContent = `${minutes} minutes remaining until kickoff. Choose 1-${minutes}.`;
+  };
+  refreshReminderLimit();
   const preferences = () => Object.fromEntries(notificationEventsForForm().map(name => [name, Boolean(form.elements[name]?.checked)]));
   const savePreferences = async requestPermission => {
     if (!browserCanPush()) { status.textContent = websiteIsAppleMobile ? "Save FBP to your Home Screen, then open the installed app to enable notifications." : "Push notifications are not supported by this browser."; return; }
@@ -2833,7 +2844,7 @@ async function initializeNotificationPreferences() {
     } catch (error) { status.textContent = error.message; }
   }
 }
-function notificationEventsForForm() { return ["picksReady", "picksDue", "firstPlace", "beforeSnf", "beforeMnf"]; }
+function notificationEventsForForm() { return ["picksReady", "picksDue", "firstPlace", "topFive", "topTen", "leadChange", "earlyWindow", "beforeSnf", "beforeMnf", "weeklyResult"]; }
 async function saveNotificationPreferences(event) {
   event.preventDefault();
   const form = event.currentTarget, button = document.getElementById("notification-save"), status = document.getElementById("notification-status");
