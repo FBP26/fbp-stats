@@ -60,7 +60,18 @@ export async function privateLedgerTransaction(request: Request, env: PrivateLed
     return privateJson({ ok: false, error: 'Select money received from or paid out to the player.' }, 400, env.CORS_ORIGIN);
   }
   try {
-    const receipt = await postPayoutTransaction(env.DB, payload, 'mobile-admin');
+    const recordId = String(payload.recordId || '');
+    const [record, control] = await Promise.all([
+      env.DB.prepare("SELECT version FROM admin_records WHERE kind='payout' AND record_id=?").bind(recordId).first<{ version: number }>(),
+      env.DB.prepare('SELECT epoch FROM admin_control WHERE id=1').first<{ epoch: number }>(),
+    ]);
+    if (!record || !control) return privateJson({ ok: false, error: 'The payout ledger is unavailable. Try again shortly.' }, 503, env.CORS_ORIGIN);
+    const receipt = await postPayoutTransaction(env.DB, {
+      ...payload,
+      recordId,
+      expectedVersion: Number(record.version),
+      expectedEpoch: Number(control.epoch),
+    }, 'mobile-admin');
     return privateJson({ ok: true, ...receipt }, 200, env.CORS_ORIGIN);
   } catch (error) {
     const message = error instanceof Error ? error.message : 'Payout transaction failed.';

@@ -221,7 +221,7 @@ export async function postPayoutTransaction(db, command, actor) {
     moneyInCents: transactions[command.type]?.moneyIn ? amountCents : 0,
     moneyOutCents: transactions[command.type]?.moneyOut ? amountCents : 0 };
   const next = { ...body, ...(allocation || sourceUpdate || settlement || award ? { weeks } : {}), balanceCents, balance: payoutBalanceText(balanceCents), posting,
-    reconciliation: opening ? { ...body.reconciliation, status: 'accepted-payout-baseline', sourceBalance: openingBalance, acceptedBy: actor, reason: command.reason } : body.reconciliation };
+    ...(opening ? { reconciliation: { ...body.reconciliation, status: 'accepted-payout-baseline', sourceBalance: openingBalance, acceptedBy: actor, reason: command.reason } } : {}) };
   return saveAdminRecord(db, { kind: 'payout', recordId: command.recordId, operationId: command.operationId,
     expectedVersion: command.expectedVersion, expectedEpoch: command.expectedEpoch, reason: command.reason, body: next }, actor);
 }

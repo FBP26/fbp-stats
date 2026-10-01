@@ -8,11 +8,11 @@
   <script src="private-admin.js" defer></script>
 </head>
 <body>
-  <header><span>FBP</span><h1>Private Ledger</h1><button id="sign-out" hidden>Lock</button></header>
+  <header><span>FBP</span><h1>Private Ledger</h1></header>
   <main>
     <section id="unlock" class="panel">
       <h2>Owner access</h2>
-      <p>Enter your private admin access token. It is kept only in this browser session.</p>
+      <p>Enter your private admin access token. This device will stay signed in.</p>
       <form id="unlock-form"><label>Access token<input id="access-token" type="password" autocomplete="current-password" required></label><button type="submit">Unlock ledger</button></form>
       <p id="unlock-message" class="message" role="status"></p>
     </section>

@@ -5,7 +5,7 @@ const element = id => document.getElementById(id);
 const money = value => value === 'even' ? 'Even' : value.startsWith('+') ? `+$${value.slice(1)}` : `$${value}`;
 
 async function api(action, options = {}, parameters = {}) {
-  const token = sessionStorage.getItem(TOKEN_KEY);
+  const token = localStorage.getItem(TOKEN_KEY);
   const url = new URL(API);
   url.searchParams.set('action', action);
   Object.entries(parameters).forEach(([key, value]) => url.searchParams.set(key, value));
@@ -48,7 +48,7 @@ async function postTransaction(event) {
   if (!confirm(`Record $${amount} ${direction} ${selected.body.name}?\n\n${reason}`)) return;
   const button = event.currentTarget.querySelector('button'); button.disabled = true;
   try {
-    const receipt = await api('private-ledger-transaction', { method: 'POST', body: JSON.stringify({ recordId: selected.record_id, expectedVersion: selected.version, expectedEpoch: control.epoch, operationId: crypto.randomUUID(), type, amount, reason }) });
+    const receipt = await api('private-ledger-transaction', { method: 'POST', body: JSON.stringify({ recordId: selected.record_id, operationId: crypto.randomUUID(), type, amount, reason }) });
     setMessage(`Transaction recorded at revision ${receipt.version}.`); await load();
   } catch (error) {
     const message = error instanceof Error ? error.message : 'Transaction failed.';
@@ -75,15 +75,14 @@ async function load() {
   drawPlayers(); await drawDetail();
 }
 async function unlock() {
-  try { await load(); element('unlock').hidden = true; element('ledger').hidden = false; element('sign-out').hidden = false; }
-  catch (error) { element('unlock-message').textContent = error.message; element('unlock-message').className = 'message error'; sessionStorage.removeItem(TOKEN_KEY); }
+  try { await load(); element('unlock').hidden = true; element('ledger').hidden = false; }
+  catch (error) { element('unlock-message').textContent = error.message; element('unlock-message').className = 'message error'; localStorage.removeItem(TOKEN_KEY); }
 }
-element('unlock-form').addEventListener('submit', async event => { event.preventDefault(); sessionStorage.setItem(TOKEN_KEY, element('access-token').value); await unlock(); });
+element('unlock-form').addEventListener('submit', async event => { event.preventDefault(); localStorage.setItem(TOKEN_KEY, element('access-token').value); await unlock(); });
 element('season').addEventListener('change', () => { selected = null; drawPlayers(); drawDetail(); });
 element('refresh').addEventListener('click', async () => {
   setMessage('Refreshing...');
   try { await load(); setMessage('Ledger is current.'); }
   catch (error) { setMessage(error instanceof Error ? error.message : 'Refresh failed.', true); }
 });
-element('sign-out').addEventListener('click', () => { sessionStorage.removeItem(TOKEN_KEY); location.reload(); });
-if (sessionStorage.getItem(TOKEN_KEY)) unlock();
+if (localStorage.getItem(TOKEN_KEY)) unlock();
