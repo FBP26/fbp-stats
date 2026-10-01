@@ -53,10 +53,12 @@ export async function privateLedgerHistory(request: Request, env: PrivateLedgerE
   return privateJson({ ok: true, history: rows.results.map(row => ({ ...row, body: JSON.parse(String(row.body)) })) }, 200, env.CORS_ORIGIN);
 }
 
-export async function privateLedgerCashPaidOut(request: Request, env: PrivateLedgerEnv, payload: Record<string, unknown>): Promise<Response> {
+export async function privateLedgerTransaction(request: Request, env: PrivateLedgerEnv, payload: Record<string, unknown>): Promise<Response> {
   const denied = privateLedgerError(request, env);
   if (denied) return denied;
-  if (payload.type !== 'CASH_PAID_OUT') return privateJson({ ok: false, error: 'This mobile ledger only records cash paid out.' }, 400, env.CORS_ORIGIN);
+  if (!['PAYMENT_RECEIVED', 'CASH_PAID_OUT'].includes(String(payload.type))) {
+    return privateJson({ ok: false, error: 'Select money received from or paid out to the player.' }, 400, env.CORS_ORIGIN);
+  }
   try {
     const receipt = await postPayoutTransaction(env.DB, payload, 'mobile-admin');
     return privateJson({ ok: true, ...receipt }, 200, env.CORS_ORIGIN);

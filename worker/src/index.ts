@@ -1,7 +1,7 @@
 import { scoreWeekWithoutProbabilities, type PlayerCard, type ScoringGame } from "./scoring.ts";
 import { existingOperationalCard, submitOperationalCard, SubmissionError } from './operational-submissions.ts';
 import { readOperationalPayouts } from './payouts.ts';
-import { privateLedgerCashPaidOut, privateLedgerHistory, privateLedgerRecords } from './private-ledger.ts';
+import { privateLedgerHistory, privateLedgerRecords, privateLedgerTransaction } from './private-ledger.ts';
 // The private Ledger implementation is JavaScript because its supervised CLI shares these transactions.
 // @ts-ignore -- typed at the Worker boundary below.
 import { planWeeklyAward, postPayoutTransaction } from '../scripts/payout-transactions.mjs';
@@ -1392,7 +1392,7 @@ const handlePost = async (request: Request, env: Env): Promise<Response> => {
       },
     }, 200, env.CORS_ORIGIN);
   }
-  if (action === 'private-ledger-cash-paid-out') return privateLedgerCashPaidOut(request, env, payload);
+  if (action === 'private-ledger-transaction') return privateLedgerTransaction(request, env, payload);
   if (!action) return submitCard(payload, env);
   return json({ ok: false, error: "Unknown action." }, 400, env.CORS_ORIGIN);
 };

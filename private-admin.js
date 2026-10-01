@@ -28,21 +28,22 @@ async function drawDetail() {
   if (!selected) { element('detail').innerHTML = '<p>Select a player.</p>'; return; }
   const body = selected.body;
   const periods = body.periods.map((period, index) => `<span class="period">${period === 'Playoffs' ? 'PO' : `W${period}`}<b>${body.weeks[index] || '—'}</b></span>`).join('');
-  element('detail').innerHTML = `<h2>${body.name}</h2><p class="balance">${money(body.balance)}</p><div class="periods">${periods}</div><form id="cash-form" class="transaction"><h2>Record cash paid out</h2><label>Amount paid ($)<input id="amount" type="number" min="0.01" step="0.01" required></label><label>Reason<input id="reason" maxlength="500" placeholder="Gary surplus paid out" required></label><button type="submit">Record payout</button></form><div id="history" class="history">Loading history...</div>`;
-  element('cash-form').addEventListener('submit', postCashPaidOut);
+  element('detail').innerHTML = `<h2>${body.name}</h2><p class="balance">${money(body.balance)}</p><div class="periods">${periods}</div><form id="cash-form" class="transaction"><h2>Record cash movement</h2><label>Direction<select id="direction"><option value="CASH_PAID_OUT">Money paid to player</option><option value="PAYMENT_RECEIVED">Money received from player</option></select></label><label>Amount ($)<input id="amount" type="number" min="0.01" step="0.01" required></label><label>Reason<input id="reason" maxlength="500" placeholder="Gary surplus paid out" required></label><button type="submit">Record transaction</button></form><div id="history" class="history">Loading history...</div>`;
+  element('cash-form').addEventListener('submit', postTransaction);
   try {
     const result = await api('private-ledger-history', {}, { id: selected.record_id });
     element('history').innerHTML = `<h2>History</h2><ul>${result.history.slice(0, 8).map(item => `<li>v${item.version}: ${item.reason}<br><small>${item.recorded_at}</small></li>`).join('')}</ul>`;
   } catch (error) { element('history').textContent = error.message; }
 }
-async function postCashPaidOut(event) {
+async function postTransaction(event) {
   event.preventDefault();
-  const amount = element('amount').value, reason = element('reason').value.trim();
-  if (!confirm(`Record $${amount} paid out to ${selected.body.name}?\n\n${reason}`)) return;
+  const amount = element('amount').value, reason = element('reason').value.trim(), type = element('direction').value;
+  const direction = type === 'CASH_PAID_OUT' ? 'paid to' : 'received from';
+  if (!confirm(`Record $${amount} ${direction} ${selected.body.name}?\n\n${reason}`)) return;
   const button = event.currentTarget.querySelector('button'); button.disabled = true;
   try {
-    const receipt = await api('private-ledger-cash-paid-out', { method: 'POST', body: JSON.stringify({ recordId: selected.record_id, expectedVersion: selected.version, expectedEpoch: control.epoch, operationId: crypto.randomUUID(), type: 'CASH_PAID_OUT', amount, reason }) });
-    setMessage(`Payout recorded at revision ${receipt.version}.`); await load();
+    const receipt = await api('private-ledger-transaction', { method: 'POST', body: JSON.stringify({ recordId: selected.record_id, expectedVersion: selected.version, expectedEpoch: control.epoch, operationId: crypto.randomUUID(), type, amount, reason }) });
+    setMessage(`Transaction recorded at revision ${receipt.version}.`); await load();
   } catch (error) { setMessage(error.message, true); button.disabled = false; }
 }
 async function load() {
