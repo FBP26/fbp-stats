@@ -18,6 +18,12 @@ async function api(action, options = {}, parameters = {}) {
   return result;
 }
 function setMessage(text, error = false) { element('status').textContent = text; element('status').className = `message${error ? ' error' : ''}`; }
+function setTransactionMessage(text, error = false) {
+  const message = element('transaction-message');
+  if (!message) return;
+  message.textContent = text;
+  message.className = `message${error ? ' error' : ''}`;
+}
 function drawPlayers() {
   const season = element('season').value;
   const current = records.filter(record => record.body.season === season);
@@ -28,7 +34,7 @@ async function drawDetail() {
   if (!selected) { element('detail').innerHTML = '<p>Select a player.</p>'; return; }
   const body = selected.body;
   const periods = body.periods.map((period, index) => `<span class="period">${period === 'Playoffs' ? 'PO' : `W${period}`}<b>${body.weeks[index] || '—'}</b></span>`).join('');
-  element('detail').innerHTML = `<h2>${body.name}</h2><p class="balance">${money(body.balance)}</p><div class="periods">${periods}</div><form id="cash-form" class="transaction"><h2>Record cash movement</h2><label>Direction<select id="direction"><option value="CASH_PAID_OUT">Money paid to player</option><option value="PAYMENT_RECEIVED">Money received from player</option></select></label><label>Amount ($)<input id="amount" type="number" min="0.01" step="0.01" required></label><label>Reason<input id="reason" maxlength="500" placeholder="Gary surplus paid out" required></label><button type="submit">Record transaction</button></form><div id="history" class="history">Loading history...</div>`;
+  element('detail').innerHTML = `<h2>${body.name}</h2><p class="balance">${money(body.balance)}</p><div class="periods">${periods}</div><form id="cash-form" class="transaction"><h2>Record cash movement</h2><label>Direction<select id="direction"><option value="CASH_PAID_OUT">Money paid to player</option><option value="PAYMENT_RECEIVED">Money received from player</option></select></label><label>Amount ($)<input id="amount" type="number" min="0.01" step="0.01" required></label><label>Reason<input id="reason" maxlength="500" placeholder="Gary surplus paid out" required></label><button type="submit">Record transaction</button><p id="transaction-message" class="message" role="status"></p></form><div id="history" class="history">Loading history...</div>`;
   element('cash-form').addEventListener('submit', postTransaction);
   try {
     const result = await api('private-ledger-history', {}, { id: selected.record_id });
@@ -44,7 +50,19 @@ async function postTransaction(event) {
   try {
     const receipt = await api('private-ledger-transaction', { method: 'POST', body: JSON.stringify({ recordId: selected.record_id, expectedVersion: selected.version, expectedEpoch: control.epoch, operationId: crypto.randomUUID(), type, amount, reason }) });
     setMessage(`Transaction recorded at revision ${receipt.version}.`); await load();
-  } catch (error) { setMessage(error.message, true); button.disabled = false; }
+  } catch (error) {
+    const message = error instanceof Error ? error.message : 'Transaction failed.';
+    setTransactionMessage(message, true);
+    if (/changed|reload/i.test(message)) {
+      try {
+        await load();
+        setTransactionMessage('The ledger was refreshed. Review the balance, then enter the transaction again.', true);
+      } catch (reloadError) {
+        setTransactionMessage(`${message} Refresh failed: ${reloadError instanceof Error ? reloadError.message : 'unknown error'}`, true);
+      }
+    }
+    button.disabled = false;
+  }
 }
 async function load() {
   const result = await api('private-ledger-records');
@@ -62,6 +80,10 @@ async function unlock() {
 }
 element('unlock-form').addEventListener('submit', async event => { event.preventDefault(); sessionStorage.setItem(TOKEN_KEY, element('access-token').value); await unlock(); });
 element('season').addEventListener('change', () => { selected = null; drawPlayers(); drawDetail(); });
-element('refresh').addEventListener('click', () => load().catch(error => setMessage(error.message, true)));
+element('refresh').addEventListener('click', async () => {
+  setMessage('Refreshing...');
+  try { await load(); setMessage('Ledger is current.'); }
+  catch (error) { setMessage(error instanceof Error ? error.message : 'Refresh failed.', true); }
+});
 element('sign-out').addEventListener('click', () => { sessionStorage.removeItem(TOKEN_KEY); location.reload(); });
 if (sessionStorage.getItem(TOKEN_KEY)) unlock();
