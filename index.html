@@ -3683,15 +3683,31 @@ async function renderWebsiteConfirmation(submission, result) {
   await Promise.allSettled([renderConfirmationHistory(submission), loadConfirmationProbability(submission)]);
 }
 function websiteConfirmationEmailText() {
-  const sectionText = id => {
-    const copy = document.getElementById(id)?.cloneNode(true);
-    if (!copy) return "";
-    copy.querySelectorAll("br").forEach(element => element.replaceWith("\n"));
-    copy.querySelectorAll("th, td").forEach(element => element.append(element.nextElementSibling ? "\t" : "\n"));
-    copy.querySelectorAll("h1, h2, h3, h4, p, li").forEach(element => element.append("\n"));
-    return copy.textContent.replace(/[ \t]+\n/g, "\n").replace(/\n{3,}/g, "\n\n").trim();
-  };
-  return ["confirmation-lead", "confirmation-identity", "confirmation-picks", "confirmation-history"].map(sectionText).filter(Boolean).join("\n\n").slice(0, 15000);
+  const cleanText = element => String(element?.textContent || "").replace(/\s+/g, " ").trim();
+  const lines = [];
+  const lead = cleanText(document.getElementById("confirmation-lead"));
+  if (lead) lines.push(lead);
+  ["confirmation-identity", "confirmation-picks", "confirmation-history"].forEach(id => {
+    const section = document.getElementById(id);
+    if (!section) return;
+    const heading = cleanText(section.querySelector("h1, h2, h3, h4"));
+    const bullets = [
+      ...[...section.querySelectorAll(".confirmation-metric-table tr")].map(row => {
+        const label = cleanText(row.querySelector("th"));
+        const value = cleanText(row.querySelector("td"));
+        return label && value ? `${label}: ${value}` : value || label;
+      }),
+      ...[...section.querySelectorAll("p, li")].map(cleanText),
+      ...[...section.querySelectorAll("table:not(.confirmation-metric-table) tbody tr")].map(row => {
+        const headers = [...row.closest("table")?.querySelectorAll("thead th") || []].map(cleanText);
+        const cells = [...row.querySelectorAll("td")].map(cleanText);
+        return cells.map((value, index) => headers[index] ? `${headers[index]}: ${value}` : value).filter(Boolean).join("; ");
+      })
+    ].filter(Boolean);
+    if (!heading || !bullets.length) return;
+    lines.push("", `${heading}:`, ...bullets.map(bullet => `- ${bullet}`));
+  });
+  return lines.join("\n").trim().slice(0, 15000);
 }
 async function sendWebsitePickConfirmationEmail(confirmationEmailToken) {
   if (!confirmationEmailToken || !WEBSITE_SUBMISSIONS_ENDPOINT) return true;

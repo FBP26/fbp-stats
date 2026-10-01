@@ -63,6 +63,37 @@ assert.equal((await nativeFetchClient.owner()).owner, 'SHEETS');
 for (const script of html.matchAll(/<script\b[^>]*>([\s\S]*?)<\/script>/gi)) {
   if (script[1].trim()) new vm.Script(script[1]);
 }
+const confirmationSections = new Map([
+  ['confirmation-lead', { textContent: 'Picks submitted for Alex.' }],
+  ['confirmation-identity', {
+    querySelector: () => ({ textContent: 'Your pool history' }),
+    querySelectorAll: selector => selector === '.confirmation-metric-table tr'
+      ? [{ querySelector: cell => ({ textContent: cell === 'th' ? 'Pool weeks' : '18' }) }]
+      : [],
+  }],
+  ['confirmation-picks', {
+    querySelector: () => ({ textContent: 'Live outlook' }),
+    querySelectorAll: selector => selector === '.confirmation-metric-table tr'
+      ? [{ querySelector: cell => ({ textContent: cell === 'th' ? 'Chance to win' : '12.5% Tied 3rd of 24' }) }]
+      : [],
+  }],
+  ['confirmation-history', {
+    querySelector: () => ({ textContent: 'Pick form' }),
+    querySelectorAll: selector => selector === 'p, li'
+      ? [{ textContent: 'This card repeats a familiar pick.' }]
+      : [],
+  }],
+]);
+const confirmationContext = vm.createContext({ document: { getElementById: id => confirmationSections.get(id) } });
+const confirmationStart = html.indexOf('function websiteConfirmationEmailText(');
+const confirmationEnd = html.indexOf('\nasync function sendWebsitePickConfirmationEmail', confirmationStart);
+vm.runInContext(html.slice(confirmationStart, confirmationEnd), confirmationContext);
+const confirmationEmail = confirmationContext.websiteConfirmationEmailText();
+assert.match(confirmationEmail, /^Picks submitted for Alex\./);
+assert.match(confirmationEmail, /Your pool history:\n- Pool weeks: 18/);
+assert.match(confirmationEmail, /Live outlook:\n- Chance to win: 12\.5% Tied 3rd of 24/);
+assert.match(confirmationEmail, /Pick form:\n- This card repeats a familiar pick\./);
+console.log('Confirmation email receipts preserve section headings and one detail per bullet.');
 const context = vm.createContext({ Intl, Date, websiteGameStatus: game => game.status });
 const selectionFunctionStart = html.indexOf('function websiteCompetitiveSelection(');
 const selectionFunctionEnd = html.indexOf('\nfunction updateWebsiteWeekLabels(', selectionFunctionStart);
