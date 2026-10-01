@@ -64,6 +64,12 @@ export async function saveAdminRecord(db: D1Database, command: AdminMutation, ac
   ]);
   const receipt = await db.prepare('SELECT request_hash, version FROM admin_events WHERE operation_id = ?')
     .bind(command.operationId).first<{ request_hash: string; version: number }>();
-  if (!receipt || receipt.request_hash !== requestHash) throw new AdminConflict('Record or ownership epoch changed; reload before editing.');
+  if (!receipt || receipt.request_hash !== requestHash) {
+    const current = await db.prepare(`SELECT
+      (SELECT version FROM admin_records WHERE kind = ? AND record_id = ?) AS version,
+      (SELECT epoch FROM admin_control WHERE id = 1) AS epoch`)
+      .bind(command.kind, command.recordId).first<{ version: number | null; epoch: number | null }>();
+    throw new AdminConflict(`Record changed before the write (expected version ${command.expectedVersion}, found ${current?.version ?? 'none'}; expected epoch ${command.expectedEpoch}, found ${current?.epoch ?? 'none'}).`);
+  }
   return { version: receipt.version, replayed: false };
 }
