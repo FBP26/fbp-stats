@@ -53,7 +53,7 @@ export async function privateLedgerHistory(request: Request, env: PrivateLedgerE
   return privateJson({ ok: true, history: rows.results.map(row => ({ ...row, body: JSON.parse(String(row.body)) })) }, 200, env.CORS_ORIGIN);
 }
 
-const postMobileCashTransaction = async (db: D1Database, payload: Record<string, unknown>, actor: string): Promise<{ version: number; replayed: boolean }> => {
+const postMobileCashTransaction = async (db: D1Database, payload: Record<string, unknown>, actor: string, attempt = 0): Promise<{ version: number; replayed: boolean }> => {
   const recordId = String(payload.recordId || '');
   const operationId = String(payload.operationId || '');
   const reason = String(payload.reason || '').trim();
@@ -99,7 +99,12 @@ const postMobileCashTransaction = async (db: D1Database, payload: Record<string,
       AND EXISTS(SELECT 1 FROM admin_events WHERE operation_id=? AND request_hash=?)`)
       .bind(Number(record.version) + 1, operationId, eventBody, recordId, Number(record.version), operationId, requestHash),
   ]);
-  if (!results[0].meta.changes || !results[1].meta.changes) throw new AdminConflict('The ledger changed before this payout could be recorded.');
+  if (!results[0].meta.changes || !results[1].meta.changes) {
+    const committed = await db.prepare('SELECT request_hash,version FROM admin_events WHERE operation_id=?').bind(operationId).first<{ request_hash: string; version: number }>();
+    if (committed?.request_hash === requestHash) return { version: committed.version, replayed: true };
+    if (attempt === 0) return postMobileCashTransaction(db, payload, actor, 1);
+    throw new AdminConflict('The ledger changed before this payout could be recorded.');
+  }
   return { version: Number(record.version) + 1, replayed: false };
 };
 
