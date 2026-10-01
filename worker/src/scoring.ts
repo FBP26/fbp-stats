@@ -76,7 +76,7 @@ const greatestCommonDivisor = (left: number, right: number): number =>
   right ? greatestCommonDivisor(right, left % right) : left;
 
 const scenarioIndexes = (total: number): number[] => {
-  if (total <= 250_000) return Array.from({ length: total }, (_, index) => index);
+  if (total <= 1_000_000) return Array.from({ length: total }, (_, index) => index);
   const count = Math.min(total, 4_096);
   let step = Math.max(1, Math.floor(total * 0.618033988749895));
   while (greatestCommonDivisor(step, total) !== 1) step += 1;

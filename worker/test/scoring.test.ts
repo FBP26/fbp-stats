@@ -72,7 +72,7 @@ test("unresolved integer spreads include push paths and split tied victories", (
   assert.deepEqual(result.probabilities, [50, 50]);
 });
 
-test("large outcome spaces use the deterministic bounded sample", () => {
+test("regular-season-sized outcome spaces are evaluated exactly", () => {
   const games = Array.from({ length: 12 }, (_, index) => game({
     favorite: `F${index}`,
     underdog: `U${index}`,
@@ -87,7 +87,7 @@ test("large outcome spaces use the deterministic bounded sample", () => {
   const first = calculatePaths(players, games);
   const second = calculatePaths(players, games);
   assert.equal(first.outcomeCount, 531_441);
-  assert.equal(first.evaluatedCount, 4_096);
+  assert.equal(first.evaluatedCount, 531_441);
   assert.deepEqual(first, second);
   assert.ok(Math.abs(first.probabilities.reduce((sum, value) => sum + value, 0) - 100) < 1e-9);
 });
