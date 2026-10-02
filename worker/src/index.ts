@@ -1,4 +1,4 @@
-import { scoreWeekWithoutProbabilities, type PlayerCard, type ScoringGame } from "./scoring.ts";
+import { scoreWeek, scoreWeekWithoutProbabilities, type PlayerCard, type ScoringGame } from "./scoring.ts";
 import { existingOperationalCard, submitOperationalCard, SubmissionError } from './operational-submissions.ts';
 import { readOperationalPayouts } from './payouts.ts';
 import { privateLedgerHistory, privateLedgerRecords, privateLedgerTransaction } from './private-ledger.ts';
@@ -480,6 +480,58 @@ const buildCurrentWeek = async (
   };
 };
 
+const recordScheduledRaceSnapshot = async (
+  db: D1Database,
+  week: Record<string, unknown>,
+): Promise<boolean> => {
+  if (String(week.phase) !== "REGULAR_SEASON" || String(week.status) === "finalized") return false;
+  const weekId = Number(week.id);
+  const games = await getWeekConfig(db, weekId);
+  const cards = await loadPlayerCards(db, weekId);
+  if (!games.length || !cards.length) return false;
+  const scoringGames: ScoringGame[] = games.map((game) => ({
+    favorite: String(game.favorite),
+    underdog: String(game.underdog),
+    spread: Number(game.spread),
+    status: String(game.state || "PREGAME") as ScoringGame["status"],
+    favoriteScore: game.favoriteScore === null ? null : Number(game.favoriteScore),
+    underdogScore: game.underdogScore === null ? null : Number(game.underdogScore),
+  }));
+  const players = scoreWeek(cards, scoringGames, week.tiebreak_actual === null ? null : Number(week.tiebreak_actual));
+  const gameStateJson = JSON.stringify(games.map((game) => ({
+    gameId: game.gameId,
+    away: game.away || game.awayTeam,
+    home: game.home || game.homeTeam,
+    awayScore: game.awayScore ?? "",
+    homeScore: game.homeScore ?? "",
+    status: game.status || game.state,
+    period: game.period || "",
+    clock: game.clock || "",
+    possession: game.possession || "",
+  })));
+  const latest = await db.prepare(
+    `SELECT player_name, win_probability, paths, game_state_json
+     FROM race_snapshots WHERE week_id = ? AND captured_at = (
+       SELECT MAX(captured_at) FROM race_snapshots WHERE week_id = ?
+     )`,
+  ).bind(weekId, weekId).all();
+  const latestByName = new Map(latest.results.map((row) => [String(row.player_name), row]));
+  const unchanged = latest.results.length === players.length
+    && latest.results.every((row) => String(row.game_state_json) === gameStateJson)
+    && players.every((player) => {
+      const prior = latestByName.get(player.name);
+      return prior && Number(prior.win_probability) === player.winProbability && Number(prior.paths) === player.pathsToVictory;
+    });
+  if (unchanged) return false;
+  const capturedAt = new Date().toISOString();
+  await db.batch(players.map((player) => db.prepare(
+    `INSERT INTO race_snapshots
+     (week_id, captured_at, player_name, win_probability, paths, win_pct, game_state_json)
+     VALUES (?, ?, ?, ?, ?, ?, ?)`,
+  ).bind(weekId, capturedAt, player.name, player.winProbability, player.pathsToVictory, player.winPercent || 0, gameStateJson)));
+  return true;
+};
+
 const handleGet = async (request: Request, env: Env): Promise<Response> => {
   const url = new URL(request.url);
   const action = url.searchParams.get("action") || "current-week";
@@ -650,8 +702,7 @@ const handleGet = async (request: Request, env: Env): Promise<Response> => {
       players: frame.players
         .sort((left, right) => Number(right.winProbability) - Number(left.winProbability)
           || Number(right.pathsToVictory) - Number(left.pathsToVictory)
-          || String(left.name).localeCompare(String(right.name)))
-        .slice(0, 12),
+          || String(left.name).localeCompare(String(right.name))),
     }));
     return json({ ok: true, season, week: weekNumber, raceSnapshots }, 200, env.CORS_ORIGIN);
   }
@@ -1471,6 +1522,7 @@ export default {
     if (new Date(controller.scheduledTime).getUTCMinutes() % 5 === 0) await refreshActiveGameStates(env.DB);
     if (!weekBeforeRefresh) return;
     let refreshedWeek = await findWeek(env.DB, Number(weekBeforeRefresh.season), Number(weekBeforeRefresh.week), String(weekBeforeRefresh.phase));
+    if (refreshedWeek) await recordScheduledRaceSnapshot(env.DB, refreshedWeek);
     if (refreshedWeek?.status === "finalizing") await finalizeWeek(env.DB, refreshedWeek);
     refreshedWeek = await findWeek(env.DB, Number(weekBeforeRefresh.season), Number(weekBeforeRefresh.week), String(weekBeforeRefresh.phase));
     if (refreshedWeek) await awardFinalizedRegularWeek(env.DB, refreshedWeek);
