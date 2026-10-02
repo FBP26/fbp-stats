@@ -480,7 +480,7 @@ const buildCurrentWeek = async (
   };
 };
 
-const recordScheduledRaceSnapshot = async (
+export const recordScheduledRaceSnapshot = async (
   db: D1Database,
   week: Record<string, unknown>,
 ): Promise<boolean> => {
