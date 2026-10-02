@@ -1514,15 +1514,17 @@ export default {
     context.waitUntil(refreshPublicReadSnapshots(env.DB, env.PICKS_SOURCE_URL, fetch, env.CANDIDATE_LIFECYCLE_ENABLED === 'true').catch(error => {
       console.error("Public read snapshot refresh failed:", error instanceof Error ? error.message : "Unexpected error");
     }));
+    const weekBeforeRefresh = await activeWeek(env.DB);
+    if (new Date(controller.scheduledTime).getUTCMinutes() % 5 === 0) await refreshActiveGameStates(env.DB);
+    let refreshedWeek = weekBeforeRefresh
+      ? await findWeek(env.DB, Number(weekBeforeRefresh.season), Number(weekBeforeRefresh.week), String(weekBeforeRefresh.phase))
+      : null;
+    if (refreshedWeek) await recordScheduledRaceSnapshot(env.DB, refreshedWeek);
     const lease = Date.now() + 180000;
     const locked = await env.DB.prepare("INSERT INTO notification_locks (name, expires_at) VALUES ('dispatch', ?) ON CONFLICT (name) DO UPDATE SET expires_at = excluded.expires_at WHERE notification_locks.expires_at < ?").bind(lease, Date.now()).run();
     if (!locked.meta.changes) return;
     try {
-    const weekBeforeRefresh = await activeWeek(env.DB);
-    if (new Date(controller.scheduledTime).getUTCMinutes() % 5 === 0) await refreshActiveGameStates(env.DB);
-    if (!weekBeforeRefresh) return;
-    let refreshedWeek = await findWeek(env.DB, Number(weekBeforeRefresh.season), Number(weekBeforeRefresh.week), String(weekBeforeRefresh.phase));
-    if (refreshedWeek) await recordScheduledRaceSnapshot(env.DB, refreshedWeek);
+    if (!refreshedWeek || !weekBeforeRefresh) return;
     if (refreshedWeek?.status === "finalizing") await finalizeWeek(env.DB, refreshedWeek);
     refreshedWeek = await findWeek(env.DB, Number(weekBeforeRefresh.season), Number(weekBeforeRefresh.week), String(weekBeforeRefresh.phase));
     if (refreshedWeek) await awardFinalizedRegularWeek(env.DB, refreshedWeek);
