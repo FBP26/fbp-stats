@@ -428,10 +428,14 @@ console.log('Compressed history integrity, shared manifest reads, original JSON 
 const pickClassContext = vm.createContext({ websiteGameStatus: game => game.status });
 const pickClassStart = html.indexOf('function websiteWeekOnePickClass(');
 vm.runInContext(html.slice(pickClassStart, html.indexOf('\nfunction websiteWinningTiebreakRange', pickClassStart)), pickClassContext);
+const teamDisplayStart = html.indexOf('function websiteWeekOneDisplayTeam(');
+vm.runInContext(html.slice(teamDisplayStart, html.indexOf('\nconst WEBSITE_CURRENT_WEEK_CACHE_KEY', teamDisplayStart)), pickClassContext);
 const liveCoverData = {
-  games: [{ status: 'LIVE' }],
+  games: [{ status: 'LIVE', away: 'PIT', home: 'CLE' }],
   favoriteScores: [0], underdogScores: [0], spreads: [2.5], favorites: ['PIT'], underdogs: ['CLE'],
 };
 assert.equal(pickClassContext.websiteWeekOnePickClass(liveCoverData, 0, 'cle'), 'pg-pick-win');
 assert.equal(pickClassContext.websiteWeekOnePickClass(liveCoverData, 0, 'pit'), 'pg-pick-loss');
-console.log('Current Week pick cells score mixed-case team codes correctly.');
+assert.equal(pickClassContext.websiteWeekOneDisplayTeam(liveCoverData.games[0], 'PIT'), 'pit');
+assert.equal(pickClassContext.websiteWeekOneDisplayTeam(liveCoverData.games[0], 'cle'), 'CLE');
+console.log('Current Week pick cells score mixed-case team codes and use home-away label casing correctly.');
