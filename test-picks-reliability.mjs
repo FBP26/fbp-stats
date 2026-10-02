@@ -425,3 +425,13 @@ for (const failure of ['none', 'manifest', 'gzip', 'checksum', 'unsupported']) {
   assert.equal(requests.includes('data/games.json'), failure !== 'none');
 }
 console.log('Compressed history integrity, shared manifest reads, original JSON fallback, and compatibility checks passed.');
+const pickClassContext = vm.createContext({ websiteGameStatus: game => game.status });
+const pickClassStart = html.indexOf('function websiteWeekOnePickClass(');
+vm.runInContext(html.slice(pickClassStart, html.indexOf('\nfunction websiteWinningTiebreakRange', pickClassStart)), pickClassContext);
+const liveCoverData = {
+  games: [{ status: 'LIVE' }],
+  favoriteScores: [0], underdogScores: [0], spreads: [2.5], favorites: ['PIT'], underdogs: ['CLE'],
+};
+assert.equal(pickClassContext.websiteWeekOnePickClass(liveCoverData, 0, 'cle'), 'pg-pick-win');
+assert.equal(pickClassContext.websiteWeekOnePickClass(liveCoverData, 0, 'pit'), 'pg-pick-loss');
+console.log('Current Week pick cells score mixed-case team codes correctly.');
