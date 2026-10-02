@@ -40,6 +40,9 @@ const winningTeam = (game: ScoringGame, outcome: AtsOutcome): string | null => {
   return outcome === "favorite" ? game.favorite : game.underdog;
 };
 
+const sameTeam = (left: string | undefined, right: string | null): boolean =>
+  String(left || "").trim().toUpperCase() === String(right || "").trim().toUpperCase();
+
 const scoreDecisions = (
   player: PlayerCard,
   games: ScoringGame[],
@@ -51,16 +54,16 @@ const scoreDecisions = (
     if (!includeGame(game)) return;
     const outcome = atsOutcome(game);
     if (!outcome) return;
-    const hasBestBet = player.bestBet === game.favorite || player.bestBet === game.underdog;
+    const hasBestBet = sameTeam(player.bestBet, game.favorite) || sameTeam(player.bestBet, game.underdog);
     if (outcome === "push") {
       if (hasBestBet) losses += 1;
       return;
     }
     const winner = winningTeam(game, outcome);
-    if (player.picks[index] === winner) wins += 1;
+    if (sameTeam(player.picks[index], winner)) wins += 1;
     else losses += 1;
     if (hasBestBet) {
-      if (player.bestBet === winner) wins += 1;
+      if (sameTeam(player.bestBet, winner)) wins += 1;
       else losses += 1;
     }
   });

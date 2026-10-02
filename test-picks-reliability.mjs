@@ -54,6 +54,26 @@ for (const startingOwner of ['SHEETS', 'D1']) {
 assert.match(html, /websiteLiveClient\.read\('week-config'/);
 assert.match(html, /websiteLiveClient\.read\('preseason-test'/);
 console.log('Slate, preseason and race reads follow ownership and discard responses across epoch changes.');
+const raceFallbackContext = vm.createContext({
+  URL,
+  URLSearchParams,
+  AbortSignal,
+  WEBSITE_SHEETS_ENDPOINT: 'https://sheets.test/exec',
+  websiteFetchPublicRead: async () => ({ raceSnapshots: [] }),
+  fetch: async url => {
+    assert.equal(url.hostname, 'sheets.test');
+    assert.equal(url.searchParams.get('action'), 'current-week-race');
+    assert.equal(url.searchParams.get('season'), '2026');
+    assert.equal(url.searchParams.get('week'), '4');
+    return Response.json({ ok: true, raceSnapshots: [{ timestamp: '2026-10-02T00:00:00.000Z', players: [{ name: 'Example' }] }] });
+  },
+});
+const raceFallbackStart = html.indexOf('async function fetchWebsiteCurrentWeekRace(');
+const raceFallbackEnd = html.indexOf('\nasync function renderWebsiteWeekOne', raceFallbackStart);
+vm.runInContext(html.slice(raceFallbackStart, raceFallbackEnd), raceFallbackContext);
+const raceFallback = await raceFallbackContext.fetchWebsiteCurrentWeekRace(2026, 4);
+assert.equal(raceFallback.length, 1);
+console.log('Empty D1 race archives fall back to the Apps Script checkpoints.');
 clientContext.fetch = function () {
   assert.equal(this.FBPLiveClient, clientContext.FBPLiveClient, 'Native fetch must be invoked on the browser global, not the client instance');
   return Promise.resolve(Response.json({ ok: true, owner: 'SHEETS', epoch: 1 }));

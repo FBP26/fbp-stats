@@ -4392,7 +4392,13 @@ async function fetchWebsiteCurrentWeek() {
 }
 async function fetchWebsiteCurrentWeekRace(season, week, phase = "REGULAR_SEASON") {
   const data = await websiteFetchPublicRead("current-week-race", { season: String(season), week: String(week), phase }, 20000);
-  return data.raceSnapshots || [];
+  if (Array.isArray(data.raceSnapshots) && data.raceSnapshots.length) return data.raceSnapshots;
+  const url = new URL(WEBSITE_SHEETS_ENDPOINT);
+  url.search = new URLSearchParams({ action: "current-week-race", season: String(season), week: String(week), phase });
+  const response = await fetch(url, { cache: "no-store", signal: AbortSignal.timeout(20000) });
+  const fallback = await response.json();
+  if (!response.ok || !fallback.ok) throw new Error(fallback.error || "Race history is unavailable.");
+  return Array.isArray(fallback.raceSnapshots) ? fallback.raceSnapshots : [];
 }
 async function renderWebsiteWeekOne(currentWeekRequest = null, currentRaceRequest = null, refreshGeneration = ++websiteLiveRefreshGeneration) {
   const liveView = document.getElementById("view-live-analysis")?.classList.contains("active");

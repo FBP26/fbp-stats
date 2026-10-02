@@ -48,6 +48,15 @@ test("Best Bet doubles a win or loss and a pushed Best Bet counts one loss", () 
   assert.deepEqual({ wins: pending.wins, losses: pending.losses }, { wins: 0, losses: 0 });
 });
 
+test("team abbreviations score regardless of stored casing", () => {
+  const result = scoreWeekWithoutProbabilities(
+    [card("Cleveland", "cle", "CLE")],
+    [game({ favorite: "PIT", underdog: "CLE", favoriteScore: 24, underdogScore: 27, spread: 2.5 })],
+    null,
+  )[0];
+  assert.deepEqual({ wins: result.wins, losses: result.losses }, { wins: 2, losses: 0 });
+});
+
 test('an opposing Best Bet earns its own win or loss and one loss on a push', () => {
   for (const favoriteScore of [24, 21]) {
     for (const status of ['LIVE', 'FINAL'] as const) {
