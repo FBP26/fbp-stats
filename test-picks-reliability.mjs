@@ -478,19 +478,24 @@ const raceSnapshotContext = vm.createContext({
   WEBSITE_SIMULATION_LIMIT: 4096,
   websiteGameStateForSnapshot: () => ({ away: 'PIT', home: 'CLE', awayScore: 10, homeScore: 21, status: 'FINAL' }),
   websiteGameStatus: state => state.status,
+  websiteGameWinner: (data, index) => data.winners[index],
+  websiteSameTeam: (left, right) => String(left || '').toUpperCase() === String(right || '').toUpperCase(),
   websiteConditionalProbabilities: () => Object.assign([75, 25], { pathCounts: [6, 2] }),
   websitePresentationProbabilities: (_data, probabilities) => probabilities,
 });
+const raceWinPercentStart = html.indexOf('function websiteRaceWinPercent(');
 const raceSnapshotStart = html.indexOf('function websiteRaceProbabilitySnapshot(');
 const raceSnapshotEnd = html.indexOf('\nfunction websiteGameCoverSeries', raceSnapshotStart);
+vm.runInContext(html.slice(raceWinPercentStart, raceSnapshotStart), raceSnapshotContext);
 vm.runInContext(html.slice(raceSnapshotStart, raceSnapshotEnd), raceSnapshotContext);
 const reconstructedRaceSnapshot = raceSnapshotContext.websiteRaceProbabilitySnapshot({
-  games: [{}], favorites: ['PIT'], underdogs: ['CLE'], players: [
-    { name: 'Alpha' }, { name: 'Beta' },
+  games: [{}, {}], favorites: ['PIT', 'BAL'], underdogs: ['CLE', 'CIN'], winners: ['CLE', 'BAL'], players: [
+    { name: 'Alpha', picks: ['CLE', 'CIN'], bestBet: 'CLE' },
+    { name: 'Beta', picks: ['PIT', 'BAL'], bestBet: 'BAL' },
   ],
 }, { timestamp: '2026-10-01T20:00:00.000Z', players: [{ name: 'Alpha', pathsToVictory: 999 }] });
 assert.deepEqual(JSON.parse(JSON.stringify(reconstructedRaceSnapshot.players)), [
-  { name: 'Alpha', winProbability: 75, pathsToVictory: 6 },
-  { name: 'Beta', winProbability: 25, pathsToVictory: 2 },
+  { name: 'Alpha', winProbability: 75, pathsToVictory: 6, winPercent: 200 / 3 },
+  { name: 'Beta', winProbability: 25, pathsToVictory: 2, winPercent: 200 / 3 },
 ]);
-console.log('Reconstructed Live race snapshots restore all-player paths from the browser model.');
+console.log('Reconstructed Live race snapshots restore all-player paths and Win % from the browser model.');

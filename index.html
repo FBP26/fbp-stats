@@ -2022,6 +2022,18 @@ function websiteGameCoverProbability(data, index, state = null) {
   const modeledGame = { ...game, ...current, favorite, underdog, espnStatus: websiteGameStatus(current) || websiteGameStatus(game), espnAwayScore: awayScore, espnHomeScore: homeScore };
   return websiteGameOutcomeProbabilities({ games: [modeledGame], favorites: [favorite], underdogs: [underdog], spreads: [spread], favoriteScores: [favoriteScore], underdogScores: [underdogScore] }, 0);
 }
+function websiteRaceWinPercent(data, player) {
+  const record = (data.games || []).reduce((result, _game, index) => {
+    const winner = websiteGameWinner(data, index);
+    if (!winner || winner === "PUSH") return result;
+    const multiplier = websiteSameTeam(player.bestBet, player.picks[index]) ? 2 : 1;
+    if (websiteSameTeam(player.picks[index], winner)) result.wins += multiplier;
+    else result.losses += multiplier;
+    return result;
+  }, { wins: 0, losses: 0 });
+  const decisions = record.wins + record.losses;
+  return decisions ? record.wins * 100 / decisions : 0;
+}
 function websiteRaceProbabilitySnapshot(data, snapshot) {
   const favoriteScores = [], underdogScores = [];
   const games = data.games.map((game, index) => {
@@ -2039,7 +2051,7 @@ function websiteRaceProbabilitySnapshot(data, snapshot) {
     scenarioProbabilities,
   );
   const priorPlayers = new Map((snapshot.players || []).map(player => [String(player.name || "").trim().toLowerCase(), player]));
-  return { ...snapshot, probabilityModel: "website", players: data.players.map((player, index) => ({ ...priorPlayers.get(String(player.name || "").trim().toLowerCase()), name: player.name, winProbability: probabilities[index] || 0, pathsToVictory: scenarioProbabilities.pathCounts?.[index] || 0 })) };
+  return { ...snapshot, probabilityModel: "website", players: data.players.map((player, index) => ({ ...priorPlayers.get(String(player.name || "").trim().toLowerCase()), name: player.name, winProbability: probabilities[index] || 0, pathsToVictory: scenarioProbabilities.pathCounts?.[index] || 0, winPercent: websiteRaceWinPercent(snapshotData, player) })) };
 }
 function websiteGameCoverSeries(data, index) {
   const game = data.games[index] || {};
