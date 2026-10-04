@@ -474,3 +474,23 @@ const mixedCaseScenario = scenarioScoreContext.websiteScenarioShares({
 assert.deepEqual(mixedCaseScenario.scores, [2, 0]);
 assert.deepEqual(mixedCaseScenario.shares, [1, 0]);
 console.log('Live scenario probabilities normalize mixed-case picks and Best Bets.');
+const raceSnapshotContext = vm.createContext({
+  WEBSITE_SIMULATION_LIMIT: 4096,
+  websiteGameStateForSnapshot: () => ({ away: 'PIT', home: 'CLE', awayScore: 10, homeScore: 21, status: 'FINAL' }),
+  websiteGameStatus: state => state.status,
+  websiteConditionalProbabilities: () => Object.assign([75, 25], { pathCounts: [6, 2] }),
+  websitePresentationProbabilities: (_data, probabilities) => probabilities,
+});
+const raceSnapshotStart = html.indexOf('function websiteRaceProbabilitySnapshot(');
+const raceSnapshotEnd = html.indexOf('\nfunction websiteGameCoverSeries', raceSnapshotStart);
+vm.runInContext(html.slice(raceSnapshotStart, raceSnapshotEnd), raceSnapshotContext);
+const reconstructedRaceSnapshot = raceSnapshotContext.websiteRaceProbabilitySnapshot({
+  games: [{}], favorites: ['PIT'], underdogs: ['CLE'], players: [
+    { name: 'Alpha' }, { name: 'Beta' },
+  ],
+}, { timestamp: '2026-10-01T20:00:00.000Z', players: [{ name: 'Alpha', pathsToVictory: 999 }] });
+assert.deepEqual(JSON.parse(JSON.stringify(reconstructedRaceSnapshot.players)), [
+  { name: 'Alpha', winProbability: 75, pathsToVictory: 6 },
+  { name: 'Beta', winProbability: 25, pathsToVictory: 2 },
+]);
+console.log('Reconstructed Live race snapshots restore all-player paths from the browser model.');

@@ -2033,12 +2033,13 @@ function websiteRaceProbabilitySnapshot(data, snapshot) {
     return { ...game, ...state, favorite: data.favorites[index], underdog: data.underdogs[index], espnStatus: websiteGameStatus(state) || websiteGameStatus(game), espnAwayScore: awayScore, espnHomeScore: homeScore };
   });
   const snapshotData = { ...data, games, favoriteScores, underdogScores };
+  const scenarioProbabilities = websiteConditionalProbabilities(snapshotData, {}, WEBSITE_SIMULATION_LIMIT);
   const probabilities = websitePresentationProbabilities(
     snapshotData,
-    websiteConditionalProbabilities(snapshotData, {}, WEBSITE_SIMULATION_LIMIT),
+    scenarioProbabilities,
   );
   const priorPlayers = new Map((snapshot.players || []).map(player => [String(player.name || "").trim().toLowerCase(), player]));
-  return { ...snapshot, probabilityModel: "website", players: data.players.map((player, index) => ({ ...priorPlayers.get(String(player.name || "").trim().toLowerCase()), name: player.name, winProbability: probabilities[index] || 0 })) };
+  return { ...snapshot, probabilityModel: "website", players: data.players.map((player, index) => ({ ...priorPlayers.get(String(player.name || "").trim().toLowerCase()), name: player.name, winProbability: probabilities[index] || 0, pathsToVictory: scenarioProbabilities.pathCounts?.[index] || 0 })) };
 }
 function websiteGameCoverSeries(data, index) {
   const game = data.games[index] || {};
