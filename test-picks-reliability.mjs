@@ -459,3 +459,18 @@ assert.equal(pickClassContext.websiteWeekOnePickClass(liveCoverData, 0, 'pit'), 
 assert.equal(pickClassContext.websiteWeekOneDisplayTeam(liveCoverData.games[0], 'PIT'), 'pit');
 assert.equal(pickClassContext.websiteWeekOneDisplayTeam(liveCoverData.games[0], 'cle'), 'CLE');
 console.log('Current Week pick cells score mixed-case team codes and use home-away label casing correctly.');
+const scenarioScoreContext = vm.createContext({ websiteTiebreakDistribution: () => ({ mean: 450, deviation: 0 }) });
+const sameTeamStart = html.indexOf('function websiteSameTeam(');
+const scenarioShareStart = html.indexOf('function websiteScenarioShares(');
+const scenarioShareEnd = html.indexOf('\nfunction websiteSampleScenarioIndexes', scenarioShareStart);
+vm.runInContext(html.slice(sameTeamStart, scenarioShareStart), scenarioScoreContext);
+vm.runInContext(html.slice(scenarioShareStart, scenarioShareEnd), scenarioScoreContext);
+const mixedCaseScenario = scenarioScoreContext.websiteScenarioShares({
+  players: [
+    { name: 'Lowercase winner', picks: ['cle'], bestBet: 'CLE', tiebreaker: 400 },
+    { name: 'Wrong pick', picks: ['PIT'], bestBet: 'PIT', tiebreaker: 500 },
+  ],
+}, ['CLE']);
+assert.deepEqual(mixedCaseScenario.scores, [2, 0]);
+assert.deepEqual(mixedCaseScenario.shares, [1, 0]);
+console.log('Live scenario probabilities normalize mixed-case picks and Best Bets.');

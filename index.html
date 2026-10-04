@@ -2137,11 +2137,14 @@ function websiteTiebreakDistribution(data) {
   }
   return { mean: WEBSITE_TIEBREAK_MEAN, deviation: WEBSITE_TIEBREAK_DEVIATION };
 }
+function websiteSameTeam(left, right) {
+  return String(left || "").trim().toUpperCase() === String(right || "").trim().toUpperCase();
+}
 function websiteScenarioShares(data, winners, shareCache = null) {
   const scores = data.players.map(player => winners.reduce((score, winner, index) => {
     if (!winner || winner === "PUSH") return score;
-    const won = player.picks[index] === winner;
-    return score + (won ? 1 : 0) + (won && player.bestBet === winner ? 1 : 0);
+    const won = websiteSameTeam(player.picks[index], winner);
+    return score + (won ? 1 : 0) + (won && websiteSameTeam(player.bestBet, winner) ? 1 : 0);
   }, 0));
   const best = Math.max(...scores);
   const winningIndexes = scores.map((score, index) => score === best ? index : -1).filter(index => index >= 0);
