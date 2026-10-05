@@ -139,6 +139,7 @@ const openingProbabilities = context.websitePresentationProbabilities({ games: [
 assert.equal(openingProbabilities.reduce((total, probability) => total + probability, 0), 100);
 assert.ok(openingProbabilities[0] > openingProbabilities[1], 'Pregame display keeps the weighted model ordering');
 assert.ok(openingProbabilities[0] - openingProbabilities[1] <= 4, 'Pregame display limits the probability spread');
+assert.deepEqual(context.websitePresentationProbabilities({ games: [{}, {}] }, [100, 0]), [100, 0], 'Eliminated players retain an exact zero chance');
 const postgameProbabilities = context.websitePresentationProbabilities({ games: [{ winner: 'BUF' }, {}] }, [75, 25]);
 assert.deepEqual(postgameProbabilities, [50 + 25 * Math.sqrt(.5), 50 - 25 * Math.sqrt(.5)], 'Completed games retain the existing evidence calibration');
 console.log('Opening probabilities retain capped model-based differentiation before kickoff.');

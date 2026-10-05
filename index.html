@@ -2226,12 +2226,19 @@ function websiteProbabilityEvidence(data) {
 }
 function websitePresentationProbabilities(data, probabilities) {
   if (!probabilities.length) return probabilities;
-  const evenFieldProbability = 100 / probabilities.length;
+  const activeProbabilities = probabilities.map(Number).filter(probability => Number.isFinite(probability) && probability > 0);
+  if (!activeProbabilities.length) return probabilities.map(() => 0);
+  const evenFieldProbability = 100 / activeProbabilities.length;
   const evidence = websiteProbabilityEvidence(data);
-  const rawSpread = Math.max(...probabilities) - Math.min(...probabilities);
+  const rawSpread = Math.max(...activeProbabilities) - Math.min(...activeProbabilities);
   const openingEvidence = rawSpread ? Math.min(.12, 4 / rawSpread) : .12;
   const presentationEvidence = evidence || openingEvidence;
-  return probabilities.map(probability => evenFieldProbability + (Number(probability) - evenFieldProbability) * presentationEvidence);
+  return probabilities.map(probability => {
+    const value = Number(probability);
+    return Number.isFinite(value) && value > 0
+      ? evenFieldProbability + (value - evenFieldProbability) * presentationEvidence
+      : 0;
+  });
 }
 function websiteConditionalProbabilities(data, forced = {}, calculationLimit = WEBSITE_EXACT_CALCULATION_LIMIT) {
   const scenarios = websiteScenarioOutcomes(data, forced);
