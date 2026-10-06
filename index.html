@@ -994,7 +994,6 @@
 <script>
 document.getElementById("profile-best-bet-chart")?.closest(".profile-chart")?.before(document.getElementById("profile-team-chart")?.closest(".profile-chart"));
 const DATA_DIR = "./data";
-const WEBSITE_WEEK_HISTORY_VERSION = "20260903-literal-none";
 const websiteRoutes = ["enter-picks", "week-one", "live-analysis", "picks-confirmation", "alltime", "season", "payout", "streaks", "weeks", "weekly-rank", "games", "players", "names", "teams", "map", "faq", "submission-status"];
 const standaloneAppLaunch = matchMedia("(display-mode: standalone)").matches || navigator.standalone === true;
 const savedStartupRoute = localStorage.getItem("fbpLastView");
@@ -7718,7 +7717,7 @@ async function init() {
   await Promise.all(manifest.map(async entry => {
     tableData[entry.key] = await (await fetch(`${DATA_DIR}/${entry.key}.json`)).json();
   }));
-  [websitePlayers, websiteSeasons, websiteWeeks, websitePlayoffRoundNames, websiteAwards, websiteRecords, websiteStreaks] = await Promise.all(["players.json", "seasons.json", "player_weeks.json", "playoff_round_names.json", "awards.json", "records.json", "streaks.json"].map(async file => await (await fetch(`${DATA_DIR}/${file}${file === "player_weeks.json" || file === "playoff_round_names.json" ? `?v=${WEBSITE_WEEK_HISTORY_VERSION}` : ""}`)).json()));
+  [websitePlayers, websiteSeasons, websiteWeeks, websitePlayoffRoundNames, websiteAwards, websiteRecords, websiteStreaks] = await Promise.all(["players.json", "seasons.json", "player_weeks.json", "playoff_round_names.json", "awards.json", "records.json", "streaks.json"].map(async file => await (await fetch(`${DATA_DIR}/${file}`, { cache: "no-cache" })).json()));
   renderNamesArchiveSummary();
   dashboard = await (await fetch(`${DATA_DIR}/dashboard.json`)).json();
   websitePayouts = (await (await fetch(`${DATA_DIR}/payouts.json`)).json()).seasons || [];
