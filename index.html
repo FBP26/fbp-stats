@@ -1586,9 +1586,10 @@ function websiteRaceLeadershipAnalysis() {
     const ranked = [...snapshot.players].sort((left, right) => Number(right[metric] || 0) - Number(left[metric] || 0) || left.name.localeCompare(right.name));
     const topValue = Number(ranked[0]?.[metric] || 0);
     const leaderNames = ranked.filter(player => Number(player[metric] || 0) === topValue).map(player => player.name);
-    const hasNext = Number.isFinite(timestamps[index + 1]);
+    const nextSnapshot = snapshots[index + 1]?.snapshot;
+    const hasNext = Number.isFinite(timestamps[index + 1]) && websiteRaceHasLiveGame(nextSnapshot);
     const end = hasNext ? timestamps[index + 1] : websiteRaceFrame === websiteRaceSnapshots.length - 1 && websiteRaceLiveNow ? Date.now() : timestamps[index];
-    const duration = hasNext ? end - timestamps[index] : Math.min(10 * 60 * 1000, end - timestamps[index]);
+    const duration = Math.min(10 * 60 * 1000, end - timestamps[index]);
     return leaderNames.length && Number.isFinite(duration) && duration > 0 ? { name: leaderNames.join(" + "), duration, index: sourceIndex, start: timestamps[index], end } : null;
   }).filter(Boolean);
   const totals = new Map(), reigns = [];
