@@ -143,6 +143,18 @@ assert.deepEqual(context.websitePresentationProbabilities({ games: [{}, {}] }, [
 const postgameProbabilities = context.websitePresentationProbabilities({ games: [{ winner: 'BUF' }, {}] }, [75, 25]);
 assert.deepEqual(postgameProbabilities, [50 + 25 * Math.sqrt(.5), 50 - 25 * Math.sqrt(.5)], 'Completed games retain the existing evidence calibration');
 console.log('Opening probabilities retain capped model-based differentiation before kickoff.');
+const tiebreakContext = vm.createContext({ WEBSITE_TIEBREAK_MEAN: 453, WEBSITE_TIEBREAK_DEVIATION: 113 });
+for (const name of ['websiteGameStatus', 'websiteCurrentTiebreaker', 'websiteTiebreakDistribution']) {
+  const start = html.indexOf(`function ${name}(`);
+  const end = html.indexOf('\nfunction ', start + 1);
+  vm.runInContext(html.slice(start, end), tiebreakContext);
+}
+const openingFinalGame = tiebreakContext.websiteTiebreakDistribution({ actualTiebreaker: '', games: [{ status: 'IN_PROGRESS', netPassingYards: 150, period: 1, clock: '15:00' }] });
+const lateFinalGame = tiebreakContext.websiteTiebreakDistribution({ actualTiebreaker: '', games: [{ status: 'IN_PROGRESS', netPassingYards: 350, period: 4, clock: '0:30' }] });
+assert.equal(openingFinalGame.mean, 603, 'Live final-game net passing sets the opening projected total');
+assert.ok(lateFinalGame.mean < openingFinalGame.mean, 'Live final-game probability updates as net passing and clock advance');
+assert.ok(lateFinalGame.deviation < openingFinalGame.deviation, 'Live final-game uncertainty contracts as the clock expires');
+console.log('Live final-game probabilities use current net passing and remaining clock.');
 for (const week of [1, 2, 3, 4]) {
   assert.equal(context.websiteRequiresTiebreak({ phase: 'PLAYOFFS', week }), week === 4);
   assert.equal(context.websiteRequiresTiebreak({ phase: 'REGULAR_SEASON', week }), true);

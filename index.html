@@ -2131,13 +2131,14 @@ function websiteScenarioOutcomes(data, forced = {}) {
   }};
 }
 function websiteTiebreakDistribution(data) {
-  const currentYards = Number(data.actualTiebreaker);
+  const current = websiteCurrentTiebreaker(data);
+  const currentYards = Number(current);
   const game = (data.games || [])[data.games.length - 1] || {};
   const status = websiteGameStatus(game);
-  if (Number.isFinite(currentYards) && data.actualTiebreaker !== "" && ["POST", "FINAL", "COMPLETED"].includes(status)) {
+  if (Number.isFinite(currentYards) && current !== null && ["POST", "FINAL", "COMPLETED"].includes(status)) {
     return { mean: currentYards, deviation: 0 };
   }
-  if (Number.isFinite(currentYards) && data.actualTiebreaker !== "" && ["IN", "LIVE", "IN_PROGRESS"].includes(status)) {
+  if (Number.isFinite(currentYards) && current !== null && ["IN", "LIVE", "IN_PROGRESS"].includes(status)) {
     const statusTime = String(game.statusText || "").match(/\b([1-4])(?:st|nd|rd|th)?\s+(?:(?:quarter|qtr)\s+)?(\d{1,2}:\d{2})\b/i);
     const period = Math.max(1, Math.min(4, Number(game.period) || Number(statusTime?.[1]) || 1));
     const clockParts = String(game.clock || statusTime?.[2] || "15:00").split(":").map(Number);
