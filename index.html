@@ -2745,7 +2745,7 @@ async function initializePushNotifications() {
   const save = document.getElementById("notification-save");
   const pushPlayer = document.createElement("label");
   pushPlayer.className = "notification-push-player";
-  pushPlayer.innerHTML = 'Name<input id="notification-push-player" autocomplete="name" placeholder="Your Enter Picks name" required><small>Choose a name with a submitted FBP entry.</small>';
+  pushPlayer.innerHTML = 'Name<input id="notification-push-player" list="notification-player-options" autocomplete="name" placeholder="Your Enter Picks name" required><datalist id="notification-player-options"></datalist><small>Choose your FBP player name.</small>';
   form.querySelector(".notification-events").before(pushPlayer);
   const pushPlayerInput = document.getElementById("notification-push-player");
   pushPlayerInput.value = localStorage.getItem("fbpPushPlayer") || "";
@@ -2814,10 +2814,8 @@ async function initializePushNotifications() {
       const data = await saved.json();
       if (!saved.ok || !data.ok) throw new Error(data.error || "Push preferences could not be saved.");
       localStorage.setItem(WEBSITE_PUSH_DEVICE_TOKEN, data.deviceToken);
-      const linkedPlayer = await websiteLinkPushPlayer(player.name);
-      if (!linkedPlayer) throw new Error("Notifications were enabled, but this device could not be linked to your player name. Try saving again.");
-      localStorage.setItem("fbpPushPlayer", linkedPlayer);
-      status.textContent = enabling ? `Notifications enabled for ${linkedPlayer}. ${notificationAutosaveLabel()}` : notificationAutosaveLabel();
+      localStorage.setItem("fbpPushPlayer", player.name);
+      status.textContent = enabling ? `Notifications enabled for ${player.name}. ${notificationAutosaveLabel()}` : notificationAutosaveLabel();
       updatePushButton();
     } catch (error) { status.textContent = error.message || "Push preferences could not be saved."; }
     finally { save.disabled = false; updatePushButton(); }
