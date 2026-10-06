@@ -2540,7 +2540,7 @@ function renderWebsiteScenarioBreakdown(data, analysis = null) {
       }).join("");
       return `<tr class="scenario-player-row"><td><strong>${websiteEscapeHtml(contender.player.name)}</strong></td><td><strong>${websiteProbabilityText(contender.probability * 100)}</strong></td><td colspan="2"><strong>${contender.paths.length.toLocaleString()} winning routes in the structural sample</strong></td></tr>${routes}`;
     });
-    host.innerHTML = `<h3 class="compact-live-title">Scenarios</h3><p class="analysis-note">These are each player's strongest ways to win. The bold chance matches the Week 4 Win % above; the three rows below are examples of the outcomes that help most.</p><div class="analysis-table-wrap"><table class="analysis-table"><thead><tr><th>Player / route</th><th>Chance</th><th>Representative outcomes</th><th>Result</th></tr></thead><tbody>${rows || '<tr><td colspan="4">No winning scenarios remain.</td></tr>'}</tbody></table></div>`;
+    host.innerHTML = `<h3 class="compact-live-title">Scenarios</h3><p class="analysis-note">These are each player's strongest ways to win. The three rows below are examples of the outcomes that help most.</p><div class="analysis-table-wrap"><table class="analysis-table"><thead><tr><th>Player / route</th><th>Chance</th><th>Representative outcomes</th><th>Result</th></tr></thead><tbody>${rows || '<tr><td colspan="4">No winning scenarios remain.</td></tr>'}</tbody></table></div>`;
     return;
   }
   const rows = analysis.contenders.map(contender => {
@@ -2555,7 +2555,7 @@ function renderWebsiteScenarioBreakdown(data, analysis = null) {
     const summary = winsEveryOutcome ? "WINNER · Wins every remaining outcome" : `${contender.paths.length} specific ${contender.paths.length === 1 ? "scenario" : "scenarios"}`;
     return `<tr class="scenario-player-row${winsEveryOutcome ? " scenario-winner-row" : ""}"><td><strong>${contender.player.name}</strong></td><td><strong>${websiteProbabilityText(contender.probability * 100)}</strong></td><td colspan="2"><strong>${summary}</strong></td></tr>${scenarios}`;
   }).join("");
-  host.innerHTML = `<h3 class="compact-live-title">Scenarios</h3><p class="analysis-note">These are the ways each player can still win. The bold chance matches the Week 4 Win % above. Each row below is one winning outcome, and together they add up to that chance.</p><div class="analysis-table-wrap"><table class="analysis-table"><thead><tr><th>Player / scenario</th><th>Chance</th><th>Exact outcomes</th><th>How the player wins</th></tr></thead><tbody>${rows || '<tr><td colspan="4">No winning scenarios remain.</td></tr>'}</tbody></table></div>`;
+  host.innerHTML = `<h3 class="compact-live-title">Scenarios</h3><p class="analysis-note">These are the ways each player can still win. Each row below is one winning outcome, and together they add up to the bold chance.</p><div class="analysis-table-wrap"><table class="analysis-table"><thead><tr><th>Player / scenario</th><th>Chance</th><th>Exact outcomes</th><th>How the player wins</th></tr></thead><tbody>${rows || '<tr><td colspan="4">No winning scenarios remain.</td></tr>'}</tbody></table></div>`;
 }
 function renderWebsiteContenderPaths(data) {
   const host = document.getElementById("week-one-paths");
