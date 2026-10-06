@@ -65,6 +65,6 @@ test("weekly recap uses records and breaks the winning tie by finalized tiebreak
     { name: "Mel", wins: 7, losses: 9, rank: 19, tiebreakDifference: 42 },
     { name: "Mia", wins: 7, losses: 9, rank: 19, tiebreakDifference: 36 },
   ];
-  assert.equal(weeklyRecapMessage(players, ["Jim"]), "Jim: 11-5, tied for 1st. Winner: Gary.");
-  assert.equal(weeklyRecapMessage(players, ["Mel"]), "Mel: 7-9, tied for 19th. Winner: Gary.");
+  assert.equal(weeklyRecapMessage(players, ["Jim"]), "Jim: 11-5, tied for 1st. Winner: Gary, 11-5.");
+  assert.equal(weeklyRecapMessage(players, ["Mel"]), "Mel: 7-9, tied for 19th. Winner: Gary, 11-5.");
 });

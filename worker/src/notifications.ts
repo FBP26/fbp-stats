@@ -101,7 +101,10 @@ export const weeklyRecapMessage = (players: WeeklyRecapPlayer[], followedNames: 
   const tiebreakDifferences = contenders.map(player => Number(player.tiebreakDifference)).filter(Number.isFinite);
   const bestDifference = tiebreakDifferences.length === contenders.length ? Math.min(...tiebreakDifferences) : null;
   const winners = bestDifference === null ? contenders : contenders.filter(player => Number(player.tiebreakDifference) === bestDifference);
-  return `${personalResults.join("; ")}. Winner${winners.length === 1 ? "" : "s"}: ${winners.map(player => player.name).join(" and ")}.`;
+  const winnerSummary = winners.length === 1
+    ? `${winners[0].name}, ${winners[0].wins}-${winners[0].losses}`
+    : winners.map(player => player.name).join(" and ");
+  return `${personalResults.join("; ")}. Winner${winners.length === 1 ? "" : "s"}: ${winnerSummary}.`;
 };
 
 interface NotificationGame {
