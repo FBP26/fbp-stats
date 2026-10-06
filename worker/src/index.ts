@@ -849,7 +849,10 @@ const dispatchAdministratorMissingPicksAlert = async (env: Env, week: JsonObject
   if (!Number.isInteger(weekId)) return;
   const games = (await env.DB.prepare("SELECT kickoff_at FROM games WHERE week_id=?").bind(weekId).all<{ kickoff_at: string }>()).results;
   const kickoff = Math.min(...games.map(game => Date.parse(game.kickoff_at)).filter(Number.isFinite));
-  if (!Number.isFinite(kickoff) || Date.now() < kickoff - 20 * 60_000 || Date.now() >= kickoff) return;
+  if (!Number.isFinite(kickoff) || Date.now() >= kickoff) return;
+  const minutesRemaining = (kickoff - Date.now()) / 60_000;
+  const reminderMinutes = [60, 30, 15].find(minutes => minutesRemaining <= minutes && minutesRemaining > minutes - 1);
+  if (!reminderMinutes) return;
   const missing = await env.DB.prepare(
     `SELECT canonical_name FROM players
      WHERE NOT EXISTS (SELECT 1 FROM submissions WHERE submissions.week_id=? AND submissions.player_id=players.id AND submissions.superseded_at IS NULL)
@@ -857,9 +860,7 @@ const dispatchAdministratorMissingPicksAlert = async (env: Env, week: JsonObject
   ).bind(weekId).all<{ canonical_name: string }>();
   if (!missing.results.length) return;
   const names = missing.results.map(row => row.canonical_name);
-  const listed = names.slice(0, 20).join(', ');
-  const overflow = names.length > 20 ? ` and ${names.length - 20} more` : '';
-  await sendAdministratorPushOnce(env, 'adminMissingPicks', `admin-missing-picks:${weekId}:20`, `Picks not in yet - Week ${week.week}`, `${listed}${overflow} have not submitted. 20 min until kickoff.`, `${env.PUBLIC_SITE_URL || 'https://fbp26.github.io/fbp-stats/'}#enter-picks`, weekId);
+  await sendAdministratorPushOnce(env, 'adminMissingPicks', `admin-missing-picks:${weekId}:${reminderMinutes}`, `Picks not in yet - Week ${week.week}`, `${names.join(', ')} have not submitted. ${reminderMinutes} min until kickoff.`, `${env.PUBLIC_SITE_URL || 'https://fbp26.github.io/fbp-stats/'}#enter-picks`, weekId);
 };
 
 const sendAdministratorPushEvent = async (payload: JsonObject, env: Env): Promise<Response> => {
