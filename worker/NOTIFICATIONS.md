@@ -27,7 +27,7 @@ Checks run every minute, but scheduling, source refreshes, and mail delivery can
 
 Every alert has styled Open FBP and Stop notifications buttons plus a plain-text fallback. Email buttons use anchors for email-client compatibility. The new signup offers the five requested choices: locked spreads, missing picks, first-place jumps, before SNF, and before MNF. Existing early-window and weekly-result preferences remain supported for legacy subscribers; saving the new form replaces those older choices. No subscriber test messages are sent as part of automated tests.
 
-The picks-ready alert is deliberately excluded from the schedule. When Yahoo has every line, the owner receives a private setup-approval email. Its button opens a confirmation page before staging the week. After staging, a second private email asks the owner to review the website; its separately confirmed button synchronizes the staged slate to D1 and dispatches the picks-ready alert exactly once per subscriber. Approval links expire after 72 hours, and the Worker endpoint requires the shared relay secret.
+The picks-ready alert is deliberately excluded from the schedule. When Yahoo has every line, the owner receives a private setup-approval email. Confirming that page stages the week, refreshes the public Enter Picks and Current Week data, synchronizes the staged slate to D1, and dispatches the picks-ready alert exactly once per subscriber. Approval links expire after 72 hours, and the Worker endpoint requires the shared relay secret.
 
 Preview all alert messages without sending:
 
