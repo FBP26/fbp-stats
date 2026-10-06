@@ -1,4 +1,4 @@
-const CACHE_NAME = "fbp-shell-v51";
+const CACHE_NAME = "fbp-shell-v52";
 const APP_SHELL = ["./", "./index.html", "./live-client.js", "./historical-ui.js", "./teams.js", "./map.js", "./map.css", "./manifest.webmanifest", "./icons/fbp-192.png", "./icons/fbp-512.png"];
 
 self.addEventListener("install", event => {

@@ -2749,6 +2749,14 @@ async function initializePushNotifications() {
   form.querySelector(".notification-events").before(pushPlayer);
   const pushPlayerInput = document.getElementById("notification-push-player");
   pushPlayerInput.value = localStorage.getItem("fbpPushPlayer") || "";
+  fetch(`${WEBSITE_NOTIFICATION_ENDPOINT}/?action=notification-status`, { signal: AbortSignal.timeout(10000) })
+    .then(response => response.json())
+    .then(data => {
+      if (Array.isArray(data.players)) {
+        document.getElementById("notification-player-options").replaceChildren(...data.players.map(name => new Option(name, name)));
+      }
+    })
+    .catch(() => {});
   const installHelp = document.createElement("div");
   installHelp.id = "notification-install-help";
   installHelp.className = "notification-install";
