@@ -2744,7 +2744,7 @@ async function initializePushNotifications() {
   const save = document.getElementById("notification-save"), disable = document.getElementById("notification-disable");
   const pushPlayer = document.createElement("label");
   pushPlayer.className = "notification-push-player";
-  pushPlayer.innerHTML = 'Player name<input id="notification-push-player" list="notification-player-options" autocomplete="name" required><small>Alerts on this device follow this player.</small>';
+  pushPlayer.innerHTML = 'Player name<input id="notification-push-player" list="notification-player-options" autocomplete="name" placeholder="Choose your name"><small>Alerts on this device follow this player.</small>';
   form.querySelector(".notification-events").before(pushPlayer);
   const pushPlayerInput = document.getElementById("notification-push-player");
   pushPlayerInput.value = localStorage.getItem("fbpPushPlayer") || "";
