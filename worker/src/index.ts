@@ -815,6 +815,52 @@ const sendAdministratorPush = async (env: Env, title: string, body: string, url?
   return { sent, failed };
 };
 
+const sendAdministratorPushOnce = async (env: Env, eventType: string, deduplicationKey: string, title: string, body: string, url?: string, weekId?: number): Promise<{ sent: number; failed: number }> => {
+  if (!env.VAPID_PUBLIC_KEY || !env.VAPID_PRIVATE_KEY || !env.VAPID_SUBJECT) return { sent: 0, failed: 0 };
+  const devices = await env.DB.prepare(
+    `SELECT devices.id, devices.endpoint, devices.p256dh, devices.auth
+     FROM push_admin_devices administrators
+     JOIN push_devices devices ON devices.id = administrators.device_id
+     WHERE devices.status = 'active'`,
+  ).all<{ id: number; endpoint: string; p256dh: string; auth: string }>();
+  let sent = 0, failed = 0;
+  for (const device of devices.results) {
+    const queued = await env.DB.prepare(
+      "INSERT INTO push_deliveries(device_id, week_id, event_type, deduplication_key, status) VALUES (?, ?, ?, ?, 'queued') ON CONFLICT(device_id, deduplication_key) DO NOTHING",
+    ).bind(device.id, weekId ?? null, eventType, deduplicationKey).run();
+    if (!queued.meta.changes) continue;
+    const result = await sendWebPush(
+      device,
+      { title: cleanText(title, 80), body: cleanText(body, 240), url: administratorPushUrl(url, env), tag: `fbp-admin-${deduplicationKey}` },
+      { publicKey: env.VAPID_PUBLIC_KEY, privateKey: env.VAPID_PRIVATE_KEY, subject: env.VAPID_SUBJECT },
+    );
+    if (result.expired) await env.DB.prepare("UPDATE push_devices SET status='unsubscribed', unsubscribed_at=CURRENT_TIMESTAMP, updated_at=CURRENT_TIMESTAMP WHERE id=?").bind(device.id).run();
+    await env.DB.prepare("UPDATE push_deliveries SET status=?, sent_at=?, error_message=? WHERE device_id=? AND deduplication_key=?")
+      .bind(result.ok ? 'sent' : 'failed', result.ok ? new Date().toISOString() : null, result.error || null, device.id, deduplicationKey).run();
+    if (result.ok) sent++;
+    else failed++;
+  }
+  return { sent, failed };
+};
+
+const dispatchAdministratorMissingPicksAlert = async (env: Env, week: JsonObject): Promise<void> => {
+  const weekId = Number(week.id);
+  if (!Number.isInteger(weekId)) return;
+  const games = (await env.DB.prepare("SELECT kickoff_at FROM games WHERE week_id=?").bind(weekId).all<{ kickoff_at: string }>()).results;
+  const kickoff = Math.min(...games.map(game => Date.parse(game.kickoff_at)).filter(Number.isFinite));
+  if (!Number.isFinite(kickoff) || Date.now() < kickoff - 20 * 60_000 || Date.now() >= kickoff) return;
+  const missing = await env.DB.prepare(
+    `SELECT canonical_name FROM players
+     WHERE NOT EXISTS (SELECT 1 FROM submissions WHERE submissions.week_id=? AND submissions.player_id=players.id AND submissions.superseded_at IS NULL)
+     ORDER BY canonical_name COLLATE NOCASE`,
+  ).bind(weekId).all<{ canonical_name: string }>();
+  if (!missing.results.length) return;
+  const names = missing.results.map(row => row.canonical_name);
+  const listed = names.slice(0, 20).join(', ');
+  const overflow = names.length > 20 ? ` and ${names.length - 20} more` : '';
+  await sendAdministratorPushOnce(env, 'adminMissingPicks', `admin-missing-picks:${weekId}:20`, `FBP Week ${week.week}: picks missing`, `${listed}${overflow} have not submitted with 20 minutes until kickoff.`, `${env.PUBLIC_SITE_URL || 'https://fbp26.github.io/fbp-stats/'}#enter-picks`, weekId);
+};
+
 const sendAdministratorPushEvent = async (payload: JsonObject, env: Env): Promise<Response> => {
   if (!env.EMAIL_RELAY_SECRET?.trim() || cleanText(payload.secret, 200) !== env.EMAIL_RELAY_SECRET.trim()) return json({ ok: false, error: "Unauthorized." }, 401, env.CORS_ORIGIN);
   const title = cleanText(payload.title, 80), body = cleanText(payload.body, 240);
@@ -1400,7 +1446,18 @@ const submitCard = async (payload: JsonObject, env: Env): Promise<Response> => {
   const cardPayload = adminEmail && payload.mode !== 'test'
     ? { ...payload, confirmationEmailConsent: true, confirmationEmail: adminEmail }
     : payload;
-  return json(await submitOperationalCard(env.DB, cardPayload), 200, env.CORS_ORIGIN);
+  const result = await submitOperationalCard(env.DB, cardPayload);
+  const receipt = result as Record<string, unknown>;
+  if (!receipt.replayed && payload.mode !== 'test') {
+    const playerName = String((receipt.identity as JsonObject | undefined)?.submittedName || '');
+    const submissions = await env.DB.prepare(
+      "SELECT COUNT(*) AS count FROM submissions JOIN players ON players.id=submissions.player_id WHERE canonical_name=? COLLATE NOCASE",
+    ).bind(playerName).first<{ count: number }>();
+    if (Number(submissions?.count) === 1) {
+      await sendAdministratorPushOnce(env, 'adminNewPlayer', `admin-new-player:${playerName.toLowerCase()}`, 'FBP new player', `${playerName} submitted their first FBP picks.`, `${env.PUBLIC_SITE_URL || 'https://fbp26.github.io/fbp-stats/'}#week-one`);
+    }
+  }
+  return json(result, 200, env.CORS_ORIGIN);
 };
 
 const saveSubmissionConfirmationDetails = async (payload: JsonObject, env: Env): Promise<Response> => {
@@ -1569,6 +1626,7 @@ export default {
     refreshedWeek = await findWeek(env.DB, Number(weekBeforeRefresh.season), Number(weekBeforeRefresh.week), String(weekBeforeRefresh.phase));
     if (refreshedWeek) await awardFinalizedRegularWeek(env.DB, refreshedWeek);
   if (refreshedWeek?.phase === 'REGULAR_SEASON') await dispatchPushNotifications(env, refreshedWeek);
+    if (refreshedWeek?.phase === 'REGULAR_SEASON') await dispatchAdministratorMissingPicksAlert(env, refreshedWeek);
     if (refreshedWeek?.phase === 'REGULAR_SEASON') await dispatchWeekNotifications(env, refreshedWeek);
     await dispatchSubmissionConfirmationOutbox(env.DB, (to, subject, body) => sendRelayEmail(env, to, subject, body));
     } finally {
