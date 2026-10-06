@@ -104,6 +104,15 @@ const activeWeek = async (db: D1Database): Promise<Record<string, unknown> | nul
     )
     .first();
 
+const latestFinalizedRegularWeek = async (db: D1Database): Promise<Record<string, unknown> | null> =>
+  db
+    .prepare(
+      `SELECT * FROM weeks
+       WHERE phase = 'REGULAR_SEASON' AND status = 'finalized'
+       ORDER BY season DESC, week DESC LIMIT 1`,
+    )
+    .first();
+
 export const refreshActiveGameStates = async (db: D1Database, fetchGame = fetchEspnGame, now = new Date()): Promise<{ refreshed: number; skipped: string }> => {
   const control = await db.prepare('SELECT owner,epoch FROM admin_control WHERE id=1').first<{ owner: string; epoch: number }>();
   if (!control || !['SHEETS', 'D1'].includes(control.owner)) return { refreshed: 0, skipped: 'ownership-unavailable' };
@@ -629,7 +638,7 @@ const handleGet = async (request: Request, env: Env): Promise<Response> => {
   }
 
   if (action === "current-week" || action === "week-one") {
-    const week = await activeWeek(env.DB);
+    const week = await activeWeek(env.DB) ?? await latestFinalizedRegularWeek(env.DB);
     if (!week) return json({ ok: false, error: "No regular-season week is staged." }, 404, env.CORS_ORIGIN);
     const body = await buildCurrentWeek(env.DB, week);
     return json(body, 200, env.CORS_ORIGIN);
