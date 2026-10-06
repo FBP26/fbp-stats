@@ -1450,6 +1450,22 @@ const submitCard = async (payload: JsonObject, env: Env): Promise<Response> => {
   const receipt = result as Record<string, unknown>;
   if (!receipt.replayed && payload.mode !== 'test') {
     const playerName = String((receipt.identity as JsonObject | undefined)?.submittedName || '');
+    const submissionId = Number(result.submissionId);
+    const submission = await env.DB.prepare(
+      `SELECT weeks.id AS week_id, weeks.week, submissions.submitted_at, MIN(games.kickoff_at) AS first_kickoff
+       FROM submissions
+       JOIN weeks ON weeks.id=submissions.week_id
+       JOIN games ON games.week_id=weeks.id
+       WHERE submissions.id=?
+       GROUP BY weeks.id, weeks.week, submissions.submitted_at`,
+    ).bind(submissionId).first<{ week_id: number; week: number; submitted_at: string; first_kickoff: string }>();
+    const siteUrl = env.PUBLIC_SITE_URL || 'https://fbp26.github.io/fbp-stats/';
+    if (payload.expectedSubmissionId != null) {
+      await sendAdministratorPushOnce(env, 'adminPickReplacement', `admin-pick-replacement:${submissionId}`, `FBP Week ${submission?.week || payload.week}: picks replaced`, `${playerName} replaced their picks.`, `${siteUrl}#enter-picks`, submission?.week_id);
+    }
+    if (submission && Date.parse(submission.submitted_at) > Date.parse(submission.first_kickoff)) {
+      await sendAdministratorPushOnce(env, 'adminLateSubmission', `admin-late-submission:${submissionId}`, `FBP Week ${submission.week}: late picks`, `${playerName} submitted picks after kickoff.`, `${siteUrl}#enter-picks`, submission.week_id);
+    }
     const submissions = await env.DB.prepare(
       "SELECT COUNT(*) AS count FROM submissions JOIN players ON players.id=submissions.player_id WHERE canonical_name=? COLLATE NOCASE",
     ).bind(playerName).first<{ count: number }>();
