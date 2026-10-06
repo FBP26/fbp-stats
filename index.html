@@ -2508,6 +2508,7 @@ function websiteScenarioOutcomeText(analysis, contender, path) {
   const groups = { correct: [], incorrect: [], push: [] };
   analysis.scenarios.variable.forEach(({ index }) => {
     const outcome = path.outcomes[index];
+    if (!outcome) return;
     const pick = contender.player.picks[index] || outcome;
     const label = `${String(pick).toUpperCase()}${contender.player.bestBet === pick ? " (best bet)" : ""}`;
     if (outcome === "PUSH") groups.push.push(label);
