@@ -859,7 +859,7 @@ const dispatchAdministratorMissingPicksAlert = async (env: Env, week: JsonObject
   const names = missing.results.map(row => row.canonical_name);
   const listed = names.slice(0, 20).join(', ');
   const overflow = names.length > 20 ? ` and ${names.length - 20} more` : '';
-  await sendAdministratorPushOnce(env, 'adminMissingPicks', `admin-missing-picks:${weekId}:20`, `FBP Week ${week.week}: picks missing`, `${listed}${overflow} have not submitted with 20 minutes until kickoff.`, `${env.PUBLIC_SITE_URL || 'https://fbp26.github.io/fbp-stats/'}#enter-picks`, weekId);
+  await sendAdministratorPushOnce(env, 'adminMissingPicks', `admin-missing-picks:${weekId}:20`, `Picks not in yet - Week ${week.week}`, `${listed}${overflow} have not submitted. 20 min until kickoff.`, `${env.PUBLIC_SITE_URL || 'https://fbp26.github.io/fbp-stats/'}#enter-picks`, weekId);
 };
 
 const sendAdministratorPushEvent = async (payload: JsonObject, env: Env): Promise<Response> => {
@@ -876,9 +876,9 @@ const sendPushTest = async (request: Request, payload: JsonObject, env: Env): Pr
   const kind = cleanText(payload.kind, 20);
   const siteUrl = env.PUBLIC_SITE_URL || "https://fbp26.github.io/fbp-stats/";
   if (kind === "admin") {
-    return json({ ok: true, kind, ...await sendAdministratorPush(env, "FBP admin test", "Test: missing-picks, new-player, late-picks, and replacement alerts are ready.", `${siteUrl}#enter-picks`) }, 200, env.CORS_ORIGIN);
+    return json({ ok: true, kind, ...await sendAdministratorPush(env, "Picks not in yet (20 min)", "A Price, Buster, Khloufe, JLew, Nils, and 2 more have not submitted.", `${siteUrl}#enter-picks`) }, 200, env.CORS_ORIGIN);
   }
-  if (kind !== "player") return json({ ok: false, error: "Choose an admin or player test." }, 400, env.CORS_ORIGIN);
+  if (!["player-first", "player-top-ten"].includes(kind)) return json({ ok: false, error: "Choose an admin, player-first, or player-top-ten sample." }, 400, env.CORS_ORIGIN);
   const device = await env.DB.prepare(
     `SELECT devices.id, devices.endpoint, devices.p256dh, devices.auth
      FROM push_devices devices JOIN push_device_players players ON players.device_id=devices.id
@@ -888,7 +888,7 @@ const sendPushTest = async (request: Request, payload: JsonObject, env: Env): Pr
   if (!device) return json({ ok: false, error: "No active Push device is linked to that player." }, 404, env.CORS_ORIGIN);
   const result = await sendWebPush(
     device,
-    { title: "FBP player alert test", body: "Test: picks ready, missing-picks reminder, live rank, game-window, and weekly recap alerts are ready.", url: `${siteUrl}#live-analysis`, tag: `fbp-player-test-${crypto.randomUUID()}` },
+    { title: kind === "player-first" ? "You jumped into 1st - Week 5" : "You reached the top 10 - Week 5", body: kind === "player-first" ? "Mel is 1st at 8-2. ✓ PIT (PIT 20-NE 10) · ✓ CLE (CLE 17-TEN 14) · x DEN (DEN 10-SF 17)." : "You are 7th at 6-4, up from 14th. SF scored a TD and is now covering DEN. Your win outlook improved from 4.05% to 23.54%.", url: `${siteUrl}#live-analysis`, tag: `fbp-player-sample-${crypto.randomUUID()}` },
     { publicKey: env.VAPID_PUBLIC_KEY!, privateKey: env.VAPID_PRIVATE_KEY!, subject: env.VAPID_SUBJECT! },
   );
   if (result.expired) await env.DB.prepare("UPDATE push_devices SET status='unsubscribed', unsubscribed_at=CURRENT_TIMESTAMP, updated_at=CURRENT_TIMESTAMP WHERE id=?").bind(device.id).run();
@@ -1258,6 +1258,16 @@ const pushDestination = (event: NotificationEvent): string => {
   return "live-analysis";
 };
 
+const pushStartedPickSummary = (feed: AlertFeed | null, playerName: string): string => {
+  const card = feed?.cards.find(candidate => candidate.name.toLowerCase() === playerName.toLowerCase());
+  if (!feed || !card) return "";
+  return feed.games.map((game, index) => ({ game, pick: card.picks[index] })).filter(({ game }) => game.status !== "PREGAME").map(({ game, pick }) => {
+    const outcome = atsOutcome(game);
+    const marker = outcome === pick ? "✓" : outcome ? "x" : "•";
+    return `${marker} ${pick} (${game.favorite} ${game.favoriteScore}-${game.underdog} ${game.underdogScore})`;
+  }).join(" · ");
+};
+
 const dispatchPushNotifications = async (
   env: Env,
   week: Record<string, unknown>,
@@ -1328,19 +1338,23 @@ const dispatchPushNotifications = async (
         const tied = players.filter(row => Number(row.wins) === Number(player.wins)).length > 1;
         return `${name}: ${Number(player.wins)} wins, ${tied ? "tied for " : ""}${ordinalRank(Number(player.rank))}`;
       });
+      const primaryName = submitted[0] || "";
+      const primaryPlayer = players.find(row => String(row.name).toLowerCase() === primaryName.toLowerCase());
+      const startedPicks = pushStartedPickSummary(feed, primaryName);
+      const previousRank = Number(previousObservation?.ranks[primaryName]);
+      const standing = primaryPlayer ? `${primaryName} is ${ordinalRank(Number(primaryPlayer.rank))} at ${Number(primaryPlayer.wins)}-${Number(primaryPlayer.losses)}.` : "";
       const body = event === "picksDue"
-        ? "Your picks still need to be submitted."
-        : event === "picksReady" ? `Week ${week.week} is ready for picks.`
-        : event === "firstPlace" ? "You jumped into first place."
-        : event === "topFive" ? "You jumped into the top 5."
-        : event === "topTen" ? "You jumped into the top 10."
-        : event === "leadChange" ? `Pool lead change: ${newPoolLeaders.join(" and ")} moved into first place.`
+        ? `Week ${week.week}: your card is missing. ${Number(device.picks_due_minutes) || 60} min until kickoff.`
+        : event === "picksReady" ? `Week ${week.week} is open. Make your picks before the first kickoff.`
+        : event === "firstPlace" ? `${standing}${startedPicks ? ` ${startedPicks}` : ""}`
+        : event === "topFive" || event === "topTen" ? `${standing}${Number.isFinite(previousRank) ? ` Moved from ${ordinalRank(previousRank)}.` : ""}${startedPicks ? ` ${startedPicks}` : ""}`
+        : event === "leadChange" ? `${newPoolLeaders.join(" and ")} moved into first. ${startedPicks}`.trim()
         : event === "weeklyResult" ? `${weeklyRecapMessage(players.map(player => ({ name: String(player.name), wins: Number(player.wins), losses: Number(player.losses), rank: Number(player.rank), tiebreakDifference: player.tiebreakDifference != null && Number.isFinite(Number(player.tiebreakDifference)) ? Number(player.tiebreakDifference) : null })), submitted)}\n${submitted.map(name => seasonRankMovementSummary(seasonStandings?.before.find(standing => standing.name.toLowerCase() === name.toLowerCase()) || null, seasonStandings?.after.find(standing => standing.name.toLowerCase() === name.toLowerCase()) || null)).join(" ")}`
         : event === "beforeSnf" || event === "beforeMnf" ? `You are still in the hunt. ${paths.map(candidate => `${candidate.name}: ${candidate.paths.count}/${candidate.paths.total} paths to first`).join("; ")}.`
         : `Your Current Week: ${personalResults.join("; ")}.`;
       const sent = await sendWebPush(
         { endpoint: String(device.endpoint), p256dh: String(device.p256dh), auth: String(device.auth) },
-        { title: event === "weeklyResult" ? `FBP Week ${week.week}: final standings` : `FBP Week ${week.week}`, body, url: `${env.PUBLIC_SITE_URL || "https://fbp26.github.io/fbp-stats/"}#${pushDestination(event)}`, tag: `fbp-${key}` },
+        { title: event === "picksDue" ? "Picks not in yet" : event === "picksReady" ? `Week ${week.week} picks are ready` : event === "firstPlace" ? `You jumped into 1st - Week ${week.week}` : event === "topFive" ? `You reached the top 5 - Week ${week.week}` : event === "topTen" ? `You reached the top 10 - Week ${week.week}` : event === "leadChange" ? `New pool leader - Week ${week.week}` : event === "weeklyResult" ? `Week ${week.week} final standings` : `Week ${week.week} update`, body, url: `${env.PUBLIC_SITE_URL || "https://fbp26.github.io/fbp-stats/"}#${pushDestination(event)}`, tag: `fbp-${key}` },
         { publicKey: env.VAPID_PUBLIC_KEY, privateKey: env.VAPID_PRIVATE_KEY, subject: env.VAPID_SUBJECT },
       );
       if (sent.expired) await env.DB.prepare("UPDATE push_devices SET status='unsubscribed', unsubscribed_at=CURRENT_TIMESTAMP, updated_at=CURRENT_TIMESTAMP WHERE id=?").bind(device.id).run();
@@ -1488,16 +1502,16 @@ const submitCard = async (payload: JsonObject, env: Env): Promise<Response> => {
     ).bind(submissionId).first<{ week_id: number; week: number; submitted_at: string; first_kickoff: string }>();
     const siteUrl = env.PUBLIC_SITE_URL || 'https://fbp26.github.io/fbp-stats/';
     if (payload.expectedSubmissionId != null) {
-      await sendAdministratorPushOnce(env, 'adminPickReplacement', `admin-pick-replacement:${submissionId}`, `FBP Week ${submission?.week || payload.week}: picks replaced`, `${playerName} replaced their picks.`, `${siteUrl}#enter-picks`, submission?.week_id);
+      await sendAdministratorPushOnce(env, 'adminPickReplacement', `admin-pick-replacement:${submissionId}`, `Picks replaced - Week ${submission?.week || payload.week}`, `${playerName} replaced their picks.`, `${siteUrl}#enter-picks`, submission?.week_id);
     }
     if (submission && Date.parse(submission.submitted_at) > Date.parse(submission.first_kickoff)) {
-      await sendAdministratorPushOnce(env, 'adminLateSubmission', `admin-late-submission:${submissionId}`, `FBP Week ${submission.week}: late picks`, `${playerName} submitted picks after kickoff.`, `${siteUrl}#enter-picks`, submission.week_id);
+      await sendAdministratorPushOnce(env, 'adminLateSubmission', `admin-late-submission:${submissionId}`, `Late picks - Week ${submission.week}`, `${playerName} submitted picks after kickoff.`, `${siteUrl}#enter-picks`, submission.week_id);
     }
     const submissions = await env.DB.prepare(
       "SELECT COUNT(*) AS count FROM submissions JOIN players ON players.id=submissions.player_id WHERE canonical_name=? COLLATE NOCASE",
     ).bind(playerName).first<{ count: number }>();
     if (Number(submissions?.count) === 1) {
-      await sendAdministratorPushOnce(env, 'adminNewPlayer', `admin-new-player:${playerName.toLowerCase()}`, 'FBP new player', `${playerName} submitted their first FBP picks.`, `${env.PUBLIC_SITE_URL || 'https://fbp26.github.io/fbp-stats/'}#week-one`);
+      await sendAdministratorPushOnce(env, 'adminNewPlayer', `admin-new-player:${playerName.toLowerCase()}`, 'New player joined', `${playerName} submitted their first FBP picks.`, `${env.PUBLIC_SITE_URL || 'https://fbp26.github.io/fbp-stats/'}#week-one`);
     }
   }
   return json(result, 200, env.CORS_ORIGIN);
