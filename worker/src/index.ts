@@ -11,7 +11,7 @@ import { adaptCompletedArchive } from './completed-history-adapter.ts';
 import { espnEventId, fetchEspnGame, isRefreshWindow, parseEspnGame, type StoredGame } from "./espn.ts";
 import { validateRaceSnapshotPlayers } from "./race.ts";
 import { alertEmailHtml, nightPaths, observeLeads, parseAlertFeed, type AlertFeed, type AlertObservation } from "./alert-details.ts";
-import { maskNotificationDestination, normalizeNotificationDestination, notificationEvents, notificationPreferenceColumns, parseNotificationPreferences, picksDueReminderIsEligible, scheduledNotificationEvents, type NotificationChannel, type NotificationEvent } from "./notifications.ts";
+import { maskNotificationDestination, normalizeNotificationDestination, notificationEvents, notificationPreferenceColumns, ordinalRank, parseNotificationPreferences, picksDueReminderIsEligible, scheduledNotificationEvents, weeklyRecapMessage, type NotificationChannel, type NotificationEvent } from "./notifications.ts";
 import { sendWebPush, type PushSubscriptionRecord } from "./web-push.ts";
 
 interface Env {
@@ -1140,11 +1140,6 @@ const pushDestination = (event: NotificationEvent): string => {
   return "live-analysis";
 };
 
-const ordinalRank = (rank: number): string => {
-  const suffix = rank % 100 >= 11 && rank % 100 <= 13 ? "th" : ({ 1: "st", 2: "nd", 3: "rd" }[rank % 10] || "th");
-  return `${rank}${suffix}`;
-};
-
 const dispatchPushNotifications = async (
   env: Env,
   week: Record<string, unknown>,
@@ -1214,7 +1209,6 @@ const dispatchPushNotifications = async (
         const tied = players.filter(row => Number(row.wins) === Number(player.wins)).length > 1;
         return `${name}: ${Number(player.wins)} wins, ${tied ? "tied for " : ""}${ordinalRank(Number(player.rank))}`;
       });
-      const winners = players.filter(player => Number(player.rank) === 1).map(player => String(player.name));
       const body = event === "picksDue"
         ? "Your picks still need to be submitted."
         : event === "picksReady" ? `Week ${week.week} is ready for picks.`
@@ -1222,7 +1216,7 @@ const dispatchPushNotifications = async (
         : event === "topFive" ? "You jumped into the top 5."
         : event === "topTen" ? "You jumped into the top 10."
         : event === "leadChange" ? `Pool lead change: ${newPoolLeaders.join(" and ")} moved into first place.`
-        : event === "weeklyResult" ? `Your Week ${week.week} recap: ${personalResults.join("; ")}. Winner${winners.length === 1 ? "" : "s"}: ${winners.join(" and ")}.`
+        : event === "weeklyResult" ? weeklyRecapMessage(players.map(player => ({ name: String(player.name), wins: Number(player.wins), losses: Number(player.losses), rank: Number(player.rank), tiebreakDifference: player.tiebreakDifference != null && Number.isFinite(Number(player.tiebreakDifference)) ? Number(player.tiebreakDifference) : null })), submitted)
         : event === "beforeSnf" || event === "beforeMnf" ? `You are still in the hunt. ${paths.map(candidate => `${candidate.name}: ${candidate.paths.count}/${candidate.paths.total} paths to first`).join("; ")}.`
         : `Your Current Week: ${personalResults.join("; ")}.`;
       const sent = await sendWebPush(

@@ -77,6 +77,33 @@ export const notificationPreferenceColumns: Record<NotificationEvent, string> = 
   weeklyResult: "weekly_result",
 };
 
+export interface WeeklyRecapPlayer {
+  name: string;
+  wins: number;
+  losses: number;
+  rank: number;
+  tiebreakDifference?: number | null;
+}
+
+export const ordinalRank = (rank: number): string => {
+  const suffix = rank % 100 >= 11 && rank % 100 <= 13 ? "th" : ({ 1: "st", 2: "nd", 3: "rd" }[rank % 10] || "th");
+  return `${rank}${suffix}`;
+};
+
+export const weeklyRecapMessage = (players: WeeklyRecapPlayer[], followedNames: string[]): string => {
+  const followed = followedNames.map(name => players.find(player => player.name.toLowerCase() === name.toLowerCase())).filter((player): player is WeeklyRecapPlayer => Boolean(player));
+  const personalResults = followed.map(player => {
+    const tied = players.filter(other => other.wins === player.wins).length > 1;
+    return `${player.name}: ${player.wins}-${player.losses}, ${tied ? "tied for " : ""}${ordinalRank(player.rank)}`;
+  });
+  const topWins = Math.max(...players.map(player => player.wins));
+  const contenders = players.filter(player => player.wins === topWins);
+  const tiebreakDifferences = contenders.map(player => Number(player.tiebreakDifference)).filter(Number.isFinite);
+  const bestDifference = tiebreakDifferences.length === contenders.length ? Math.min(...tiebreakDifferences) : null;
+  const winners = bestDifference === null ? contenders : contenders.filter(player => Number(player.tiebreakDifference) === bestDifference);
+  return `${personalResults.join("; ")}. Winner${winners.length === 1 ? "" : "s"}: ${winners.map(player => player.name).join(" and ")}.`;
+};
+
 interface NotificationGame {
   kickoff?: unknown;
   state?: unknown;

@@ -7,6 +7,7 @@ import {
   parseNotificationPreferences,
   picksDueReminderIsEligible,
   scheduledNotificationEvents,
+  weeklyRecapMessage,
 } from "../src/notifications.ts";
 
 test("notification preferences use conservative defaults and accept explicit booleans", () => {
@@ -55,4 +56,14 @@ test("picks due reminder honors a configurable lead time before the first kickof
 
 test("weekly result is eligible only after finalization", () => {
   assert.deepEqual(scheduledNotificationEvents(new Date(), [], "finalized"), ["weeklyResult"]);
+});
+
+test("weekly recap uses records and breaks the winning tie by finalized tiebreak difference", () => {
+  const players = [
+    { name: "Jim", wins: 11, losses: 5, rank: 1, tiebreakDifference: 8 },
+    { name: "Gary", wins: 11, losses: 5, rank: 1, tiebreakDifference: 2 },
+    { name: "Mel", wins: 7, losses: 9, rank: 19, tiebreakDifference: 42 },
+  ];
+  assert.equal(weeklyRecapMessage(players, ["Jim"]), "Jim: 11-5, tied for 1st. Winner: Gary.");
+  assert.equal(weeklyRecapMessage(players, ["Mel"]), "Mel: 7-9, 19th. Winner: Gary.");
 });
