@@ -2742,6 +2742,12 @@ async function initializePushNotifications() {
   settings.querySelector("summary").textContent = "Push notifications";
   form.innerHTML = '<div class="notification-events"><label><input type="checkbox" name="picksReady" checked><span>Picks are ready<small>A new weekly slate is open.</small></span></label><label><input type="checkbox" name="picksDue" checked><span>Picks due reminder<small><input type="number" name="picksDueMinutes" min="1" max="240" value="60"> min before the first game · only when your picks are missing. <span class="notification-reminder-limit"></span></small></span></label><label><input type="checkbox" name="firstPlace" checked><span>First-place jump<small>When you jump into first place.</small></span></label><label><input type="checkbox" name="topFive"><span>Top-5 jump<small>When you jump into the top 5.</small></span></label><label><input type="checkbox" name="topTen"><span>Top-10 jump<small>When you jump into the top 10.</small></span></label><label><input type="checkbox" name="leadChange"><span>Lead change<small>When anyone takes the pool lead.</small></span></label><label><input type="checkbox" name="earlyWindow"><span>After early games<small>Your Current Week position after every Sunday 1 PM game is final.</small></span></label><label><input type="checkbox" name="beforeSnf" checked><span>Before Sunday Night Football<small>Only when you are still in the hunt, with a short what-you-need recap.</small></span></label><label><input type="checkbox" name="beforeMnf" checked><span>Before Monday Night Football<small>Only when you are still in the hunt, with a short what-you-need recap.</small></span></label><label><input type="checkbox" name="weeklyResult" checked><span>Weekly recap<small>Your final finish, score, and the weekly winner after the completed week is archived.</small></span></label></div><div class="notification-choice"><button id="notification-save" type="submit">Enable notifications</button><button id="notification-disable" type="button" hidden>Disable notifications</button></div>';
   const save = document.getElementById("notification-save"), disable = document.getElementById("notification-disable");
+  const pushPlayer = document.createElement("label");
+  pushPlayer.className = "notification-push-player";
+  pushPlayer.innerHTML = 'Player name<input id="notification-push-player" list="notification-player-options" autocomplete="name" required><small>Alerts on this device follow this player.</small>';
+  form.querySelector(".notification-events").before(pushPlayer);
+  const pushPlayerInput = document.getElementById("notification-push-player");
+  pushPlayerInput.value = localStorage.getItem("fbpPushPlayer") || "";
   const installHelp = document.createElement("div");
   installHelp.id = "notification-install-help";
   installHelp.className = "notification-install";
@@ -2789,6 +2795,9 @@ async function initializePushNotifications() {
     if (!browserCanPush()) { status.textContent = websiteIsAppleMobile ? "Save FBP to your Home Screen, then open the installed app to enable notifications." : "Push notifications are not supported by this browser."; return; }
     save.disabled = true;
     try {
+      const player = notificationPlayerValidation(pushPlayerInput.value);
+      if (!player.name) throw new Error(player.message);
+      pushPlayerInput.value = player.name;
       const response = await fetch(`${WEBSITE_NOTIFICATION_ENDPOINT}/?action=notification-status`, { signal: AbortSignal.timeout(10000) });
       const config = await response.json();
       if (!response.ok || !config.channels?.push || !config.vapidPublicKey) throw new Error("Push notifications are not ready yet.");
@@ -2800,8 +2809,11 @@ async function initializePushNotifications() {
       const data = await saved.json();
       if (!saved.ok || !data.ok) throw new Error(data.error || "Push preferences could not be saved.");
       localStorage.setItem(WEBSITE_PUSH_DEVICE_TOKEN, data.deviceToken);
-      status.textContent = requestPermission ? "Notifications enabled. Changes save automatically." : "Notification preferences saved.";
-      save.textContent = "Notifications enabled"; disable.hidden = false;
+      const linkedPlayer = await websiteLinkPushPlayer(player.name);
+      if (!linkedPlayer) throw new Error("Notifications were enabled, but this device could not be linked to your player name. Try saving again.");
+      localStorage.setItem("fbpPushPlayer", linkedPlayer);
+      status.textContent = requestPermission ? `Notifications enabled for ${linkedPlayer}. Changes save automatically.` : `Notification preferences saved for ${linkedPlayer}.`;
+      save.textContent = "Save notification settings"; disable.hidden = false;
     } catch (error) { status.textContent = error.message || "Push preferences could not be saved."; }
     finally { save.disabled = false; }
   };
@@ -2814,22 +2826,27 @@ async function initializePushNotifications() {
   form.addEventListener("submit", event => { event.preventDefault(); savePreferences(true); });
   notificationEventsForForm().forEach(name => form.elements[name]?.addEventListener("change", queueSave));
   form.elements.picksDueMinutes.addEventListener("change", queueSave);
-  if (deviceToken()) { save.textContent = "Notifications enabled"; disable.hidden = false; status.textContent = "Preferences save automatically."; }
+  pushPlayerInput.addEventListener("change", queueSave);
+  if (deviceToken()) { save.textContent = "Save notification settings"; disable.hidden = false; status.textContent = pushPlayerInput.value ? `Preferences save automatically for ${pushPlayerInput.value}.` : "Choose your player name, then save notification settings."; }
   disable.addEventListener("click", async () => {
     disable.disabled = true;
     try {
       const response = await fetch(WEBSITE_NOTIFICATION_ENDPOINT, { method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify({ action: "disable-push", deviceToken: deviceToken() }) });
       const data = await response.json(); if (!response.ok || !data.ok) throw new Error(data.error || "Notifications could not be disabled.");
       const registration = await navigator.serviceWorker.ready, subscription = await registration.pushManager.getSubscription(); await subscription?.unsubscribe();
-      localStorage.removeItem(WEBSITE_PUSH_DEVICE_TOKEN); disable.hidden = true; save.textContent = "Enable notifications"; status.textContent = "Notifications are disabled on this device.";
+      localStorage.removeItem(WEBSITE_PUSH_DEVICE_TOKEN); localStorage.removeItem("fbpPushPlayer"); pushPlayerInput.value = ""; disable.hidden = true; save.textContent = "Enable notifications"; status.textContent = "Notifications are disabled on this device.";
     } catch (error) { status.textContent = error.message || "Notifications could not be disabled."; }
     finally { disable.disabled = false; }
   });
 }
 async function websiteLinkPushPlayer(name) {
   const deviceToken = localStorage.getItem(WEBSITE_PUSH_DEVICE_TOKEN);
-  if (!deviceToken || !name) return;
-  try { await fetch(WEBSITE_NOTIFICATION_ENDPOINT, { method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify({ action: "link-push-player", deviceToken, playerName: name }), keepalive: true }); } catch {}
+  if (!deviceToken || !name) return "";
+  try {
+    const response = await fetch(WEBSITE_NOTIFICATION_ENDPOINT, { method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify({ action: "link-push-player", deviceToken, playerName: name }), keepalive: true });
+    const data = await response.json();
+    return response.ok && data.ok ? String(data.playerName || "") : "";
+  } catch { return ""; }
 }
 async function initializeNotificationPreferences() {
   const sms = document.getElementById("notification-sms-channel"), save = document.getElementById("notification-save"), status = document.getElementById("notification-status");
