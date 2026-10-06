@@ -3035,6 +3035,10 @@ function updateWebsiteWeekLabels(selection) {
   const weekLabel = websiteRoundLabel(selection);
   const navButton = document.querySelector('#nav button[data-view="week-one"]');
   if (navButton) navButton.textContent = weekLabel;
+  document.querySelector("#view-week-one .intro h2").textContent = weekLabel;
+  document.querySelector("#view-week-one .intro p").textContent = selection.testMode
+    ? `${weekLabel} test submissions and weekly standings.`
+    : `${seasonLabel} submissions and weekly standings.`;
   document.querySelector("#view-enter-picks .intro p").textContent = selection.testMode ? `${weekLabel} test` : `${weekLabel} · ${seasonLabel}`;
   document.querySelector("#view-picks-confirmation .intro p").textContent = selection.testMode ? `${weekLabel} test` : `${weekLabel} · ${seasonLabel}`;
   document.getElementById("website-view-week-one").textContent = `View ${weekLabel}`;
