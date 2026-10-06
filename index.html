@@ -3245,7 +3245,19 @@ async function renderWebsitePicksFormNow(forceRefresh = false) {
   const initialCacheKey = `${initialSelection.phase}-${initialSelection.season}-${initialSelection.week}`;
   let useCachedSlate = false;
   if (!initialSelection.testMode) {
-    try { await loadActiveRegularWeek(forceRefresh); }
+    try {
+      const regular = await loadActiveRegularWeek(forceRefresh);
+      if (!regular.staged) {
+        websiteActiveGames = [];
+        host.dataset.ready = "";
+        host.innerHTML = '<p class="website-instructions">Picks are closed. Week 5 will open after it is approved and staged.</p>';
+        document.getElementById("website-test-notice").classList.remove("active");
+        document.getElementById("website-best-bet").disabled = true;
+        document.querySelector('#website-picks-form button[type="submit"]').disabled = true;
+        document.getElementById("website-picks-status").textContent = "No regular-season slate is open yet.";
+        return;
+      }
+    }
     catch (error) {
       if (!websiteStagedGamesCache.has(initialCacheKey)) { renderWebsiteGamesLoadError(host, error); return; }
       useCachedSlate = true;
