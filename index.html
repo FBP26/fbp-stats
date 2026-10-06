@@ -2825,8 +2825,10 @@ async function initializePushNotifications() {
       const data = await saved.json();
       if (!saved.ok || !data.ok) throw new Error(data.error || "Push preferences could not be saved.");
       localStorage.setItem(WEBSITE_PUSH_DEVICE_TOKEN, data.deviceToken);
-      localStorage.setItem("fbpPushPlayer", player.name);
-      status.textContent = enabling ? `Notifications enabled for ${player.name}. ${notificationAutosaveLabel()}` : notificationAutosaveLabel();
+      const linkedPlayer = await websiteLinkPushPlayer(player.name);
+      if (!linkedPlayer) throw new Error("Notifications were enabled, but this device could not be linked to your player name. Try saving again.");
+      localStorage.setItem("fbpPushPlayer", linkedPlayer);
+      status.textContent = enabling ? `Notifications enabled for ${linkedPlayer}. ${notificationAutosaveLabel()}` : notificationAutosaveLabel();
       updatePushButton();
     } catch (error) { status.textContent = error.message || "Push preferences could not be saved."; }
     finally { save.disabled = false; updatePushButton(); }
