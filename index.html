@@ -1126,23 +1126,23 @@ function websiteTeamName(abbreviation) { const name = WEBSITE_TEAM_NAMES[abbrevi
 function websiteFormTeamName(abbreviation) { const name = WEBSITE_FORM_TEAM_NAMES[abbreviation.toLowerCase()] || abbreviation; return abbreviation === abbreviation.toUpperCase() ? name.toUpperCase() : name; }
 function websiteNaturalTeamName(abbreviation) { return websiteFormTeamName(String(abbreviation || "").toLowerCase()).replace(/\b[a-z]/g, letter => letter.toUpperCase()); }
 function websiteEscapeHtml(value) { return String(value).replace(/[&<>"']/g, character => ({ "&": "&amp;", "<": "&lt;", ">": "&gt;", '"': "&quot;", "'": "&#39;" })[character]); }
-function initializeWebsiteNameAutocomplete() {
-  const input = document.getElementById("website-picks-name"), field = input?.closest("label");
+function initializeWebsiteNameAutocomplete(input = document.getElementById("website-picks-name"), getNames = () => [...new Set([...(websitePlayers || []).map(player => player.name), ...(tableData.overall || []).map(row => row.Name)].map(name => String(name || "").trim()).filter(Boolean))].sort((left, right) => left.localeCompare(right))) {
+  const field = input?.closest("label"), menuId = `${input?.id}-menu`;
   if (!input || !field || field.querySelector(".website-name-menu")) return;
   field.classList.add("website-name-field");
   input.autocomplete = "off";
   input.setAttribute("role", "combobox");
   input.setAttribute("aria-autocomplete", "list");
   input.setAttribute("aria-expanded", "false");
-  input.setAttribute("aria-controls", "website-name-menu");
+  input.setAttribute("aria-controls", menuId);
   const menu = document.createElement("div");
-  menu.id = "website-name-menu";
+  menu.id = menuId;
   menu.className = "website-name-menu";
   menu.setAttribute("role", "listbox");
   menu.hidden = true;
   field.append(menu);
   let activeIndex = -1;
-  const names = () => [...new Set([...(websitePlayers || []).map(player => player.name), ...(tableData.overall || []).map(row => row.Name)].map(name => String(name || "").trim()).filter(Boolean))].sort((left, right) => left.localeCompare(right));
+  const names = () => getNames();
   const options = () => [...menu.querySelectorAll(".website-name-option")];
   const setActive = index => {
     const items = options();
@@ -1157,7 +1157,7 @@ function initializeWebsiteNameAutocomplete() {
   const render = () => {
     const query = input.value.trim().toLowerCase();
     const matches = query ? names().filter(name => name.toLowerCase().startsWith(query)).slice(0, 10) : [];
-    menu.innerHTML = matches.map((name, index) => `<button id="website-name-option-${index}" class="website-name-option" type="button" role="option" data-name="${websiteEscapeHtml(name)}">${websiteEscapeHtml(name)}</button>`).join("");
+    menu.innerHTML = matches.map((name, index) => `<button id="${input.id}-option-${index}" class="website-name-option" type="button" role="option" data-name="${websiteEscapeHtml(name)}">${websiteEscapeHtml(name)}</button>`).join("");
     menu.hidden = !matches.length || matches.some(name => name.toLowerCase() === query);
     input.setAttribute("aria-expanded", String(!menu.hidden));
     activeIndex = -1;
@@ -2749,11 +2749,13 @@ async function initializePushNotifications() {
   form.querySelector(".notification-events").before(pushPlayer);
   const pushPlayerInput = document.getElementById("notification-push-player");
   pushPlayerInput.value = localStorage.getItem("fbpPushPlayer") || "";
+  initializeWebsiteNameAutocomplete(pushPlayerInput, () => [...document.getElementById("notification-player-options").options].map(option => option.value).filter(Boolean));
   fetch(`${WEBSITE_NOTIFICATION_ENDPOINT}/?action=notification-status`, { signal: AbortSignal.timeout(10000) })
     .then(response => response.json())
     .then(data => {
       if (Array.isArray(data.players)) {
         document.getElementById("notification-player-options").replaceChildren(...data.players.map(name => new Option(name, name)));
+        pushPlayerInput.dispatchEvent(new Event("input", { bubbles: true }));
       }
     })
     .catch(() => {});
