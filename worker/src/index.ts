@@ -11,7 +11,7 @@ import { adaptCompletedArchive } from './completed-history-adapter.ts';
 import { espnEventId, fetchEspnGame, isRefreshWindow, parseEspnGame, type StoredGame } from "./espn.ts";
 import { validateRaceSnapshotPlayers } from "./race.ts";
 import { alertEmailHtml, nightPaths, observeLeads, parseAlertFeed, type AlertFeed, type AlertObservation } from "./alert-details.ts";
-import { maskNotificationDestination, normalizeNotificationDestination, notificationEvents, notificationPreferenceColumns, ordinalRank, parseNotificationPreferences, picksDueReminderIsEligible, scheduledNotificationEvents, weeklyRecapMessage, type NotificationChannel, type NotificationEvent } from "./notifications.ts";
+import { maskNotificationDestination, normalizeNotificationDestination, notificationEvents, notificationPreferenceColumns, ordinalRank, parseNotificationPreferences, picksDueReminderIsEligible, scheduledNotificationEvents, seasonRankMovementSummary, weeklyRecapMessage, type NotificationChannel, type NotificationEvent, type SeasonStanding } from "./notifications.ts";
 import { sendWebPush, type PushSubscriptionRecord } from "./web-push.ts";
 
 interface Env {
@@ -1036,6 +1036,42 @@ const weeklyStandingsSummary = (players: JsonObject[]): string => {
   return `Current weekly standings\n${rows.join("\n")}`;
 };
 
+const scoreArchivedSeason = async (db: D1Database, week: Record<string, unknown>): Promise<{ before: SeasonStanding[]; after: SeasonStanding[] }> => {
+  const archives = await db.prepare(`SELECT w.week,a.payload_json FROM completed_week_archives a JOIN weeks w ON w.id=a.week_id
+    WHERE w.season=? AND w.phase='REGULAR_SEASON' AND w.week<=? ORDER BY w.week`).bind(week.season, week.week).all<{ week: number; payload_json: string }>();
+  const before = new Map<string, Omit<SeasonStanding, "rank">>();
+  const after = new Map<string, Omit<SeasonStanding, "rank">>();
+  const addScores = (target: Map<string, Omit<SeasonStanding, "rank">>, payload: JsonObject): void => {
+    const games = Array.isArray(payload.games) ? payload.games.map(value => {
+      const game = value as JsonObject;
+      return { favorite: String(game.favorite || ""), underdog: String(game.underdog || ""), spread: Number(game.spread), status: String(game.status || game.state || "PREGAME") as ScoringGame["status"], favoriteScore: Number(game.favoriteScore), underdogScore: Number(game.underdogScore) };
+    }) : [];
+    const cards = Array.isArray(payload.submissions) ? payload.submissions.map(value => {
+      const submission = value as JsonObject;
+      return { name: String(submission.name || ""), weekName: String(submission.weekName || ""), picks: Array.isArray(submission.picks) ? (submission.picks as unknown[]).map(String) : [], bestBet: String(submission.bestBet || ""), tiebreaker: Number(submission.tiebreaker) };
+    }).filter(card => card.name && card.picks.length === games.length) : [];
+    scoreWeekWithoutProbabilities(cards, games, Number(payload.actualTiebreaker)).forEach(player => {
+      const key = player.name.toLowerCase();
+      const record = target.get(key) || { name: player.name, wins: 0, losses: 0 };
+      record.wins += player.wins;
+      record.losses += player.losses;
+      target.set(key, record);
+    });
+  };
+  const rank = (records: Map<string, Omit<SeasonStanding, "rank">>): SeasonStanding[] => [...records.values()]
+    .sort((left, right) => right.wins - left.wins || left.losses - right.losses || left.name.localeCompare(right.name))
+    .map((record, index) => ({ ...record, rank: index + 1 }));
+  for (const archive of archives.results) {
+    const payload = JSON.parse(archive.payload_json) as JsonObject;
+    if (Number(archive.week) < Number(week.week)) addScores(before, payload);
+    if (Number(archive.week) === Number(week.week)) {
+      before.forEach((record, key) => after.set(key, { ...record }));
+      addScores(after, payload);
+    }
+  }
+  return { before: rank(before), after: rank(after) };
+};
+
 const picksReadySummary = (games: JsonObject[], weekNumber: unknown): string => {
   const gameLines = games.flatMap((game, index) => {
     const home = String(game.homeTeam || "").toUpperCase();
@@ -1173,6 +1209,7 @@ const dispatchPushNotifications = async (
   const weeklyRecapReady = String(week.status) === "finalized" && Boolean(
     await env.DB.prepare("SELECT 1 FROM completed_week_archives WHERE week_id = ?").bind(week.id).first(),
   );
+  const seasonStandings = events.has("weeklyResult") && weeklyRecapReady ? await scoreArchivedSeason(env.DB, week) : null;
   const hasStarted = games.some(game => ["LIVE", "FINAL"].includes(String(game.state)));
   if (!onlyEvents && hasStarted && players.length) events.add("firstPlace").add("topFive").add("topTen").add("leadChange");
   const devices = await env.DB.prepare("SELECT * FROM push_devices WHERE status = 'active'").all();
@@ -1225,12 +1262,12 @@ const dispatchPushNotifications = async (
         : event === "topFive" ? "You jumped into the top 5."
         : event === "topTen" ? "You jumped into the top 10."
         : event === "leadChange" ? `Pool lead change: ${newPoolLeaders.join(" and ")} moved into first place.`
-        : event === "weeklyResult" ? weeklyRecapMessage(players.map(player => ({ name: String(player.name), wins: Number(player.wins), losses: Number(player.losses), rank: Number(player.rank), tiebreakDifference: player.tiebreakDifference != null && Number.isFinite(Number(player.tiebreakDifference)) ? Number(player.tiebreakDifference) : null })), submitted)
+        : event === "weeklyResult" ? `${weeklyRecapMessage(players.map(player => ({ name: String(player.name), wins: Number(player.wins), losses: Number(player.losses), rank: Number(player.rank), tiebreakDifference: player.tiebreakDifference != null && Number.isFinite(Number(player.tiebreakDifference)) ? Number(player.tiebreakDifference) : null })), submitted)}\n${submitted.map(name => seasonRankMovementSummary(seasonStandings?.before.find(standing => standing.name.toLowerCase() === name.toLowerCase()) || null, seasonStandings?.after.find(standing => standing.name.toLowerCase() === name.toLowerCase()) || null)).join(" ")}`
         : event === "beforeSnf" || event === "beforeMnf" ? `You are still in the hunt. ${paths.map(candidate => `${candidate.name}: ${candidate.paths.count}/${candidate.paths.total} paths to first`).join("; ")}.`
         : `Your Current Week: ${personalResults.join("; ")}.`;
       const sent = await sendWebPush(
         { endpoint: String(device.endpoint), p256dh: String(device.p256dh), auth: String(device.auth) },
-        { title: `FBP Week ${week.week}${event === "weeklyResult" ? " recap" : ""}`, body, url: `${env.PUBLIC_SITE_URL || "https://fbp26.github.io/fbp-stats/"}#${pushDestination(event)}`, tag: `fbp-${key}` },
+        { title: event === "weeklyResult" ? `FBP Week ${week.week}: final standings` : `FBP Week ${week.week}`, body, url: `${env.PUBLIC_SITE_URL || "https://fbp26.github.io/fbp-stats/"}#${pushDestination(event)}`, tag: `fbp-${key}` },
         { publicKey: env.VAPID_PUBLIC_KEY, privateKey: env.VAPID_PRIVATE_KEY, subject: env.VAPID_SUBJECT },
       );
       if (sent.expired) await env.DB.prepare("UPDATE push_devices SET status='unsubscribed', unsubscribed_at=CURRENT_TIMESTAMP, updated_at=CURRENT_TIMESTAMP WHERE id=?").bind(device.id).run();

@@ -3944,6 +3944,8 @@ function renderWebsiteWeekRecap(data) {
   const runnerUp = ordered[1];
   const tiedWinners = ordered.filter(player => score(player) === score(winner) && difference(player) === difference(winner));
   const tiedOnWins = ordered.filter(player => score(player) === score(winner));
+  const closestTiebreakerRunner = tiedOnWins.find(player => player !== winner && difference(player) > difference(winner));
+  const tiebreakerMargin = closestTiebreakerRunner ? difference(closestTiebreakerRunner) - difference(winner) : null;
   const gameWinners = data.games.map((game, index) => websiteGameWinner(data, index));
   const running = data.players.map(() => 0);
   const leadTimeline = [];
@@ -4009,7 +4011,7 @@ function renderWebsiteWeekRecap(data) {
     : `${winner.name} never fell more than one win off the pace and held the lead through the finish.`;
   const tiebreakRange = tiedWinners.length === 1 ? websiteWinningTiebreakRange(winner, tiedOnWins, actual) : null;
   const tiebreakStory = Number.isFinite(actual) ? tiedOnWins.length > 1 && tiebreakRange
-    ? `${winner.name} needed the final passing total to land from ${tiebreakRange.low} through ${tiebreakRange.high}. It finished at ${actual}, ${difference(winner)} yards from the ${winner.tiebreaker} guess.`
+    ? `${winner.name} needed the final passing total to land from ${tiebreakRange.low} through ${tiebreakRange.high}. It finished at ${actual}, ${difference(winner)} yards from the ${winner.tiebreaker} guess${tiebreakerMargin != null ? `, winning by ${tiebreakerMargin} yard${tiebreakerMargin === 1 ? "" : "s"} over ${closestTiebreakerRunner.name}` : ""}.`
     : `${winner.name} guessed ${winner.tiebreaker}; the actual final-game total was ${actual}, a difference of ${difference(winner)} yards.` : "The final tiebreak total was unavailable.";
   const closeCall = runnerUp ? score(winner) === score(runnerUp)
     ? `${runnerUp.name} also finished with ${score(runnerUp)} wins. ${tiebreakStory}`

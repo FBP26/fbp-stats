@@ -7,6 +7,7 @@ import {
   parseNotificationPreferences,
   picksDueReminderIsEligible,
   scheduledNotificationEvents,
+  seasonRankMovementSummary,
   weeklyRecapMessage,
 } from "../src/notifications.ts";
 
@@ -65,6 +66,11 @@ test("weekly recap uses records and breaks the winning tie by finalized tiebreak
     { name: "Mel", wins: 7, losses: 9, rank: 19, tiebreakDifference: 42 },
     { name: "Mia", wins: 7, losses: 9, rank: 19, tiebreakDifference: 36 },
   ];
-  assert.equal(weeklyRecapMessage(players, ["Jim"]), "Jim: 11-5, tied for 1st. Winner: Gary, 11-5.");
-  assert.equal(weeklyRecapMessage(players, ["Mel"]), "Mel: 7-9, tied for 19th. Winner: Gary, 11-5.");
+  assert.equal(weeklyRecapMessage(players, ["Jim"]), "Jim: 11-5, tied for 1st. Gary, 11-5 won.");
+  assert.equal(weeklyRecapMessage(players, ["Mel"]), "Mel: 7-9, tied for 19th. Gary, 11-5 won.");
+});
+
+test("weekly recap describes completed-season rank movement", () => {
+  assert.equal(seasonRankMovementSummary({ name: "Mel", rank: 8, wins: 27, losses: 28 }, { name: "Mel", rank: 16, wins: 34, losses: 37 }), "Mel drops from 8th pace to 16th place in the standings (34-37).");
+  assert.equal(seasonRankMovementSummary({ name: "Mel", rank: 19, wins: 27, losses: 28 }, { name: "Mel", rank: 12, wins: 34, losses: 37 }), "Mel jumps from 19th to 12th place in the standings (34-37).");
 });

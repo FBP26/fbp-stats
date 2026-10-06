@@ -85,6 +85,13 @@ export interface WeeklyRecapPlayer {
   tiebreakDifference?: number | null;
 }
 
+export interface SeasonStanding {
+  name: string;
+  rank: number;
+  wins: number;
+  losses: number;
+}
+
 export const ordinalRank = (rank: number): string => {
   const suffix = rank % 100 >= 11 && rank % 100 <= 13 ? "th" : ({ 1: "st", 2: "nd", 3: "rd" }[rank % 10] || "th");
   return `${rank}${suffix}`;
@@ -104,7 +111,16 @@ export const weeklyRecapMessage = (players: WeeklyRecapPlayer[], followedNames: 
   const winnerSummary = winners.length === 1
     ? `${winners[0].name}, ${winners[0].wins}-${winners[0].losses}`
     : winners.map(player => player.name).join(" and ");
-  return `${personalResults.join("; ")}. Winner${winners.length === 1 ? "" : "s"}: ${winnerSummary}.`;
+  return `${personalResults.join("; ")}. ${winners.length === 1 ? `${winnerSummary} won` : `Winners: ${winnerSummary}`}.`;
+};
+
+export const seasonRankMovementSummary = (before: SeasonStanding | null, after: SeasonStanding | null): string => {
+  if (!after) return "Season standings were unavailable for this result.";
+  const record = `${after.wins}-${after.losses}`;
+  if (!before) return `${after.name} enters the standings in ${ordinalRank(after.rank)} place (${record}).`;
+  if (after.rank < before.rank) return `${after.name} jumps from ${ordinalRank(before.rank)} to ${ordinalRank(after.rank)} place in the standings (${record}).`;
+  if (after.rank > before.rank) return `${after.name} drops from ${ordinalRank(before.rank)} pace to ${ordinalRank(after.rank)} place in the standings (${record}).`;
+  return `${after.name} holds ${ordinalRank(after.rank)} place in the standings (${record}).`;
 };
 
 interface NotificationGame {
