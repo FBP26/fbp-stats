@@ -3720,45 +3720,6 @@ async function renderWebsiteConfirmation(submission, result) {
   renderConfirmationPicks(submission);
   await Promise.allSettled([renderConfirmationHistory(submission), loadConfirmationProbability(submission)]);
 }
-function websiteConfirmationEmailText() {
-  const cleanText = element => String(element?.textContent || "").replace(/\s+/g, " ").trim();
-  const lines = [];
-  const lead = cleanText(document.getElementById("confirmation-lead"));
-  if (lead) lines.push(lead);
-  ["confirmation-identity", "confirmation-picks", "confirmation-history"].forEach(id => {
-    const section = document.getElementById(id);
-    if (!section) return;
-    const heading = cleanText(section.querySelector("h1, h2, h3, h4"));
-    const bullets = [
-      ...[...section.querySelectorAll(".confirmation-metric-table tr")].map(row => {
-        const label = cleanText(row.querySelector("th"));
-        const value = cleanText(row.querySelector("td"));
-        return label && value ? `${label}: ${value}` : value || label;
-      }),
-      ...[...section.querySelectorAll("p, li")].map(cleanText),
-      ...[...section.querySelectorAll("table:not(.confirmation-metric-table) tbody tr")].map(row => {
-        const headers = [...row.closest("table")?.querySelectorAll("thead th") || []].map(cleanText);
-        const cells = [...row.querySelectorAll("td")].map(cleanText);
-        return cells.map((value, index) => headers[index] ? `${headers[index]}: ${value}` : value).filter(Boolean).join("; ");
-      })
-    ].filter(Boolean);
-    if (!heading || !bullets.length) return;
-    lines.push("", `${heading}:`, ...bullets.map(bullet => `- ${bullet}`));
-  });
-  return lines.join("\n").trim().slice(0, 15000);
-}
-async function sendWebsitePickConfirmationEmail(confirmationEmailToken) {
-  if (!confirmationEmailToken || !WEBSITE_SUBMISSIONS_ENDPOINT) return true;
-  const payload = { action: "submission-confirmation-details", operationId: confirmationEmailToken, confirmationText: websiteConfirmationEmailText() };
-  for (let attempt = 0; attempt < 2; attempt++) {
-    try {
-      const response = await fetch(WEBSITE_SUBMISSIONS_ENDPOINT, { method: "POST", keepalive: true, headers: { "Content-Type": "application/json" }, body: JSON.stringify(payload), signal: AbortSignal.timeout(20000) });
-      const result = await response.json();
-      if (response.ok && result.ok) return true;
-    } catch (error) { console.warn(`Confirmation email attempt ${attempt + 1} failed:`, error); }
-  }
-  return false;
-}
 let websiteBestBetMismatchAttempts = 0;
 let websiteBestBetMismatchSignature = "";
 let websiteApprovedNewPlayerName = "";
@@ -3859,11 +3820,6 @@ document.getElementById("website-picks-form").addEventListener("invalid", event 
     ? "Choose one team in every matchup before submitting."
     : `Complete the ${event.target.closest("label")?.childNodes[0]?.textContent?.trim() || "required"} field before submitting.`;
 }, true);
-const websiteConfirmationEmailControls = document.createElement("div");
-websiteConfirmationEmailControls.className = "explorer-controls";
-websiteConfirmationEmailControls.style.marginTop = "12px";
-websiteConfirmationEmailControls.innerHTML = '<label>Confirmation email (optional)<input id="website-confirmation-email" type="email" autocomplete="email" inputmode="email"></label><label style="align-items:center"><input id="website-confirmation-email-consent" type="checkbox"> Email my pick confirmation to this address</label>';
-document.querySelector("#website-picks-form button[type=submit]")?.before(websiteConfirmationEmailControls);
 document.getElementById("website-picks-form").onsubmit = async event => {
   event.preventDefault();
   const form = event.currentTarget;
@@ -3872,11 +3828,7 @@ document.getElementById("website-picks-form").onsubmit = async event => {
   if (websitePicksSubmissionPending) return;
   if (!websiteActiveGames.length) { status.textContent = "Stage this week before submitting test picks."; return; }
   const selection = websitePickSelection();
-  const confirmationEmail = document.getElementById("website-confirmation-email").value.trim();
-  const confirmationEmailConsent = document.getElementById("website-confirmation-email-consent").checked;
-  if (confirmationEmail && !confirmationEmailConsent) { status.textContent = "Check the email confirmation box to use this address."; status.focus(); return; }
-  if (confirmationEmailConsent && !confirmationEmail) { status.textContent = "Enter an email address to receive a pick confirmation."; status.focus(); return; }
-  const submission = { mode: selection.testMode ? "test" : "production", season: selection.season, week: selection.week, phase: selection.phase, name: document.getElementById("website-picks-name").value, weekName: document.getElementById("website-week-name").value.trim(), picks: websiteActiveGames.map((game, index) => form.elements[`game-${index + 1}`].value), bestBet: document.getElementById("website-best-bet").value, tiebreaker: document.getElementById("website-tiebreaker").value, includeConfirmationInEmail: !selection.testMode, confirmationEmail, confirmationEmailConsent, browserId: websiteAnonymousId(localStorage, "fbpAnonymousBrowserId") };
+  const submission = { mode: selection.testMode ? "test" : "production", season: selection.season, week: selection.week, phase: selection.phase, name: document.getElementById("website-picks-name").value, weekName: document.getElementById("website-week-name").value.trim(), picks: websiteActiveGames.map((game, index) => form.elements[`game-${index + 1}`].value), bestBet: document.getElementById("website-best-bet").value, tiebreaker: document.getElementById("website-tiebreaker").value, includeConfirmationInEmail: !selection.testMode, browserId: websiteAnonymousId(localStorage, "fbpAnonymousBrowserId") };
   if (!websiteRequiresTiebreak(selection)) submission.tiebreaker = "0";
   websitePicksSubmissionPending = true;
   submitButton.disabled = true;
@@ -3915,7 +3867,6 @@ document.getElementById("website-picks-form").onsubmit = async event => {
     const confirmationReady = renderWebsiteConfirmation(submission, result);
     websiteClearPickDraft(); form.reset(); resetWebsiteBestBet(); showWebsiteConfirmation();
     await confirmationReady;
-    if (!await sendWebsitePickConfirmationEmail(result.operationId)) console.warn("Picks were saved, but the combined admin confirmation email could not be verified.");
     websiteBestBetMismatchAttempts = 0; websiteBestBetMismatchSignature = ""; websiteApprovedNewPlayerName = "";
   } catch (error) { status.textContent = `Could not submit picks: ${error.message}`; }
   finally {
