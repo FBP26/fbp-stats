@@ -142,6 +142,12 @@ assert.ok(openingProbabilities[0] - openingProbabilities[1] <= 4, 'Pregame displ
 assert.deepEqual(context.websitePresentationProbabilities({ games: [{}, {}] }, [100, 0]), [100, 0], 'Eliminated players retain an exact zero chance');
 const postgameProbabilities = context.websitePresentationProbabilities({ games: [{ winner: 'BUF' }, {}] }, [75, 25]);
 assert.deepEqual(postgameProbabilities, [50 + 25 * Math.sqrt(.5), 50 - 25 * Math.sqrt(.5)], 'Completed games retain the existing evidence calibration');
+const scenarioContributionStart = html.indexOf('function websiteScenarioDisplayContributions(');
+const scenarioContributionEnd = html.indexOf('\nfunction websiteConditionalProbabilities(', scenarioContributionStart);
+vm.runInContext(html.slice(scenarioContributionStart, scenarioContributionEnd), context);
+const displayedContributions = Array.from(context.websiteScenarioDisplayContributions([{ probabilityContribution: .3 }, { probabilityContribution: .2 }, { probabilityContribution: .1 }], .3333));
+assert.ok(displayedContributions[0] > displayedContributions[1] && displayedContributions[1] > displayedContributions[2], 'Scenario contributions preserve route weighting');
+assert.equal(displayedContributions.reduce((total, value) => total + value, 0), .3333, 'Scenario contributions match the rounded displayed chance exactly');
 console.log('Opening probabilities retain capped model-based differentiation before kickoff.');
 const tiebreakContext = vm.createContext({ WEBSITE_TIEBREAK_MEAN: 453, WEBSITE_TIEBREAK_DEVIATION: 113 });
 for (const name of ['websiteGameStatus', 'websiteCurrentTiebreaker', 'websiteTiebreakDistribution']) {

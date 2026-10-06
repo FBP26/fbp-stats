@@ -2241,6 +2241,16 @@ function websitePresentationProbabilities(data, probabilities) {
       : 0;
   });
 }
+function websiteScenarioDisplayContributions(paths, probability) {
+  const targetCents = Math.round(Math.max(0, Number(probability) || 0) * 10000);
+  const total = paths.reduce((sum, path) => sum + Math.max(0, Number(path.probabilityContribution) || 0), 0);
+  if (!targetCents || !total) return paths.map(() => 0);
+  const allocations = paths.map(path => Math.max(0, Number(path.probabilityContribution) || 0) / total * targetCents);
+  const cents = allocations.map(Math.floor);
+  let remaining = targetCents - cents.reduce((sum, value) => sum + value, 0);
+  allocations.map((value, index) => ({ index, remainder: value - cents[index] })).sort((left, right) => right.remainder - left.remainder || left.index - right.index).forEach(({ index }) => { if (remaining > 0) { cents[index] += 1; remaining -= 1; } });
+  return cents.map(value => value / 10000);
+}
 function websiteConditionalProbabilities(data, forced = {}, calculationLimit = WEBSITE_EXACT_CALCULATION_LIMIT) {
   const scenarios = websiteScenarioOutcomes(data, forced);
   const indexes = scenarios.total <= calculationLimit ? Array.from({ length: scenarios.total }, (value, index) => index) : websiteSampleScenarioIndexes(scenarios.total, Math.min(calculationLimit, WEBSITE_SIMULATION_LIMIT));
@@ -2380,7 +2390,11 @@ function websiteContenderPaths(data, forced = {}) {
     contender.probability = totalWeight ? contender.probability / totalWeight : 0;
     contender.paths.forEach(path => { path.probabilityContribution = totalWeight ? path.weight * path.share / totalWeight : 0; });
   });
-  contenders.forEach((contender, index) => { contender.probability = Number(probabilities[index] || 0) / 100; });
+  const displayProbabilities = websitePresentationProbabilities(data, probabilities);
+  contenders.forEach((contender, index) => {
+    contender.probability = Number(displayProbabilities[index] || 0) / 100;
+    websiteScenarioDisplayContributions(contender.paths, contender.probability).forEach((contribution, pathIndex) => { contender.paths[pathIndex].displayProbabilityContribution = contribution; });
+  });
   return { analysisData, scenarios, indexes: [...evaluatedIndexes], totalWeight, outcomeWeights, evaluatedPaths, probabilities, contenders: contenders.filter(contender => contender.probability > 0).sort((left, right) => right.probability - left.probability) };
 }
 function websiteJoinNames(values) {
@@ -2522,11 +2536,11 @@ function renderWebsiteScenarioBreakdown(data, analysis = null) {
     const rows = analysis.contenders.map(contender => {
       const routes = contender.paths.slice().sort((left, right) => right.probabilityContribution - left.probabilityContribution || websiteScenarioIncorrectCount(analysis, contender, left) - websiteScenarioIncorrectCount(analysis, contender, right)).slice(0, 3).map((path, index) => {
         const result = path.low == null || path.high == null ? "Wins outright" : `Tiebreak · ${websiteYardRange(path.low, path.high)} net passing yards`;
-        return `<tr class="scenario-subrow"><td>Route ${index + 1}</td><td class="scenario-chance">${websiteProbabilityText(path.probabilityContribution * 100)}</td><td>${websiteScenarioOutcomeText(analysis, contender, path)}</td><td>${result}</td></tr>`;
+        return `<tr class="scenario-subrow"><td>Route ${index + 1}</td><td class="scenario-chance">${websiteProbabilityText(path.displayProbabilityContribution * 100)}</td><td>${websiteScenarioOutcomeText(analysis, contender, path)}</td><td>${result}</td></tr>`;
       }).join("");
       return `<tr class="scenario-player-row"><td><strong>${websiteEscapeHtml(contender.player.name)}</strong></td><td><strong>${websiteProbabilityText(contender.probability * 100)}</strong></td><td colspan="2"><strong>${contender.paths.length.toLocaleString()} winning routes in the structural sample</strong></td></tr>${routes}`;
     });
-    host.innerHTML = `<h3 class="compact-live-title">Scenarios</h3><p class="analysis-note">${exact ? "Exact" : "Estimated"} win chances use ${analysis.probabilities.scenariosEvaluated.toLocaleString()} of ${analysis.probabilities.scenariosTotal.toLocaleString()} possible combinations across ${unresolvedGames} games. The three strongest routes per contender come from a ${analysis.indexes.length.toLocaleString()}-route structural sample that includes every remaining game; route weights describe that sample, not the exact overall chance.</p><div class="analysis-table-wrap"><table class="analysis-table"><thead><tr><th>Player / route</th><th>Sample weight</th><th>Representative outcomes</th><th>Result</th></tr></thead><tbody>${rows || '<tr><td colspan="4">No winning scenarios remain.</td></tr>'}</tbody></table></div>`;
+    host.innerHTML = `<h3 class="compact-live-title">Scenarios</h3><p class="analysis-note">These are each player's strongest ways to win. The bold chance matches the Week 4 Win % above; the three rows below are examples of the outcomes that help most.</p><div class="analysis-table-wrap"><table class="analysis-table"><thead><tr><th>Player / route</th><th>Chance</th><th>Representative outcomes</th><th>Result</th></tr></thead><tbody>${rows || '<tr><td colspan="4">No winning scenarios remain.</td></tr>'}</tbody></table></div>`;
     return;
   }
   const rows = analysis.contenders.map(contender => {
@@ -2536,12 +2550,12 @@ function renderWebsiteScenarioBreakdown(data, analysis = null) {
       return Math.abs(chanceDifference) > 1e-12 ? chanceDifference : websiteScenarioIncorrectCount(analysis, contender, left) - websiteScenarioIncorrectCount(analysis, contender, right);
     }).map((path, index) => {
       const result = path.low == null || path.high == null ? "Wins outright; no tiebreak" : `Tiebreak with ${websiteJoinNames(path.tiedWith)} · needs ${websiteYardRange(path.low, path.high)} net passing yards · ${(path.share * 100).toFixed(0)}% chance to win tiebreak`;
-      return `<tr class="scenario-subrow"><td>Scenario ${index + 1}</td><td class="scenario-chance">${websiteProbabilityText(path.probabilityContribution * 100)}</td><td>${websiteScenarioOutcomeText(analysis, contender, path)}</td><td>${result}</td></tr>`;
+      return `<tr class="scenario-subrow"><td>Scenario ${index + 1}</td><td class="scenario-chance">${websiteProbabilityText(path.displayProbabilityContribution * 100)}</td><td>${websiteScenarioOutcomeText(analysis, contender, path)}</td><td>${result}</td></tr>`;
     }).join("");
     const summary = winsEveryOutcome ? "WINNER · Wins every remaining outcome" : `${contender.paths.length} specific ${contender.paths.length === 1 ? "scenario" : "scenarios"}`;
     return `<tr class="scenario-player-row${winsEveryOutcome ? " scenario-winner-row" : ""}"><td><strong>${contender.player.name}</strong></td><td><strong>${websiteProbabilityText(contender.probability * 100)}</strong></td><td colspan="2"><strong>${summary}</strong></td></tr>${scenarios}`;
   }).join("");
-  host.innerHTML = `<h3 class="compact-live-title">Scenarios</h3><p class="analysis-note">Each indented row is one exact outcome combination and its contribution to that player's total chance. A player's scenario percentages add to the chance in the bold row above.</p><div class="analysis-table-wrap"><table class="analysis-table"><thead><tr><th>Player / scenario</th><th>Chance</th><th>Exact outcomes</th><th>How the player wins</th></tr></thead><tbody>${rows || '<tr><td colspan="4">No winning scenarios remain.</td></tr>'}</tbody></table></div>`;
+  host.innerHTML = `<h3 class="compact-live-title">Scenarios</h3><p class="analysis-note">These are the ways each player can still win. The bold chance matches the Week 4 Win % above. Each row below is one winning outcome, and together they add up to that chance.</p><div class="analysis-table-wrap"><table class="analysis-table"><thead><tr><th>Player / scenario</th><th>Chance</th><th>Exact outcomes</th><th>How the player wins</th></tr></thead><tbody>${rows || '<tr><td colspan="4">No winning scenarios remain.</td></tr>'}</tbody></table></div>`;
 }
 function renderWebsiteContenderPaths(data) {
   const host = document.getElementById("week-one-paths");
