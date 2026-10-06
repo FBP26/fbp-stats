@@ -3030,15 +3030,17 @@ function websiteRoundLabel(selection) {
 function websiteRequiresTiebreak(selection) {
   return selection.phase !== "PLAYOFFS" || Number(selection.week) === 4;
 }
-function updateWebsiteWeekLabels(selection) {
+function updateWebsiteWeekLabels(selection, currentSelection = selection) {
   const seasonLabel = `${selection.season}-${selection.season + 1}`;
   const weekLabel = websiteRoundLabel(selection);
+  const currentSeasonLabel = `${currentSelection.season}-${currentSelection.season + 1}`;
+  const currentWeekLabel = websiteRoundLabel(currentSelection);
   const navButton = document.querySelector('#nav button[data-view="week-one"]');
-  if (navButton) navButton.textContent = weekLabel;
-  document.querySelector("#view-week-one .intro h2").textContent = weekLabel;
-  document.querySelector("#view-week-one .intro p").textContent = selection.testMode
-    ? `${weekLabel} test submissions and weekly standings.`
-    : `${seasonLabel} submissions and weekly standings.`;
+  if (navButton) navButton.textContent = currentWeekLabel;
+  document.querySelector("#view-week-one .intro h2").textContent = currentWeekLabel;
+  document.querySelector("#view-week-one .intro p").textContent = currentSelection.testMode
+    ? `${currentWeekLabel} test submissions and weekly standings.`
+    : `${currentSeasonLabel} submissions and weekly standings.`;
   document.querySelector("#view-enter-picks .intro p").textContent = selection.testMode ? `${weekLabel} test` : `${weekLabel} · ${seasonLabel}`;
   document.querySelector("#view-picks-confirmation .intro p").textContent = selection.testMode ? `${weekLabel} test` : `${weekLabel} · ${seasonLabel}`;
   document.getElementById("website-view-week-one").textContent = `View ${weekLabel}`;
@@ -3101,19 +3103,24 @@ async function loadActiveRegularWeek(forceRefresh = false) {
   if (!forceRefresh && websiteActiveRegularWeekLoadedAt && Date.now() - websiteActiveRegularWeekLoadedAt < 5 * 60 * 1000) return websiteRegularSelection;
   if (!websiteActiveRegularWeekPromise) websiteActiveRegularWeekPromise = (async () => {
     const data = await websiteFetchPublicRead("active-week", { enrich: "0" }, 30000);
-    websiteRegularSelection = websiteCompetitiveSelection(data);
-    if (websiteRegularSelection.staged) {
-      websiteEntrySelection = { testMode: false, ...websiteRegularSelection };
+    const activeSelection = websiteCompetitiveSelection(data);
+    if (activeSelection.staged) {
+      websiteRegularSelection = activeSelection;
+      websiteEntrySelection = { testMode: false, ...activeSelection };
       if (data.games?.length) {
-        const storedAt = Date.now(), cacheKey = `${websiteRegularSelection.phase}-${websiteRegularSelection.season}-${websiteRegularSelection.week}`, previousGames = websiteStagedGamesCache.get(cacheKey)?.games || [], games = data.games.map(game => websiteMergeGameContext(previousGames.find(previous => websiteGamesMatch(previous, game)), game));
+        const storedAt = Date.now(), cacheKey = `${activeSelection.phase}-${activeSelection.season}-${activeSelection.week}`, previousGames = websiteStagedGamesCache.get(cacheKey)?.games || [], games = data.games.map(game => websiteMergeGameContext(previousGames.find(previous => websiteGamesMatch(previous, game)), game));
         websiteStagedGamesCache.set(cacheKey, { games, storedAt });
-        try { localStorage.setItem(WEBSITE_ACTIVE_SLATE_CACHE_KEY, JSON.stringify({ selection: websiteRegularSelection, games, storedAt })); } catch (error) { console.warn(`Active slate could not be saved: ${error.message}`); }
+        try { localStorage.setItem(WEBSITE_ACTIVE_SLATE_CACHE_KEY, JSON.stringify({ selection: activeSelection, games, storedAt })); } catch (error) { console.warn(`Active slate could not be saved: ${error.message}`); }
       }
+    } else {
+      const current = await fetchWebsiteCurrentWeek();
+      websiteRegularSelection = websiteCompetitiveSelection(current);
+      websiteEntrySelection = { testMode: false, season: websiteRegularSelection.season, week: websiteRegularSelection.week + 1, phase: websiteRegularSelection.phase, staged: false };
     }
     websiteActiveRegularWeekLoadedAt = Date.now();
-    updateWebsiteWeekLabels(websiteEntrySelection);
+    updateWebsiteWeekLabels(websiteEntrySelection, websiteRegularSelection);
     if (data.games?.length) updateWebsiteTiebreakLabel(data.games);
-    return websiteRegularSelection;
+    return activeSelection;
   })().finally(() => { websiteActiveRegularWeekPromise = null; });
   return websiteActiveRegularWeekPromise;
 }
