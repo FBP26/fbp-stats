@@ -29,6 +29,7 @@ interface Env {
   CANDIDATE_LIFECYCLE_ENABLED?: string;
   OPERATIONAL_WRITES_ENABLED?: string;
   ADMIN_ACCESS_TOKEN?: string;
+  ADMIN_PUSH_TEST_TOKEN?: string;
 }
 
 type JsonObject = Record<string, unknown>;
@@ -868,6 +869,32 @@ const sendAdministratorPushEvent = async (payload: JsonObject, env: Env): Promis
   return json({ ok: true, ...await sendAdministratorPush(env, title, body, String(payload.url || "")) }, 200, env.CORS_ORIGIN);
 };
 
+const sendPushTest = async (request: Request, payload: JsonObject, env: Env): Promise<Response> => {
+  const token = env.ADMIN_PUSH_TEST_TOKEN;
+  if (!token || request.headers.get("Authorization") !== `Bearer ${token}`) return json({ ok: false, error: "Unauthorized." }, 401, env.CORS_ORIGIN);
+  const playerName = await notificationPlayerName(payload.playerName, env);
+  const kind = cleanText(payload.kind, 20);
+  const siteUrl = env.PUBLIC_SITE_URL || "https://fbp26.github.io/fbp-stats/";
+  if (kind === "admin") {
+    return json({ ok: true, kind, ...await sendAdministratorPush(env, "FBP admin test", "Test: missing-picks, new-player, late-picks, and replacement alerts are ready.", `${siteUrl}#enter-picks`) }, 200, env.CORS_ORIGIN);
+  }
+  if (kind !== "player") return json({ ok: false, error: "Choose an admin or player test." }, 400, env.CORS_ORIGIN);
+  const device = await env.DB.prepare(
+    `SELECT devices.id, devices.endpoint, devices.p256dh, devices.auth
+     FROM push_devices devices JOIN push_device_players players ON players.device_id=devices.id
+     WHERE devices.status='active' AND players.player_name=? COLLATE NOCASE
+     ORDER BY players.linked_at DESC LIMIT 1`,
+  ).bind(playerName).first<{ id: number; endpoint: string; p256dh: string; auth: string }>();
+  if (!device) return json({ ok: false, error: "No active Push device is linked to that player." }, 404, env.CORS_ORIGIN);
+  const result = await sendWebPush(
+    device,
+    { title: "FBP player alert test", body: "Test: picks ready, missing-picks reminder, live rank, game-window, and weekly recap alerts are ready.", url: `${siteUrl}#live-analysis`, tag: `fbp-player-test-${crypto.randomUUID()}` },
+    { publicKey: env.VAPID_PUBLIC_KEY!, privateKey: env.VAPID_PRIVATE_KEY!, subject: env.VAPID_SUBJECT! },
+  );
+  if (result.expired) await env.DB.prepare("UPDATE push_devices SET status='unsubscribed', unsubscribed_at=CURRENT_TIMESTAMP, updated_at=CURRENT_TIMESTAMP WHERE id=?").bind(device.id).run();
+  return json({ ok: result.ok, kind, sent: result.ok ? 1 : 0, failed: result.ok ? 0 : 1, error: result.error || "" }, result.ok ? 200 : 502, env.CORS_ORIGIN);
+};
+
 const savePushDevice = async (payload: JsonObject, env: Env): Promise<Response> => {
   if (!env.VAPID_PUBLIC_KEY || !env.VAPID_PRIVATE_KEY || !env.VAPID_SUBJECT) return json({ ok: false, error: "Push notifications are not configured yet." }, 503, env.CORS_ORIGIN);
   const subscription = pushSubscriptionFromPayload(payload.subscription);
@@ -1577,6 +1604,7 @@ const handlePost = async (request: Request, env: Env): Promise<Response> => {
   if (action === "notification-subscribers") return listNotificationSubscribers(payload, env);
   if (action === "release-picks-ready") return releasePicksReady(payload, env);
   if (action === "send-administrator-push") return sendAdministratorPushEvent(payload, env);
+  if (action === "send-push-test") return sendPushTest(request, payload, env);
   if (action === "log-visit") return handleAnalytics(payload, env);
   if (action === "subscribe-push") return savePushDevice(payload, env);
   if (action === "link-push-player") return linkPushDevicePlayer(payload, env);
