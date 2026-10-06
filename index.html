@@ -7970,7 +7970,10 @@ function startHistoricalInitialization() {
   if (!historicalInitializationPromise) historicalInitializationPromise = init().then(async () => { applyHistoricalLabels(); if (location.hash === "#weeks") { await loadDrilldown(); populateWeekSeasons(); renderWinnerContributions(true); renderPicksGrid(); setTimeout(() => { orientWeekChart(); addGamePushMarkers(); }, 0); } if (location.hash === "#season") populateSeasonChoices(); if (location.hash === "#map") initFbpMap(); if (location.hash === "#submission-status") renderSubmissionStatus(); if (websiteLastWeekData) renderWebsiteWeekRecap(websiteLastWeekData); });
   return historicalInitializationPromise;
 }
-if (requestedStartupRoute !== "week-one") startHistoricalInitialization();
+if (requestedStartupRoute !== "week-one") {
+  startHistoricalInitialization();
+  loadActiveRegularWeek().catch(error => console.warn(`Active-week label refresh failed: ${error.message}`));
+}
 </script>
 <script src="teams.js?v=20260902-2"></script>
 <script src="map.js?v=20260909-5"></script>
