@@ -750,7 +750,7 @@ const notificationRoster = async (env: Env): Promise<string[]> => {
   if (!response.ok) throw new Error("Player list unavailable. Try again shortly.");
   const rows = await response.json() as { name: string }[];
   if (!Array.isArray(rows) || !rows.length || rows.some(row => typeof row.name !== "string")) throw new Error("Player list unavailable.");
-  const current = await env.DB.prepare("SELECT canonical_name FROM players").all<{ canonical_name: string }>();
+  const current = await env.DB.prepare("SELECT DISTINCT p.canonical_name FROM players p JOIN submissions s ON s.player_id = p.id").all<{ canonical_name: string }>();
   const names = new Map(rows.map(row => [row.name.toLowerCase(), row.name]));
   current.results.forEach(row => { if (!names.has(row.canonical_name.toLowerCase())) names.set(row.canonical_name.toLowerCase(), row.canonical_name); });
   return [...names.values()].sort((left, right) => left.localeCompare(right));
