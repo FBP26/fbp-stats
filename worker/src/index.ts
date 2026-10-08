@@ -1667,6 +1667,9 @@ export default {
     }
   },
   async scheduled(controller: ScheduledController, env: Env, context: ExecutionContext): Promise<void> {
+    context.waitUntil(dispatchSubmissionConfirmationOutbox(env.DB, (to, subject, body) => sendRelayEmail(env, to, subject, body)).catch(error => {
+      console.error("Submission confirmation dispatch failed:", error instanceof Error ? error.message : "Unexpected error");
+    }));
     context.waitUntil(refreshPublicReadSnapshots(env.DB, env.PICKS_SOURCE_URL, fetch, env.CANDIDATE_LIFECYCLE_ENABLED === 'true').catch(error => {
       console.error("Public read snapshot refresh failed:", error instanceof Error ? error.message : "Unexpected error");
     }));
@@ -1687,7 +1690,6 @@ export default {
   if (refreshedWeek?.phase === 'REGULAR_SEASON') await dispatchPushNotifications(env, refreshedWeek);
     if (refreshedWeek?.phase === 'REGULAR_SEASON') await dispatchAdministratorMissingPicksAlert(env, refreshedWeek);
     if (refreshedWeek?.phase === 'REGULAR_SEASON') await dispatchWeekNotifications(env, refreshedWeek);
-    await dispatchSubmissionConfirmationOutbox(env.DB, (to, subject, body) => sendRelayEmail(env, to, subject, body));
     } finally {
       await env.DB.prepare("DELETE FROM notification_locks WHERE name = 'dispatch' AND expires_at = ?").bind(lease).run();
     }
