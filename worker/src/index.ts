@@ -1667,9 +1667,9 @@ export default {
     }
   },
   async scheduled(controller: ScheduledController, env: Env, context: ExecutionContext): Promise<void> {
-    context.waitUntil(dispatchSubmissionConfirmationOutbox(env.DB, (to, subject, body) => sendRelayEmail(env, to, subject, body)).catch(error => {
+    await dispatchSubmissionConfirmationOutbox(env.DB, (to, subject, body) => sendRelayEmail(env, to, subject, body)).catch(error => {
       console.error("Submission confirmation dispatch failed:", error instanceof Error ? error.message : "Unexpected error");
-    }));
+    });
     context.waitUntil(refreshPublicReadSnapshots(env.DB, env.PICKS_SOURCE_URL, fetch, env.CANDIDATE_LIFECYCLE_ENABLED === 'true').catch(error => {
       console.error("Public read snapshot refresh failed:", error instanceof Error ? error.message : "Unexpected error");
     }));
