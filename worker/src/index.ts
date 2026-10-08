@@ -1,4 +1,4 @@
-import { scoreWeek, scoreWeekWithoutProbabilities, type PlayerCard, type ScoringGame } from "./scoring.ts";
+import { atsOutcome, scoreWeek, scoreWeekWithoutProbabilities, type PlayerCard, type ScoringGame } from "./scoring.ts";
 import { existingOperationalCard, submitOperationalCard, SubmissionError } from './operational-submissions.ts';
 import { readOperationalPayouts } from './payouts.ts';
 import { privateLedgerHistory, privateLedgerRecords, privateLedgerTransaction } from './private-ledger.ts';
