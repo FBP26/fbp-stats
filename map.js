@@ -109,8 +109,8 @@ let fbpMapVisitorRefreshTimer = null;
 let fbpMapVisitorRefreshPending = false;
 
 async function fbpMapLoadVisitorData() {
-  const separator = WEBSITE_SUBMISSIONS_ENDPOINT.includes("?") ? "&" : "?";
-  const liveUrl = `${WEBSITE_SUBMISSIONS_ENDPOINT}${separator}action=visitor-geography&_=${Date.now()}`;
+  const separator = WEBSITE_SHEETS_ENDPOINT.includes("?") ? "&" : "?";
+  const liveUrl = `${WEBSITE_SHEETS_ENDPOINT}${separator}action=visitor-geography&_=${Date.now()}`;
   try {
     const response = await fetch(liveUrl, { cache: "no-store", signal: AbortSignal.timeout(15000) });
     if (!response.ok) throw new Error(`Visitor report returned ${response.status}`);

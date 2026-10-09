@@ -1059,7 +1059,7 @@ function websiteFlushActiveTime() {
   if (websiteAnalyticsReady && websiteActiveView && durationSeconds > 0) websiteTrackEvent("view_duration", websiteActiveView, { durationSeconds });
 }
 function websiteTrackEvent(event, view = location.hash.slice(1) || "enter-picks", extra = {}) {
-  if (!websiteAnalyticsReady || !WEBSITE_SUBMISSIONS_ENDPOINT) return;
+  if (!websiteAnalyticsReady || !WEBSITE_SHEETS_ENDPOINT) return;
   if (event === "page_view" && websiteLastTrackedView === view) return;
   if (event === "page_view") {
     websiteFlushActiveTime();
@@ -1084,14 +1084,14 @@ function websiteTrackEvent(event, view = location.hash.slice(1) || "enter-picks"
     ...websiteAnalyticsGeo,
     ...extra
   };
-  fetch(WEBSITE_SUBMISSIONS_ENDPOINT, { method: "POST", mode: "no-cors", keepalive: true, headers: { "Content-Type": "text/plain;charset=utf-8" }, body: JSON.stringify(payload) }).catch(() => {});
+  fetch(WEBSITE_SHEETS_ENDPOINT, { method: "POST", mode: "no-cors", keepalive: true, headers: { "Content-Type": "text/plain;charset=utf-8" }, body: JSON.stringify(payload) }).catch(() => {});
 }
 async function initializeWebsiteAnalytics() {
-  if (!WEBSITE_ANALYTICS_HOST || !WEBSITE_SUBMISSIONS_ENDPOINT) return;
+  if (!WEBSITE_ANALYTICS_HOST || !WEBSITE_SHEETS_ENDPOINT) return;
   try {
-    const separator = WEBSITE_SUBMISSIONS_ENDPOINT.includes("?") ? "&" : "?";
+    const separator = WEBSITE_SHEETS_ENDPOINT.includes("?") ? "&" : "?";
     const [response, geo] = await Promise.all([
-      fetch(`${WEBSITE_SUBMISSIONS_ENDPOINT}${separator}action=analytics-status`, { signal: AbortSignal.timeout(10000) }),
+      fetch(`${WEBSITE_SHEETS_ENDPOINT}${separator}action=analytics-status`, { signal: AbortSignal.timeout(10000) }),
       fetch(`${WEBSITE_NOTIFICATION_ENDPOINT}/?action=analytics-context`, { signal: AbortSignal.timeout(10000) }).then(result => result.ok ? result.json() : {}).catch(() => ({}))
     ]);
     const data = await response.json();
