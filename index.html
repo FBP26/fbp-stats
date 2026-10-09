@@ -1551,6 +1551,9 @@ function websiteRaceSnapshotSignature(snapshot) {
   const games = (snapshot?.gameState || []).map(game => [game.gameId || "", game.status || game.espnStatus || "", Number(game.awayScore ?? game.favoriteScore ?? 0), Number(game.homeScore ?? game.underdogScore ?? 0), game.period || "", game.clock || "", game.possession || ""]);
   return JSON.stringify([players, games]);
 }
+function websiteRaceGameStateSignature(snapshot) {
+  return JSON.stringify((snapshot?.gameState || []).map(game => [game.gameId || "", game.status || game.espnStatus || "", Number(game.awayScore ?? game.favoriteScore ?? 0), Number(game.homeScore ?? game.underdogScore ?? 0), game.period || "", game.clock || "", game.possession || ""]));
+}
 function stopWebsiteRace(preservePlaybackRequest = false) {
   if (websiteRaceTimer) clearTimeout(websiteRaceTimer);
   websiteRaceTimer = null;
@@ -1915,6 +1918,7 @@ function renderWebsiteRace(data) {
   let snapshots = hasCanonicalServerHistory ? calculatedServerSnapshots : websiteMergeRaceSnapshots(storedSnapshots, currentSnapshots, calculatedServerSnapshots);
   snapshots = websiteReconcileRaceSnapshots(snapshots, data.players || []);
   const current = { timestamp: data.updatedAt || new Date().toISOString(), probabilityModel: "website", gameState: (data.games || []).map(game => ({ gameId: game.gameId || "", away: game.away || "", home: game.home || "", status: websiteGameStatus(game), period: game.period || "", clock: game.clock || "", possession: game.possession || "", awayScore: game.awayScore ?? game.favoriteScore ?? "", homeScore: game.homeScore ?? game.underdogScore ?? "" })), players: (data.players || []).map(player => ({ name: player.name, winProbability: parseFloat(player.winProbability || 0) || 0, pathsToVictory: Number(player.pathsToVictory || 0), winPercent: parseFloat(player.winPercent || 0) || 0 })) };
+  if (!hasCanonicalServerHistory && snapshots.length && websiteRaceGameStateSignature(snapshots.at(-1)) !== websiteRaceGameStateSignature(current)) snapshots = [];
   const latestStored = snapshots[snapshots.length - 1];
   const currentSignature = websiteRaceSnapshotSignature(current);
   const latestSignature = websiteRaceSnapshotSignature(latestStored);
