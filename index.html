@@ -1499,6 +1499,11 @@ function websiteProbabilityText(percent) {
   if (value > 0 && value < .01) return "0.01%";
   return `${value.toFixed(2)}%`;
 }
+function websiteWinPercentText(percent) {
+  if (percent === "" || percent == null) return "";
+  const value = parseFloat(percent);
+  return Number.isFinite(value) ? `${value.toFixed(2)}%` : "";
+}
 const WEBSITE_RACE_TOP_COLORS = [[195, 88, 62], [326, 78, 67], [55, 89, 60], [266, 83, 70], [2, 84, 64], [220, 90, 68], [145, 65, 52], [16, 88, 61], [282, 76, 68], [174, 70, 48], [93, 65, 58], [345, 84, 64], [42, 92, 58], [238, 85, 70], [112, 62, 55], [305, 72, 64], [205, 82, 62], [72, 74, 52], [162, 72, 48], [28, 94, 58]];
 let websiteRaceColorAssignments = new Map();
 function websiteRaceColor(name, alpha = 1, paletteIndex = -1) {
@@ -4539,7 +4544,7 @@ function renderWebsiteWeekOneGridClean(data) {
   html += `<th class="pg-bb-hdr">BB</th><th class="pg-sum-hdr">TB${tiebreakDetail}</th></tr></thead><tbody>`;
   rows.forEach(row => {
     const selected = row.name === websiteSelectedWeekPlayer;
-    html += `<tr tabindex="0" aria-selected="${selected}" data-week-player="${websiteEscapeHtml(row.name)}"${selected ? ' class="website-row-selected"' : ""}><td class="pg-player">${row.name}</td><td class="pg-sum-cell pg-week-name">${row.weekName || ""}</td><td class="pg-sum-cell pg-w">${row.wins ?? ""}</td><td class="pg-sum-cell pg-l">${row.losses ?? ""}</td><td class="pg-sum-cell">${row.winPercent || ""}</td><td class="pg-sum-cell">${row.winProbability || ""}</td><td class="pg-sum-cell">${row.pathsToVictory ?? ""}</td>`;
+    html += `<tr tabindex="0" aria-selected="${selected}" data-week-player="${websiteEscapeHtml(row.name)}"${selected ? ' class="website-row-selected"' : ""}><td class="pg-player">${row.name}</td><td class="pg-sum-cell pg-week-name">${row.weekName || ""}</td><td class="pg-sum-cell pg-w">${row.wins ?? ""}</td><td class="pg-sum-cell pg-l">${row.losses ?? ""}</td><td class="pg-sum-cell">${websiteWinPercentText(row.winPercent)}</td><td class="pg-sum-cell">${row.winProbability || ""}</td><td class="pg-sum-cell">${row.pathsToVictory ?? ""}</td>`;
     row.picks.forEach((pick, index) => { html += `<td class="${websiteWeekOnePickClass(data, index, pick)}">${websiteWeekOneDisplayTeam((data.games || [])[index], pick)}</td>`; });
     const bestBetIndex = row.picks.findIndex(pick => String(pick).trim().toUpperCase() === String(row.bestBet).trim().toUpperCase());
     const bestBetClass = bestBetIndex < 0 ? "pg-bb-none" : websiteWeekOnePickClass(data, bestBetIndex, row.bestBet).replace("pg-pick", "pg-bb");
