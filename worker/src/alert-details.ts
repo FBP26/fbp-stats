@@ -58,9 +58,13 @@ export function observeLeads(feed: AlertFeed, previous: AlertObservation | null,
   const wins = Object.fromEntries(scored.map(player => [player.name, player.wins]));
   const changes = { ...previous?.changes };
   const started = feed.games.some(game => game.status !== "PREGAME");
+  const leaderCount = Object.values(ranks).filter(rank => rank === 1).length;
+  const priorLeaderCount = Object.values(previous?.ranks || {}).filter(rank => rank === 1).length;
   for (const player of scored) {
     if (ranks[player.name] !== 1) { delete changes[player.name]; continue; }
-    if (!started || !previous || !(previous.ranks[player.name] > 1)) continue;
+    const enteredFirst = previous && previous.ranks[player.name] > 1;
+    const reclaimedSoleFirst = previous && previous.ranks[player.name] === 1 && priorLeaderCount > 1 && leaderCount === 1;
+    if (!started || !previous || (!enteredFirst && !reclaimedSoleFirst)) continue;
     const events = feed.games.flatMap((game, index) => {
       const old = previous.games.find(row => row.gameId === game.gameId);
       if (!old || (old.favoriteScore === game.favoriteScore && old.underdogScore === game.underdogScore && old.status === game.status)) return [];

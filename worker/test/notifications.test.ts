@@ -10,6 +10,7 @@ import {
   seasonRankMovementSummary,
   weeklyRecapMessage,
 } from "../src/notifications.ts";
+import { observeLeads } from "../src/alert-details.ts";
 
 test("notification preferences use conservative defaults and accept explicit booleans", () => {
   assert.deepEqual(parseNotificationPreferences({ firstPlace: true, picksReady: false, beforeMnf: "yes" }), {
@@ -57,6 +58,22 @@ test("picks due reminder honors a configurable lead time before the first kickof
 
 test("weekly result is eligible only after finalization", () => {
   assert.deepEqual(scheduledNotificationEvents(new Date(), [], "finalized"), ["weeklyResult"]);
+});
+
+test("first-place observation records a return to sole first after a shared lead", () => {
+  const cards = [
+    { name: "Jim", weekName: "", picks: ["FAV"], bestBet: "FAV", tiebreaker: 450 },
+    { name: "Bo", weekName: "", picks: ["DOG"], bestBet: "DOG", tiebreaker: 400 },
+  ];
+  const sole = { cards, games: [{ gameId: "one", favorite: "FAV", underdog: "DOG", spread: 3.5, status: "FINAL" as const, favoriteScore: 10, underdogScore: 3, kickoff: "2026-10-11T17:00:00Z", period: "", clock: "" }] };
+  const shared = { cards, games: [{ ...sole.games[0], spread: 7 }] };
+  const first = observeLeads(sole, null, "2026-10-11T17:05:00Z");
+  const sharedLead = observeLeads(shared, first, "2026-10-11T17:10:00Z");
+  const returnToFirst = observeLeads(sole, sharedLead, "2026-10-11T17:15:00Z");
+  assert.equal(sharedLead.ranks.Jim, 1);
+  assert.equal(sharedLead.ranks.Bo, 1);
+  assert.equal(returnToFirst.changes.Jim?.from, 1);
+  assert.equal(returnToFirst.changes.Jim?.tied, false);
 });
 
 test("weekly recap uses records and breaks the winning tie by finalized tiebreak difference", () => {
