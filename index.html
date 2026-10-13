@@ -80,7 +80,7 @@
   html[data-theme="light"] :is(.tabulator-header,.tabulator-col,.tabulator-row.tabulator-row-even) { background: var(--panel-2) !important; }
   html[data-theme="light"] .tabulator-row:hover { background: #dbe9e4 !important; }
   html[data-theme="light"] :is(.website-side:has(input:checked) .website-team-choice,.website-best-bet-option:hover,.website-best-bet-option[aria-selected="true"],.website-best-bet-option.keyboard-active,.website-name-option:hover,.website-name-option.keyboard-active,.teams-team-option:hover,.teams-team-option[aria-selected="true"],.outcome-team.selected,button.outcome-spread.selected) { background: #fff0bc; color: #624700; }
-  html[data-theme="light"] .pg-bb-hdr { background: #e0f1e6; color: #17683f; }
+  html[data-theme="light"] :is(.pg-bb-hdr,.pg-tb-hdr) { background: #e0f1e6; color: #17683f; }
   html[data-theme="light"] .live-race-line-wrap { background: #18222c; }
   html[data-theme="light"] #website-race-event-panel { background: var(--panel-2); color: var(--text); }
   :root { --bg: #0d1117; --panel: #171a1f; --panel-2: #20242a; --border: #3a3d42; --text: #f3f1e8; --muted: #aaa69b; --accent: #ffcf40; --accent-2: #e6a817; --positive: #39c982; --positive-bg: #123c2d; --danger: #ff6b6b; --danger-bg: #481f24; }
@@ -649,6 +649,8 @@
   .game-cover-chart-wrap { position: relative; height: 190px; }
   .pg-round { background: #192a36; color: var(--accent); font-size: 10px; letter-spacing: .5px; text-transform: uppercase; }
   .pg-bb-hdr { background: #192a20; color: #7ee2b8; font-size: 10px; }
+  .pg-tb-hdr { background: #192a20; color: #7ee2b8; font-size: 10px; }
+  .pg-tb-actual { color: #f5b942; font: 700 14px/1 Arial, sans-serif; }
   .pg-sum-hdr { background: #202c38; color: var(--muted); font-size: 10px; }
   .pg-sum-cell { background: var(--panel-2); color: var(--text); }
   .pg-pick-win, .pg-pick-loss, .pg-pick-push { color: var(--text); font-weight: bold; }
@@ -4538,10 +4540,10 @@ function renderWebsiteWeekOneGridClean(data) {
   if (data.loading) { table.innerHTML = '<p class="website-instructions">Loading this week\'s submissions...</p>'; return; }
   if (!rows.length) { table.innerHTML = '<p style="color:var(--muted)">No submissions yet.</p>'; return; }
   const currentTiebreaker = websiteCurrentTiebreaker(data);
-  const tiebreakDetail = currentTiebreaker != null ? `<br><small>${currentTiebreaker}</small>` : "";
+  const tiebreakDetail = currentTiebreaker != null ? `<br><small class="pg-tb-actual">${currentTiebreaker}</small>` : "";
   let html = `<table class="picks-grid"><thead><tr><th class="pg-player">Player</th><th class="pg-game pg-week-name">Week ${data.week ?? websiteRegularSelection.week} name</th><th class="pg-sum-hdr pg-w">W</th><th class="pg-sum-hdr pg-l">L</th><th class="pg-sum-hdr">Win%</th><th class="pg-sum-hdr">Prob</th><th class="pg-sum-hdr">Paths</th>`;
   data.favorites.forEach((favorite, index) => { html += `<th class="pg-game">${favorite}<br><small>${data.spreads[index]}</small><br>${data.underdogs[index]}</th>`; });
-  html += `<th class="pg-bb-hdr">BB</th><th class="pg-sum-hdr">TB${tiebreakDetail}</th></tr></thead><tbody>`;
+  html += `<th class="pg-bb-hdr">BB</th><th class="pg-tb-hdr">TB${tiebreakDetail}</th></tr></thead><tbody>`;
   rows.forEach(row => {
     const selected = row.name === websiteSelectedWeekPlayer;
     html += `<tr tabindex="0" aria-selected="${selected}" data-week-player="${websiteEscapeHtml(row.name)}"${selected ? ' class="website-row-selected"' : ""}><td class="pg-player">${row.name}</td><td class="pg-sum-cell pg-week-name">${row.weekName || ""}</td><td class="pg-sum-cell pg-w">${row.wins ?? ""}</td><td class="pg-sum-cell pg-l">${row.losses ?? ""}</td><td class="pg-sum-cell">${websiteWinPercentText(row.winPercent)}</td><td class="pg-sum-cell">${row.winProbability || ""}</td><td class="pg-sum-cell">${row.pathsToVictory ?? ""}</td>`;
