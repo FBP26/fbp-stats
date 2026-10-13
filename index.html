@@ -1744,9 +1744,15 @@ function websiteRaceCheckpointEvents(snapshotIndex) {
     const away = game.away || "Away", home = game.home || "Home";
     const awayScore = websiteRaceScore(game.awayScore), homeScore = websiteRaceScore(game.homeScore);
     const priorAway = websiteRaceScore(prior?.awayScore), priorHome = websiteRaceScore(prior?.homeScore);
+    const netPassing = websiteRaceScore(game.combinedNetPassingYards ?? game.netPassingYards);
+    const priorNetPassing = websiteRaceScore(prior?.combinedNetPassingYards ?? prior?.netPassingYards);
     const moment = websiteRaceGameMoment(game);
     if (prior && Number.isFinite(awayScore) && Number.isFinite(priorAway) && awayScore > priorAway) { const points = awayScore - priorAway; events.push({ type: "score", points, team: away, opponent: home, teamScore: awayScore, opponentScore: homeScore, moment, short: `${away} +${points}`, headline: `${away} ${websiteRaceScoreAction(points)}. ${away} ${awayScore} - ${home} ${homeScore}`, lines: [`${away} ${websiteRaceScoreAction(points)}`, `Score: ${away} ${awayScore}, ${home} ${homeScore}`, moment].filter(Boolean) }); }
     if (prior && Number.isFinite(homeScore) && Number.isFinite(priorHome) && homeScore > priorHome) { const points = homeScore - priorHome; events.push({ type: "score", points, team: home, opponent: away, teamScore: homeScore, opponentScore: awayScore, moment, short: `${home} +${points}`, headline: `${home} ${websiteRaceScoreAction(points)}. ${away} ${awayScore} - ${home} ${homeScore}`, lines: [`${home} ${websiteRaceScoreAction(points)}`, `Score: ${away} ${awayScore}, ${home} ${homeScore}`, moment].filter(Boolean) }); }
+    if (prior && Number.isFinite(netPassing) && Number.isFinite(priorNetPassing) && netPassing !== priorNetPassing) {
+      const direction = netPassing > priorNetPassing ? "rose" : "fell";
+      events.push({ type: "tiebreak", netPassing, short: `Final-game passing ${netPassing}`, lines: [`Final-game net passing ${direction} to ${netPassing} yards`, moment].filter(Boolean) });
+    }
     const status = websiteGameStatus(game), priorStatus = websiteGameStatus(prior);
     if (prior && status !== priorStatus) {
       if (["IN_PROGRESS", "LIVE"].includes(status)) events.push({ type: "status", short: `${away}–${home} kickoff`, lines: [`${away}–${home} kicked off`] });
@@ -3965,6 +3971,36 @@ function websiteWinningTiebreakRange(winner, contenders, actual) {
   if (!winningTotals.includes(actual)) return null;
   return { low: winningTotals[0], high: winningTotals[winningTotals.length - 1] };
 }
+function websiteTiebreakRangeText(range) {
+  if (!range) return "";
+  if (range.low === -100) return `${range.high} and lower`;
+  if (range.high === 1200) return `${range.low} and up`;
+  return `${range.low} through ${range.high}`;
+}
+function websiteRecapGameResult(data, gameIndex) {
+  const game = data.games[gameIndex] || {};
+  const result = websiteGameWinner(data, gameIndex);
+  const favorite = String(game.favorite || data.favorites?.[gameIndex] || "").toUpperCase();
+  const underdog = String(game.underdog || data.underdogs?.[gameIndex] || "").toUpperCase();
+  if (result === "PUSH") return `${favorite} vs. ${underdog} finished as a push`;
+  const losingTeam = result === data.favorites?.[gameIndex] ? underdog : favorite;
+  return `${String(result || "The final result").toUpperCase()} covered against ${losingTeam}`;
+}
+function websiteSundayAfternoonRecord(data, player, gameWinners) {
+  const lateIndexes = data.games.map((game, index) => ({ game, index })).filter(({ game }) => {
+    const kickoff = Date.parse(String(game.kickoff || ""));
+    if (!Number.isFinite(kickoff)) return false;
+    const parts = new Intl.DateTimeFormat("en-US", { timeZone: "America/New_York", weekday: "short", hour: "numeric", hourCycle: "h23" }).formatToParts(new Date(kickoff));
+    return parts.find(part => part.type === "weekday")?.value === "Sun" && Number(parts.find(part => part.type === "hour")?.value) >= 16;
+  }).map(({ index }) => index);
+  if (!lateIndexes.length) return null;
+  const record = lateIndexes.reduce((total, index) => {
+    if (player.picks[index] === gameWinners[index]) total.wins += 1;
+    else if (gameWinners[index] !== "PUSH") total.losses += 1;
+    return total;
+  }, { wins: 0, losses: 0 });
+  return `${record.wins}-${record.losses}`;
+}
 function renderWebsiteWeekRecap(data) {
   const host = document.getElementById("week-one-recap");
   if (!host) return;
@@ -4014,14 +4050,6 @@ function renderWebsiteWeekRecap(data) {
       if (clinched) decisiveGameIndex = gameIndex;
     }
   });
-  const lateStart = Math.max(0, gameWinners.length - 4);
-  const lateGames = gameWinners.slice(lateStart);
-  const lateCorrect = lateGames.filter((gameWinner, offset) => winner.picks[lateStart + offset] === gameWinner).length;
-  const kickoffWindow = index => {
-    const game = data.games[index] || {};
-    const label = String(game.kickoffGroup || game.kickoff || game.gameTime || '').trim();
-    return label ? `the ${label} window` : `Game ${index + 1}`;
-  };
   const bestBetIndex = winner.picks.findIndex(pick => pick === winner.bestBet);
   const bestBetHit = bestBetIndex >= 0 && gameWinners[bestBetIndex] === winner.bestBet;
   const underdogWins = winner.picks.filter((pick, index) => pick === data.underdogs[index] && gameWinners[index] === pick).length;
@@ -4035,28 +4063,20 @@ function renderWebsiteWeekRecap(data) {
   const trailingLeaders = lastTrailing?.leaders.join(" and ");
   const interruptionLeaders = leadInterrupted?.leaders.filter(name => name !== winner.name).join(" and ");
   const interruptionStory = leadInterrupted?.deficit
-    ? `${leadInterrupted.leaders.join(" and ")} moved ${leadInterrupted.deficit} win${leadInterrupted.deficit === 1 ? "" : "s"} ahead after Game ${leadInterrupted.game}`
-    : `${interruptionLeaders} pulled even after Game ${leadInterrupted?.game}`;
-  const finalGame = gameWinners.length;
-  const takeoverOnFinalGame = firstSoleLead && firstSoleLead.game === finalGame;
-  const reclaimOnFinalGame = reclaimedLead && reclaimedLead.game === finalGame;
+    ? `${leadInterrupted.leaders.join(" and ")} moved ${leadInterrupted.deficit} win${leadInterrupted.deficit === 1 ? "" : "s"} ahead when ${websiteRecapGameResult(data, leadInterrupted.game - 1)}`
+    : `${interruptionLeaders} pulled even when ${websiteRecapGameResult(data, leadInterrupted.game - 1)}`;
   const journey = lastTrailing && firstSoleLead
-    ? `${winner.name} trailed ${trailingLeaders} by ${lastTrailing.deficit} win${lastTrailing.deficit === 1 ? "" : "s"} after ${kickoffWindow(lastTrailing.game - 1)}, then ${leadInterrupted && reclaimedLead
-        ? `took sole possession of first after ${kickoffWindow(firstSoleLead.game - 1)}. ${interruptionStory}, but ${winner.name} ${reclaimOnFinalGame ? "reclaimed sole first in the final kickoff window to win the pool." : `reclaimed sole first after ${kickoffWindow(reclaimedLead.game - 1)} and held it through the finish.`}`
-        : takeoverOnFinalGame ? "won the pool by taking sole possession of first in the final kickoff window." : `took sole possession of first after ${kickoffWindow(firstSoleLead.game - 1)}. The lead held through the finish.`}`
+    ? `${winner.name} trailed ${trailingLeaders} by ${lastTrailing.deficit} win${lastTrailing.deficit === 1 ? "" : "s"}, then took sole possession of first when ${websiteRecapGameResult(data, firstSoleLead.game - 1)}.${leadInterrupted && reclaimedLead ? ` ${interruptionStory}, but ${winner.name} reclaimed sole first when ${websiteRecapGameResult(data, reclaimedLead.game - 1)} and held it through the finish.` : " The lead held through the finish."}`
     : `${winner.name} never fell more than one win off the pace and held the lead through the finish.`;
   const tiebreakRange = tiedWinners.length === 1 ? websiteWinningTiebreakRange(winner, tiedOnWins, actual) : null;
   const tiebreakStory = Number.isFinite(actual) ? tiedOnWins.length > 1 && tiebreakRange
-    ? `${winner.name} needed the final passing total to land from ${tiebreakRange.low} through ${tiebreakRange.high}. It finished at ${actual}, ${difference(winner)} yards from the ${winner.tiebreaker} guess${tiebreakerMargin != null ? `, winning by ${tiebreakerMargin} yard${tiebreakerMargin === 1 ? "" : "s"} over ${closestTiebreakerRunner.name}` : ""}.`
+    ? `${winner.name} needed the final passing total to land at ${websiteTiebreakRangeText(tiebreakRange)}. It finished at ${actual}, ${difference(winner)} yards from the ${winner.tiebreaker} guess${tiebreakerMargin != null ? `, winning by ${tiebreakerMargin} yard${tiebreakerMargin === 1 ? "" : "s"} over ${closestTiebreakerRunner.name}` : ""}.`
     : `${winner.name} guessed ${winner.tiebreaker}; the actual final-game total was ${actual}, a difference of ${difference(winner)} yards.` : "The final tiebreak total was unavailable.";
   const closeCall = runnerUp ? score(winner) === score(runnerUp)
     ? `${runnerUp.name} also finished with ${score(runnerUp)} wins. ${tiebreakStory}`
     : `${runnerUp.name} came up just short, finishing ${score(winner) - score(runnerUp)} win${score(winner) - score(runnerUp) === 1 ? "" : "s"} back.` : "No runner-up was recorded.";
   const decisiveIndex = decisiveGameIndex >= 0 ? decisiveGameIndex : gameWinners.length - 1;
-  const decisiveGame = data.games[decisiveIndex] || {};
-  const decisiveOutcome = gameWinners[decisiveIndex];
-  const decisiveLabel = decisiveOutcome === "PUSH" ? "The push" : `${String(decisiveOutcome || "The final result").toUpperCase()} covered`;
-  const decisiveResult = tiedWinners.length > 1 ? "The week finished as a shared win; no single result separated the winners." : data.players.length < 2 ? "The week had one entry, so no result was needed to clinch it." : `${decisiveLabel} in ${String(decisiveGame.favorite || "").toUpperCase()} vs. ${String(decisiveGame.underdog || "").toUpperCase()}, making the finish unreachable after Game ${decisiveIndex + 1}.`;
+  const decisiveResult = tiedWinners.length > 1 ? "The week finished as a shared win; no single result separated the winners." : data.players.length < 2 ? "The week had one entry, so no result was needed to clinch it." : `${websiteRecapGameResult(data, decisiveIndex)}. ${decisiveIndex === gameWinners.length - 1 ? "It was the final game, so it sealed the Week result." : `That result made the finish unreachable with ${gameWinners.length - decisiveIndex - 1} game${gameWinners.length - decisiveIndex - 1 === 1 ? "" : "s"} remaining.`}`;
   const rarity = tiebreakZ != null && tiebreakZ >= 2 ? `${actual} net passing yards was a genuine outlier, ${tiebreakZ.toFixed(1)} standard deviations from the historical average.` : Number.isFinite(actual) ? `${actual} net passing yards finished ${Math.abs(actual - WEBSITE_TIEBREAK_MEAN)} yards from the historical average of ${WEBSITE_TIEBREAK_MEAN}.` : "The final net-passing total was unavailable.";
   const currentSeason = Number(data.season || websiteRegularSelection.season);
   const currentWeek = Number(data.week || websiteRegularSelection.week);
@@ -4080,7 +4100,7 @@ function renderWebsiteWeekRecap(data) {
     historicalDataReady ? `This is weekly win number ${careerWins} for ${winner.name}, ranking #${careerWinRank} all time.` : "Career weekly-win history will appear after the archive data loads.",
     historicalDataReady ? (lastWin ? `${winner.name}'s last weekly win was ${lastWin.season} Week ${lastWin.week}, ${weeksSinceLastWin} completed pool week${weeksSinceLastWin === 1 ? "" : "s"} ago.` : `This is ${winner.name}'s first archived weekly win.`) : "",
     careerMoney != null ? `${winner.name}'s career winnings rise to $${careerMoney.toLocaleString()}.` : "Career winnings will appear after the archive data loads.",
-    lateCorrect ? `${winner.name} went ${lateCorrect}-${lateGames.length - lateCorrect} from ${kickoffWindow(lateStart)} onward.` : `The winner survived from ${kickoffWindow(lateStart)} onward without adding another win.`,
+    websiteSundayAfternoonRecord(data, winner, gameWinners) ? `${winner.name} went ${websiteSundayAfternoonRecord(data, winner, gameWinners)} from Sunday afternoon onward.` : "No Sunday 4 PM-or-later games were available for a closing-window record.",
     `${bestBetHit ? "The best bet hit" : "The best bet missed"}: ${String(winner.bestBet || "none").toUpperCase()}.`,
     underdogWins ? `${winner.name} picked ${underdogWins} winning underdog${underdogWins === 1 ? "" : "s"}.` : `${winner.name} won without a successful underdog pick.`,
     tiebreakStory,
@@ -4089,7 +4109,8 @@ function renderWebsiteWeekRecap(data) {
   const winnerNames = tiedWinners.map(player => player.name).join(" and ");
   const greeting = tiedWinners.length > 1 ? `Congratulations to ${winnerNames} on sharing Week ${currentWeek}!` : `Congratulations, ${winner.name}, on winning Week ${currentWeek}!`;
   const winCountLine = historicalDataReady ? `This is weekly win number ${careerWins} for ${winner.name}, ranking #${careerWinRank} all time.${lastWin ? ` The last one came in ${lastWin.season} Week ${lastWin.week}, ${weeksSinceLastWin} completed pool weeks ago.` : ""}` : "Career weekly-win history will appear after the archive data loads.";
-  const draft = [greeting, "", journey, closeCall, `${winner.name} finished with ${score(winner)} wins, ${lateCorrect ? `going ${lateCorrect}-${lateGames.length - lateCorrect} from ${kickoffWindow(lateStart)} onward` : `and had already done enough before ${kickoffWindow(lateStart)}`}. ${bestBetHit ? `The ${String(winner.bestBet).toUpperCase()} Best Bet delivered the extra win.` : `The win held up even without help from the ${String(winner.bestBet || "").toUpperCase()} Best Bet.`}`, underdogWins ? `${winner.name} also picked ${underdogWins} winning underdog${underdogWins === 1 ? "" : "s"}.` : "", runnerUp && score(winner) !== score(runnerUp) ? tiebreakStory : "", "", historicalPercentile != null ? `${winner.wins}-${winner.losses} is better than ${historicalPercentile}% of weekly winners all time.` : "", winCountLine, careerMoney != null ? `Career winnings now stand at $${careerMoney.toLocaleString()}.` : "", "", "Great week and a well-earned win."].filter(line => line !== "").join("\n");
+  const sundayAfternoonRecord = websiteSundayAfternoonRecord(data, winner, gameWinners);
+  const draft = [greeting, "", journey, closeCall, `${winner.name} finished with ${score(winner)} wins.${sundayAfternoonRecord ? ` From Sunday afternoon onward, ${winner.name} went ${sundayAfternoonRecord}.` : ""} ${bestBetHit ? `${winner.name} won their Best Bet on ${String(winner.bestBet).toUpperCase()}.` : `${winner.name}'s Best Bet on ${String(winner.bestBet || "").toUpperCase()} did not hit.`}`, underdogWins ? `${winner.name} also picked ${underdogWins} winning underdog${underdogWins === 1 ? "" : "s"}.` : "", runnerUp && score(winner) !== score(runnerUp) ? tiebreakStory : "", "", historicalPercentile != null ? `${winner.wins}-${winner.losses} is better than ${historicalPercentile}% of weekly winners all time.` : "", winCountLine, careerMoney != null ? `Career winnings now stand at $${careerMoney.toLocaleString()}.` : "", "", "Great week and a well-earned win."].filter(line => line !== "").join("\n");
   host.innerHTML = `<section class="week-recap"><h3 class="compact-live-title">Week ${currentWeek} story</h3><div class="week-recap-grid"><div class="week-recap-item"><span>Winner</span><strong>${websiteEscapeHtml(winnerNames)} · ${score(winner)} wins</strong></div><div class="week-recap-item"><span>Decisive result</span><strong>${websiteEscapeHtml(decisiveResult)}</strong></div><div class="week-recap-item"><span>Journey</span><strong>${websiteEscapeHtml(journey)}</strong></div><div class="week-recap-item"><span>Came up just short</span><strong>${websiteEscapeHtml(closeCall)}</strong></div></div><h3 class="compact-live-title">Winner message draft</h3><div class="winner-draft">${websiteEscapeHtml(draft)}</div></section>`;
 }
 function websiteKickoffDisplay(value) {
@@ -4142,7 +4163,7 @@ function websiteRaceStoryMoment(moment) {
 function websiteRaceStoryEvent(snapshotIndex) {
   const events = websiteRaceCheckpointEvents(snapshotIndex);
   const event = events.filter(item => item.type === "score").sort((left, right) => right.points - left.points)[0] || events[0];
-  if (!event) return "the race probabilities changed";
+  if (!event) return "the live score or final-game passing total updated";
   if (event.type !== "score") return String(event.lines?.[0] || event.short || "the game state changed").replace(/[.]$/, "");
   const moment = websiteRaceStoryMoment(event.moment);
   return `${event.team} ${websiteRaceScoreAction(event.points)}. ${event.team} ${event.teamScore} - ${event.opponent} ${event.opponentScore}${moment ? `. ${moment}` : ""}`;
@@ -4197,11 +4218,12 @@ function renderWebsiteRaceStories() {
     const currentRank = new Map([...snapshot.players].sort((left, right) => Number(right[metric] || 0) - Number(left[metric] || 0)).map((player, rank) => [player.name, rank]));
     const previousRank = new Map([...previous.players].sort((left, right) => Number(right[metric] || 0) - Number(left[metric] || 0)).map((player, rank) => [player.name, rank]));
     const previousValues = new Map(previous.players.map(player => [player.name, Number(player[metric] || 0)]));
+    const scoreChanged = websiteRaceCheckpointEvents(snapshotIndex).some(event => event.type === "score");
     snapshot.players.forEach(player => {
       const jump = previousRank.has(player.name) && currentRank.has(player.name) ? previousRank.get(player.name) - currentRank.get(player.name) : 0;
       const swing = Number(player[metric] || 0) - Number(previousValues.get(player.name) || 0);
       if (snapshotIndex > firstScoringCheckpoint && (!biggestJump || jump > biggestJump.value)) biggestJump = { name: player.name, value: jump, from: previousRank.get(player.name) + 1, to: currentRank.get(player.name) + 1, snapshotIndex };
-      if (!biggestSwing || Math.abs(swing) > Math.abs(biggestSwing.value)) biggestSwing = { name: player.name, value: swing, from: previousValues.get(player.name) || 0, to: Number(player[metric] || 0), snapshotIndex };
+      if (scoreChanged && (!biggestSwing || Math.abs(swing) > Math.abs(biggestSwing.value))) biggestSwing = { name: player.name, value: swing, from: previousValues.get(player.name) || 0, to: Number(player[metric] || 0), snapshotIndex };
     });
   });
   const topTime = [...leadership.totals.values()].sort((left, right) => right.duration - left.duration)[0];
