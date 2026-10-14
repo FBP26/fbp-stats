@@ -3855,6 +3855,42 @@ async function renderWebsiteConfirmation(submission, result) {
   renderConfirmationPicks(submission);
   await Promise.allSettled([renderConfirmationHistory(submission), loadConfirmationProbability(submission)]);
 }
+function websiteConfirmationEmailText() {
+  const sectionText = id => {
+    const copy = document.getElementById(id)?.cloneNode(true);
+    if (!copy) return "";
+    copy.querySelectorAll("br").forEach(element => element.replaceWith("\n"));
+    copy.querySelectorAll("th, td").forEach(element => element.append(element.nextElementSibling ? "\t" : "\n"));
+    copy.querySelectorAll("h1, h2, h3, h4, p, li").forEach(element => element.append("\n"));
+    return copy.textContent.replace(/[ \t]+\n/g, "\n").replace(/\n{3,}/g, "\n\n").trim();
+  };
+  return ["confirmation-lead", "confirmation-identity", "confirmation-picks", "confirmation-history"].map(sectionText).filter(Boolean).join("\n\n").slice(0, 15000);
+}
+function websiteConfirmationEmailSections() {
+  const cleanText = value => String(value || "").replace(/\s+/g, " ").trim();
+  return ["confirmation-identity", "confirmation-picks", "confirmation-history"].map(id => {
+    const host = document.getElementById(id);
+    if (!host) return null;
+    const headings = [...host.querySelectorAll("h3, h4")].map(heading => cleanText(heading.textContent)).filter(Boolean);
+    const paragraphs = [...host.querySelectorAll("p")].map(paragraph => cleanText(paragraph.textContent)).filter(Boolean).slice(0, 12);
+    const table = host.querySelector("table");
+    const headers = table ? [...table.querySelectorAll("thead th")].map(header => cleanText(header.textContent)).filter(Boolean).slice(0, 8) : [];
+    const rows = table ? [...table.querySelectorAll("tbody tr")].map(row => [...row.querySelectorAll("td")].map(cell => cleanText(cell.textContent).slice(0, 1000)).slice(0, headers.length || 8)).filter(row => row.some(Boolean)).slice(0, 8) : [];
+    return { heading: headings[0] || "", paragraphs, headers, rows };
+  }).filter(section => section && (section.heading || section.paragraphs.length || section.rows.length));
+}
+async function sendWebsitePickConfirmationEmail(confirmationEmailToken) {
+  if (!confirmationEmailToken || !WEBSITE_SUBMISSIONS_ENDPOINT) return true;
+  const payload = { action: "send-pick-confirmation-email", confirmationEmailToken, confirmationText: websiteConfirmationEmailText(), confirmationSections: websiteConfirmationEmailSections() };
+  for (let attempt = 0; attempt < 2; attempt++) {
+    try {
+      const response = await fetch(WEBSITE_SUBMISSIONS_ENDPOINT, { method: "POST", keepalive: true, headers: { "Content-Type": "text/plain;charset=utf-8" }, body: JSON.stringify(payload), signal: AbortSignal.timeout(20000) });
+      const result = await response.json();
+      if (response.ok && result.ok) return true;
+    } catch (error) { console.warn(`Confirmation email attempt ${attempt + 1} failed:`, error); }
+  }
+  return false;
+}
 let websiteBestBetMismatchAttempts = 0;
 let websiteBestBetMismatchSignature = "";
 let websiteApprovedNewPlayerName = "";
@@ -4002,6 +4038,7 @@ document.getElementById("website-picks-form").onsubmit = async event => {
     const confirmationReady = renderWebsiteConfirmation(submission, result);
     websiteClearPickDraft(); form.reset(); resetWebsiteBestBet(); showWebsiteConfirmation();
     await confirmationReady;
+    if (!await sendWebsitePickConfirmationEmail(result.confirmationEmailToken)) console.warn("Picks were saved, but the combined admin confirmation email could not be verified.");
     websiteBestBetMismatchAttempts = 0; websiteBestBetMismatchSignature = ""; websiteApprovedNewPlayerName = "";
   } catch (error) { status.textContent = `Could not submit picks: ${error.message}`; }
   finally {
