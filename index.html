@@ -3660,7 +3660,7 @@ async function renderConfirmationHistory(submission) {
     const metricValue = (team, count, empty = "No completed history") => team && count ? `${teamLabel(team)} · ${count}` : empty;
     const recordValue = (record, empty) => record ? `${teamLabel(record.team)} · ${record.wins}-${record.losses}${record.pushes ? `-${record.pushes}` : ""}` : empty;
     const currentBestBetRecordValue = (record, empty) => record ? `${teamLabel(record.team)} - ${record.wins}-${record.losses}${record.pushes ? `-${record.pushes}` : ""}` : empty;
-    const gapValue = (team, missed, empty) => team ? `${teamLabel(team)} · ${missed ? `${missed} team ${missed === 1 ? "game" : "games"}` : "first chance"}` : empty;
+    const gapValue = (team, missed, empty) => team ? `${teamLabel(team)} · ${missed || "first chance"}` : empty;
     host.innerHTML = `<h3>Your pick patterns</h3>${confirmationMetricTable([
       { label: "Most picked team", value: metricValue(mostPickedTeam, mostPickedCount, "No completed picks") },
       { label: "Most picked against", value: metricValue(mostFadedTeam, mostFadedCount, "No completed fades") },

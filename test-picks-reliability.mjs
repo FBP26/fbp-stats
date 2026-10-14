@@ -14,7 +14,7 @@ assert.match(html, /\.confirmation-metric-table th \{ width: 1%; white-space: no
 assert.match(html, /Longest time since picked"/);
 assert.match(html, /Longest time since picked against"/);
 assert.doesNotMatch(html, /Longest time since you picked/);
-assert.match(html, /team \$\{missed === 1 \? "game" : "games"\}/);
+assert.doesNotMatch(html, /team \$\{missed === 1 \? "game" : "games"\}/);
 assert.match(html, /Current Best Bet record/);
 assert.doesNotMatch(html, /Current Best Bet run/);
 assert.match(html, /currentBestBetRecordValue\(currentBestBetRecord, "No current Best Bet"\)/);
