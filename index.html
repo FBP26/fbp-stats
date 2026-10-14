@@ -262,7 +262,7 @@
   .confirmation-metric-table th, .confirmation-metric-table td { padding: 8px 0; border-bottom: 1px solid var(--border); text-align: left; vertical-align: top; }
   .confirmation-metric-table tr:last-child th, .confirmation-metric-table tr:last-child td { border-bottom: 0; }
   .confirmation-metric-table th { width: 1%; white-space: nowrap; color: var(--muted); font-size: 11px; font-weight: normal; text-transform: uppercase; letter-spacing: .5px; }
-  .confirmation-metric-table td { width: 38%; padding-left: 18px; color: var(--text); font-weight: bold; text-align: left; white-space: nowrap; }
+  .confirmation-metric-table td { width: 38%; padding-left: 18px; color: var(--text); font-weight: bold; text-align: right; white-space: nowrap; }
   .confirmation-metric-table td small { display: block; margin-top: 2px; color: var(--muted); font-size: 11px; font-weight: normal; }
   .confirmation-metrics { display: grid; grid-template-columns: repeat(4, minmax(0, 1fr)); gap: 7px; margin-top: 10px; }
   .confirmation-metric { min-width: 0; padding: 12px 7px; border: 1px solid var(--border); background: var(--panel-2); text-align: center; }
@@ -3650,6 +3650,15 @@ async function renderConfirmationHistory(submission) {
       records.set(team, record);
       return records;
     }, new Map()).values()].filter(record => record.team && record.wins + record.losses >= 3);
+    const bestBetAgainstRecord = [...completedBestBetAgainstHistory.reduce((records, row) => {
+      const team = opponentFor(row), result = String(row.result).toLowerCase();
+      const record = records.get(team) || { team, wins: 0, losses: 0, pushes: 0 };
+      if (result === "win") record.wins += 1;
+      else if (result === "loss") record.losses += 1;
+      else if (result === "push") record.pushes += 1;
+      records.set(team, record);
+      return records;
+    }, new Map()).values()].filter(record => record.team && record.wins + record.losses >= 3);
     const currentBestBetRecord = currentBestBet ? completedBestBetHistory.reduce((record, row) => {
       if (bestBetFor(row) !== currentBestBet) return record;
       const result = String(row.result).toLowerCase();
@@ -3669,6 +3678,8 @@ async function renderConfirmationHistory(submission) {
     }, { team: currentBestBetAgainstTeam, wins: 0, losses: 0, pushes: 0 }) : null;
     const bestBestBetRecord = [...bestBetRecord].sort(compareTeamPerformance)[0] || null;
     const worstBestBetRecord = [...bestBetRecord].sort(compareTeamPerformance).at(-1) || null;
+    const bestBestBetAgainstRecord = [...bestBetAgainstRecord].sort(compareTeamPerformance)[0] || null;
+    const worstBestBetAgainstRecord = [...bestBetAgainstRecord].sort(compareTeamPerformance).at(-1) || null;
     const pickRepeat = currentTeams.map(team => currentChoiceRun(team)).sort((left, right) => right.length - left.length || websiteNaturalTeamName(left.team).localeCompare(websiteNaturalTeamName(right.team)))[0] || { team: "", length: 0 };
     const fadeRepeat = currentOpponents.map(team => currentChoiceRun(team, true)).sort((left, right) => right.length - left.length || websiteNaturalTeamName(left.team).localeCompare(websiteNaturalTeamName(right.team)))[0] || { team: "", length: 0 };
     const longestPickGap = currentTeams.map(team => regularOpportunityGap(team)).sort((left, right) => right.missed - left.missed || websiteNaturalTeamName(left.team).localeCompare(websiteNaturalTeamName(right.team)))[0] || { team: "", missed: 0 };
@@ -3698,7 +3709,9 @@ async function renderConfirmationHistory(submission) {
       { label: "Current Best Bet record", value: currentBestBetRecordValue(currentBestBetRecord, "No current Best Bet") },
       { label: "Current Best Bet against record", value: currentBestBetRecordValue(currentBestBetAgainstRecord, "No current Best Bet against") },
       { label: "Best record as Best Bet", value: recordValue(bestBestBetRecord, "No qualified Best Bet record") },
-      { label: "Worst record as Best Bet", value: recordValue(worstBestBetRecord, "No qualified Best Bet record") }
+      { label: "Worst record as Best Bet", value: recordValue(worstBestBetRecord, "No qualified Best Bet record") },
+      { label: "Best record against Best Bet", value: recordValue(bestBestBetAgainstRecord, "No qualified Best Bet against record") },
+      { label: "Worst record against Best Bet", value: recordValue(worstBestBetAgainstRecord, "No qualified Best Bet against record") }
     ])}`;
     return;
     const activeWinningRun = rows => {
