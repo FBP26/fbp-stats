@@ -3557,7 +3557,7 @@ async function loadConfirmationProbability(submission) {
 const WEBSITE_CURRENT_NFL_TEAMS = ["ARI", "ATL", "BAL", "BUF", "CAR", "CHI", "CIN", "CLE", "DAL", "DEN", "DET", "GB", "HOU", "IND", "JAX", "KC", "LAC", "LA", "LV", "MIA", "MIN", "NE", "NO", "NYG", "NYJ", "PHI", "PIT", "SEA", "SF", "TB", "TEN", "WAS"];
 function websiteCanonicalTeam(value) {
   const code = String(value || "").trim().toUpperCase();
-  return { JAC: "JAX", LAR: "LA", OAK: "LV", SD: "LAC", STL: "LA" }[code] || code;
+  return { LAR: "LA", OAK: "LV", SD: "LAC", STL: "LA" }[code] || code;
 }
 async function renderConfirmationHistory(submission) {
   const host = document.getElementById("confirmation-history");
