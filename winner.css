@@ -113,6 +113,7 @@ footer { padding: 30px 20px; border-top: 1px solid var(--border); color: var(--m
 .pick-helped { margin-top: auto; padding-top: 5px; border-top: 1px solid rgb(255 255 255 / 8%); font-size: 11px; font-weight: 800; }
 .neutral-value { color: var(--muted); font-weight: 700; }
 .best-bet-tag { display: inline-block; align-self: flex-start; padding: 2px 6px; border-radius: 99px; background: var(--gold); color: #15202b; font-size: 9px; font-style: normal; font-weight: 850; letter-spacing: .05em; }
+.pick strong .best-bet-tag { margin-left: 7px; vertical-align: middle; }
 .winner-tag { margin-left: 7px; padding: 2px 6px; border-radius: 99px; background: var(--gold); color: #15202b; font-size: 9px; font-style: normal; font-weight: 850; }
 .highlight-grid { display: grid; grid-template-columns: repeat(3, 1fr); gap: 10px; }
 .highlight { padding: 16px; border-radius: 12px; background: var(--panel-2); }
@@ -187,6 +188,30 @@ footer { padding: 30px 20px; border-top: 1px solid var(--border); color: var(--m
 .positive-value { color: var(--teal); font-weight: 800; }
 .negative-value { color: var(--red); font-weight: 800; }
 .table-scroll { overflow-x: auto; }
+.helped-table .field-cell { color: var(--muted); font-weight: 700; white-space: nowrap; }
+.impact-map-shell { display: grid; gap: 12px; }
+.impact-map-shell.has-inset { grid-template-columns: minmax(0, 1fr) 272px; }
+.impact-map { height: 460px; border: 1px solid var(--border); border-radius: 13px; background: #0a131b; }
+.impact-map-inset { display: flex; flex-direction: column; padding: 11px; border: 1px solid var(--gold); border-radius: 13px; background: var(--panel-2); }
+.impact-map-inset small { display: block; margin-bottom: 7px; color: var(--gold); font-size: 10px; font-weight: 850; letter-spacing: .06em; text-transform: uppercase; }
+.impact-map-canvas { flex: 1; min-height: 200px; border-radius: 9px; background: #0a131b; }
+.impact-map-caption { margin: 9px 0 0; color: var(--muted); font-size: 12px; font-weight: 700; line-height: 1.5; }
+.map-legend { display: flex; flex-wrap: wrap; gap: 14px; align-items: center; margin-top: 12px; color: var(--muted); font-size: 12px; font-weight: 700; }
+.legend-dot { display: inline-block; width: 11px; height: 11px; margin-right: 6px; border: 1px solid #f3f1e8; border-radius: 50%; vertical-align: -1px; }
+.legend-dot.helped { background: #3fbf8f; }
+.legend-dot.hurt { background: #e2566f; }
+.legend-dot.neutral { background: #8b97a6; }
+.legend-note { font-style: italic; }
+.impact-popup .leaflet-popup-content-wrapper { border: 1px solid var(--gold); border-radius: 11px; background: #071018; color: var(--text); box-shadow: var(--shadow); }
+.impact-popup .leaflet-popup-tip { background: #071018; border: 1px solid var(--gold); }
+.impact-popup .leaflet-popup-content { margin: 11px 13px; font-size: 12px; }
+.impact-popup a.leaflet-popup-close-button { color: var(--muted); }
+.map-popup small { display: block; color: var(--muted); font-size: 10px; letter-spacing: .05em; text-transform: uppercase; }
+.map-popup strong { font-size: 15px; }
+.map-popup-venue { display: block; margin: 2px 0 7px; color: var(--muted); font-size: 11px; }
+.map-popup-row { display: flex; justify-content: space-between; gap: 14px; padding: 4px 0; border-top: 1px solid rgb(255 255 255 / 8%); }
+.map-popup-row span { color: var(--muted); }
+.map-popup-row strong { font-size: 12px; text-align: right; }
 .standings-table tr.winner-row { background: rgb(244 196 79 / 12%); }
 .standings-table tr.winner-row td { border-bottom-color: rgb(244 196 79 / 30%); }
 .standings-table td:first-child { color: var(--muted); font-weight: 800; white-space: nowrap; }
@@ -203,6 +228,7 @@ footer { padding: 30px 20px; border-top: 1px solid var(--border); color: var(--m
 @media (max-width: 850px) {
   .stat-grid, .highlight-grid { grid-template-columns: repeat(2, 1fr); }
   .confirmation-grid, .metric-grid, .leadership-grid { grid-template-columns: 1fr; }
+  .impact-map-shell.has-inset { grid-template-columns: 1fr; }
   .chart-wrap { height: 260px; }
 }
 @media (max-width: 560px) {
@@ -213,6 +239,9 @@ footer { padding: 30px 20px; border-top: 1px solid var(--border); color: var(--m
   .section-heading { align-items: start; flex-direction: column; }
   .race-toolbar-top { align-items: start; flex-direction: column; }
   .tiebreak-track { overflow-x: auto; }
-  .helped-table { min-width: 620px; }
+  .helped-table { min-width: 720px; }
   .standings-table { min-width: 680px; }
+  .impact-map { height: 340px; }
+  .impact-map-shell.has-inset { grid-template-columns: 1fr; }
+  .impact-map-canvas { min-height: 170px; }
 }
