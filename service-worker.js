@@ -1,4 +1,4 @@
-const CACHE_NAME = "fbp-shell-v28";
+const CACHE_NAME = "fbp-shell-v29";
 const APP_SHELL = ["./", "./index.html", "./historical-ui.js", "./teams.js", "./map.js", "./map.css", "./manifest.webmanifest"];
 
 self.addEventListener("install", event => {
@@ -25,4 +25,23 @@ self.addEventListener("fetch", event => {
     event.waitUntil(caches.open(CACHE_NAME).then(cache => cache.put(event.request, copy)));
     return response;
   }).catch(() => caches.match(event.request)));
+});
+
+self.addEventListener("push", event => {
+  const payload = event.data?.json?.() || {};
+  const title = String(payload.title || "FBP update");
+  event.waitUntil(self.registration.showNotification(title, {
+    body: String(payload.body || "Open FBP for the latest update."),
+    tag: String(payload.tag || "fbp-update"),
+    data: { url: String(payload.url || "./") },
+  }));
+});
+
+self.addEventListener("notificationclick", event => {
+  event.notification.close();
+  const target = new URL(event.notification.data?.url || "./", self.registration.scope).href;
+  event.waitUntil(clients.matchAll({ type: "window", includeUncontrolled: true }).then(windows => {
+    const existing = windows.find(window => window.url.startsWith(self.registration.scope));
+    return existing ? existing.focus() : clients.openWindow(target);
+  }));
 });

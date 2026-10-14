@@ -2592,6 +2592,44 @@ async function saveNotificationPreferences(event) {
   } catch (error) { status.textContent = error.message; }
   finally { button.disabled = false; }
 }
+const WEBSITE_PUSH_DEVICE_TOKEN = "fbpPushDeviceToken";
+const websiteBase64UrlBytes = value => Uint8Array.from(atob(value.replace(/-/g, "+").replace(/_/g, "/") + "===".slice((value.length + 3) % 4)), character => character.charCodeAt(0));
+async function initializePushNotifications() {
+  const emailSettings = document.querySelector(".notification-settings"), emailForm = document.getElementById("notification-preferences-form");
+  if (!emailSettings || !emailForm || !("serviceWorker" in navigator) || !("PushManager" in window)) return;
+  emailSettings.insertAdjacentHTML("afterend", '<details class="notification-settings notification-preview" id="push-notification-settings"><summary>Push notifications</summary><form class="notification-form" id="push-notification-form"><label>Player name<input id="push-notification-player" list="notification-player-options" autocomplete="name" required></label><div class="notification-events"><label><input type="checkbox" name="picksReady" checked><span>Picks are ready<small>A reviewed weekly slate opens.</small></span></label><label><input type="checkbox" name="picksDue" checked><span>Picks due reminder<small><input type="number" name="picksDueMinutes" min="5" max="300" step="5" value="60" aria-label="Minutes before kickoff"> min before kickoff.</small></span></label><label><input type="checkbox" name="weeklyResult" checked><span>Weekly recap<small>Final weekly standings are available.</small></span></label></div><button id="push-notification-save" type="submit">Enable push notifications</button><p class="notification-status" id="push-notification-status"></p></form></details>');
+  const form = document.getElementById("push-notification-form"), player = document.getElementById("push-notification-player"), button = document.getElementById("push-notification-save"), status = document.getElementById("push-notification-status");
+  const token = () => localStorage.getItem(WEBSITE_PUSH_DEVICE_TOKEN);
+  const updateButton = () => { button.textContent = token() ? "Disable push notifications" : "Enable push notifications"; };
+  player.value = localStorage.getItem("fbpPushPlayer") || "";
+  status.textContent = token() ? "Push notifications are enabled on this device." : "Enable browser notifications for FBP updates.";
+  updateButton();
+  form.addEventListener("submit", async event => {
+    event.preventDefault(); button.disabled = true;
+    try {
+      if (token()) {
+        const response = await fetch(WEBSITE_NOTIFICATION_ENDPOINT, { method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify({ action: "disable-push", deviceToken: token() }) });
+        const data = await response.json(); if (!response.ok || !data.ok) throw new Error(data.error || "Push notifications could not be disabled.");
+        const registration = await navigator.serviceWorker.ready; await (await registration.pushManager.getSubscription())?.unsubscribe();
+        localStorage.removeItem(WEBSITE_PUSH_DEVICE_TOKEN); localStorage.removeItem("fbpPushPlayer"); status.textContent = "Push notifications are disabled on this device."; updateButton(); return;
+      }
+      const selected = notificationPlayerValidation(player.value); if (!selected.name) throw new Error(selected.message); player.value = selected.name;
+      const configResponse = await fetch(`${WEBSITE_NOTIFICATION_ENDPOINT}/?action=notification-status`, { signal: AbortSignal.timeout(10000) });
+      const config = await configResponse.json(); if (!configResponse.ok || !config.channels?.push || !config.vapidPublicKey) throw new Error("Push notifications are not ready yet.");
+      const permission = Notification.permission === "granted" ? "granted" : await Notification.requestPermission(); if (permission !== "granted") throw new Error("Notification permission was not granted.");
+      const registration = await navigator.serviceWorker.ready;
+      const subscription = await registration.pushManager.getSubscription() || await registration.pushManager.subscribe({ userVisibleOnly: true, applicationServerKey: websiteBase64UrlBytes(config.vapidPublicKey) });
+      const preferences = Object.fromEntries(["picksReady", "picksDue", "firstPlace", "earlyWindow", "lateWindow", "beforeSnf", "beforeMnf", "weeklyResult"].map(name => [name, Boolean(form.elements[name]?.checked)]));
+      const saved = await fetch(WEBSITE_NOTIFICATION_ENDPOINT, { method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify({ action: "subscribe-push", subscription: subscription.toJSON(), preferences, picksDueMinutes: Number(form.elements.picksDueMinutes.value) || 60 }) });
+      const data = await saved.json(); if (!saved.ok || !data.ok) throw new Error(data.error || "Push notifications could not be enabled.");
+      localStorage.setItem(WEBSITE_PUSH_DEVICE_TOKEN, data.deviceToken);
+      const linked = await fetch(WEBSITE_NOTIFICATION_ENDPOINT, { method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify({ action: "link-push-player", deviceToken: data.deviceToken, playerName: selected.name }) });
+      const linkData = await linked.json(); if (!linked.ok || !linkData.ok) throw new Error(linkData.error || "Push was enabled but could not be linked to your player.");
+      localStorage.setItem("fbpPushPlayer", linkData.playerName); status.textContent = `Push notifications are enabled for ${linkData.playerName}.`; updateButton();
+    } catch (error) { status.textContent = error.message || "Push notifications could not be updated."; }
+    finally { button.disabled = false; }
+  });
+}
 function websitePickSelection() { return websiteEntrySelection; }
 function updateWebsiteWeekLabels(selection) {
   const seasonLabel = `${selection.season}-${selection.season + 1}`;
@@ -7207,6 +7245,7 @@ function applyHistoricalLabels() {
 applyHistoricalLabels();
 document.getElementById("notification-preferences-form")?.addEventListener("submit", saveNotificationPreferences);
 initializeNotificationPreferences();
+initializePushNotifications();
 let historicalInitializationPromise = null;
 function startHistoricalInitialization() {
   if (!historicalInitializationPromise) historicalInitializationPromise = init().then(async () => { applyHistoricalLabels(); populateWeekSeasons(); populateSeasonChoices(); if (location.hash === "#weeks") { await loadDrilldown(); renderWinnerContributions(true); renderPicksGrid(); setTimeout(() => { orientWeekChart(); addGamePushMarkers(); }, 0); } if (location.hash === "#map") initFbpMap(); if (location.hash === "#submission-status") renderSubmissionStatus(); if (websiteLastWeekData) renderWebsiteWeekRecap(websiteLastWeekData); });
