@@ -1,15 +1,23 @@
-import { scoreWeekWithoutProbabilities, type PlayerCard, type ScoringGame } from "./scoring";
+import { compareStandings, scoreWeekWithoutProbabilities, type PlayerCard, type ScoringGame } from "./scoring";
 import { espnEventId, fetchEspnGame, isRefreshWindow, parseEspnGame, type StoredGame } from "./espn";
-import { validateRaceSnapshotPlayers } from "./race";
-import { maskNotificationDestination, normalizeNotificationDestination, notificationEvents, notificationPreferenceColumns, parseNotificationPreferences, picksDueReminderIsEligible, scheduledNotificationEvents, type NotificationChannel, type NotificationEvent } from "./notifications";
+import { buildRaceGameState, validateRaceSnapshotPlayers } from "./race";
+import { leaderPushSummary, maskNotificationDestination, normalizeNotificationDestination, notificationEvents, notificationPreferenceColumns, parseNotificationPreferences, picksDueReminderIsEligible, scheduledNotificationEvents, seasonRankMovementSummary, type LeaderPushScoreChange, type NotificationChannel, type NotificationEvent, type SeasonStanding } from "./notifications";
+import { sendWebPush, type PushSubscriptionRecord } from "./web-push";
 
 interface Env {
   DB: D1Database;
   CORS_ORIGIN: string;
+  RESEND_API_KEY?: string;
+  EMAIL_FROM?: string;
   EMAIL_RELAY_URL?: string;
   EMAIL_RELAY_SECRET?: string;
   PUBLIC_API_URL?: string;
   PUBLIC_SITE_URL?: string;
+  VAPID_PUBLIC_KEY?: string;
+  VAPID_PRIVATE_KEY?: string;
+  VAPID_SUBJECT?: string;
+  ADMIN_PUSH_PLAYER?: string;
+  ADMIN_PUSH_TEST_SECRET?: string;
 }
 
 type JsonObject = Record<string, unknown>;
@@ -68,9 +76,14 @@ const activeWeek = async (db: D1Database): Promise<Record<string, unknown> | nul
     )
     .first();
 
-const refreshActiveGameStates = async (db: D1Database): Promise<{ refreshed: number; skipped: string }> => {
+const latestFinalizedRegularSeasonWeek = async (db: D1Database): Promise<Record<string, unknown> | null> =>
+  db
+    .prepare("SELECT * FROM weeks WHERE phase = 'REGULAR_SEASON' AND status = 'finalized' ORDER BY season DESC, week DESC LIMIT 1")
+    .first();
+
+const refreshActiveGameStates = async (db: D1Database): Promise<{ refreshed: number; skipped: string; scoreChanges: LeaderPushScoreChange[] }> => {
   const week = await activeWeek(db);
-  if (!week) return { refreshed: 0, skipped: "no-active-week" };
+  if (!week) return { refreshed: 0, skipped: "no-active-week", scoreChanges: [] };
   const result = await db
     .prepare(
       `SELECT id, external_id, favorite, underdog, home_team, away_team, metadata_json
@@ -87,17 +100,30 @@ const refreshActiveGameStates = async (db: D1Database): Promise<{ refreshed: num
     awayTeam: String(row.away_team),
     metadata: JSON.parse(String(row.metadata_json || "{}")) as Record<string, unknown>,
   }));
-  if (!games.length) return { refreshed: 0, skipped: "no-games" };
-  if (!isRefreshWindow(games)) return { refreshed: 0, skipped: "outside-game-window" };
+  if (!games.length) return { refreshed: 0, skipped: "no-games", scoreChanges: [] };
+  if (!isRefreshWindow(games)) return { refreshed: 0, skipped: "outside-game-window", scoreChanges: [] };
   const eventIds = games.map(espnEventId);
-  if (eventIds.some((eventId) => !eventId)) return { refreshed: 0, skipped: "missing-espn-event-id" };
+  if (eventIds.some((eventId) => !eventId)) return { refreshed: 0, skipped: "missing-espn-event-id", scoreChanges: [] };
+  const priorStates = await db.prepare("SELECT game_id, favorite_score, underdog_score FROM game_states WHERE game_id IN (SELECT id FROM games WHERE week_id = ?)")
+    .bind(week.id).all<{ game_id: number; favorite_score: number | null; underdog_score: number | null }>();
+  const priorStateByGameId = new Map(priorStates.results.map((state) => [state.game_id, state]));
   const payloads = await Promise.all(eventIds.map(fetchEspnGame));
   const updatedAt = new Date().toISOString();
   const updates = games.map((game, index) => parseEspnGame(payloads[index], game));
   const lastGameIndex = games.reduce((latest, game, index) => game.externalId > games[latest].externalId ? index : latest, 0);
   const statements: D1PreparedStatement[] = [];
+  const scoreChanges: LeaderPushScoreChange[] = [];
   games.forEach((game, index) => {
     const update = updates[index];
+    const prior = priorStateByGameId.get(game.id);
+    const favoritePoints = Number(update.favoriteScore) - Number(prior?.favorite_score ?? 0);
+    const underdogPoints = Number(update.underdogScore) - Number(prior?.underdog_score ?? 0);
+    if (Number.isFinite(favoritePoints) && favoritePoints > 0 && update.favoriteScore !== null && update.underdogScore !== null) {
+      scoreChanges.push({ team: game.favorite, points: favoritePoints, opposingTeam: game.underdog, teamScore: update.favoriteScore, opposingScore: update.underdogScore, spread: Number(game.metadata.spread ?? 0) });
+    }
+    if (Number.isFinite(underdogPoints) && underdogPoints > 0 && update.favoriteScore !== null && update.underdogScore !== null) {
+      scoreChanges.push({ team: game.underdog, points: underdogPoints, opposingTeam: game.favorite, teamScore: update.underdogScore, opposingScore: update.favoriteScore, spread: -Number(game.metadata.spread ?? 0) });
+    }
     const metadata = {
       ...game.metadata,
       status: update.status,
@@ -134,7 +160,7 @@ const refreshActiveGameStates = async (db: D1Database): Promise<{ refreshed: num
   statements.push(db.prepare("UPDATE weeks SET status = ?, tiebreak_actual = ? WHERE id = ?")
     .bind(weekStatus, finalTiebreaker, week.id));
   await db.batch(statements);
-  return { refreshed: games.length, skipped: "" };
+  return { refreshed: games.length, skipped: "", scoreChanges };
 };
 
 const getWeekConfig = async (db: D1Database, weekId: number): Promise<JsonObject[]> => {
@@ -265,7 +291,8 @@ const sha256 = async (value: string): Promise<string> => {
   return [...new Uint8Array(digest)].map((byte) => byte.toString(16).padStart(2, "0")).join("");
 };
 
-const finalizeWeek = async (db: D1Database, week: Record<string, unknown>): Promise<boolean> => {
+const finalizeWeek = async (env: Env, week: Record<string, unknown>): Promise<boolean> => {
+  const db = env.DB;
   if (String(week.status) !== "finalizing" || week.tiebreak_actual === null) return false;
   const weekId = Number(week.id);
   const games = await getWeekConfig(db, weekId);
@@ -303,6 +330,23 @@ const finalizeWeek = async (db: D1Database, week: Record<string, unknown>): Prom
     db.prepare("UPDATE weeks SET status = 'finalized', finalized_at = ? WHERE id = ? AND status = 'finalizing'")
       .bind(finalizedAt, weekId),
   ]);
+  const cards = await loadPlayerCards(db, weekId);
+  const finalGames = games.map((game) => ({
+    favorite: String(game.favorite), underdog: String(game.underdog), spread: Number(game.spread),
+    status: String(game.state) as ScoringGame["status"],
+    favoriteScore: game.favoriteScore === null ? null : Number(game.favoriteScore),
+    underdogScore: game.underdogScore === null ? null : Number(game.underdogScore),
+  }));
+  const winner = scoreWeekWithoutProbabilities(cards, finalGames, Number(week.tiebreak_actual)).sort(compareStandings)[0];
+  const winnerSummary = winner
+    ? `Winner: ${winner.name} (${winner.wins}-${winner.losses})\nTiebreaker: ${winner.tiebreaker} (actual: ${week.tiebreak_actual}; difference: ${winner.tiebreakDifference})`
+    : "Winner could not be calculated from the finalized cards.";
+  await sendOwnerOperationalEmail(env, `FBP Week ${weekNumber} finalized`, [
+    `${season}-${season + 1} Week ${weekNumber} is finalized in D1.`, "", winnerSummary, "",
+    `${submissions.length} active submission${submissions.length === 1 ? "" : "s"} were archived.`, "",
+    "Payout reconciliation remains manual; this deployment did not change financial balances.", "",
+    `Open FBP: ${env.PUBLIC_SITE_URL || "https://fbp26.github.io/fbp-stats/"}`,
+  ].join("\n"));
   return true;
 };
 
@@ -365,8 +409,14 @@ const handleGet = async (request: Request, env: Env): Promise<Response> => {
   }
   if (action === "notification-status") return json({
     ok: true,
-    channels: { email: Boolean(env.EMAIL_RELAY_URL && env.EMAIL_RELAY_SECRET), sms: false },
+    channels: { email: directEmailConfigured(env) || relayEmailConfigured(env), push: pushConfigured(env), sms: false },
+    vapidPublicKey: env.VAPID_PUBLIC_KEY || "",
   }, 200, env.CORS_ORIGIN);
+  if (action === "backend-status") {
+    const week = await activeWeek(env.DB);
+    return json({ ok: true, owner: "D1", epoch: 1, available: true, writesEnabled: true, season: Number(week?.season) || 2026, week: Number(week?.week) || 0, staged: Boolean(week) }, 200, env.CORS_ORIGIN);
+  }
+  if (action === "review-week-setup") return reviewWeekSetupCandidate(url.searchParams.get("token") || "", env);
 
   if (action === "verify-notifications" || action === "unsubscribe-notifications") {
     const rawToken = url.searchParams.get("token") || "";
@@ -411,7 +461,7 @@ const handleGet = async (request: Request, env: Env): Promise<Response> => {
     if (!week) {
       return json({ ok: true, staged: false, season: 2026, week: 1, phase: "REGULAR_SEASON", games: [] }, 200, env.CORS_ORIGIN);
     }
-    const games = await getWeekConfig(env.DB, Number(week.id));
+    const games = await enrichActiveSlateGames(await getWeekConfig(env.DB, Number(week.id)), Number(week.season), Number(week.week));
     return json({
       ok: true,
       staged: true,
@@ -436,6 +486,32 @@ const handleGet = async (request: Request, env: Env): Promise<Response> => {
   const week = await findWeek(env.DB, season, weekNumber, phase);
   if (!week) return json({ ok: false, error: "Week not found." }, 404, env.CORS_ORIGIN);
   const weekId = Number(week.id);
+
+  if (action === "existing-submission") {
+    const name = cleanText(url.searchParams.get("name"), 100).replace(/\s+/g, " ");
+    if (!name) return json({ ok: false, error: "A player name is required." }, 400, env.CORS_ORIGIN);
+    const submission = await env.DB.prepare(
+      `SELECT s.id, s.submitted_at, s.week_name, s.best_bet_game_index, s.tiebreaker, p.canonical_name
+       FROM submissions s JOIN players p ON p.id = s.player_id
+       WHERE s.week_id = ? AND p.canonical_name = ? COLLATE NOCASE AND s.superseded_at IS NULL
+       ORDER BY s.submitted_at DESC LIMIT 1`,
+    ).bind(weekId, name).first<{ id: number; submitted_at: string; week_name: string; best_bet_game_index: number; tiebreaker: number; canonical_name: string }>();
+    if (!submission) return json({ ok: true, owner: "D1", epoch: 1, writesEnabled: true, submissionId: null, exists: false, player: null }, 200, env.CORS_ORIGIN);
+    const picks = await env.DB.prepare(
+      `SELECT sp.picked_team FROM submission_picks sp
+       JOIN games g ON g.id = sp.game_id
+       WHERE sp.submission_id = ? ORDER BY g.game_index`,
+    ).bind(submission.id).all<{ picked_team: string }>();
+    const player = {
+      submittedAt: submission.submitted_at,
+      name: submission.canonical_name,
+      weekName: submission.week_name,
+      picks: picks.results.map((pick) => pick.picked_team),
+      bestBet: picks.results[Number(submission.best_bet_game_index)]?.picked_team || "",
+      tiebreaker: Number(submission.tiebreaker),
+    };
+    return json({ ok: true, owner: "D1", epoch: 1, writesEnabled: true, submissionId: submission.id, exists: true, name: submission.canonical_name, submittedAt: submission.submitted_at, player }, 200, env.CORS_ORIGIN);
+  }
 
   if (action === "week-config") {
     const games = await getWeekConfig(env.DB, weekId);
@@ -509,22 +585,372 @@ const randomToken = (): string => {
   return [...bytes].map((byte) => byte.toString(16).padStart(2, "0")).join("");
 };
 
-const sendRelayEmail = async (env: Env, to: string, subject: string, body: string, htmlBody = ""): Promise<boolean> => {
+const directEmailConfigured = (env: Env): boolean => Boolean(env.RESEND_API_KEY?.trim() && env.EMAIL_FROM?.trim());
+
+const relayEmailConfigured = (env: Env): boolean => Boolean(env.EMAIL_RELAY_URL?.trim() && env.EMAIL_RELAY_SECRET?.trim());
+
+const pushConfigured = (env: Env): boolean => Boolean(env.VAPID_PUBLIC_KEY?.trim() && env.VAPID_PRIVATE_KEY?.trim() && env.VAPID_SUBJECT?.trim());
+
+const pushSubscriptionFromPayload = (value: unknown): PushSubscriptionRecord => {
+  const source = value && typeof value === "object" ? value as Record<string, unknown> : {};
+  const keys = source.keys && typeof source.keys === "object" ? source.keys as Record<string, unknown> : {};
+  const endpoint = cleanText(source.endpoint, 2000), p256dh = cleanText(keys.p256dh, 200), auth = cleanText(keys.auth, 100);
+  if (!/^https:\/\//.test(endpoint) || !/^[A-Za-z0-9_-]{80,}$/.test(p256dh) || !/^[A-Za-z0-9_-]{20,}$/.test(auth)) throw new Error("This browser did not provide a valid push subscription.");
+  return { endpoint, p256dh, auth };
+};
+
+const savePushDevice = async (payload: JsonObject, env: Env): Promise<Response> => {
+  if (!pushConfigured(env)) return json({ ok: false, error: "Push notifications are not configured yet." }, 503, env.CORS_ORIGIN);
+  const subscription = pushSubscriptionFromPayload(payload.subscription), preferences = parseNotificationPreferences(payload.preferences);
+  if (!notificationEvents.some((event) => preferences[event])) return json({ ok: false, error: "Choose at least one alert." }, 400, env.CORS_ORIGIN);
+  const existing = await env.DB.prepare("SELECT device_token,status,picks_ready,picks_due,first_place,early_window,late_window,before_snf,before_mnf,weekly_result FROM push_devices WHERE endpoint=?")
+    .bind(subscription.endpoint).first<Record<string, unknown>>();
+  const deviceToken = String(existing?.device_token || randomToken()), values = notificationEvents.map((event) => preferences[event] ? 1 : 0);
+  const preferencesChanged = existing?.status === "active" && notificationEvents.some((event, index) => Number(existing[notificationPreferenceColumns[event]]) !== values[index]);
+  await env.DB.prepare(`INSERT INTO push_devices(endpoint,p256dh,auth,device_token,device_token_hash,status,picks_ready,picks_due,picks_due_minutes,first_place,early_window,late_window,before_snf,before_mnf,weekly_result,updated_at) VALUES(?,?,?,?,?,'active',?,?,?,?,?,?,?,?,?,CURRENT_TIMESTAMP) ON CONFLICT(endpoint) DO UPDATE SET p256dh=excluded.p256dh,auth=excluded.auth,status='active',picks_ready=excluded.picks_ready,picks_due=excluded.picks_due,picks_due_minutes=excluded.picks_due_minutes,first_place=excluded.first_place,early_window=excluded.early_window,late_window=excluded.late_window,before_snf=excluded.before_snf,before_mnf=excluded.before_mnf,weekly_result=excluded.weekly_result,unsubscribed_at=NULL,updated_at=CURRENT_TIMESTAMP`)
+    .bind(subscription.endpoint, subscription.p256dh, subscription.auth, deviceToken, await sha256(deviceToken), values[0], values[1], Math.max(5, Math.min(300, Math.round(Number(payload.picksDueMinutes) || 60))), ...values.slice(2)).run();
+  if (!existing || existing.status !== "active") {
+    await sendAdministratorPushOnce(env, "adminPushEnabled", `admin-push-enabled:${deviceToken}`, "Push enabled", "A browser enabled FBP Push notifications.");
+  } else if (preferencesChanged) {
+    await sendAdministratorPushOnce(env, "adminPushPreferencesChanged", `admin-push-preferences:${deviceToken}:${new Date().toISOString()}`, "Push preferences changed", "A browser changed its FBP Push notification preferences.");
+  }
+  return json({ ok: true, deviceToken, status: "active" }, 200, env.CORS_ORIGIN);
+};
+
+const linkPushDevicePlayer = async (payload: JsonObject, env: Env): Promise<Response> => {
+  const token = cleanText(payload.deviceToken, 64), playerName = cleanText(payload.playerName, 100).replace(/\s+/g, " ");
+  if (!/^[a-f0-9]{64}$/.test(token)) return json({ ok: false, error: "Push notifications are not enabled on this device." }, 404, env.CORS_ORIGIN);
+  const player = await env.DB.prepare("SELECT canonical_name FROM players WHERE canonical_name=? COLLATE NOCASE").bind(playerName).first<{ canonical_name: string }>();
+  const device = await env.DB.prepare("SELECT id FROM push_devices WHERE device_token_hash=? AND status='active'").bind(await sha256(token)).first<{ id: number }>();
+  if (!player) return json({ ok: false, error: "Choose an existing player name." }, 400, env.CORS_ORIGIN);
+  if (!device) return json({ ok: false, error: "Push notifications are no longer active on this device." }, 404, env.CORS_ORIGIN);
+  const linked = await env.DB.prepare("INSERT INTO push_device_players(device_id,player_name) VALUES(?,?) ON CONFLICT(device_id,player_name) DO NOTHING").bind(device.id, player.canonical_name).run();
+  if (linked.meta.changes) await sendAdministratorPushOnce(env, "adminPushLinked", `admin-push-linked:${device.id}:${player.canonical_name.toLowerCase()}`, "Push linked", `${player.canonical_name} linked an active Push device.`);
+  return json({ ok: true, playerName: player.canonical_name }, 200, env.CORS_ORIGIN);
+};
+
+const disablePushDevice = async (payload: JsonObject, env: Env): Promise<Response> => {
+  const token = cleanText(payload.deviceToken, 64);
+  if (!/^[a-f0-9]{64}$/.test(token)) return json({ ok: false, error: "Push notifications are not enabled on this device." }, 404, env.CORS_ORIGIN);
+  const device = await env.DB.prepare("SELECT id FROM push_devices WHERE device_token_hash=? AND status='active'").bind(await sha256(token)).first<{ id: number }>();
+  const players = device ? await env.DB.prepare("SELECT player_name FROM push_device_players WHERE device_id=? ORDER BY player_name").bind(device.id).all<{ player_name: string }>() : { results: [] };
+  const disabled = await env.DB.prepare("UPDATE push_devices SET status='unsubscribed',unsubscribed_at=COALESCE(unsubscribed_at,CURRENT_TIMESTAMP),updated_at=CURRENT_TIMESTAMP WHERE device_token_hash=? AND status='active'").bind(await sha256(token)).run();
+  if (disabled.meta.changes) await sendAdministratorPushOnce(env, "adminPushDisabled", `admin-push-disabled:${device?.id}:${new Date().toISOString()}`, "Push disabled", `${players.results.map((player) => player.player_name).join(", ") || "A browser"} disabled FBP Push notifications.`);
+  return json({ ok: true }, 200, env.CORS_ORIGIN);
+};
+
+const dispatchPicksReadyPush = async (env: Env, week: Record<string, unknown>): Promise<NotificationDispatchResult> => {
+  const result = { sent: 0, skipped: 0, failed: 0 };
+  if (!pushConfigured(env)) return result;
+  const devices = await env.DB.prepare("SELECT * FROM push_devices WHERE status='active' AND picks_ready=1").all<Record<string, unknown>>();
+  for (const device of devices.results) {
+    const key = `picksReady:${week.id}`;
+    const queued = await env.DB.prepare("INSERT INTO push_deliveries(device_id,week_id,event_type,deduplication_key,status) VALUES(?,?,?,?, 'queued') ON CONFLICT(device_id,deduplication_key) DO NOTHING").bind(device.id, week.id, "picksReady", key).run();
+    if (!queued.meta.changes) { result.skipped += 1; continue; }
+    const sent = await sendWebPush({ endpoint: String(device.endpoint), p256dh: String(device.p256dh), auth: String(device.auth) }, {
+      title: `Week ${week.week} picks are ready`, body: "The reviewed slate is open. Submit your picks before the first kickoff.", url: `${(env.PUBLIC_SITE_URL || "https://fbp26.github.io/fbp-stats/").replace(/\/$/, "")}#enter-picks`, tag: `fbp-${key}`,
+    }, { publicKey: env.VAPID_PUBLIC_KEY!, privateKey: env.VAPID_PRIVATE_KEY!, subject: env.VAPID_SUBJECT! });
+    if (sent.expired) await env.DB.prepare("UPDATE push_devices SET status='unsubscribed',unsubscribed_at=CURRENT_TIMESTAMP,updated_at=CURRENT_TIMESTAMP WHERE id=?").bind(device.id).run();
+    await env.DB.prepare("UPDATE push_deliveries SET status=?,sent_at=?,error_message=? WHERE device_id=? AND deduplication_key=?").bind(sent.ok ? "sent" : "failed", sent.ok ? new Date().toISOString() : null, sent.error || null, device.id, key).run();
+    if (sent.ok) result.sent += 1;
+    else result.failed += 1;
+  }
+  return result;
+};
+
+const sendAdministratorPushOnce = async (env: Env, eventType: string, deduplicationKey: string, title: string, body: string, weekId?: number): Promise<void> => {
+  const administrator = cleanText(env.ADMIN_PUSH_PLAYER, 100).replace(/\s+/g, " ");
+  if (!administrator || !pushConfigured(env)) return;
+  const devices = await env.DB.prepare(
+    `SELECT DISTINCT d.* FROM push_devices d
+     JOIN push_device_players p ON p.device_id = d.id
+     WHERE d.status = 'active' AND p.player_name = ? COLLATE NOCASE`,
+  ).bind(administrator).all<Record<string, unknown>>();
+  for (const device of devices.results) {
+    const queued = await env.DB.prepare(
+      "INSERT INTO push_deliveries(device_id,week_id,event_type,deduplication_key,status) VALUES(?,?,?,?, 'queued') ON CONFLICT(device_id,deduplication_key) DO NOTHING",
+    ).bind(device.id, weekId || null, eventType, deduplicationKey).run();
+    if (!queued.meta.changes) continue;
+    const sent = await sendWebPush({ endpoint: String(device.endpoint), p256dh: String(device.p256dh), auth: String(device.auth) }, {
+      title, body, url: `${(env.PUBLIC_SITE_URL || "https://fbp26.github.io/fbp-stats/").replace(/\/$/, "")}#enter-picks`, tag: `fbp-${deduplicationKey}`,
+    }, { publicKey: env.VAPID_PUBLIC_KEY!, privateKey: env.VAPID_PRIVATE_KEY!, subject: env.VAPID_SUBJECT! });
+    if (sent.expired) await env.DB.prepare("UPDATE push_devices SET status='unsubscribed',unsubscribed_at=CURRENT_TIMESTAMP,updated_at=CURRENT_TIMESTAMP WHERE id=?").bind(device.id).run();
+    await env.DB.prepare("UPDATE push_deliveries SET status=?,sent_at=?,error_message=? WHERE device_id=? AND deduplication_key=?")
+      .bind(sent.ok ? "sent" : "failed", sent.ok ? new Date().toISOString() : null, sent.error || null, device.id, deduplicationKey).run();
+  }
+};
+
+const dispatchWeekPushNotifications = async (env: Env, week: Record<string, unknown>, scoreChanges: LeaderPushScoreChange[] = []): Promise<void> => {
+  if (!pushConfigured(env)) return;
+  const games = await getWeekConfig(env.DB, Number(week.id));
+  const events = new Set(scheduledNotificationEvents(new Date(), games, String(week.status)));
+  const current = await buildCurrentWeek(env.DB, week);
+  const players = (Array.isArray(current.players) ? current.players as JsonObject[] : []).sort((left, right) =>
+    Number(right.total || 0) - Number(left.total || 0)
+    || Number(left.tiebreakDifference ?? Number.POSITIVE_INFINITY) - Number(right.tiebreakDifference ?? Number.POSITIVE_INFINITY)
+    || Number(left.losses || 0) - Number(right.losses || 0)
+    || String(left.name).localeCompare(String(right.name)),
+  );
+  const hasStarted = games.some((game) => ["LIVE", "FINAL"].includes(String(game.state)));
+  if (hasStarted && players.length) events.add("firstPlace");
+  if (!events.size) return;
+  const latestProbabilities = await env.DB.prepare(
+    `SELECT player_name, win_probability FROM race_snapshots
+     WHERE week_id = ? AND captured_at = (SELECT MAX(captured_at) FROM race_snapshots WHERE week_id = ?)`,
+  ).bind(week.id, week.id).all<{ player_name: string; win_probability: number }>();
+  const probabilityByPlayer = new Map(latestProbabilities.results.map((player) => [player.player_name.toLowerCase(), Number(player.win_probability)]));
+  const seasonStandings = events.has("weeklyResult") ? await scoreArchivedSeason(env.DB, week) : null;
+  const devices = await env.DB.prepare("SELECT * FROM push_devices WHERE status='active'").all<Record<string, unknown>>();
+  for (const device of devices.results) {
+    const linked = await env.DB.prepare("SELECT player_name FROM push_device_players WHERE device_id=?").bind(device.id).all<{ player_name: string }>();
+    for (const event of events) {
+      const column = notificationPreferenceColumns[event];
+      if (!Number(device[column])) continue;
+      const followed = linked.results.map((link) => players.find((player) => String(player.name).toLowerCase() === link.player_name.toLowerCase())).filter(Boolean);
+      if (event === "picksDue" && followed.length) continue;
+      if (event === "firstPlace" && !followed.some((player) => String(player?.name).toLowerCase() === String(players[0]?.name).toLowerCase())) continue;
+      const key = event === "firstPlace" ? `${event}:${week.id}:${String(players[0]?.name || "").toLowerCase()}` : `${event}:${week.id}`;
+      const queued = await env.DB.prepare("INSERT INTO push_deliveries(device_id,week_id,event_type,deduplication_key,status) VALUES(?,?,?,?, 'queued') ON CONFLICT(device_id,deduplication_key) DO NOTHING")
+        .bind(device.id, week.id, event, key).run();
+      if (!queued.meta.changes) continue;
+      const followedName = linked.results[0]?.player_name || "";
+      const body = event === "firstPlace"
+        ? leaderPushSummary(
+          { name: String(players[0]?.name || "The leader"), winProbability: probabilityByPlayer.get(String(players[0]?.name || "").toLowerCase()) ?? null },
+          players[1] ? { name: String(players[1].name), winProbability: probabilityByPlayer.get(String(players[1].name).toLowerCase()) ?? null } : null,
+          scoreChanges.at(-1) || null,
+        )
+        : event === "weeklyResult" && followedName
+        ? weeklyResultSummary(players, followedName, seasonStandings)
+        : event === "picksDue" ? "Your picks are not in yet. Open FBP before the first kickoff." : "Open FBP for the latest pool update.";
+      const sent = await sendWebPush({ endpoint: String(device.endpoint), p256dh: String(device.p256dh), auth: String(device.auth) }, {
+        title: `FBP Week ${week.week}: ${notificationEventLabels[event]}`,
+        body,
+        url: `${(env.PUBLIC_SITE_URL || "https://fbp26.github.io/fbp-stats/").replace(/\/$/, "")}#current-week`, tag: `fbp-${key}`,
+      }, { publicKey: env.VAPID_PUBLIC_KEY!, privateKey: env.VAPID_PRIVATE_KEY!, subject: env.VAPID_SUBJECT! });
+      if (sent.expired) await env.DB.prepare("UPDATE push_devices SET status='unsubscribed',unsubscribed_at=CURRENT_TIMESTAMP,updated_at=CURRENT_TIMESTAMP WHERE id=?").bind(device.id).run();
+      await env.DB.prepare("UPDATE push_deliveries SET status=?,sent_at=?,error_message=? WHERE device_id=? AND deduplication_key=?")
+        .bind(sent.ok ? "sent" : "failed", sent.ok ? new Date().toISOString() : null, sent.error || null, device.id, key).run();
+    }
+  }
+};
+
+const sendResendEmail = async (env: Env, to: string, subject: string, body: string, htmlBody = ""): Promise<boolean> => {
+  if (!directEmailConfigured(env)) return false;
+  try {
+    const response = await fetch("https://api.resend.com/emails", {
+      method: "POST",
+      headers: {
+        Authorization: `Bearer ${env.RESEND_API_KEY?.trim()}`,
+        "Content-Type": "application/json",
+      },
+      body: JSON.stringify({
+        from: env.EMAIL_FROM?.trim(),
+        to: [to],
+        subject,
+        text: body,
+        ...(htmlBody ? { html: htmlBody } : {}),
+      }),
+    });
+    if (!response.ok) console.warn("Resend email failed", response.status, await response.text());
+    return response.ok;
+  } catch (error) {
+    console.warn("Resend email failed", error);
+    return false;
+  }
+};
+
+const sendEmail = async (env: Env, to: string, subject: string, body: string, htmlBody = ""): Promise<boolean> => {
+  if (await sendResendEmail(env, to, subject, body, htmlBody)) return true;
   if (!env.EMAIL_RELAY_URL?.trim() || !env.EMAIL_RELAY_SECRET?.trim()) return false;
-  const response = await fetch(env.EMAIL_RELAY_URL, {
+  try {
+    const response = await fetch(env.EMAIL_RELAY_URL, {
+      method: "POST",
+      headers: { "Content-Type": "text/plain;charset=UTF-8" },
+      body: JSON.stringify({ action: "send-notification-email", secret: env.EMAIL_RELAY_SECRET, to, subject, body, htmlBody }),
+    });
+    const result = await response.json().catch(() => null) as { ok?: boolean } | null;
+    return response.ok && result?.ok === true;
+  } catch (error) {
+    console.warn("Email relay failed", error);
+    return false;
+  }
+};
+
+const sendPickSubmissionEmail = async (env: Env, details: JsonObject): Promise<boolean> => {
+  if (!env.EMAIL_RELAY_URL?.trim() || !env.EMAIL_RELAY_SECRET?.trim()) return false;
+  const response = await fetch(env.EMAIL_RELAY_URL.trim(), {
     method: "POST",
     headers: { "Content-Type": "text/plain;charset=UTF-8" },
-    body: JSON.stringify({ action: "send-notification-email", secret: env.EMAIL_RELAY_SECRET, to, subject, body, htmlBody }),
+    body: JSON.stringify({ action: "send-pick-submission-email", secret: env.EMAIL_RELAY_SECRET, ...details }),
   });
   const result = await response.json().catch(() => null) as { ok?: boolean } | null;
   return response.ok && result?.ok === true;
+};
+
+const sendOwnerOperationalEmail = async (env: Env, subject: string, body: string): Promise<boolean> => {
+  if (directEmailConfigured(env)) return sendEmail(env, "fbpool07@gmail.com", subject, body);
+  const relayUrl = env.EMAIL_RELAY_URL?.trim();
+  if (!relayUrl || !env.EMAIL_RELAY_SECRET?.trim()) return false;
+  const response = await fetch(relayUrl, {
+    method: "POST",
+    headers: { "Content-Type": "text/plain;charset=UTF-8" },
+    body: JSON.stringify({ action: "send-owner-operational-email", secret: env.EMAIL_RELAY_SECRET, subject, body }),
+  });
+  const result = await response.json().catch(() => null) as { ok?: boolean } | null;
+  return response.ok && result?.ok === true;
+};
+
+type YahooWeekGame = {
+  gameId: string;
+  kickoff: string;
+  away: string;
+  home: string;
+  favorite: string;
+  spread: number;
+  underdog: string;
+  url: string;
+};
+
+const fetchYahooWeekGames = async (season: number, week: number): Promise<YahooWeekGame[]> => {
+  const url = `https://site.api.espn.com/apis/site/v2/sports/football/nfl/scoreboard?dates=${season}&seasontype=2&week=${week}&limit=100`;
+  const response = await fetch(url, { cf: { cacheTtl: 300 } });
+  if (!response.ok) throw new Error(`ESPN schedule request returned HTTP ${response.status}.`);
+  const scoreboard = await response.json() as { events?: { id?: string; date?: string; competitions?: { competitors?: { homeAway?: string; team?: { abbreviation?: string } }[]; odds?: { details?: string }[] }[] }[] };
+  return (scoreboard.events || []).map((event) => {
+    const competition = event.competitions?.[0] || {};
+    const away = competition.competitors?.find((team) => team.homeAway === "away")?.team?.abbreviation || "";
+    const home = competition.competitors?.find((team) => team.homeAway === "home")?.team?.abbreviation || "";
+    const odds = String(competition.odds?.[0]?.details || "").match(/^([A-Z]+)\s+-?(\d+(?:\.\d+)?)$/);
+    const favoriteCode = odds?.[1] || "";
+    const underdogCode = favoriteCode === away ? home : away;
+    return {
+      gameId: `espn.${event.id || ""}`,
+      kickoff: String(event.date || ""),
+      away: away.toLowerCase(),
+      home: home.toUpperCase(),
+      favorite: favoriteCode === home ? home.toUpperCase() : favoriteCode.toLowerCase(),
+      spread: Number(odds?.[2]),
+      underdog: underdogCode === home ? home.toUpperCase() : underdogCode.toLowerCase(),
+      url,
+    };
+  }).filter((game) => game.gameId !== "espn." && game.kickoff && game.away && game.home && game.favorite && game.underdog && Number.isFinite(game.spread))
+    .sort((left, right) => Date.parse(left.kickoff) - Date.parse(right.kickoff));
+};
+
+const normalizeNflAbbreviation = (value: unknown): string => ({ WSH: "WAS", JAC: "JAX", LA: "LAR" }[String(value || "").toUpperCase()] || String(value || "").toUpperCase());
+
+const enrichActiveSlateGames = async (games: JsonObject[], season: number, week: number): Promise<JsonObject[]> => {
+  const response = await fetch(`https://site.api.espn.com/apis/site/v2/sports/football/nfl/scoreboard?dates=${season}&seasontype=2&week=${week}&limit=100`, { cf: { cacheTtl: 300 } });
+  if (!response.ok) return games;
+  const scoreboard = await response.json() as { events?: { id?: string; competitions?: { competitors?: { homeAway?: string; team?: { abbreviation?: string; displayName?: string } }[]; venue?: { fullName?: string; address?: { city?: string; state?: string } }; broadcasts?: { names?: string[] }[] }[] }[] };
+  const events = new Map((scoreboard.events || []).map((event) => [String(event.id || ""), event]));
+  return games.map((game) => {
+    const event = events.get(String(game.gameId || "").replace(/^espn\./, ""));
+    const competition = event?.competitions?.[0];
+    if (!competition) return game;
+    const team = (homeAway: string) => competition.competitors?.find((entry) => entry.homeAway === homeAway)?.team;
+    const away = team("away"), home = team("home"), venue = competition.venue;
+    const normalizedFavorite = normalizeNflAbbreviation(game.favorite);
+    const normalizedUnderdog = normalizeNflAbbreviation(game.underdog);
+    return {
+      ...game,
+      favorite: String(game.favorite || "") === String(game.favorite || "").toUpperCase() ? normalizedFavorite : normalizedFavorite.toLowerCase(),
+      underdog: String(game.underdog || "") === String(game.underdog || "").toUpperCase() ? normalizedUnderdog : normalizedUnderdog.toLowerCase(),
+      away: normalizeNflAbbreviation(away?.abbreviation).toLowerCase() || game.away,
+      home: normalizeNflAbbreviation(home?.abbreviation) || game.home,
+      awayTeam: { abbreviation: normalizeNflAbbreviation(away?.abbreviation), name: away?.displayName || "" },
+      homeTeam: { abbreviation: normalizeNflAbbreviation(home?.abbreviation), name: home?.displayName || "" },
+      venueName: venue?.fullName || "",
+      venueCity: venue?.address?.city || "",
+      venueState: venue?.address?.state || "",
+      broadcast: competition.broadcasts?.flatMap((entry) => entry.names || []).join(", ") || "",
+    };
+  });
+};
+
+const createWeekSetupCandidate = async (env: Env): Promise<void> => {
+  const active = await latestFinalizedRegularSeasonWeek(env.DB);
+  if (!active || Number(active.week) >= 18) return;
+  const season = Number(active.season), week = Number(active.week) + 1;
+  const games = await fetchYahooWeekGames(season, week);
+  if (games.length < 10 || games.length > 16) return;
+  const slateJson = JSON.stringify({ season, week, games });
+  const slateHash = await sha256(slateJson);
+  const existing = await env.DB.prepare(
+    "SELECT id FROM week_setup_candidates WHERE season=? AND week=? AND phase='REGULAR_SEASON' AND slate_hash=? AND status='pending' AND expires_at > CURRENT_TIMESTAMP",
+  ).bind(season, week, slateHash).first();
+  if (existing) return;
+  await env.DB.prepare("UPDATE week_setup_candidates SET status='superseded' WHERE season=? AND week=? AND phase='REGULAR_SEASON' AND status='pending'")
+    .bind(season, week).run();
+  const token = randomToken();
+  const expiresAt = new Date(Date.now() + 72 * 60 * 60 * 1000).toISOString();
+  await env.DB.prepare(
+    "INSERT INTO week_setup_candidates(season,week,phase,slate_hash,slate_json,approval_token_hash,expires_at) VALUES (?,?,'REGULAR_SEASON',?,?,?,?,?)",
+  ).bind(season, week, slateHash, slateJson, await sha256(token), expiresAt).run();
+  const reviewUrl = `${env.PUBLIC_API_URL || "https://fbp-api.fbp-api-worker.workers.dev"}/?action=review-week-setup&token=${token}`;
+  const lines = games.map((game, index) => `${index + 1}. ${game.favorite} ${game.spread} ${game.underdog}`).join("\n");
+  await sendOwnerOperationalEmail(env, `FBP Week ${week} lines are ready for setup approval`, [
+    `Yahoo has a valid favorite, point spread, and underdog for all ${games.length} games.`, "", lines, "",
+    "Review the slate and explicitly confirm staging in D1:", reviewUrl, "", `This link expires ${expiresAt}.`,
+  ].join("\n"));
+};
+
+const reviewWeekSetupCandidate = async (token: string, env: Env): Promise<Response> => {
+  if (!/^[a-f0-9]{64}$/i.test(token)) return html("<h1>Invalid approval link</h1>", 400);
+  const candidate = await env.DB.prepare(
+    "SELECT * FROM week_setup_candidates WHERE approval_token_hash=? AND status='pending' AND expires_at > CURRENT_TIMESTAMP",
+  ).bind(await sha256(token)).first<{ week: number; slate_json: string; expires_at: string }>();
+  if (!candidate) return html("<h1>Approval link unavailable</h1><p>This link was used, replaced, or expired.</p>", 404);
+  const slate = JSON.parse(candidate.slate_json) as { games: YahooWeekGame[] };
+  const games = slate.games.map((game, index) => `<li>${index + 1}. ${escapeHtml(game.favorite)} ${game.spread} ${escapeHtml(game.underdog)}</li>`).join("");
+  return html(`<main><h1>Set up FBP Week ${candidate.week}</h1><p>Review the locked Yahoo slate before staging it in D1.</p><ol>${games}</ol><button id="confirm">Set up Week ${candidate.week}</button><p id="status">Expires ${escapeHtml(candidate.expires_at)}.</p></main><script>document.getElementById('confirm').onclick=async()=>{const button=document.getElementById('confirm');button.disabled=true;document.getElementById('status').textContent='Setting up week...';const response=await fetch(location.origin,{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({action:'approve-week-setup',token:${JSON.stringify(token)}})});const result=await response.json();document.getElementById('status').textContent=result.ok?'Week staged in D1.':(result.error||'Approval failed.');};</script>`, 200);
+};
+
+const resendWeekSetupReview = async (payload: JsonObject, env: Env): Promise<Response> => {
+  const token = cleanText(payload.token, 64);
+  if (!/^[a-f0-9]{64}$/i.test(token)) return json({ ok: false, error: "This review token is invalid." }, 400, env.CORS_ORIGIN);
+  const candidate = await env.DB.prepare(
+    "SELECT week,slate_json,expires_at FROM week_setup_candidates WHERE approval_token_hash=? AND status='pending' AND expires_at > CURRENT_TIMESTAMP",
+  ).bind(await sha256(token)).first<{ week: number; slate_json: string; expires_at: string }>();
+  if (!candidate) return json({ ok: false, error: "This review link is unavailable." }, 404, env.CORS_ORIGIN);
+  const games = JSON.parse(candidate.slate_json) as { games: YahooWeekGame[] };
+  const reviewUrl = `${env.PUBLIC_API_URL || "https://fbp-api.fbp-api-worker.workers.dev"}/?action=review-week-setup&token=${token}`;
+  const lines = games.games.map((game, index) => `${index + 1}. ${game.favorite} ${game.spread} ${game.underdog}`).join("\n");
+  const sent = await sendOwnerOperationalEmail(env, `FBP Week ${candidate.week} lines are ready for setup approval`, [
+    `Review all ${games.games.length} verified Week ${candidate.week} spreads before staging the pool.`, "", lines, "",
+    "Approve the pool only after review:", reviewUrl, "", `This link expires ${candidate.expires_at}.`,
+  ].join("\n"));
+  return json({ ok: sent, week: candidate.week, expiresAt: candidate.expires_at }, sent ? 200 : 502, env.CORS_ORIGIN);
+};
+
+const approveWeekSetupCandidate = async (payload: JsonObject, env: Env): Promise<Response> => {
+  const token = cleanText(payload.token, 64);
+  if (!/^[a-f0-9]{64}$/i.test(token)) return json({ ok: false, error: "This approval link is invalid." }, 400, env.CORS_ORIGIN);
+  const candidate = await env.DB.prepare(
+    "SELECT * FROM week_setup_candidates WHERE approval_token_hash=? AND status='pending' AND expires_at > CURRENT_TIMESTAMP",
+  ).bind(await sha256(token)).first<{ id: number; season: number; week: number; slate_json: string }>();
+  if (!candidate) return json({ ok: false, error: "This approval link was used, replaced, or expired." }, 404, env.CORS_ORIGIN);
+  const prior = await latestFinalizedRegularSeasonWeek(env.DB);
+  if (!prior || Number(prior.season) !== candidate.season || Number(prior.week) + 1 !== candidate.week) {
+    return json({ ok: false, error: "The most recent finalized week no longer matches this approval." }, 409, env.CORS_ORIGIN);
+  }
+  const slate = JSON.parse(candidate.slate_json) as { games: YahooWeekGame[] };
+  const week = await syncApprovedStagedWeek({ season: candidate.season, week: candidate.week, games: slate.games }, env);
+  const claimed = await env.DB.prepare("UPDATE week_setup_candidates SET status='approved', approved_at=CURRENT_TIMESTAMP WHERE id=? AND status='pending'")
+    .bind(candidate.id).run();
+  if (!claimed.meta.changes) return json({ ok: false, error: "This approval was already completed." }, 409, env.CORS_ORIGIN);
+  const notifications = await dispatchWeekNotifications(env, week, new Set<NotificationEvent>(["picksReady"]));
+  const push = await dispatchPicksReadyPush(env, week);
+  const failed = notifications.failed + push.failed;
+  return json({ ok: failed === 0, staged: true, week: candidate.week, ...notifications, push }, failed ? 502 : 200, env.CORS_ORIGIN);
 };
 
 const subscribeNotifications = async (request: Request, payload: JsonObject, env: Env): Promise<Response> => {
   const channel = cleanText(payload.channel, 10) as NotificationChannel;
   if (channel !== "email" && channel !== "sms") return json({ ok: false, error: "Choose email or text." }, 400, env.CORS_ORIGIN);
   if (channel === "sms") return json({ ok: false, error: "Text alerts are not available yet. No phone number was saved." }, 503, env.CORS_ORIGIN);
-  if (!env.EMAIL_RELAY_URL?.trim() || !env.EMAIL_RELAY_SECRET?.trim()) {
+  if (!directEmailConfigured(env) && !relayEmailConfigured(env)) {
     return json({ ok: false, error: "Email alerts are temporarily unavailable while sender setup is completed." }, 503, env.CORS_ORIGIN);
   }
   const playerName = cleanText(payload.playerName, 100).replace(/\s+/g, " ");
@@ -560,7 +986,7 @@ const subscribeNotifications = async (request: Request, payload: JsonObject, env
   const verifyUrl = `${workerOrigin}/?action=verify-notifications&token=${verificationToken}`;
   const stopUrl = `${workerOrigin}/?action=unsubscribe-notifications&token=${manageToken}`;
   const requestedAt = env.PUBLIC_SITE_URL || "https://fbp26.github.io/fbp-stats/";
-  const sent = await sendRelayEmail(env, normalizedDestination, "Verify your FBP alerts",
+  const sent = await sendEmail(env, normalizedDestination, "Verify your FBP alerts",
     `Confirm alerts for ${playerName}:\n\n${verifyUrl}\n\nYou requested alerts at ${requestedAt}\n\nStop these alerts: ${stopUrl}`,
     `<div style="max-width:520px;padding:24px;font-family:Arial,sans-serif;color:#171e26"><h2 style="margin:0 0 12px">Confirm FBP alerts for ${escapeHtml(playerName)}</h2><p style="margin:0 0 22px;line-height:1.5">Verify this email address to activate the alert preferences you selected.</p><p style="margin:0 0 14px"><a href="${escapeHtml(verifyUrl)}" style="display:inline-block;padding:11px 18px;border-radius:5px;background:#d4af37;color:#111;text-decoration:none;font-weight:bold">Verify email</a></p><p style="margin:0 0 24px"><a href="${escapeHtml(stopUrl)}" style="display:inline-block;padding:9px 16px;border:1px solid #9aa4af;border-radius:5px;color:#374151;text-decoration:none">Stop alerts</a></p><p style="margin:0;color:#6b7280;font-size:12px;line-height:1.5">Requested from <a href="${escapeHtml(requestedAt)}" style="color:#52606d">FBP</a>.</p></div>`);
   if (!sent) {
@@ -622,6 +1048,74 @@ const weeklyStandingsSummary = (players: JsonObject[]): string => {
   return `Current weekly standings\n${rows.join("\n")}`;
 };
 
+const weeklyResultSummary = (players: JsonObject[], followedName: string, seasonStandings: { before: SeasonStanding[]; after: SeasonStanding[] } | null): string => {
+  const ordered = [...players].sort((left, right) => Number(left.rank) - Number(right.rank));
+  const followedIndex = ordered.findIndex((player) => String(player.name).toLowerCase() === followedName.toLowerCase());
+  const followed = followedIndex >= 0 ? ordered[followedIndex] : null;
+  const winner = ordered[0];
+  const winnerRecord = winner ? `${winner.wins || 0}-${winner.losses || 0}` : "";
+  const followedRecord = followed ? `${followed.wins || 0}-${followed.losses || 0}` : "";
+  const headline = followed
+    ? `${followed.name}: ${followedRecord} this week · #${followedIndex + 1} in the pool. ${winner?.name || "The leader"} won ${winnerRecord}.`
+    : `${winner?.name || "The leader"} won the week at ${winnerRecord}.`;
+  const before = seasonStandings?.before.find((standing) => standing.name.toLowerCase() === followedName.toLowerCase()) || null;
+  const after = seasonStandings?.after.find((standing) => standing.name.toLowerCase() === followedName.toLowerCase()) || null;
+  return `${headline}\n${seasonRankMovementSummary(before, after)}`;
+};
+
+const scoreArchivedSeason = async (
+  db: D1Database,
+  week: Record<string, unknown>,
+): Promise<{ before: SeasonStanding[]; after: SeasonStanding[] }> => {
+  const archives = await db.prepare(
+    `SELECT w.week, a.payload_json
+     FROM completed_week_archives a
+     JOIN weeks w ON w.id = a.week_id
+     WHERE w.season = ? AND w.phase = 'REGULAR_SEASON' AND w.week <= ?
+     ORDER BY w.week`,
+  ).bind(week.season, week.week).all<{ week: number; payload_json: string }>();
+  const before = new Map<string, { name: string; wins: number; losses: number }>();
+  const after = new Map<string, { name: string; wins: number; losses: number }>();
+  const addScores = (target: Map<string, { name: string; wins: number; losses: number }>, payload: JsonObject): void => {
+    const games = Array.isArray(payload.games) ? payload.games.map((game) => ({
+      favorite: String((game as JsonObject).favorite || ""),
+      underdog: String((game as JsonObject).underdog || ""),
+      spread: Number((game as JsonObject).spread),
+      status: String((game as JsonObject).status || "PREGAME") as ScoringGame["status"],
+      favoriteScore: Number((game as JsonObject).favoriteScore),
+      underdogScore: Number((game as JsonObject).underdogScore),
+    })) : [];
+    const cards = Array.isArray(payload.submissions) ? payload.submissions.map((submission) => ({
+      name: String((submission as JsonObject).name || ""),
+      weekName: String((submission as JsonObject).weekName || ""),
+      picks: Array.isArray((submission as JsonObject).picks) ? ((submission as JsonObject).picks as unknown[]).map(String) : [],
+      bestBet: String((submission as JsonObject).bestBet || ""),
+      tiebreaker: Number((submission as JsonObject).tiebreaker),
+    })).filter((card) => card.name && card.picks.length === games.length) : [];
+    scoreWeekWithoutProbabilities(cards, games, Number(payload.actualTiebreaker)).forEach((player) => {
+      const key = player.name.toLowerCase();
+      const record = target.get(key) || { name: player.name, wins: 0, losses: 0 };
+      record.wins += player.wins;
+      record.losses += player.losses;
+      target.set(key, record);
+    });
+  };
+  const rank = (records: Map<string, { name: string; wins: number; losses: number }>): SeasonStanding[] =>
+    [...records.values()]
+      .sort((left, right) => right.wins - left.wins || left.losses - right.losses || left.name.localeCompare(right.name))
+      .map((record, index) => ({ ...record, rank: index + 1 }));
+  for (const archive of archives.results) {
+    const payload = JSON.parse(archive.payload_json) as JsonObject;
+    if (Number(archive.week) === Number(week.week)) {
+      before.forEach((record, key) => after.set(key, { ...record }));
+      addScores(after, payload);
+    } else {
+      addScores(before, payload);
+    }
+  }
+  return { before: rank(before), after: rank(after) };
+};
+
 const picksReadySummary = (games: JsonObject[], weekNumber: unknown): string => {
   const gameLines = games.flatMap((game, index) => {
     const home = String(game.homeTeam || "").toUpperCase();
@@ -648,7 +1142,7 @@ const dispatchWeekNotifications = async (
   onlyEvents?: Set<NotificationEvent>,
 ): Promise<NotificationDispatchResult> => {
   const result = { sent: 0, skipped: 0, failed: 0 };
-  if (!env.EMAIL_RELAY_URL?.trim() || !env.EMAIL_RELAY_SECRET?.trim()) return result;
+  if (!directEmailConfigured(env) && !relayEmailConfigured(env)) return result;
   const games = await getWeekConfig(env.DB, Number(week.id));
   const eventSet = onlyEvents || new Set(scheduledNotificationEvents(new Date(), games, String(week.status)));
   const current = await buildCurrentWeek(env.DB, week);
@@ -656,6 +1150,7 @@ const dispatchWeekNotifications = async (
   const hasStarted = games.some((game) => ["LIVE", "FINAL"].includes(String(game.state)));
   if (!onlyEvents && hasStarted && players.length) eventSet.add("firstPlace");
   if (!eventSet.size) return result;
+  const seasonStandings = eventSet.has("weeklyResult") ? await scoreArchivedSeason(env.DB, week) : null;
   const subscriptions = await env.DB.prepare(
     "SELECT * FROM notification_subscriptions WHERE status = 'active' AND channel = 'email' AND manage_token IS NOT NULL",
   ).all();
@@ -692,11 +1187,14 @@ const dispatchWeekNotifications = async (
       const firstKickoff = games.map((game) => Date.parse(String(game.kickoff || ""))).filter(Number.isFinite).sort((left, right) => left - right)[0];
       const eventSummary = event === "picksDue"
         ? `${followedName}, your Week ${week.week} picks are not in yet.\n\nFirst kickoff: ${new Date(firstKickoff).toLocaleString("en-US", { timeZone: "America/New_York", weekday: "long", month: "short", day: "numeric", hour: "numeric", minute: "2-digit", timeZoneName: "short" })}\nSubmit before kickoff to avoid missing the opening game.`
-        : event === "picksReady" ? picksReadySummary(games, week.week) : standings;
+        : event === "picksReady" ? picksReadySummary(games, week.week) : event === "weeklyResult" ? weeklyResultSummary(players, followedName, seasonStandings) : standings;
       const timingExplanation = notificationTimingExplanation(event, Number(subscription.picks_due_minutes) || 60);
-      const sent = await sendRelayEmail(env, String(subscription.destination),
-        `FBP Week ${week.week}: ${notificationEventLabels[event]}`,
-        `${notificationEventLabels[event]}\n\n${eventSummary}\n\n${timingExplanation}\n\nOpen FBP: ${env.PUBLIC_SITE_URL || "https://fbp26.github.io/fbp-stats/"}\n\nStop all FBP alerts: ${stopUrl}`);
+      const body = event === "weeklyResult"
+        ? `${eventSummary}\n\n${timingExplanation}\n\nOpen FBP: ${env.PUBLIC_SITE_URL || "https://fbp26.github.io/fbp-stats/"}\n\nStop all FBP alerts: ${stopUrl}`
+        : `${notificationEventLabels[event]}\n\n${eventSummary}\n\n${timingExplanation}\n\nOpen FBP: ${env.PUBLIC_SITE_URL || "https://fbp26.github.io/fbp-stats/"}\n\nStop all FBP alerts: ${stopUrl}`;
+      const sent = await sendEmail(env, String(subscription.destination),
+        event === "weeklyResult" ? `FBP Week ${week.week}: final standings` : `FBP Week ${week.week}: ${notificationEventLabels[event]}`,
+        body);
       await env.DB.prepare(
         "UPDATE notification_deliveries SET status = ?, sent_at = ?, error_message = ? WHERE subscription_id = ? AND deduplication_key = ?",
       ).bind(sent ? "sent" : "failed", sent ? new Date().toISOString() : null, sent ? null : "Email relay rejected the message.", subscription.id, deduplicationKey).run();
@@ -717,15 +1215,15 @@ const syncApprovedStagedWeek = async (payload: JsonObject, env: Env): Promise<Re
   const normalizedGames = games.map((game, index) => {
     const externalId = cleanText(game.gameId || game.externalId, 100);
     const kickoff = cleanText(game.kickoff || game.startTime, 100);
-    const favorite = cleanText(game.favorite, 20);
-    const underdog = cleanText(game.underdog, 20);
-    const home = cleanText(game.home || (game.homeTeam as JsonObject | undefined)?.abbreviation, 20);
-    const away = cleanText(game.away || (game.awayTeam as JsonObject | undefined)?.abbreviation, 20);
+    const favorite = normalizeNflAbbreviation(cleanText(game.favorite, 20));
+    const underdog = normalizeNflAbbreviation(cleanText(game.underdog, 20));
+    const home = normalizeNflAbbreviation(cleanText(game.home || (game.homeTeam as JsonObject | undefined)?.abbreviation, 20));
+    const away = normalizeNflAbbreviation(cleanText(game.away || (game.awayTeam as JsonObject | undefined)?.abbreviation, 20));
     const spread = Number(game.spread);
     if (!externalId || !kickoff || !Number.isFinite(Date.parse(kickoff)) || !favorite || !underdog || !home || !away || !Number.isFinite(spread)) {
       throw new Error(`Game ${index + 1} is missing a valid ID, kickoff, matchup, or spread.`);
     }
-    return { externalId, kickoff, favorite, underdog, home, away, spread, metadata: JSON.stringify(game) };
+    return { externalId, kickoff, favorite, underdog, home, away, spread, metadata: JSON.stringify({ ...game, favorite, underdog, home, away }) };
   });
   const existing = await findWeek(env.DB, season, weekNumber, "REGULAR_SEASON");
   if (existing) {
@@ -831,7 +1329,7 @@ const submitCard = async (payload: JsonObject, env: Env): Promise<Response> => {
     return json({ ok: false, error: "This week is not open for submissions." }, 409, env.CORS_ORIGIN);
   }
   const gameRows = await env.DB
-    .prepare("SELECT id, game_index, favorite, underdog FROM games WHERE week_id = ? ORDER BY game_index")
+    .prepare("SELECT id, game_index, favorite, underdog, spread, kickoff_at FROM games WHERE week_id = ? ORDER BY game_index")
     .bind(week.id)
     .all();
   if (!gameRows.results.length || picks.length !== gameRows.results.length) {
@@ -846,6 +1344,9 @@ const submitCard = async (payload: JsonObject, env: Env): Promise<Response> => {
     return json({ ok: false, error: "A pick or best bet does not match the staged games." }, 400, env.CORS_ORIGIN);
   }
 
+  const priorSubmission = await env.DB.prepare("SELECT s.id FROM submissions s JOIN players p ON p.id=s.player_id WHERE s.week_id=? AND p.canonical_name=? COLLATE NOCASE AND s.superseded_at IS NULL")
+    .bind(week.id, name).first<{ id: number }>();
+  const priorPlayer = await env.DB.prepare("SELECT id FROM players WHERE canonical_name=? COLLATE NOCASE").bind(name).first<{ id: number }>();
   await env.DB.prepare("INSERT INTO players (canonical_name) VALUES (?) ON CONFLICT (canonical_name) DO NOTHING").bind(name).run();
   const player = await env.DB
     .prepare("SELECT id, canonical_name FROM players WHERE canonical_name = ? COLLATE NOCASE")
@@ -868,10 +1369,28 @@ const submitCard = async (payload: JsonObject, env: Env): Promise<Response> => {
     ).bind(game.id, picks[index], week.id, player.id, submittedAt)),
   ];
   await env.DB.batch(statements);
+  const submissionKey = `admin-submission:${week.id}:${player.id}:${submittedAt}`;
+  await sendAdministratorPushOnce(env, priorSubmission ? "adminPickReplaced" : "adminPickSubmitted", submissionKey,
+    priorSubmission ? `Picks replaced - Week ${weekNumber}` : `Picks submitted - Week ${weekNumber}`,
+    `${player.canonical_name} ${priorSubmission ? "replaced" : "submitted"} their picks.`, Number(week.id));
+  if (!priorPlayer) await sendAdministratorPushOnce(env, "adminNewPlayer", `admin-new-player:${player.id}`, "New player joined", `${player.canonical_name} submitted their first FBP picks.`, Number(week.id));
+  const firstKickoff = Math.min(...gameRows.results.map((game) => Date.parse(String(game.kickoff_at))));
+  if (Number.isFinite(firstKickoff) && Date.parse(submittedAt) > firstKickoff) await sendAdministratorPushOnce(env, "adminLateSubmission", `admin-late-submission:${week.id}:${player.id}:${submittedAt}`, `Late picks - Week ${weekNumber}`, `${player.canonical_name} submitted picks after the first kickoff.`, Number(week.id));
+  const confirmationEmailSent = payload.mode === "test" ? false : await sendPickSubmissionEmail(env, {
+    name,
+    weekName,
+    picks,
+    stagedGames: gameRows.results.map((game) => ({ favorite: game.favorite, spread: game.spread, underdog: game.underdog })),
+    bestBet,
+    tiebreaker,
+    week: weekNumber,
+    submittedAt,
+  });
   return json({
     ok: true,
     testMode: payload.mode === "test",
     submittedAt,
+    confirmationEmailSent,
     identity: {
       status: rawName === player.canonical_name ? "known" : "suggestion",
       submittedName: player.canonical_name,
@@ -973,17 +1492,7 @@ const storeRaceSnapshot = async (payload: JsonObject, env: Env): Promise<Respons
   );
   const submittedPlayers = validateRaceSnapshotPlayers(payload.players, scoredPlayers.map((player) => player.name));
   const scoreByName = new Map(scoredPlayers.map((player) => [player.name, player]));
-  const gameState = games.map((game) => ({
-    gameId: game.gameId,
-    away: game.away || game.awayTeam,
-    home: game.home || game.homeTeam,
-    awayScore: game.awayScore ?? "",
-    homeScore: game.homeScore ?? "",
-    status: game.status || game.state,
-    period: game.period || "",
-    clock: game.clock || "",
-    possession: game.possession || "",
-  }));
+  const gameState = buildRaceGameState(games as Record<string, unknown>[]);
   const gameStateJson = JSON.stringify(gameState);
   const latest = await env.DB
     .prepare(
@@ -1023,6 +1532,25 @@ const storeRaceSnapshot = async (payload: JsonObject, env: Env): Promise<Respons
 const handlePost = async (request: Request, env: Env): Promise<Response> => {
   const payload = await parsePayload(request);
   const action = cleanText(payload.action, 50);
+  if (action === "approve-week-setup") return approveWeekSetupCandidate(payload, env);
+  if (action === "resend-week-setup-review") return resendWeekSetupReview(payload, env);
+  if (action === "subscribe-push") return savePushDevice(payload, env);
+  if (action === "link-push-player") return linkPushDevicePlayer(payload, env);
+  if (action === "disable-push") return disablePushDevice(payload, env);
+  if (action === "admin-push-test") {
+    const expectedSecret = env.ADMIN_PUSH_TEST_SECRET?.trim();
+    if (!expectedSecret || request.headers.get("X-Admin-Push-Test") !== expectedSecret) {
+      return json({ ok: false, error: "Administrator authorization required." }, 403, env.CORS_ORIGIN);
+    }
+    const week = await activeWeek(env.DB);
+    if (!week) return json({ ok: false, error: "No active week is available." }, 409, env.CORS_ORIGIN);
+    const current = await buildCurrentWeek(env.DB, week);
+    const players = Array.isArray(current.players) ? current.players as JsonObject[] : [];
+    const administrator = env.ADMIN_PUSH_PLAYER?.trim() || "Jim";
+    await sendAdministratorPushOnce(env, "adminWeeklyResultTest", `admin-weekly-result-test:${Date.now()}:${crypto.randomUUID()}`,
+      `FBP Week ${week.week}: Weekly result test`, weeklyResultSummary(players, administrator, null));
+    return json({ ok: true, week: week.week }, 200, env.CORS_ORIGIN);
+  }
   if (action === "notification-subscribers") return listNotificationSubscribers(payload, env);
   if (action === "release-picks-ready") return releasePicksReady(payload, env);
   if (action === "log-visit") return handleAnalytics(payload, env);
@@ -1044,7 +1572,17 @@ const handlePost = async (request: Request, env: Env): Promise<Response> => {
       },
     }, 200, env.CORS_ORIGIN);
   }
-  if (!action) return submitCard(payload, env);
+  if (!action) {
+    const response = await submitCard(payload, env);
+    if (!response.ok) {
+      const detail = await response.clone().json() as { error?: unknown };
+      const name = cleanText(payload.name, 100).replace(/\s+/g, " ");
+      if (name) {
+        await sendAdministratorPushOnce(env, "adminSubmissionRejected", `admin-submission-rejected:${Date.now()}:${crypto.randomUUID()}`, "Pick submission rejected", `${name}: ${cleanText(detail.error, 180) || "The submission was rejected."}`);
+      }
+    }
+    return response;
+  }
   return json({ ok: false, error: "Unknown action." }, 400, env.CORS_ORIGIN);
 };
 
@@ -1062,11 +1600,18 @@ export default {
   },
   async scheduled(_controller: ScheduledController, env: Env): Promise<void> {
     const weekBeforeRefresh = await activeWeek(env.DB);
-    await refreshActiveGameStates(env.DB);
-    if (!weekBeforeRefresh) return;
+    const refresh = await refreshActiveGameStates(env.DB);
+    if (!weekBeforeRefresh) {
+      await createWeekSetupCandidate(env);
+      return;
+    }
     let refreshedWeek = await findWeek(env.DB, Number(weekBeforeRefresh.season), Number(weekBeforeRefresh.week), "REGULAR_SEASON");
-    if (refreshedWeek?.status === "finalizing") await finalizeWeek(env.DB, refreshedWeek);
+    if (refreshedWeek?.status === "finalizing") await finalizeWeek(env, refreshedWeek);
     refreshedWeek = await findWeek(env.DB, Number(weekBeforeRefresh.season), Number(weekBeforeRefresh.week), "REGULAR_SEASON");
-    if (refreshedWeek) await dispatchWeekNotifications(env, refreshedWeek);
+    if (refreshedWeek) {
+      await dispatchWeekNotifications(env, refreshedWeek);
+      await dispatchWeekPushNotifications(env, refreshedWeek, refresh.scoreChanges);
+    }
+    await createWeekSetupCandidate(env);
   },
 } satisfies ExportedHandler<Env>;

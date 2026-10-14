@@ -2,11 +2,13 @@ import assert from "node:assert/strict";
 import test from "node:test";
 import {
   defaultNotificationPreferences,
+  leaderPushSummary,
   maskNotificationDestination,
   normalizeNotificationDestination,
   parseNotificationPreferences,
   picksDueReminderIsEligible,
   scheduledNotificationEvents,
+  seasonRankMovementSummary,
 } from "../src/notifications.ts";
 
 test("notification preferences use conservative defaults and accept explicit booleans", () => {
@@ -55,4 +57,26 @@ test("picks due reminder honors a configurable lead time before the first kickof
 
 test("weekly result is eligible only after finalization", () => {
   assert.deepEqual(scheduledNotificationEvents(new Date(), [], "finalized"), ["weeklyResult"]);
+});
+
+test("weekly result rank movement uses the completed season record", () => {
+  assert.equal(
+    seasonRankMovementSummary({ name: "Mel", rank: 8, wins: 27, losses: 28 }, { name: "Mel", rank: 16, wins: 34, losses: 37 }),
+    "Mel drops from 8th pace to 16th place in the standings (34-37).",
+  );
+  assert.equal(
+    seasonRankMovementSummary({ name: "Mel", rank: 19, wins: 27, losses: 28 }, { name: "Mel", rank: 12, wins: 34, losses: 37 }),
+    "Mel jumps from 19th to 12th place in the standings (34-37).",
+  );
+});
+
+test("first-place push names the scoring change and top two live probabilities", () => {
+  assert.equal(
+    leaderPushSummary(
+      { name: "Jim", winProbability: 42.25 },
+      { name: "Mel", winProbability: 27.5 },
+      { team: "JAX", points: 7, opposingTeam: "ATL", teamScore: 21, opposingScore: 17, spread: -3.5 },
+    ),
+    "Live win probability: First Jim 42.3% · Second Mel 27.5%.\nJAX scored 7 points. JAX 21, ATL 17 (JAX -3.5).",
+  );
 });

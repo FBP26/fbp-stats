@@ -82,6 +82,7 @@ export const buildImportSql = (active, current) => {
 
   active.games.forEach((game, index) => {
     const externalId = String(game.gameId || game.externalId || "").trim();
+    const espnEventId = String(game.espnEventId || "").trim();
     const favorite = String(game.favorite || "").trim();
     const underdog = String(game.underdog || "").trim();
     const home = String(game.home || game.homeTeam?.abbreviation || "").trim();
@@ -91,7 +92,7 @@ export const buildImportSql = (active, current) => {
     }
     const spread = requiredNumber(game.spread, `Game ${index + 1} spread`);
     lines.push(
-      `INSERT INTO games (week_id, game_index, external_id, kickoff_at, favorite, underdog, spread, home_team, away_team, metadata_json) VALUES ((SELECT id FROM weeks WHERE ${weekWhere}), ${index}, ${sqlText(externalId)}, ${sqlText(game.kickoff)}, ${sqlText(favorite)}, ${sqlText(underdog)}, ${spread}, ${sqlText(home)}, ${sqlText(away)}, ${sqlText(JSON.stringify(game))});`,
+      `INSERT INTO games (week_id, game_index, external_id, kickoff_at, favorite, underdog, spread, home_team, away_team, metadata_json) VALUES ((SELECT id FROM weeks WHERE ${weekWhere}), ${index}, ${sqlText(externalId)}, ${sqlText(game.kickoff)}, ${sqlText(favorite)}, ${sqlText(underdog)}, ${spread}, ${sqlText(home)}, ${sqlText(away)}, ${sqlText(JSON.stringify({ ...game, ...(espnEventId ? { espnEventId } : {}) }))});`,
       `INSERT INTO game_states (game_id, state, favorite_score, underdog_score, period, clock, net_passing_yards, source_updated_at) VALUES ((SELECT id FROM games WHERE week_id = (SELECT id FROM weeks WHERE ${weekWhere}) AND game_index = ${index}), ${sqlText(states[index])}, ${sqlNumber(teamScore(game, favorite))}, ${sqlNumber(teamScore(game, underdog))}, ${sqlText(game.period)}, ${sqlText(game.clock)}, ${sqlNumber(optionalNumber(game.combinedNetPassingYards))}, ${sqlText(capturedAt)});`,
     );
   });

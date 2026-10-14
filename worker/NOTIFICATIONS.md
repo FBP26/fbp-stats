@@ -43,7 +43,16 @@ Do not put the relay secret in command history, source, configuration files, D1,
 
 ## Email configuration
 
-Email delivery uses the existing Apps Script account as a relay. The same long random secret must be stored in both places:
+Production email uses [Resend](https://resend.com) directly from the Cloudflare Worker. Create a Resend API key with sending permission, verify the sender domain in Resend, then set the Worker secrets without placing the key in source or chat:
+
+```powershell
+npx.cmd wrangler secret put RESEND_API_KEY
+npx.cmd wrangler secret put EMAIL_FROM
+```
+
+Use a verified mailbox-style sender for `EMAIL_FROM`, for example `FBP Alerts <alerts@example.com>`. Then deploy the Worker and use the notification preview command to send a real message to `fbpool07@gmail.com`. The Worker prefers Resend whenever both values are configured.
+
+Apps Script remains a temporary fallback for legacy pickup and approval messages. The same long random relay secret must be stored in both places:
 
 1. Apps Script project settings: add script property `FBP_NOTIFICATION_RELAY_SECRET`.
 2. Cloudflare Worker: run `wrangler secret put EMAIL_RELAY_SECRET` and type the value directly into the terminal prompt.
