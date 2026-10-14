@@ -801,6 +801,23 @@ const sendOwnerOperationalEmail = async (env: Env, subject: string, body: string
   return response.ok && result?.ok === true;
 };
 
+const syncFinalizedPayouts = async (env: Env): Promise<boolean> => {
+  const relayUrl = env.EMAIL_RELAY_URL?.trim();
+  if (!relayUrl || !env.EMAIL_RELAY_SECRET?.trim()) return false;
+  try {
+    const response = await fetch(relayUrl, {
+      method: "POST",
+      headers: { "Content-Type": "text/plain;charset=UTF-8" },
+      body: JSON.stringify({ action: "sync-finalized-payouts", secret: env.EMAIL_RELAY_SECRET }),
+    });
+    const result = await response.json().catch(() => null) as { ok?: boolean } | null;
+    return response.ok && result?.ok === true;
+  } catch (error) {
+    console.warn("Finalized payout sync relay failed", error);
+    return false;
+  }
+};
+
 type YahooWeekGame = {
   gameId: string;
   kickoff: string;
@@ -1606,7 +1623,12 @@ export default {
       return;
     }
     let refreshedWeek = await findWeek(env.DB, Number(weekBeforeRefresh.season), Number(weekBeforeRefresh.week), "REGULAR_SEASON");
-    if (refreshedWeek?.status === "finalizing") await finalizeWeek(env, refreshedWeek);
+    if (refreshedWeek?.status === "finalizing") {
+      const finalized = await finalizeWeek(env, refreshedWeek);
+      if (finalized && !(await syncFinalizedPayouts(env))) {
+        console.warn("Finalized payout sync was not acknowledged by the Apps Script relay.");
+      }
+    }
     refreshedWeek = await findWeek(env.DB, Number(weekBeforeRefresh.season), Number(weekBeforeRefresh.week), "REGULAR_SEASON");
     if (refreshedWeek) {
       await dispatchWeekNotifications(env, refreshedWeek);
