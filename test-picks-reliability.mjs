@@ -11,8 +11,8 @@ const clevelandWeeks = historicalGames
 assert.deepEqual(clevelandWeeks, [1, 2, 3, 4, 5]);
 assert.match(html, /table-layout: auto/);
 assert.match(html, /\.confirmation-metric-table th \{ width: 1%; white-space: nowrap;/);
-assert.match(html, /Longest time since picked"/);
-assert.match(html, /Longest time since picked against"/);
+assert.match(html, /Longest without picking · picked this week"/);
+assert.match(html, /Longest without picking against · picked against this week"/);
 assert.doesNotMatch(html, /Longest time since you picked/);
 assert.doesNotMatch(html, /team \$\{missed === 1 \? "game" : "games"\}/);
 assert.match(html, /Current Best Bet record/);
