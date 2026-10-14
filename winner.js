@@ -134,7 +134,7 @@ function standingsHtml(data) {
     </tr>`;
   }).join("");
   return `<section class="section">
-    <div class="section-heading"><div><h2>Week ${data.week} standings</h2><p>Every entry for the week, sorted by wins and then by the closest tiebreaker. The actual total was ${data.players[0]?.actualTiebreaker}.</p></div><span class="pill">${data.players.length} entries</span></div>
+    <div class="section-heading"><div><h2>Week ${data.week} standings</h2></div><span class="pill">${data.players.length} entries</span></div>
     <div class="table-scroll"><table class="helped-table standings-table"><thead><tr><th>Place</th><th>Entry</th><th>Week name</th><th>Record</th><th>Best Bet</th><th>Tiebreak</th><th>Off by</th></tr></thead><tbody>${rows}</tbody></table></div>
   </section>`;
 }
@@ -367,7 +367,7 @@ function leadershipAnalysis(winnerName) {
     const start = new Date(frame.timestamp).getTime(), end = new Date(next.timestamp).getTime();
     const duration = Math.min(10 * 60 * 1000, end - start);
     if (!Number.isFinite(duration) || duration <= 0) continue;
-    intervals.push({ name: leader.name, duration, start, end, wins: leader.wins });
+    intervals.push({ name: leader.name, duration, start, end, wins: leader.wins, frameIndex: index });
   }
   const reigns = [], totals = new Map();
   intervals.forEach(interval => {
@@ -385,6 +385,39 @@ function leadershipAnalysis(winnerName) {
   return { intervals, reigns, totals, totalDuration: intervals.reduce((total, interval) => total + interval.duration, 0) };
 }
 
+function leadChangeReason(frameIndex) {
+  const frame = raceFrames[frameIndex];
+  const previous = raceFrames[Math.max(0, frameIndex - 1)];
+  const scores = [];
+  (frame.gameState || []).forEach(game => {
+    const before = gameStateFor(game, previous.gameState || []);
+    if (!before) return;
+    [
+      { team: game.away, delta: Number(game.awayScore) - Number(before.awayScore) },
+      { team: game.home, delta: Number(game.homeScore) - Number(before.homeScore) },
+    ].forEach(score => {
+      if (Number.isFinite(score.delta) && score.delta > 0) {
+        scores.push({ ...score, away: game.away, home: game.home, awayScore: Number(game.awayScore), homeScore: Number(game.homeScore) });
+      }
+    });
+  });
+  const score = scores.sort((left, right) => right.delta - left.delta)[0];
+  if (score) return `${score.team} scored ${score.delta} point${score.delta === 1 ? "" : "s"} (${score.away} ${score.awayScore}, ${score.home} ${score.homeScore})`;
+  const kickoff = (frame.gameState || []).find(game => {
+    const before = gameStateFor(game, previous.gameState || []);
+    const beforeStatus = String(before?.status || before?.state || "").toUpperCase();
+    const currentStatus = String(game.status || game.state || "").toUpperCase();
+    return ["", "PRE", "PREGAME", "SCHEDULED", "STATUS_SCHEDULED"].includes(beforeStatus) && ["IN", "IN_PROGRESS", "LIVE", "STATUS_IN_PROGRESS"].includes(currentStatus);
+  });
+  if (kickoff) return `${kickoff.away} at ${kickoff.home} kicked off`;
+  const final = (frame.gameState || []).find(game => {
+    const before = gameStateFor(game, previous.gameState || []);
+    return before && !["FINAL", "STATUS_FINAL"].includes(String(before.status || before.state || "").toUpperCase()) && ["FINAL", "STATUS_FINAL"].includes(String(game.status || game.state || "").toUpperCase());
+  });
+  if (final) return `${final.away} at ${final.home} went final (${final.away} ${final.awayScore}, ${final.home} ${final.homeScore})`;
+  return "The live results shifted the standings";
+}
+
 function renderLeadership(winnerName) {
   const host = document.getElementById("leadership");
   const analysis = leadershipAnalysis(winnerName);
@@ -393,14 +426,33 @@ function renderLeadership(winnerName) {
     return;
   }
   const leadChanges = analysis.reigns.slice(1);
-  const trail = analysis.reigns.map(reign => `<span class="leader-segment" style="flex:${reign.duration};background:${normalize(reign.name) === normalize(winnerName) ? "#9b7a22" : playerColor(reign.name, .72)}" title="${escapeHtml(reign.name)} - ${formatDuration(reign.duration)}">${reign.duration / analysis.totalDuration > .07 ? escapeHtml(reign.name) : ""}</span>`).join("");
+  const trail = analysis.reigns.map(reign => {
+    const share = 100 * reign.duration / analysis.totalDuration;
+    return `<button type="button" class="leader-segment" style="flex:${reign.duration};background:${normalize(reign.name) === normalize(winnerName) ? "#9b7a22" : playerColor(reign.name, .72)}" data-name="${escapeHtml(reign.name)}" data-duration="${escapeHtml(formatDuration(reign.duration))}" data-share="${share.toFixed(1)}" aria-label="${escapeHtml(reign.name)}, ${escapeHtml(formatDuration(reign.duration))}, ${share.toFixed(1)} percent">${share > 7 ? escapeHtml(reign.name) : ""}</button>`;
+  }).join("");
   const leaders = [...analysis.totals].sort((left, right) => right[1] - left[1] || String(left[0]).localeCompare(String(right[0]))).map(([name, duration]) => {
     const isWinner = normalize(name) === normalize(winnerName);
     const share = analysis.totalDuration ? 100 * duration / analysis.totalDuration : 0;
-    return `<div class="leader-stat ${isWinner ? "winner-leader" : ""}" style="--runner-color:${isWinner ? "#f4c44f" : playerColor(name)}"><strong>${escapeHtml(name)}${isWinner ? '<em class="winner-tag">WINNER</em>' : ""}</strong><span>${duration ? `${formatDuration(duration)} on top (${share.toFixed(1)}%)` : "Never held the lead"}</span></div>`;
+    return `<div class="leader-stat ${isWinner ? "winner-leader" : ""}" style="--runner-color:${isWinner ? "#f4c44f" : playerColor(name)}"><strong>${escapeHtml(name)}${isWinner ? '<em class="winner-tag">WINNER</em>' : ""}</strong><span>${duration ? `${formatDuration(duration)} (${share.toFixed(1)}%)` : "Never held the lead"}</span></div>`;
   }).join("");
-  const changes = [...leadChanges].reverse().map(change => `<div class="lead-change ${normalize(change.name) === normalize(winnerName) ? "winner-leader" : ""}" style="--runner-color:${normalize(change.name) === normalize(winnerName) ? "#f4c44f" : playerColor(change.name)}"><strong>${escapeHtml(change.name)} moved into first place with ${change.wins} weighted point${change.wins === 1 ? "" : "s"}</strong><time>${new Date(change.start).toLocaleString([], { weekday: "short", hour: "numeric", minute: "2-digit" })}</time></div>`).join("");
+  const changes = [...leadChanges].reverse().map(change => `<div class="lead-change ${normalize(change.name) === normalize(winnerName) ? "winner-leader" : ""}" style="--runner-color:${normalize(change.name) === normalize(winnerName) ? "#f4c44f" : playerColor(change.name)}"><div><strong>${escapeHtml(change.name)} moved into first place</strong><span>${escapeHtml(leadChangeReason(change.frameIndex))}</span></div><time>${new Date(change.start).toLocaleString([], { weekday: "short", hour: "numeric", minute: "2-digit" })}</time></div>`).join("");
   host.innerHTML = `<div><div class="section-heading"><div><h2>Time on top</h2><p>${leadChanges.length} lead change${leadChanges.length === 1 ? "" : "s"} through this checkpoint. The leader is the entry with the most weighted points, with ties going to the closest tiebreaker. Every entry that led is listed, and the winner is always shown.</p></div></div><div class="leader-trail">${trail}</div><div class="leader-stats">${leaders}</div></div><div><div class="section-heading"><div><h2>Lead changes</h2><p>All ${leadChanges.length} takeover${leadChanges.length === 1 ? "" : "s"}, most recent first.</p></div></div><div class="lead-change-list">${changes || '<div class="empty-note">No lead changes yet.</div>'}</div></div>`;
+}
+
+function bindLeadershipTooltips() {
+  document.addEventListener("click", event => {
+    document.querySelector(".leader-tooltip")?.remove();
+    const segment = event.target.closest(".leader-segment");
+    if (!segment) return;
+    const tooltip = document.createElement("div");
+    tooltip.className = "leader-tooltip";
+    tooltip.textContent = `${segment.dataset.name}: ${segment.dataset.duration} (${segment.dataset.share}%)`;
+    document.body.appendChild(tooltip);
+    const bounds = segment.getBoundingClientRect();
+    const tooltipBounds = tooltip.getBoundingClientRect();
+    tooltip.style.left = `${Math.max(8, Math.min(window.innerWidth - tooltipBounds.width - 8, bounds.left + bounds.width / 2 - tooltipBounds.width / 2))}px`;
+    tooltip.style.top = `${Math.max(8, bounds.top - tooltipBounds.height - 8)}px`;
+  });
 }
 
 function updateRaceFrame(index) {
@@ -588,6 +640,7 @@ async function render() {
     ].join("");
     createRaceCharts(recapData, winner);
     bindRaceControls();
+    bindLeadershipTooltips();
     bindSharing(recapData, winner);
     updateRaceFrame(raceFrame);
   } catch (error) {
