@@ -40,9 +40,6 @@ const winningTeam = (game: ScoringGame, outcome: AtsOutcome): string | null => {
   return outcome === "favorite" ? game.favorite : game.underdog;
 };
 
-const sameTeam = (left: string | undefined, right: string | null): boolean =>
-  String(left || "").trim().toUpperCase() === String(right || "").trim().toUpperCase();
-
 const scoreDecisions = (
   player: PlayerCard,
   games: ScoringGame[],
@@ -53,19 +50,11 @@ const scoreDecisions = (
   games.forEach((game, index) => {
     if (!includeGame(game)) return;
     const outcome = atsOutcome(game);
-    if (!outcome) return;
-    const hasBestBet = sameTeam(player.bestBet, game.favorite) || sameTeam(player.bestBet, game.underdog);
-    if (outcome === "push") {
-      if (hasBestBet) losses += 1;
-      return;
-    }
+    if (!outcome || outcome === "push") return;
     const winner = winningTeam(game, outcome);
-    if (sameTeam(player.picks[index], winner)) wins += 1;
-    else losses += 1;
-    if (hasBestBet) {
-      if (sameTeam(player.bestBet, winner)) wins += 1;
-      else losses += 1;
-    }
+    const units = player.bestBet === player.picks[index] ? 2 : 1;
+    if (player.picks[index] === winner) wins += units;
+    else losses += units;
   });
   return { wins, losses };
 };
@@ -79,7 +68,7 @@ const greatestCommonDivisor = (left: number, right: number): number =>
   right ? greatestCommonDivisor(right, left % right) : left;
 
 const scenarioIndexes = (total: number): number[] => {
-  if (total <= 1_000_000) return Array.from({ length: total }, (_, index) => index);
+  if (total <= 250_000) return Array.from({ length: total }, (_, index) => index);
   const count = Math.min(total, 4_096);
   let step = Math.max(1, Math.floor(total * 0.618033988749895));
   while (greatestCommonDivisor(step, total) !== 1) step += 1;
@@ -100,30 +89,27 @@ export const calculatePaths = (
 
   const finalWins = players.map((player) => scoreDecisions(player, games, (game) => game.status === "FINAL").wins);
   const paths = players.map(() => 0);
-  const contributions = unresolved.map(({ game, index, outcomes }) => outcomes.map(outcome => {
-    const winner = winningTeam(game, outcome);
-    return Uint8Array.from(players, player => winner ? Number(player.picks[index] === winner) + Number(player.bestBet === winner) : 0);
-  }));
-  const projectedWins = new Float64Array(players.length);
 
-  for (const pathIndex of indexes) {
+  indexes.forEach((pathIndex) => {
     let pathValue = pathIndex;
-    projectedWins.set(finalWins);
-    for (const outcomes of contributions) {
-      const points = outcomes[pathValue % outcomes.length];
+    const projectedWins = finalWins.slice();
+    unresolved.forEach(({ game, index, outcomes }) => {
+      const outcome = outcomes[pathValue % outcomes.length];
       pathValue = Math.floor(pathValue / outcomes.length);
-      for (let playerIndex = 0; playerIndex < players.length; playerIndex += 1) projectedWins[playerIndex] += points[playerIndex];
-    }
-    let leadingScore = -1, leaderCount = 0;
-    for (const score of projectedWins) {
-      if (score > leadingScore) { leadingScore = score; leaderCount = 1; }
-      else if (score === leadingScore) leaderCount += 1;
-    }
-    const share = 1 / leaderCount;
-    for (let playerIndex = 0; playerIndex < players.length; playerIndex += 1) {
-      if (projectedWins[playerIndex] === leadingScore) paths[playerIndex] += share;
-    }
-  }
+      const winner = winningTeam(game, outcome);
+      if (!winner) return;
+      players.forEach((player, playerIndex) => {
+        if (player.picks[index] !== winner) return;
+        projectedWins[playerIndex] += player.bestBet === player.picks[index] ? 2 : 1;
+      });
+    });
+    const leadingScore = Math.max(...projectedWins);
+    const leaders = projectedWins
+      .map((score, index) => (score === leadingScore ? index : -1))
+      .filter((index) => index >= 0);
+    const share = 1 / leaders.length;
+    leaders.forEach((index) => { paths[index] += share; });
+  });
 
   return {
     probabilities: paths.map((pathCount) => (pathCount / indexes.length) * 100),

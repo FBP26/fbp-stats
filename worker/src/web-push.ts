@@ -49,14 +49,12 @@ const hkdf = async (input: Uint8Array, salt: Uint8Array, info: Uint8Array, lengt
 const vapidAuthorization = async (endpoint: string, publicKey: string, privateKey: string, subject: string): Promise<string> => {
   const publicBytes = bytesFromBase64Url(publicKey);
   if (publicBytes.length !== 65 || publicBytes[0] !== 4) throw new Error("The VAPID public key is invalid.");
-  const origin = new URL(endpoint).origin;
   const header = base64UrlFromBytes(encoder.encode(JSON.stringify({ typ: "JWT", alg: "ES256" })));
-  const payload = base64UrlFromBytes(encoder.encode(JSON.stringify({ aud: origin, exp: Math.floor(Date.now() / 1000) + 12 * 60 * 60, sub: subject })));
+  const payload = base64UrlFromBytes(encoder.encode(JSON.stringify({ aud: new URL(endpoint).origin, exp: Math.floor(Date.now() / 1000) + 12 * 60 * 60, sub: subject })));
   const signingInput = `${header}.${payload}`;
   const key = await crypto.subtle.importKey("jwk", {
     kty: "EC", crv: "P-256", d: privateKey,
-    x: base64UrlFromBytes(publicBytes.slice(1, 33)), y: base64UrlFromBytes(publicBytes.slice(33)),
-    ext: true,
+    x: base64UrlFromBytes(publicBytes.slice(1, 33)), y: base64UrlFromBytes(publicBytes.slice(33)), ext: true,
   }, { name: "ECDSA", namedCurve: "P-256" }, false, ["sign"]);
   const signature = new Uint8Array(await crypto.subtle.sign({ name: "ECDSA", hash: "SHA-256" }, key, encoder.encode(signingInput)));
   return `vapid t=${signingInput}.${base64UrlFromBytes(signature)}, k=${publicKey}`;
@@ -69,11 +67,7 @@ const encrypt = async (subscription: PushSubscriptionRecord, message: PushMessag
   const clientKey = await crypto.subtle.importKey("raw", clientPublic, { name: "ECDH", namedCurve: "P-256" }, false, []);
   const serverPair = await crypto.subtle.generateKey({ name: "ECDH", namedCurve: "P-256" }, true, ["deriveBits"]) as CryptoKeyPair;
   const serverPublic = new Uint8Array(await crypto.subtle.exportKey("raw", serverPair.publicKey) as ArrayBuffer);
-  const shared = new Uint8Array(await crypto.subtle.deriveBits(
-    { name: "ECDH", public: clientKey } as never,
-    serverPair.privateKey,
-    256,
-  ));
+  const shared = new Uint8Array(await crypto.subtle.deriveBits({ name: "ECDH", public: clientKey } as never, serverPair.privateKey, 256));
   const ikm = await hkdf(shared, authSecret, join(encoder.encode("WebPush: info\0"), clientPublic, serverPublic), 32);
   const salt = crypto.getRandomValues(new Uint8Array(16));
   const cek = await hkdf(ikm, salt, encoder.encode("Content-Encoding: aes128gcm\0"), 16);
@@ -90,17 +84,13 @@ export const sendWebPush = async (
   message: PushMessage,
   vapid: { publicKey: string; privateKey: string; subject: string },
 ): Promise<{ ok: boolean; expired: boolean; error: string }> => {
-  const body = await encrypt(subscription, message);
   const response = await fetch(subscription.endpoint, {
     method: "POST",
     headers: {
       Authorization: await vapidAuthorization(subscription.endpoint, vapid.publicKey, vapid.privateKey, vapid.subject),
-      "Content-Encoding": "aes128gcm",
-      "Content-Type": "application/octet-stream",
-      TTL: "300",
-      Urgency: "normal",
+      "Content-Encoding": "aes128gcm", "Content-Type": "application/octet-stream", TTL: "300", Urgency: "normal",
     },
-    body,
+    body: await encrypt(subscription, message),
   });
   return { ok: response.ok, expired: response.status === 404 || response.status === 410, error: response.ok ? "" : `Push service returned ${response.status}.` };
 };

@@ -2,15 +2,14 @@ import assert from "node:assert/strict";
 import test from "node:test";
 import {
   defaultNotificationPreferences,
+  leaderPushSummary,
   maskNotificationDestination,
   normalizeNotificationDestination,
   parseNotificationPreferences,
   picksDueReminderIsEligible,
   scheduledNotificationEvents,
   seasonRankMovementSummary,
-  weeklyRecapMessage,
 } from "../src/notifications.ts";
-import { observeLeads } from "../src/alert-details.ts";
 
 test("notification preferences use conservative defaults and accept explicit booleans", () => {
   assert.deepEqual(parseNotificationPreferences({ firstPlace: true, picksReady: false, beforeMnf: "yes" }), {
@@ -60,34 +59,24 @@ test("weekly result is eligible only after finalization", () => {
   assert.deepEqual(scheduledNotificationEvents(new Date(), [], "finalized"), ["weeklyResult"]);
 });
 
-test("first-place observation records a return to sole first after a shared lead", () => {
-  const cards = [
-    { name: "Jim", weekName: "", picks: ["FAV"], bestBet: "FAV", tiebreaker: 450 },
-    { name: "Bo", weekName: "", picks: ["DOG"], bestBet: "DOG", tiebreaker: 400 },
-  ];
-  const sole = { cards, games: [{ gameId: "one", favorite: "FAV", underdog: "DOG", spread: 3.5, status: "FINAL" as const, favoriteScore: 10, underdogScore: 3, kickoff: "2026-10-11T17:00:00Z", period: "", clock: "" }] };
-  const shared = { cards, games: [{ ...sole.games[0], spread: 7 }] };
-  const first = observeLeads(sole, null, "2026-10-11T17:05:00Z");
-  const sharedLead = observeLeads(shared, first, "2026-10-11T17:10:00Z");
-  const returnToFirst = observeLeads(sole, sharedLead, "2026-10-11T17:15:00Z");
-  assert.equal(sharedLead.ranks.Jim, 1);
-  assert.equal(sharedLead.ranks.Bo, 1);
-  assert.equal(returnToFirst.changes.Jim?.from, 1);
-  assert.equal(returnToFirst.changes.Jim?.tied, false);
+test("weekly result rank movement uses the completed season record", () => {
+  assert.equal(
+    seasonRankMovementSummary({ name: "Mel", rank: 8, wins: 27, losses: 28 }, { name: "Mel", rank: 16, wins: 34, losses: 37 }),
+    "Mel drops from 8th pace to 16th place in the standings (34-37).",
+  );
+  assert.equal(
+    seasonRankMovementSummary({ name: "Mel", rank: 19, wins: 27, losses: 28 }, { name: "Mel", rank: 12, wins: 34, losses: 37 }),
+    "Mel jumps from 19th to 12th place in the standings (34-37).",
+  );
 });
 
-test("weekly recap uses records and breaks the winning tie by finalized tiebreak difference", () => {
-  const players = [
-    { name: "Jim", wins: 11, losses: 5, rank: 1, tiebreakDifference: 8 },
-    { name: "Gary", wins: 11, losses: 5, rank: 1, tiebreakDifference: 2 },
-    { name: "Mel", wins: 7, losses: 9, rank: 19, tiebreakDifference: 42 },
-    { name: "Mia", wins: 7, losses: 9, rank: 19, tiebreakDifference: 36 },
-  ];
-  assert.equal(weeklyRecapMessage(players, ["Jim"]), "Jim: 11-5, tied for 1st. Gary, 11-5 won.");
-  assert.equal(weeklyRecapMessage(players, ["Mel"]), "Mel: 7-9, tied for 19th. Gary, 11-5 won.");
-});
-
-test("weekly recap describes completed-season rank movement", () => {
-  assert.equal(seasonRankMovementSummary({ name: "Mel", rank: 8, wins: 27, losses: 28 }, { name: "Mel", rank: 16, wins: 34, losses: 37 }), "Mel drops from 8th pace to 16th place in the standings (34-37).");
-  assert.equal(seasonRankMovementSummary({ name: "Mel", rank: 19, wins: 27, losses: 28 }, { name: "Mel", rank: 12, wins: 34, losses: 37 }), "Mel jumps from 19th to 12th place in the standings (34-37).");
+test("first-place push names the scoring change and top two live probabilities", () => {
+  assert.equal(
+    leaderPushSummary(
+      { name: "Jim", winProbability: 42.25 },
+      { name: "Mel", winProbability: 27.5 },
+      { team: "JAX", points: 7, opposingTeam: "ATL", teamScore: 21, opposingScore: 17, spread: -3.5 },
+    ),
+    "Live win probability: First Jim 42.3% · Second Mel 27.5%.\nJAX scored 7 points. JAX 21, ATL 17 (JAX -3.5).",
+  );
 });

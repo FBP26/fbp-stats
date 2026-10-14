@@ -3,17 +3,14 @@ main = "src/index.ts"
 compatibility_date = "2026-08-26"
 
 [triggers]
-crons = ["* * * * *"]
+crons = ["*/5 * * * *"]
 
 [vars]
-CANDIDATE_LIFECYCLE_ENABLED = "true"
-OPERATIONAL_WRITES_ENABLED = "true"
 CORS_ORIGIN = "https://fbp26.github.io"
 PUBLIC_API_URL = "https://fbp-api.fbp-api-worker.workers.dev"
 PUBLIC_SITE_URL = "https://fbp26.github.io/fbp-stats/"
-ADMIN_SUBMISSION_EMAIL = "fbpool07@gmail.com"
-PICKS_SOURCE_URL = "https://script.google.com/macros/s/AKfycbxZUgJm6LstCEomhmrlJYa_nH7tsmxC_4UZwYdroIZbs-PeI6KdPqUZtsF9fZvr_YuNWQ/exec"
 EMAIL_RELAY_URL = "https://script.google.com/macros/s/AKfycbxZUgJm6LstCEomhmrlJYa_nH7tsmxC_4UZwYdroIZbs-PeI6KdPqUZtsF9fZvr_YuNWQ/exec"
+ADMIN_PUSH_PLAYER = "Jim"
 
 [[d1_databases]]
 binding = "DB"

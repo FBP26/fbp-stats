@@ -2,9 +2,6 @@ export const notificationEvents = [
   "picksReady",
   "picksDue",
   "firstPlace",
-  "topFive",
-  "topTen",
-  "leadChange",
   "earlyWindow",
   "lateWindow",
   "beforeSnf",
@@ -15,14 +12,39 @@ export const notificationEvents = [
 export type NotificationEvent = typeof notificationEvents[number];
 export type NotificationChannel = "email" | "sms";
 export type NotificationPreferences = Record<NotificationEvent, boolean>;
+export interface SeasonStanding {
+  name: string;
+  rank: number;
+  wins: number;
+  losses: number;
+}
+
+export interface LeaderPushScoreChange {
+  team: string;
+  points: number;
+  opposingTeam: string;
+  teamScore: number;
+  opposingScore: number;
+  spread: number;
+}
+
+export const leaderPushSummary = (
+  leader: { name: string; winProbability: number | null },
+  runnerUp: { name: string; winProbability: number | null } | null,
+  scoreChange: LeaderPushScoreChange | null,
+): string => {
+  const event = scoreChange
+    ? `${scoreChange.team} scored ${scoreChange.points} point${scoreChange.points === 1 ? "" : "s"}. ${scoreChange.team} ${scoreChange.teamScore}, ${scoreChange.opposingTeam} ${scoreChange.opposingScore} (${scoreChange.team} ${scoreChange.spread > 0 ? "+" : ""}${scoreChange.spread}).`
+    : "The latest scoring update put the standings in motion.";
+  const probability = (player: { name: string; winProbability: number | null }): string =>
+    Number.isFinite(player.winProbability) ? `${player.name} ${Number(player.winProbability).toFixed(1)}%` : `${player.name} unavailable`;
+  return `Live win probability: First ${probability(leader)}${runnerUp ? ` · Second ${probability(runnerUp)}` : ""}.\n${event}`;
+};
 
 export const defaultNotificationPreferences = (): NotificationPreferences => ({
   picksReady: true,
   picksDue: true,
   firstPlace: false,
-  topFive: false,
-  topTen: false,
-  leadChange: false,
   earlyWindow: false,
   lateWindow: false,
   beforeSnf: false,
@@ -67,60 +89,11 @@ export const notificationPreferenceColumns: Record<NotificationEvent, string> = 
   picksReady: "picks_ready",
   picksDue: "picks_due",
   firstPlace: "first_place",
-  topFive: "top_five",
-  topTen: "top_ten",
-  leadChange: "lead_change",
   earlyWindow: "early_window",
   lateWindow: "late_window",
   beforeSnf: "before_snf",
   beforeMnf: "before_mnf",
   weeklyResult: "weekly_result",
-};
-
-export interface WeeklyRecapPlayer {
-  name: string;
-  wins: number;
-  losses: number;
-  rank: number;
-  tiebreakDifference?: number | null;
-}
-
-export interface SeasonStanding {
-  name: string;
-  rank: number;
-  wins: number;
-  losses: number;
-}
-
-export const ordinalRank = (rank: number): string => {
-  const suffix = rank % 100 >= 11 && rank % 100 <= 13 ? "th" : ({ 1: "st", 2: "nd", 3: "rd" }[rank % 10] || "th");
-  return `${rank}${suffix}`;
-};
-
-export const weeklyRecapMessage = (players: WeeklyRecapPlayer[], followedNames: string[]): string => {
-  const followed = followedNames.map(name => players.find(player => player.name.toLowerCase() === name.toLowerCase())).filter((player): player is WeeklyRecapPlayer => Boolean(player));
-  const personalResults = followed.map(player => {
-    const tied = players.filter(other => other.wins === player.wins).length > 1;
-    return `${player.name}: ${player.wins}-${player.losses}, ${tied ? "tied for " : ""}${ordinalRank(player.rank)}`;
-  });
-  const topWins = Math.max(...players.map(player => player.wins));
-  const contenders = players.filter(player => player.wins === topWins);
-  const tiebreakDifferences = contenders.map(player => Number(player.tiebreakDifference)).filter(Number.isFinite);
-  const bestDifference = tiebreakDifferences.length === contenders.length ? Math.min(...tiebreakDifferences) : null;
-  const winners = bestDifference === null ? contenders : contenders.filter(player => Number(player.tiebreakDifference) === bestDifference);
-  const winnerSummary = winners.length === 1
-    ? `${winners[0].name}, ${winners[0].wins}-${winners[0].losses}`
-    : winners.map(player => player.name).join(" and ");
-  return `${personalResults.join("; ")}. ${winners.length === 1 ? `${winnerSummary} won` : `Winners: ${winnerSummary}`}.`;
-};
-
-export const seasonRankMovementSummary = (before: SeasonStanding | null, after: SeasonStanding | null): string => {
-  if (!after) return "Season standings were unavailable for this result.";
-  const record = `${after.wins}-${after.losses}`;
-  if (!before) return `${after.name} enters the standings in ${ordinalRank(after.rank)} place (${record}).`;
-  if (after.rank < before.rank) return `${after.name} jumps from ${ordinalRank(before.rank)} to ${ordinalRank(after.rank)} place in the standings (${record}).`;
-  if (after.rank > before.rank) return `${after.name} drops from ${ordinalRank(before.rank)} pace to ${ordinalRank(after.rank)} place in the standings (${record}).`;
-  return `${after.name} holds ${ordinalRank(after.rank)} place in the standings (${record}).`;
 };
 
 interface NotificationGame {
@@ -163,7 +136,7 @@ export const scheduledNotificationEvents = (
     const milliseconds = Number(item.kickoff?.time) - now.getTime();
     return String(item.game.state) === "PREGAME" && milliseconds >= 0 && milliseconds <= 35 * 60 * 1000;
   };
-  if (sundayNight.some(beginsSoon) && [...early, ...late].every(final)) events.add("beforeSnf");
+  if (sundayNight.some(beginsSoon) && late.length && [...early, ...late].every(final)) events.add("beforeSnf");
   if (mondayNight.some(beginsSoon)) events.add("beforeMnf");
   return [...events];
 };
@@ -179,4 +152,22 @@ export const picksDueReminderIsEligible = (
   if (!kickoffs.length) return false;
   const untilFirstKickoff = Math.min(...kickoffs) - now.getTime();
   return untilFirstKickoff >= 0 && untilFirstKickoff <= minutesBeforeKickoff * 60 * 1000;
+};
+
+const ordinal = (rank: number): string => {
+  const remainder = rank % 100;
+  if (remainder >= 11 && remainder <= 13) return `${rank}th`;
+  return `${rank}${({ 1: "st", 2: "nd", 3: "rd" } as Record<number, string>)[rank % 10] || "th"}`;
+};
+
+export const seasonRankMovementSummary = (
+  before: SeasonStanding | null,
+  after: SeasonStanding | null,
+): string => {
+  if (!after) return "Season standings were unavailable for this result.";
+  const record = `${after.wins}-${after.losses}`;
+  if (!before) return `${after.name} enters the standings in ${ordinal(after.rank)} place (${record}).`;
+  if (after.rank < before.rank) return `${after.name} jumps from ${ordinal(before.rank)} to ${ordinal(after.rank)} place in the standings (${record}).`;
+  if (after.rank > before.rank) return `${after.name} drops from ${ordinal(before.rank)} pace to ${ordinal(after.rank)} place in the standings (${record}).`;
+  return `${after.name} holds ${ordinal(after.rank)} place in the standings (${record}).`;
 };
