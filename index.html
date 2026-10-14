@@ -3671,10 +3671,10 @@ async function renderConfirmationHistory(submission) {
       { label: "Longest time since you picked against", value: gapValue(longestFadeGap.team, longestFadeGap.missed, "No current picked-against teams") },
       { label: "Best record when picked", value: recordValue(bestTeamRecord(false), "No qualified pick record") },
       { label: "Worst record when picked", value: recordValue(worstTeamRecord(false), "No qualified pick record") },
-      { label: "Best record when picked against", value: recordValue(bestTeamRecord(true), "No qualified picked-against record") },
-      { label: "Worst record when picked against", value: recordValue(worstTeamRecord(true), "No qualified picked-against record") }
+      { label: "Best record picking against", value: recordValue(bestTeamRecord(true), "No qualified picked-against record") },
+      { label: "Worst record picking against", value: recordValue(worstTeamRecord(true), "No qualified picked-against record") }
     ])}<h3>Best Bet patterns</h3>${confirmationMetricTable([
-      { label: "Most selected as Best Bet", value: metricValue(mostBestBetTeam, mostBestBetCount, "No Best Bets") },
+      { label: "Most Best Bet", value: metricValue(mostBestBetTeam, mostBestBetCount, "No Best Bets") },
       { label: "Current Best Bet run", value: metricValue(bestBetRepeat.team, bestBetRepeat.length, "No current Best Bet") },
       { label: "Best record as Best Bet", value: recordValue(bestBestBetRecord, "No qualified Best Bet record") },
       { label: "Worst record as Best Bet", value: recordValue(worstBestBetRecord, "No qualified Best Bet record") }
