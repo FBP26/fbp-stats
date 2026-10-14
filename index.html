@@ -3554,6 +3554,11 @@ async function loadConfirmationProbability(submission) {
     ]);
   } catch (error) { host.innerHTML = confirmationMetricTable([{ label: "Live outlook", value: "Unavailable" }]); }
 }
+const WEBSITE_CURRENT_NFL_TEAMS = ["ARI", "ATL", "BAL", "BUF", "CAR", "CHI", "CIN", "CLE", "DAL", "DEN", "DET", "GB", "HOU", "IND", "JAX", "KC", "LAC", "LA", "LV", "MIA", "MIN", "NE", "NO", "NYG", "NYJ", "PHI", "PIT", "SEA", "SF", "TB", "TEN", "WAS"];
+function websiteCanonicalTeam(value) {
+  const code = String(value || "").trim().toUpperCase();
+  return { JAC: "JAX", LAR: "LA", OAK: "LV", SD: "LAC", STL: "LA" }[code] || code;
+}
 async function renderConfirmationHistory(submission) {
   const host = document.getElementById("confirmation-history");
   host.innerHTML = '<h3>Pick form</h3><p>Looking for a good callback...</p>';
@@ -3565,12 +3570,12 @@ async function renderConfirmationHistory(submission) {
     const gameById = new Map(websiteGames.map(game => [game.gameId, game]));
     const history = websitePicks.filter(row => row.playerId === playerId || String(row.name).trim().toLowerCase() === normalized).map(row => ({ ...row, game: gameById.get(row.gameId) })).filter(row => row.game).sort((left, right) => `${left.game.gameDate || ""} ${left.game.gameTime || ""}`.localeCompare(`${right.game.gameDate || ""} ${right.game.gameTime || ""}`));
     if (!history.length) { host.innerHTML = `<h3>Pick form</h3><p>No archived picks match ${websiteEscapeHtml(submission.name)} yet. Give us a completed week and we will have material.</p>`; return; }
-    const currentRows = websiteActiveGames.map((game, index) => ({ game, pick: String(submission.picks[index] || "").toUpperCase() }));
+    const currentRows = websiteActiveGames.map((game, index) => ({ game, pick: websiteCanonicalTeam(submission.picks[index]) }));
     const currentTeams = [...new Set(currentRows.map(row => row.pick).filter(Boolean))];
-    const currentOpponents = [...new Set(currentRows.map(row => [row.game.favorite, row.game.underdog].map(team => String(team).toUpperCase()).find(team => team !== row.pick)).filter(Boolean))];
+    const currentOpponents = [...new Set(currentRows.map(row => [row.game.favorite, row.game.underdog].map(websiteCanonicalTeam).find(team => team !== row.pick)).filter(Boolean))];
     const completedHistory = history.filter(row => ["win", "loss", "push"].includes(String(row.result).toLowerCase()));
     const teamLabel = team => websiteEscapeHtml(websiteNaturalTeamName(team));
-    const opponentFor = row => [row.game.favorite, row.game.underdog].map(team => String(team).toUpperCase()).find(team => team !== String(row.pick).toUpperCase()) || "";
+    const opponentFor = row => [row.game.favorite, row.game.underdog].map(websiteCanonicalTeam).find(team => team !== websiteCanonicalTeam(row.pick)) || "";
     const countTeams = teams => [...teams.reduce((counts, team) => counts.set(team, (counts.get(team) || 0) + 1), new Map()).entries()].sort((left, right) => right[1] - left[1] || websiteNaturalTeamName(left[0]).localeCompare(websiteNaturalTeamName(right[0])))[0] || ["", 0];
     const periodKey = game => String(game.gameId || `${game.season}|${game.week}|${game.gameDate}|${game.gameTime}`);
     const periodTime = game => {
@@ -3580,8 +3585,8 @@ async function renderConfirmationHistory(submission) {
     const periods = [...new Map(websiteGames.map(game => [periodKey(game), { key: periodKey(game), time: periodTime(game) }])).values()].sort((left, right) => left.time - right.time || left.key.localeCompare(right.key));
     const gamesByPeriod = websiteGames.reduce((groups, game) => { const key = periodKey(game); const games = groups.get(key) || []; games.push(game); groups.set(key, games); return groups; }, new Map());
     const picksByPeriod = completedHistory.reduce((groups, row) => { const key = periodKey(row.game); const picks = groups.get(key) || []; picks.push(row); groups.set(key, picks); return groups; }, new Map());
-    const teamPlayed = (team, games) => games.some(game => [game.favorite, game.underdog].some(value => String(value).toUpperCase() === team));
-    const pickedInPeriod = (team, picks, against) => picks.some(row => against ? opponentFor(row) === team : String(row.pick).toUpperCase() === team);
+    const teamPlayed = (team, games) => games.some(game => [game.favorite, game.underdog].some(value => websiteCanonicalTeam(value) === team));
+    const pickedInPeriod = (team, picks, against) => picks.some(row => against ? opponentFor(row) === team : websiteCanonicalTeam(row.pick) === team);
     const currentChoiceRun = (team, against = false) => {
       let length = 0;
       const currentGame = currentRows.find(row => [row.game.favorite, row.game.underdog].some(value => String(value).toUpperCase() === team));
@@ -3657,6 +3662,8 @@ async function renderConfirmationHistory(submission) {
     const fadeRepeat = currentOpponents.map(team => currentChoiceRun(team, true)).sort((left, right) => right.length - left.length || websiteNaturalTeamName(left.team).localeCompare(websiteNaturalTeamName(right.team)))[0] || { team: "", length: 0 };
     const longestPickGap = currentTeams.map(team => regularOpportunityGap(team)).sort((left, right) => right.missed - left.missed || websiteNaturalTeamName(left.team).localeCompare(websiteNaturalTeamName(right.team)))[0] || { team: "", missed: 0 };
     const longestFadeGap = currentOpponents.map(team => regularOpportunityGap(team, true)).sort((left, right) => right.missed - left.missed || websiteNaturalTeamName(left.team).localeCompare(websiteNaturalTeamName(right.team)))[0] || { team: "", missed: 0 };
+    const longestLeaguePickGap = WEBSITE_CURRENT_NFL_TEAMS.map(team => regularOpportunityGap(team)).sort((left, right) => right.missed - left.missed || websiteNaturalTeamName(left.team).localeCompare(websiteNaturalTeamName(right.team)))[0] || { team: "", missed: 0 };
+    const longestLeagueFadeGap = WEBSITE_CURRENT_NFL_TEAMS.map(team => regularOpportunityGap(team, true)).sort((left, right) => right.missed - left.missed || websiteNaturalTeamName(left.team).localeCompare(websiteNaturalTeamName(right.team)))[0] || { team: "", missed: 0 };
     const metricValue = (team, count, empty = "No completed history") => team && count ? `${teamLabel(team)} · ${count}` : empty;
     const recordValue = (record, empty) => record ? `${teamLabel(record.team)} · ${record.wins}-${record.losses}${record.pushes ? `-${record.pushes}` : ""}` : empty;
     const currentBestBetRecordValue = (record, empty) => record ? `${teamLabel(record.team)} - ${record.wins}-${record.losses}${record.pushes ? `-${record.pushes}` : ""}` : empty;
@@ -3666,6 +3673,8 @@ async function renderConfirmationHistory(submission) {
       { label: "Most picked against", value: metricValue(mostFadedTeam, mostFadedCount, "No completed fades") },
       { label: "Current pick run", value: metricValue(pickRepeat.team, pickRepeat.length) },
       { label: "Current picked-against run", value: metricValue(fadeRepeat.team, fadeRepeat.length) },
+      { label: "Longest without picking · all 32 teams", value: gapValue(longestLeaguePickGap.team, longestLeaguePickGap.missed, "No completed picks") },
+      { label: "Longest without picking against · all 32 teams", value: gapValue(longestLeagueFadeGap.team, longestLeagueFadeGap.missed, "No completed fades") },
       { label: "Longest without picking · picked this week", value: gapValue(longestPickGap.team, longestPickGap.missed, "No current picks") },
       { label: "Longest without picking against · picked against this week", value: gapValue(longestFadeGap.team, longestFadeGap.missed, "No current picked-against teams") },
       { label: "Best record when picked", value: recordValue(bestTeamRecord(false), "No qualified pick record") },
