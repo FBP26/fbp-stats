@@ -125,7 +125,7 @@ footer { padding: 30px 20px; border-top: 1px solid var(--border); color: var(--m
 .tiebreak-segment.actual { outline: 4px solid var(--gold); outline-offset: -4px; }
 .actual-badge { display: inline-block !important; margin: 7px auto 0; padding: 3px 7px; border-radius: 99px; background: #fff; color: #15202b; font-weight: 850; }
 .race-shell { overflow: hidden; padding: 0; }
-.race-toolbar { position: sticky; top: 62px; z-index: 10; padding: 17px clamp(16px, 3vw, 30px); border-bottom: 1px solid var(--border); background: rgb(17 29 39 / 95%); backdrop-filter: blur(10px); }
+.race-toolbar { position: relative; z-index: 1; padding: 17px clamp(16px, 3vw, 30px); border-bottom: 1px solid var(--border); background: rgb(17 29 39 / 95%); }
 .race-toolbar-top { display: flex; align-items: center; justify-content: space-between; gap: 16px; }
 .race-time { font-size: clamp(17px, 3vw, 25px); font-weight: 850; }
 .race-progress { color: var(--muted); font-size: 12px; }
@@ -207,7 +207,6 @@ footer { padding: 30px 20px; border-top: 1px solid var(--border); color: var(--m
   .hero { border-radius: 17px; }
   .stat-grid { grid-template-columns: repeat(2, 1fr); }
   .section-heading { align-items: start; flex-direction: column; }
-  .race-toolbar { top: 58px; }
   .race-toolbar-top { align-items: start; flex-direction: column; }
   .tiebreak-track { overflow-x: auto; }
   .helped-table { min-width: 620px; }

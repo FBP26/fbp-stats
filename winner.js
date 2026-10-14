@@ -57,15 +57,12 @@ function careerText(winner) {
   return `${winner.name} has won ${formatMoney(career.money)} total in the pool.${titleText ? ` Career titles: ${titleText}.` : ""}`;
 }
 
-function winnerSummary(data, winner) {
+function winnerFinishText(data, winner) {
   const tied = data.players.filter(player => player.wins === winner.wins);
-  const runner = tied.find(player => player.name !== winner.name && player.tiebreakerDiff > winner.tiebreakerDiff);
-  const margin = runner ? runner.tiebreakerDiff - winner.tiebreakerDiff : null;
-  const others = tied.length - 1;
-  if (!others) {
-    return `${winner.name} finished with ${winner.wins} wins, alone at the top of the week. The actual total came in at ${winner.actualTiebreaker} and ${winner.name}'s guess of ${winner.tiebreaker} was ${winner.tiebreakerDiff} yards away, but the tiebreaker was never needed.`;
-  }
-  return `${winner.name} finished with ${winner.wins} wins, matched by ${others} other entr${others === 1 ? "y" : "ies"}. The actual total of ${winner.actualTiebreaker} landed in ${winner.name}'s range; ${winner.name}'s guess of ${winner.tiebreaker} was ${winner.tiebreakerDiff} yards away${runner ? `, ${margin} yard${margin === 1 ? "" : "s"} closer than ${runner.name}'s guess` : ""}.`;
+  const others = tied.filter(player => normalize(player.name) !== normalize(winner.name)).map(player => player.name);
+  if (!others.length) return `${winner.name} finished with ${winner.wins} wins, alone at the top of the week.`;
+  const names = others.length === 1 ? others[0] : `${others.slice(0, -1).join(", ")} and ${others.at(-1)}`;
+  return `${winner.name} finished with ${winner.wins} wins, tied with ${names}.`;
 }
 
 function helpedByGame(winner) {
@@ -81,6 +78,11 @@ function helpedLabel(item) {
   return `${item.percent > 0 ? "+" : ""}${item.percent.toFixed(1)}%`;
 }
 
+function impactText(item) {
+  if (!item) return "No impact";
+  return `${helpedLabel(item)} ${item.percent < -.001 ? "hurt" : "helped"}`;
+}
+
 function confirmationHtml(data, winner) {
   const gameByNumber = new Map(data.games.map(game => [game.gameNum, game]));
   const helped = helpedByGame(winner);
@@ -92,23 +94,24 @@ function confirmationHtml(data, winner) {
     return `<div class="pick ${game?.winner === "PUSH" ? "" : correct ? "correct" : "wrong"}">
       <small>Game ${index + 1} - ${escapeHtml(game?.away)} at ${escapeHtml(game?.home)}</small>
       <strong>${escapeHtml(pick)}</strong>
-      ${bestBet ? '<em class="best-bet-tag">BEST BET - worth 2</em>' : ""}
-      <span class="pick-helped ${helpedTone(impact?.percent || 0)}">${impact ? `${helpedLabel(impact)} helped` : "No impact"}</span>
+      ${bestBet ? '<em class="best-bet-tag">BEST BET</em>' : ""}
+      <span class="pick-helped ${helpedTone(impact?.percent || 0)}">${impactText(impact)}</span>
     </div>`;
   }).join("");
   return `<section class="section">
-    <div class="section-heading"><div><h2>The winning entry</h2><p>${escapeHtml(winnerSummary(data, winner))}</p></div><span class="pill">${escapeHtml(data.archiveFile)}</span></div>
+    <div class="section-heading"><div><h2>The winning entry</h2></div><span class="pill">${escapeHtml(data.archiveFile)}</span></div>
     <div class="confirmation-grid">
       <article class="winner-card">
         <h3>${escapeHtml(winner.name)}</h3>
         <div class="week-name">${escapeHtml(winner.weekName || `Week ${data.week}`)}</div>
         <p><strong>${winner.wins}-${winner.losses}${winner.pushes ? `-${winner.pushes}` : ""}</strong> with ${escapeHtml(winner.bestBet)} as the Best Bet.</p>
+        <p>${escapeHtml(winnerFinishText(data, winner))}</p>
         <p>Tiebreak guess <strong>${winner.tiebreaker}</strong>; actual <strong>${winner.actualTiebreaker}</strong>; ${winner.tiebreakerDiff} yards away.</p>
+        <p><strong>Underdogs:</strong> ${winner.highlights.correctUnderdogs} of ${winner.highlights.underdogPicks} hit.</p>
         <p class="career-line">${escapeHtml(careerText(winner))}</p>
       </article>
       <div class="picks-grid">${picks}</div>
     </div>
-    <p class="route-note">Helped compares ${escapeHtml(winner.name)}'s weighted points on a game with the average the rest of the field earned there. A correct Best Bet counts twice.</p>
   </section>`;
 }
 
@@ -136,19 +139,6 @@ function standingsHtml(data) {
   </section>`;
 }
 
-function highlightsHtml(data, winner) {
-  const highlights = winner.highlights;
-  const sharpest = highlights.sharpest.map(pick => `${pick.pick} (${pick.support} of ${data.players.length})`).join(", ");
-  return `<section class="section">
-    <div class="section-heading"><div><h2>How ${escapeHtml(winner.name)} won it</h2><p>The picks that separated the winner from the field.</p></div></div>
-    <div class="highlight-grid">
-      <div class="highlight"><span>Correct picks</span><strong>${highlights.correctPicks} of ${data.games.length}</strong></div>
-      <div class="highlight"><span>Underdogs</span><strong>${highlights.correctUnderdogs} of ${highlights.underdogPicks} hit</strong></div>
-      <div class="highlight"><span>Sharpest winners</span><strong>${escapeHtml(sharpest || "No minority picks")}</strong></div>
-    </div>
-  </section>`;
-}
-
 function tiebreakSegments(data, winner) {
   const tied = data.players.filter(player => player.wins === winner.wins).sort((left, right) => left.tiebreaker - right.tiebreaker);
   const groups = [];
@@ -166,6 +156,7 @@ function tiebreakSegments(data, winner) {
 }
 
 function tiebreakHtml(data, winner) {
+  const segmentColors = ["#236b8e", "#8f4f73", "#31796d", "#8a6234", "#6557a5", "#a34f46"];
   const segments = tiebreakSegments(data, winner);
   const edge = Math.max(30, Math.round((segments.at(-1).guess - segments[0].guess) * .3));
   const displayLow = Math.min(segments[0].guess - edge, winner.actualTiebreaker);
@@ -175,10 +166,10 @@ function tiebreakHtml(data, winner) {
     const low = index ? segment.low : displayLow;
     const high = index === segments.length - 1 ? displayHigh : segment.high;
     const width = Math.max(12, 100 * (high - low) / span);
-    return `<div class="tiebreak-segment ${segment.actual ? "actual" : ""}" style="flex:${width};background:${playerColor(segment.players[0].name, .68)}"><strong>${escapeHtml(segment.players.map(player => player.name).join(" / "))}</strong><span>Guess ${segment.guess}</span><span>${escapeHtml(segment.range)}</span>${segment.actual ? `<span class="actual-badge">Actual ${winner.actualTiebreaker}</span>` : ""}</div>`;
+    return `<div class="tiebreak-segment ${segment.actual ? "actual" : ""}" style="flex:${width};background:${segmentColors[index % segmentColors.length]}"><strong>${escapeHtml(segment.players.map(player => player.name).join(" / "))}</strong><span>Guess ${segment.guess}</span><span>${escapeHtml(segment.range)}</span>${segment.actual ? `<span class="actual-badge">Actual ${winner.actualTiebreaker}</span>` : ""}</div>`;
   }).join("");
   return `<section class="section">
-    <div class="section-heading"><div><h2>Tiebreak landing</h2><p>Every entry tied at ${winner.wins} wins owns the range closest to its guess. The actual total of ${winner.actualTiebreaker} landed in the highlighted band.</p></div></div>
+    <div class="section-heading"><div><h2>Tiebreak landing</h2></div></div>
     <div class="tiebreak-track">${cells}</div>
   </section>`;
 }
@@ -408,7 +399,7 @@ function renderLeadership(winnerName) {
     const share = analysis.totalDuration ? 100 * duration / analysis.totalDuration : 0;
     return `<div class="leader-stat ${isWinner ? "winner-leader" : ""}" style="--runner-color:${isWinner ? "#f4c44f" : playerColor(name)}"><strong>${escapeHtml(name)}${isWinner ? '<em class="winner-tag">WINNER</em>' : ""}</strong><span>${duration ? `${formatDuration(duration)} on top (${share.toFixed(1)}%)` : "Never held the lead"}</span></div>`;
   }).join("");
-  const changes = [...leadChanges].reverse().map(change => `<div class="lead-change ${normalize(change.name) === normalize(winnerName) ? "winner-leader" : ""}" style="--runner-color:${normalize(change.name) === normalize(winnerName) ? "#f4c44f" : playerColor(change.name)}"><strong>${escapeHtml(change.name)} took over at ${change.wins}</strong><time>${new Date(change.start).toLocaleString([], { weekday: "short", hour: "numeric", minute: "2-digit" })}</time></div>`).join("");
+  const changes = [...leadChanges].reverse().map(change => `<div class="lead-change ${normalize(change.name) === normalize(winnerName) ? "winner-leader" : ""}" style="--runner-color:${normalize(change.name) === normalize(winnerName) ? "#f4c44f" : playerColor(change.name)}"><strong>${escapeHtml(change.name)} moved into first place with ${change.wins} weighted point${change.wins === 1 ? "" : "s"}</strong><time>${new Date(change.start).toLocaleString([], { weekday: "short", hour: "numeric", minute: "2-digit" })}</time></div>`).join("");
   host.innerHTML = `<div><div class="section-heading"><div><h2>Time on top</h2><p>${leadChanges.length} lead change${leadChanges.length === 1 ? "" : "s"} through this checkpoint. The leader is the entry with the most weighted points, with ties going to the closest tiebreaker. Every entry that led is listed, and the winner is always shown.</p></div></div><div class="leader-trail">${trail}</div><div class="leader-stats">${leaders}</div></div><div><div class="section-heading"><div><h2>Lead changes</h2><p>All ${leadChanges.length} takeover${leadChanges.length === 1 ? "" : "s"}, most recent first.</p></div></div><div class="lead-change-list">${changes || '<div class="empty-note">No lead changes yet.</div>'}</div></div>`;
 }
 
@@ -457,6 +448,33 @@ function bindRaceControls() {
   };
 }
 
+function spreadLabel(game, pick) {
+  if (normalize(pick) === normalize(game.favorite)) return `-${Number(game.spread)}`;
+  if (normalize(pick) === normalize(game.underdog)) return `+${Number(game.spread)}`;
+  return "";
+}
+
+function gameOutcomeText(game, pick) {
+  const awayScore = Number(game.awayScore);
+  const homeScore = Number(game.homeScore);
+  if (!Number.isFinite(awayScore) || !Number.isFinite(homeScore)) {
+    return game.winner === "PUSH" ? "The spread pushed" : `${game.winner} covered`;
+  }
+  if (awayScore === homeScore) return `${game.away} and ${game.home} tied ${awayScore}-${homeScore}`;
+  const straightWinner = homeScore > awayScore ? game.home : game.away;
+  const straightLoser = homeScore > awayScore ? game.away : game.home;
+  const winnerScore = Math.max(homeScore, awayScore);
+  const loserScore = Math.min(homeScore, awayScore);
+  const pickWon = normalize(pick) === normalize(straightWinner);
+  const covered = normalize(pick) === normalize(game.winner);
+  const spread = spreadLabel(game, pick);
+  if (game.winner === "PUSH") return `${straightWinner} won ${winnerScore}-${loserScore}; the spread pushed`;
+  if (pickWon && covered) return `${pick} won ${winnerScore}-${loserScore} and covered ${spread}`;
+  if (pickWon) return `${pick} won ${winnerScore}-${loserScore} but did not cover ${spread}`;
+  if (covered) return `${pick} lost ${loserScore}-${winnerScore} but covered ${spread}`;
+  return `${pick} lost ${loserScore}-${winnerScore} and did not cover ${spread}`;
+}
+
 function routeHtml(data, winner) {
   const helped = helpedByGame(winner);
   let wins = 0, losses = 0, pushes = 0;
@@ -469,13 +487,12 @@ function routeHtml(data, winner) {
     else losses += 1;
     const impact = helped.get(game.gameNum);
     const bestBet = winner.bestBet === pick;
-    const outcome = push ? "pushed" : correct ? "covered" : `lost to ${game.winner}`;
     return `<li class="route-step ${push ? "push" : correct ? "hit" : "miss"}">
       <span class="route-node">G${game.gameNum}</span>
       <div class="route-detail">
         <small>${escapeHtml(game.away)} at ${escapeHtml(game.home)}</small>
-        <strong>${escapeHtml(pick)} ${escapeHtml(outcome)}${bestBet ? '<em class="best-bet-tag">BEST BET</em>' : ""}</strong>
-        <span class="route-meta">Running ${wins}-${losses}${pushes ? `-${pushes}` : ""}${impact ? ` <b class="${helpedTone(impact.percent)}">${helpedLabel(impact)} helped</b>` : ""}</span>
+        <strong>${escapeHtml(gameOutcomeText(game, pick))}${bestBet ? '<em class="best-bet-tag">BEST BET</em>' : ""}</strong>
+        <span class="route-meta">Running ${wins}-${losses}${pushes ? `-${pushes}` : ""}${impact ? ` <b class="${helpedTone(impact.percent)}">${impactText(impact)}</b>` : ""}</span>
       </div>
     </li>`;
   }).join("");
@@ -483,7 +500,7 @@ function routeHtml(data, winner) {
     const pick = winner.picks[index];
     const push = game.winner === "PUSH";
     const correct = !push && game.winner === pick;
-    return `<span class="thread-chip ${push ? "push" : correct ? "hit" : "miss"}" title="Game ${game.gameNum}: ${escapeHtml(pick)} ${push ? "pushed" : correct ? "covered" : "missed"}">${escapeHtml(pick)}</span>`;
+    return `<span class="thread-chip ${push ? "push" : correct ? "hit" : "miss"}" title="Game ${game.gameNum}: ${escapeHtml(pick)} ${push ? "pushed" : correct ? "covered" : "did not cover"}">${escapeHtml(pick)}</span>`;
   }).join("");
   return `<section class="section">
     <div class="section-heading"><div><h2>The thread that made it all the way</h2><p>Every completed game in order, from kickoff to the tiebreaker that delivered the week. Green is a winning pick, red is a miss, and gold is the finish.</p></div></div>
@@ -500,11 +517,11 @@ function routeHtml(data, winner) {
 function helpedHtml(winner) {
   const rows = [...winner.highlights.helped].sort((left, right) => left.rank - right.rank).map(item => {
     const positive = item.percent > .001, negative = item.percent < -.001;
-    return `<tr class="${positive ? "positive" : negative ? "negative" : ""}"><td>${item.gameNum}</td><td>${escapeHtml(item.matchup)}</td><td><strong>${escapeHtml(item.pick)}</strong></td><td>${escapeHtml(item.result)}</td><td class="${positive ? "positive-value" : negative ? "negative-value" : ""}">${item.percent > 0 ? "+" : ""}${item.percent.toFixed(1)}%</td><td>${ordinal(item.rank)}</td></tr>`;
+    return `<tr class="${positive ? "positive" : negative ? "negative" : ""}"><td>${item.gameNum}</td><td>${escapeHtml(item.matchup)}</td><td><strong>${escapeHtml(item.pick)}</strong></td><td>${escapeHtml(item.result)}</td><td class="${positive ? "positive-value" : negative ? "negative-value" : ""}">${impactText(item)}</td><td>${ordinal(item.rank)}</td></tr>`;
   }).join("");
   return `<section class="section">
-    <div class="section-heading"><div><h2>Which games helped most</h2><p>Helped compares the winner's weighted points with the average points earned by the rest of the field. Best Bet is worth two.</p></div></div>
-    <div class="table-scroll"><table class="helped-table"><thead><tr><th>#</th><th>Game</th><th>Pick</th><th>Result</th><th>Helped</th><th>Rank</th></tr></thead><tbody>${rows}</tbody></table></div>
+    <div class="section-heading"><div><h2>Which games helped or hurt most</h2><p>Impact compares the winner's weighted points with the average points earned by the rest of the field. Best Bet is worth two.</p></div></div>
+    <div class="table-scroll"><table class="helped-table"><thead><tr><th>#</th><th>Game</th><th>Pick</th><th>Result</th><th>Impact</th><th>Rank</th></tr></thead><tbody>${rows}</tbody></table></div>
   </section>`;
 }
 
@@ -524,7 +541,7 @@ function heroHtml(data, winner) {
       <div class="stat"><span>Final record</span><strong>${record}</strong></div>
       <div class="stat"><span>Best Bet</span><strong>${escapeHtml(winner.bestBet)}</strong></div>
       <div class="stat"><span>Correct picks</span><strong>${winner.highlights.correctPicks} of ${data.games.length}</strong></div>
-      <div class="stat"><span>Tiebreak miss</span><strong>${winner.tiebreakerDiff} yards</strong></div>
+      <div class="stat"><span>Tiebreak</span><strong>${winner.tiebreakerDiff} yards</strong></div>
     </div>
   </section>`;
 }
@@ -561,7 +578,6 @@ async function render() {
     app.innerHTML = [
       heroHtml(recapData, winner),
       confirmationHtml(recapData, winner),
-      highlightsHtml(recapData, winner),
       tiebreakHtml(recapData, winner),
       standingsHtml(recapData),
       `<div id="live-race">${raceHtml(recapData)}</div>`,
