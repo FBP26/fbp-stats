@@ -6,8 +6,27 @@ const modulePath = fileURLToPath(import.meta.url);
 const root = path.dirname(modulePath);
 const recapDirectory = path.join(root, "data", "winner-recaps");
 
+// games.json carries venue metadata only for some weeks; neutral-site games whose
+// rows have a null stadiumId are mapped here by season|week|AWAY@HOME.
+// Venue ids match FBP_MAP_VENUES in map.js where that file already defines them.
+const NEUTRAL_SITE_GAMES = {
+  "2026-2027|3|BAL@DAL": "RIO00",
+  "2026-2027|4|IND@WAS": "LON02",
+  "2026-2027|5|PHI@JAX": "LON02",
+  "2026-2027|6|HOU@JAX": "LON00",
+};
+
+// Venues absent from FBP_MAP_VENUES in map.js.
 const EXTRA_VENUES = {
   MEL00: { city: "Melbourne, Australia", country: "Australia", lat: -37.8200, lng: 144.9834 },
+  RIO00: { city: "Rio de Janeiro, Brazil", country: "Brazil", lat: -22.9121, lng: -43.2302 },
+};
+
+const STADIUM_NAMES = {
+  MEL00: "Melbourne Cricket Ground",
+  RIO00: "Maracanã Stadium",
+  LON00: "Wembley Stadium",
+  LON02: "Tottenham Hotspur Stadium",
 };
 
 function extractObject(source, name) {
@@ -26,8 +45,8 @@ function extractObject(source, name) {
 
 const normalizeTeam = value => String(value || "").trim().toUpperCase();
 
-function resolveVenue(game, recapGame, markets, venues) {
-  const stadiumId = String(game?.stadiumId || "").trim();
+function resolveVenue(game, recapGame, markets, venues, overrideId) {
+  const stadiumId = overrideId || String(game?.stadiumId || "").trim();
   const market = stadiumId ? venues[stadiumId] || EXTRA_VENUES[stadiumId] : null;
   if (market) {
     return {
@@ -35,8 +54,8 @@ function resolveVenue(game, recapGame, markets, venues) {
       lng: market.lng,
       city: market.city,
       country: market.country,
-      stadium: game.stadium || "",
-      neutralSite: Boolean(game.neutralSite),
+      stadium: game?.stadium || STADIUM_NAMES[stadiumId] || "",
+      neutralSite: Boolean(overrideId) || Boolean(game?.neutralSite),
       international: market.country !== "USA",
       source: "venue",
     };
@@ -71,9 +90,11 @@ export async function buildWinnerVenues() {
     const recap = JSON.parse(await readFile(path.join(recapDirectory, week.file), "utf8"));
     const entries = recap.games.map(recapGame => {
       const source = byKey.get(`${recap.seasonLabel}|${week.week}|${recapGame.gameNum}`);
-      const stadiumId = String(source?.stadiumId || "").trim();
+      const matchup = `${normalizeTeam(recapGame.away)}@${normalizeTeam(recapGame.home)}`;
+      const overrideId = NEUTRAL_SITE_GAMES[`${recap.seasonLabel}|${week.week}|${matchup}`] || "";
+      const stadiumId = overrideId || String(source?.stadiumId || "").trim();
       if (stadiumId && !venues[stadiumId] && !EXTRA_VENUES[stadiumId]) missingVenues.add(stadiumId);
-      const resolved = resolveVenue(source, recapGame, markets, venues);
+      const resolved = resolveVenue(source, recapGame, markets, venues, overrideId);
       return resolved ? { gameNum: recapGame.gameNum, ...resolved } : null;
     }).filter(Boolean);
     output[`${recap.seasonLabel}|${week.week}`] = entries;

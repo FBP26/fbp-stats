@@ -169,6 +169,16 @@ async function loadRaceArchive(season, week, winnerNames) {
   return candidates.sort((left, right) => raceCandidateScore(right.snapshots, winnerNames) - raceCandidateScore(left.snapshots, winnerNames))[0];
 }
 
+// Mirrors getHistoricalWinnerContext in fbp_dashboard_appscript.js so the page and
+// the winner email report the same number.
+function historicalPercentile(playerWeeks, wins, seasonLabel, week) {
+  const historicalWinners = playerWeeks.filter(row => row.competition === "regular" && number(row.rank) === 1
+    && !(row.season === seasonLabel && String(row.week) === String(week)));
+  if (!historicalWinners.length) return null;
+  const lowerScores = historicalWinners.filter(row => number(row.displayWins) < wins).length;
+  return Math.round(100 * lowerScores / historicalWinners.length);
+}
+
 function careerSummary(winnerName, playerWeeks, moneyRows) {
   const rows = playerWeeks.filter(row => normalizeName(row.name) === normalizeName(winnerName));
   const weeklyWins = rows.filter(row => row.competition === "regular" && number(row.rank) === 1).length;
@@ -207,7 +217,7 @@ async function main() {
       week,
       archiveFile: file,
       generatedAt: new Date().toISOString(),
-      winners: winners.map(winner => ({ ...winner, career: careerSummary(winner.name, playerWeeks, moneyRows), highlights: buildHighlights(players, games, rows, winner) })),
+      winners: winners.map(winner => ({ ...winner, career: careerSummary(winner.name, playerWeeks, moneyRows), historicalPercentile: historicalPercentile(playerWeeks, winner.wins, `${season}-${season + 1}`, week), highlights: buildHighlights(players, games, rows, winner) })),
       players,
       games,
       raceSource: race.source,

@@ -104,6 +104,7 @@ footer { padding: 30px 20px; border-top: 1px solid var(--border); color: var(--m
 .winner-card .week-name { color: var(--gold); font-weight: 700; }
 .winner-card p { color: #c5d2da; line-height: 1.55; }
 .career-line { margin-top: 16px; padding-top: 15px; border-top: 1px solid rgb(255 255 255 / 10%); }
+.percentile-line { color: var(--gold) !important; font-weight: 700; }
 .picks-grid { display: grid; grid-template-columns: repeat(auto-fit, minmax(135px, 1fr)); gap: 7px; }
 .pick { display: flex; flex-direction: column; gap: 3px; padding: 11px; border: 1px solid var(--border); border-radius: 9px; background: #0c1720; }
 .pick.correct { border-color: rgb(85 215 176 / 42%); background: rgb(85 215 176 / 8%); }
@@ -201,6 +202,13 @@ footer { padding: 30px 20px; border-top: 1px solid var(--border); color: var(--m
 .legend-dot.helped { background: #3fbf8f; }
 .legend-dot.hurt { background: #e2566f; }
 .legend-dot.neutral { background: #8b97a6; }
+.legend-dot.best { background: transparent; border-color: var(--gold); box-shadow: 0 0 0 2px rgba(212, 175, 55, .35); }
+.impact-pin-wrap { background: none; border: 0; }
+.impact-pin { position: relative; display: flex; align-items: center; justify-content: center; width: var(--pin-size); height: var(--pin-size); border: 2px solid rgba(243, 241, 232, .85); border-radius: 50%; background: var(--pin-color); box-shadow: 0 2px 8px rgba(0, 0, 0, .45); }
+.impact-pin span { color: #06121a; font-size: 11px; font-weight: 900; line-height: 1; }
+.impact-pin small { position: absolute; top: calc(100% + 2px); left: 50%; padding: 1px 5px; border-radius: 999px; background: rgba(7, 16, 24, .88); color: var(--text); font-size: 9px; font-weight: 800; white-space: nowrap; transform: translateX(-50%); }
+.impact-pin.best { border-color: var(--gold); box-shadow: 0 0 0 3px rgba(212, 175, 55, .35), 0 2px 8px rgba(0, 0, 0, .45); }
+.impact-pin.best::after { content: "\2605"; position: absolute; top: -8px; right: -6px; color: var(--gold); font-size: 12px; line-height: 1; text-shadow: 0 1px 2px #000; }
 .legend-note { font-style: italic; }
 .impact-popup .leaflet-popup-content-wrapper { border: 1px solid var(--gold); border-radius: 11px; background: #071018; color: var(--text); box-shadow: var(--shadow); }
 .impact-popup .leaflet-popup-tip { background: #071018; border: 1px solid var(--gold); }

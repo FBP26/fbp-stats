@@ -46,6 +46,11 @@ async function loadJson(url) {
   return response.json();
 }
 
+function percentileText(winner) {
+  if (winner.historicalPercentile == null) return "";
+  return `${winner.wins}-${winner.losses} is better than ${winner.historicalPercentile}% of weekly winners all time.`;
+}
+
 function careerText(winner) {
   const career = winner.career || {};
   const titles = [
@@ -125,6 +130,7 @@ function confirmationHtml(data, winner) {
         <h3>${escapeHtml(winner.name)}</h3>
         <div class="week-name">${escapeHtml(winner.weekName || `Week ${data.week}`)}</div>
         <p><strong>${winner.wins}-${winner.losses}${winner.pushes ? `-${winner.pushes}` : ""}</strong> with ${escapeHtml(winner.bestBet)} as the Best Bet.</p>
+        ${percentileText(winner) ? `<p class="percentile-line">${escapeHtml(percentileText(winner))}</p>` : ""}
         <p>${escapeHtml(winnerFinishText(data, winner))}</p>
         <p>Tiebreak guess <strong>${winner.tiebreaker}</strong>; actual <strong>${winner.actualTiebreaker}</strong>; ${winner.tiebreakerDiff} yards away.</p>
         <p><strong>Underdogs:</strong> ${winner.highlights.correctUnderdogs} of ${winner.highlights.underdogPicks} hit.</p>
@@ -665,10 +671,21 @@ function weekVenues(data) {
   return venueData?.weeks?.[`${data.seasonLabel}|${data.week}`] || [];
 }
 
-function impactRadius(percent, strongest) {
+function impactScale(percent, strongest) {
   const magnitude = Math.abs(Number(percent) || 0);
-  if (!strongest) return 8;
-  return 8 + 20 * Math.sqrt(magnitude / strongest);
+  return strongest ? Math.min(1, Math.sqrt(magnitude / strongest)) : 0;
+}
+
+function impactPinSize(percent, strongest) {
+  return Math.round(30 + 18 * impactScale(percent, strongest));
+}
+
+function impactPinColor(percent, strongest) {
+  const value = Number(percent) || 0;
+  const neutral = [139, 151, 166];
+  const target = value > .001 ? [63, 191, 143] : value < -.001 ? [226, 86, 111] : neutral;
+  const weight = .35 + .65 * impactScale(percent, strongest);
+  return `rgb(${neutral.map((channel, index) => Math.round(channel + (target[index] - channel) * weight)).join(",")})`;
 }
 
 function mapHtml(data, winner) {
@@ -681,7 +698,7 @@ function mapHtml(data, winner) {
     return escapeHtml(`${game ? `${game.away} at ${game.home}` : `Game ${venue.gameNum}`} - ${venue.city}`);
   }).join("<br>");
   return `<section class="section map-section">
-    <div class="section-heading"><div><h2>Where the week was won</h2><p>Every stadium is sized by how much that game moved ${escapeHtml(winner.name)}. Green helped, red hurt. Tap any circle for the full story of that game.</p></div></div>
+    <div class="section-heading"><div><h2>Where the week was won</h2><p>Every stadium shows the team ${escapeHtml(winner.name)} picked there. Greener and bigger means it helped more; red means it hurt. Tap any pin for the full story of that game.</p></div></div>
     <div class="impact-map-shell ${international.length ? "has-inset" : ""}">
       <div id="impact-map" class="impact-map"></div>
       ${international.length ? `<aside class="impact-map-inset"><small>${international.length === 1 ? "International game" : "International games"}</small><div id="impact-map-inset" class="impact-map-canvas"></div><p class="impact-map-caption">${caption}</p></aside>` : ""}
@@ -690,7 +707,8 @@ function mapHtml(data, winner) {
       <span><i class="legend-dot helped"></i>Helped ${escapeHtml(winner.name)}</span>
       <span><i class="legend-dot hurt"></i>Hurt ${escapeHtml(winner.name)}</span>
       <span><i class="legend-dot neutral"></i>No swing</span>
-      <span class="legend-note">Bigger circle means a bigger swing.</span>
+      <span><i class="legend-dot best"></i>Best Bet</span>
+      <span class="legend-note">Each pin is the team picked there, labelled with its swing.</span>
     </div>
   </section>`;
 }
@@ -724,13 +742,15 @@ function drawImpactMarkers(map, entries, data, winner, helped, field) {
     if (!game) return;
     const item = helped.get(venue.gameNum);
     const percent = Number(item?.percent || 0);
-    const fill = percent > .001 ? "#3fbf8f" : percent < -.001 ? "#e2566f" : "#8b97a6";
-    L.circleMarker([venue.lat, venue.lng], {
-      radius: impactRadius(percent, strongest),
-      color: "#f3f1e8",
-      weight: 1,
-      fillColor: fill,
-      fillOpacity: .82,
+    const pick = winner.picks[game.gameNum - 1] || "";
+    const bestBet = winner.bestBet === pick;
+    const size = impactPinSize(percent, strongest);
+    const swing = `${percent > 0 ? "+" : ""}${percent.toFixed(1)}%`;
+    const pin = `<div class="impact-pin${bestBet ? " best" : ""}" style="--pin-size:${size}px;--pin-color:${impactPinColor(percent, strongest)}"><span>${escapeHtml(pick)}</span><small>${swing}</small></div>`;
+    L.marker([venue.lat, venue.lng], {
+      icon: L.divIcon({ className: "impact-pin-wrap", html: pin, iconSize: [size, size], iconAnchor: [size / 2, size / 2] }),
+      riseOnHover: true,
+      title: `${game.away} at ${game.home}`,
     }).addTo(group).bindPopup(impactPopupHtml(data, winner, game, venue, item, field), { className: "impact-popup", maxWidth: 280 });
   });
   return entries.map(venue => [venue.lat, venue.lng]);
