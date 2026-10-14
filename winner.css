@@ -142,11 +142,15 @@ footer { padding: 30px 20px; border-top: 1px solid var(--border); color: var(--m
 .winner-key::before { width: 20px; height: 4px; border-radius: 9px; background: var(--gold); content: ""; }
 .leadership-grid { display: grid; grid-template-columns: minmax(0, 1.3fr) minmax(250px, .7fr); gap: 16px; margin-top: 16px; }
 .leader-trail { display: flex; min-height: 40px; overflow: hidden; border: 1px solid var(--border); border-radius: 10px; background: #081118; }
-.leader-segment { display: grid; min-width: 4px; padding: 4px; place-items: center; overflow: hidden; color: #fff; font-size: 10px; font-weight: 800; white-space: nowrap; }
+.leader-segment { display: grid; min-width: 4px; padding: 4px; border: 0; place-items: center; overflow: hidden; color: #fff; font: inherit; font-size: 10px; font-weight: 800; white-space: nowrap; cursor: pointer; }
+.leader-segment:focus-visible { outline: 3px solid #fff; outline-offset: -3px; }
+.leader-tooltip { position: fixed; z-index: 50; max-width: 240px; padding: 8px 10px; border: 1px solid var(--gold); border-radius: 8px; background: #071018; color: var(--text); box-shadow: var(--shadow); font-size: 12px; font-weight: 750; pointer-events: none; }
 .leader-stats, .lead-change-list { display: grid; gap: 7px; margin-top: 11px; }
 .lead-change-list { max-height: 430px; overflow-y: auto; padding-right: 4px; }
 .leader-stat, .lead-change { display: flex; align-items: center; justify-content: space-between; gap: 12px; padding: 10px 12px; border-left: 4px solid var(--runner-color); border-radius: 7px; background: var(--panel-2); font-size: 12px; }
 .leader-stat.winner-leader, .lead-change.winner-leader { background: rgb(244 196 79 / 12%); }
+.lead-change strong, .lead-change span { display: block; }
+.lead-change span { margin-top: 3px; color: var(--muted); }
 .lead-change time { color: var(--muted); white-space: nowrap; }
 .thread-strip { display: flex; flex-wrap: wrap; align-items: center; gap: 5px; margin-bottom: 18px; }
 .thread-chip { padding: 5px 9px; border: 1px solid var(--border); border-radius: 99px; font-size: 11px; font-weight: 800; }
