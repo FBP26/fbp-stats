@@ -1,0 +1,29 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <meta name="theme-color" content="#0d1821">
+  <meta name="description" content="Football pool weekly winner replay and recap">
+  <title>FBP Weekly Winner</title>
+  <link rel="icon" href="icons/fbp-icon.svg" type="image/svg+xml">
+  <link rel="stylesheet" href="winner.css">
+  <script src="https://cdn.jsdelivr.net/npm/chart.js@4.5.0/dist/chart.umd.min.js"></script>
+  <script src="https://cdn.jsdelivr.net/npm/chartjs-chart-sankey@0.14.0/dist/chartjs-chart-sankey.min.js"></script>
+  <script src="winner.js" defer></script>
+</head>
+<body>
+  <header class="site-header">
+    <a class="brand" href="./"><span class="brand-mark">FBP</span><span>Weekly Winner Vault</span></a>
+    <nav><a href="./">Main dashboard</a><a href="#winner-archive">All winners</a></nav>
+  </header>
+  <main id="winner-app">
+    <section id="loading-state" class="loading-state">
+      <div class="loader"></div>
+      <h1>Building the winner's view...</h1>
+      <p>Loading the completed week and preserved live race.</p>
+    </section>
+  </main>
+  <footer>FBP winner recaps are preserved from finalized weekly data.</footer>
+</body>
+</html>
