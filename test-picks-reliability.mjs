@@ -3,6 +3,15 @@ import { readFileSync } from 'node:fs';
 import vm from 'node:vm';
 
 const html = readFileSync(new URL('./index.html', import.meta.url), 'utf8');
+assert.match(html, /table-layout: auto/);
+assert.match(html, /\.confirmation-metric-table th \{ width: 1%; white-space: nowrap;/);
+assert.match(html, /Longest time since picked"/);
+assert.match(html, /Longest time since picked against"/);
+assert.doesNotMatch(html, /Longest time since you picked/);
+assert.match(html, /team \$\{missed === 1 \? "game" : "games"\}/);
+assert.match(html, /Current Best Bet record/);
+assert.doesNotMatch(html, /Current Best Bet run/);
+assert.match(html, /currentBestBetRecordValue\(currentBestBetRecord, "No current Best Bet"\)/);
 const clientContext = vm.createContext({ URL, URLSearchParams, AbortSignal, Date });
 vm.runInContext(readFileSync(new URL('./live-client.js', import.meta.url), 'utf8'), clientContext);
 const pendingStorage = new Map();
