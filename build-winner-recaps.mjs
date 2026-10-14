@@ -1,6 +1,7 @@
 import { readFile, readdir, mkdir, writeFile } from "node:fs/promises";
 import path from "node:path";
 import { fileURLToPath } from "node:url";
+import { buildWinnerVenues } from "./build-winner-venues.mjs";
 
 const root = path.dirname(fileURLToPath(import.meta.url));
 const archiveDirectory = path.join(root, "archive", "completed_regular_season");
@@ -227,6 +228,7 @@ async function main() {
     console.log(`Built ${outputFile}: ${winners.map(winner => winner.name).join(" / ")} with ${race.snapshots.length} race frames from ${race.source}.`);
   }
   await writeFile(path.join(outputDirectory, "index.json"), JSON.stringify({ generatedAt: new Date().toISOString(), weeks: index }));
+  await buildWinnerVenues();
 }
 
 await main();

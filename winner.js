@@ -69,6 +69,27 @@ function helpedByGame(winner) {
   return new Map((winner.highlights?.helped || []).map(item => [item.gameNum, item]));
 }
 
+function fieldPickCounts(data) {
+  const total = data.players.length;
+  return new Map(data.games.map((game, index) => {
+    const counts = new Map(), bestBets = new Map();
+    data.players.forEach(player => {
+      const pick = player.picks?.[index];
+      if (!pick) return;
+      counts.set(pick, (counts.get(pick) || 0) + 1);
+      if (player.bestBet === pick) bestBets.set(pick, (bestBets.get(pick) || 0) + 1);
+    });
+    return [game.gameNum, { total, counts, bestBets }];
+  }));
+}
+
+function fieldPickText(field, pick) {
+  if (!field) return "";
+  const on = field.counts.get(pick) || 0;
+  const bestBets = field.bestBets.get(pick) || 0;
+  return `${on} of ${field.total}${bestBets ? ` - ${bestBets} Best Bet${bestBets === 1 ? "" : "s"}` : ""}`;
+}
+
 function helpedTone(percent) {
   return percent > .001 ? "positive-value" : percent < -.001 ? "negative-value" : "neutral-value";
 }
@@ -93,8 +114,7 @@ function confirmationHtml(data, winner) {
     const bestBet = winner.bestBet === pick;
     return `<div class="pick ${game?.winner === "PUSH" ? "" : correct ? "correct" : "wrong"}">
       <small>Game ${index + 1} - ${escapeHtml(game?.away)} at ${escapeHtml(game?.home)}</small>
-      <strong>${escapeHtml(pick)}</strong>
-      ${bestBet ? '<em class="best-bet-tag">BEST BET</em>' : ""}
+      <strong>${escapeHtml(pick)}${bestBet ? '<em class="best-bet-tag">BEST BET</em>' : ""}</strong>
       <span class="pick-helped ${helpedTone(impact?.percent || 0)}">${impactText(impact)}</span>
     </div>`;
   }).join("");
@@ -183,6 +203,27 @@ function gameStateFor(staticGame, gameState) {
   return gameState.find(game => normalize(game.away) === normalize(staticGame.away) && normalize(game.home) === normalize(staticGame.home));
 }
 
+function isFinalState(game) {
+  return ["FINAL", "STATUS_FINAL"].includes(String(game?.status || game?.state || "").toUpperCase());
+}
+
+function frameTiebreakerActual(data, snapshot) {
+  const lastGame = data.games.at(-1);
+  if (!lastGame) return null;
+  const live = gameStateFor(lastGame, snapshot.gameState || []);
+  const yards = Number(live?.combinedNetPassingYards);
+  return Number.isFinite(yards) && yards > 0 ? yards : null;
+}
+
+function onlyLastGameLive(frame) {
+  const games = recapData?.games || [];
+  const liveIndexes = games.map((game, index) => {
+    const live = gameStateFor(game, frame.gameState || []);
+    return live && startedGame(live) && !isFinalState(live) ? index : -1;
+  }).filter(index => index >= 0);
+  return liveIndexes.length === 1 && liveIndexes[0] === games.length - 1;
+}
+
 function playerLiveScore(data, player, snapshot) {
   let wins = 0, losses = 0;
   data.games.forEach((game, index) => {
@@ -221,12 +262,14 @@ function prepareRaceFrames(data) {
   const snapshots = data.raceSnapshots?.length ? data.raceSnapshots : fallbackFrames(data);
   return snapshots.map((snapshot, index) => {
     const racePlayers = new Map((snapshot.players || []).map(player => [normalize(player.name), player]));
+    const liveTiebreaker = frameTiebreakerActual(data, snapshot);
     const players = data.players.map(player => {
       const live = playerLiveScore(data, player, snapshot);
       const race = racePlayers.get(normalize(player.name));
+      const guess = Number(player.tiebreaker);
       return {
         name: player.name,
-        tiebreakerDiff: Number(player.tiebreakerDiff ?? 0),
+        tiebreakerDiff: liveTiebreaker != null && Number.isFinite(guess) ? Math.abs(guess - liveTiebreaker) : Number(player.tiebreakerDiff ?? 0),
         wins: live.wins,
         winPct: race ? Number(race.winPercent || live.winPct) : live.winPct,
         winProbability: race ? Number(race.winProbability || 0) : null,
@@ -235,7 +278,7 @@ function prepareRaceFrames(data) {
     });
     const stamp = new Date(snapshot.timestamp);
     const label = snapshot.label || (Number.isNaN(stamp.getTime()) ? `Frame ${index + 1}` : stamp.toLocaleString([], { weekday: "short", hour: "numeric", minute: "2-digit" }));
-    return { ...snapshot, label, players };
+    return { ...snapshot, label, players, liveTiebreaker };
   });
 }
 
@@ -385,9 +428,26 @@ function leadershipAnalysis(winnerName) {
   return { intervals, reigns, totals, totalDuration: intervals.reduce((total, interval) => total + interval.duration, 0) };
 }
 
-function leadChangeReason(frameIndex) {
+function tiebreakerSwingText(frameIndex, leaderName) {
+  const frame = raceFrames[frameIndex], previous = raceFrames[frameIndex - 1];
+  if (!frame || !previous || !onlyLastGameLive(frame)) return "";
+  const yards = frame.liveTiebreaker, before = previous.liveTiebreaker;
+  if (!Number.isFinite(yards) || yards === before) return "";
+  const lastGame = recapData.games.at(-1);
+  const player = recapData.players.find(entry => normalize(entry.name) === normalize(leaderName));
+  const guess = Number(player?.tiebreaker);
+  const movement = Number.isFinite(before) ? `${yards > before ? "climbed" : "fell"} to ${yards}` : `reached ${yards}`;
+  const base = `Combined passing yards in ${lastGame.away} at ${lastGame.home} ${movement}`;
+  return Number.isFinite(guess)
+    ? `${base}, which moved the tiebreaker to ${leaderName}'s guess of ${guess} and handed over the lead`
+    : `${base}, swinging the tiebreaker`;
+}
+
+function leadChangeReason(frameIndex, leaderName) {
   const frame = raceFrames[frameIndex];
   const previous = raceFrames[Math.max(0, frameIndex - 1)];
+  const swing = tiebreakerSwingText(frameIndex, leaderName);
+  if (swing) return swing;
   const scores = [];
   (frame.gameState || []).forEach(game => {
     const before = gameStateFor(game, previous.gameState || []);
@@ -435,7 +495,7 @@ function renderLeadership(winnerName) {
     const share = analysis.totalDuration ? 100 * duration / analysis.totalDuration : 0;
     return `<div class="leader-stat ${isWinner ? "winner-leader" : ""}" style="--runner-color:${isWinner ? "#f4c44f" : playerColor(name)}"><strong>${escapeHtml(name)}${isWinner ? '<em class="winner-tag">WINNER</em>' : ""}</strong><span>${duration ? `${formatDuration(duration)} (${share.toFixed(1)}%)` : "Never held the lead"}</span></div>`;
   }).join("");
-  const changes = [...leadChanges].reverse().map(change => `<div class="lead-change ${normalize(change.name) === normalize(winnerName) ? "winner-leader" : ""}" style="--runner-color:${normalize(change.name) === normalize(winnerName) ? "#f4c44f" : playerColor(change.name)}"><div><strong>${escapeHtml(change.name)} moved into first place</strong><span>${escapeHtml(leadChangeReason(change.frameIndex))}</span></div><time>${new Date(change.start).toLocaleString([], { weekday: "short", hour: "numeric", minute: "2-digit" })}</time></div>`).join("");
+  const changes = [...leadChanges].reverse().map(change => `<div class="lead-change ${normalize(change.name) === normalize(winnerName) ? "winner-leader" : ""}" style="--runner-color:${normalize(change.name) === normalize(winnerName) ? "#f4c44f" : playerColor(change.name)}"><div><strong>${escapeHtml(change.name)} moved into first place</strong><span>${escapeHtml(leadChangeReason(change.frameIndex, change.name))}</span></div><time>${new Date(change.start).toLocaleString([], { weekday: "short", hour: "numeric", minute: "2-digit" })}</time></div>`).join("");
   host.innerHTML = `<div><div class="section-heading"><div><h2>Time on top</h2><p>${leadChanges.length} lead change${leadChanges.length === 1 ? "" : "s"} through this checkpoint. The leader is the entry with the most weighted points, with ties going to the closest tiebreaker. Every entry that led is listed, and the winner is always shown.</p></div></div><div class="leader-trail">${trail}</div><div class="leader-stats">${leaders}</div></div><div><div class="section-heading"><div><h2>Lead changes</h2><p>All ${leadChanges.length} takeover${leadChanges.length === 1 ? "" : "s"}, most recent first.</p></div></div><div class="lead-change-list">${changes || '<div class="empty-note">No lead changes yet.</div>'}</div></div>`;
 }
 
@@ -566,14 +626,15 @@ function routeHtml(data, winner) {
   </section>`;
 }
 
-function helpedHtml(winner) {
+function helpedHtml(data, winner) {
+  const field = fieldPickCounts(data);
   const rows = [...winner.highlights.helped].sort((left, right) => left.rank - right.rank).map(item => {
     const positive = item.percent > .001, negative = item.percent < -.001;
-    return `<tr class="${positive ? "positive" : negative ? "negative" : ""}"><td>${item.gameNum}</td><td>${escapeHtml(item.matchup)}</td><td><strong>${escapeHtml(item.pick)}</strong></td><td>${escapeHtml(item.result)}</td><td class="${positive ? "positive-value" : negative ? "negative-value" : ""}">${impactText(item)}</td><td>${ordinal(item.rank)}</td></tr>`;
+    return `<tr class="${positive ? "positive" : negative ? "negative" : ""}"><td>${item.gameNum}</td><td>${escapeHtml(item.matchup)}</td><td><strong>${escapeHtml(item.pick)}</strong></td><td>${escapeHtml(item.result)}</td><td class="${positive ? "positive-value" : negative ? "negative-value" : ""}">${impactText(item)}</td><td class="field-cell">${escapeHtml(fieldPickText(field.get(item.gameNum), item.pick))}</td><td>${ordinal(item.rank)}</td></tr>`;
   }).join("");
   return `<section class="section">
     <div class="section-heading"><div><h2>Which games helped or hurt most</h2><p>Impact compares the winner's weighted points with the average points earned by the rest of the field. Best Bet is worth two.</p></div></div>
-    <div class="table-scroll"><table class="helped-table"><thead><tr><th>#</th><th>Game</th><th>Pick</th><th>Result</th><th>Impact</th><th>Rank</th></tr></thead><tbody>${rows}</tbody></table></div>
+    <div class="table-scroll"><table class="helped-table"><thead><tr><th>#</th><th>Game</th><th>Pick</th><th>Result</th><th>Impact</th><th>Pool on this pick</th><th>Rank</th></tr></thead><tbody>${rows}</tbody></table></div>
   </section>`;
 }
 
@@ -596,6 +657,105 @@ function heroHtml(data, winner) {
       <div class="stat"><span>Tiebreak</span><strong>${winner.tiebreakerDiff} yards</strong></div>
     </div>
   </section>`;
+}
+
+let venueData = null;
+
+function weekVenues(data) {
+  return venueData?.weeks?.[`${data.seasonLabel}|${data.week}`] || [];
+}
+
+function impactRadius(percent, strongest) {
+  const magnitude = Math.abs(Number(percent) || 0);
+  if (!strongest) return 8;
+  return 8 + 20 * Math.sqrt(magnitude / strongest);
+}
+
+function mapHtml(data, winner) {
+  const venues = weekVenues(data);
+  if (!venues.length) return "";
+  const international = venues.filter(venue => venue.international);
+  const gameByNumber = new Map(data.games.map(game => [game.gameNum, game]));
+  const caption = international.map(venue => {
+    const game = gameByNumber.get(venue.gameNum);
+    return escapeHtml(`${game ? `${game.away} at ${game.home}` : `Game ${venue.gameNum}`} - ${venue.city}`);
+  }).join("<br>");
+  return `<section class="section map-section">
+    <div class="section-heading"><div><h2>Where the week was won</h2><p>Every stadium is sized by how much that game moved ${escapeHtml(winner.name)}. Green helped, red hurt. Tap any circle for the full story of that game.</p></div></div>
+    <div class="impact-map-shell ${international.length ? "has-inset" : ""}">
+      <div id="impact-map" class="impact-map"></div>
+      ${international.length ? `<aside class="impact-map-inset"><small>${international.length === 1 ? "International game" : "International games"}</small><div id="impact-map-inset" class="impact-map-canvas"></div><p class="impact-map-caption">${caption}</p></aside>` : ""}
+    </div>
+    <div class="map-legend">
+      <span><i class="legend-dot helped"></i>Helped ${escapeHtml(winner.name)}</span>
+      <span><i class="legend-dot hurt"></i>Hurt ${escapeHtml(winner.name)}</span>
+      <span><i class="legend-dot neutral"></i>No swing</span>
+      <span class="legend-note">Bigger circle means a bigger swing.</span>
+    </div>
+  </section>`;
+}
+
+function impactPopupHtml(data, winner, game, venue, item, field) {
+  const pick = winner.picks[game.gameNum - 1];
+  const fieldLine = fieldPickText(field.get(game.gameNum), pick);
+  const tone = helpedTone(item?.percent || 0);
+  return `<div class="map-popup">
+    <small>Game ${game.gameNum} - ${escapeHtml(venue.stadium || venue.city)}</small>
+    <strong>${escapeHtml(game.away)} at ${escapeHtml(game.home)}</strong>
+    <span class="map-popup-venue">${escapeHtml(venue.city)}${venue.neutralSite ? " - neutral site" : ""}</span>
+    <div class="map-popup-row"><span>${escapeHtml(winner.name)} picked</span><strong>${escapeHtml(pick)}${winner.bestBet === pick ? " (Best Bet)" : ""}</strong></div>
+    <div class="map-popup-row"><span>Result</span><strong>${escapeHtml(gameOutcomeText(game, pick))}</strong></div>
+    <div class="map-popup-row"><span>Impact</span><strong class="${tone}">${impactText(item)}</strong></div>
+    ${item ? `<div class="map-popup-row"><span>Rank this week</span><strong>${ordinal(item.rank)} of ${data.games.length}</strong></div>` : ""}
+    ${fieldLine ? `<div class="map-popup-row"><span>Pool on this pick</span><strong>${escapeHtml(fieldLine)}</strong></div>` : ""}
+  </div>`;
+}
+
+function impactTiles() {
+  return L.tileLayer("https://server.arcgisonline.com/ArcGIS/rest/services/Canvas/World_Dark_Gray_Base/MapServer/tile/{z}/{y}/{x}", { maxZoom: 16, attribution: "Esri" });
+}
+
+function drawImpactMarkers(map, entries, data, winner, helped, field) {
+  const group = L.layerGroup().addTo(map);
+  const strongest = Math.max(...data.winners[0].highlights.helped.map(item => Math.abs(item.percent)), 1);
+  const gameByNumber = new Map(data.games.map(game => [game.gameNum, game]));
+  entries.forEach(venue => {
+    const game = gameByNumber.get(venue.gameNum);
+    if (!game) return;
+    const item = helped.get(venue.gameNum);
+    const percent = Number(item?.percent || 0);
+    const fill = percent > .001 ? "#3fbf8f" : percent < -.001 ? "#e2566f" : "#8b97a6";
+    L.circleMarker([venue.lat, venue.lng], {
+      radius: impactRadius(percent, strongest),
+      color: "#f3f1e8",
+      weight: 1,
+      fillColor: fill,
+      fillOpacity: .82,
+    }).addTo(group).bindPopup(impactPopupHtml(data, winner, game, venue, item, field), { className: "impact-popup", maxWidth: 280 });
+  });
+  return entries.map(venue => [venue.lat, venue.lng]);
+}
+
+function createImpactMap(data, winner) {
+  const host = document.getElementById("impact-map");
+  if (!host || typeof L === "undefined") return;
+  const venues = weekVenues(data);
+  const helped = helpedByGame(winner);
+  const field = fieldPickCounts(data);
+  const domestic = venues.filter(venue => !venue.international);
+  const international = venues.filter(venue => venue.international);
+  const map = L.map(host, { zoomControl: true, scrollWheelZoom: false, minZoom: 2, maxZoom: 10 }).setView([38.2, -96.2], 4);
+  impactTiles().addTo(map);
+  const points = drawImpactMarkers(map, domestic.length ? domestic : venues, data, winner, helped, field);
+  if (points.length) map.fitBounds(L.latLngBounds(points), { padding: [36, 36], maxZoom: 6 });
+  if (!international.length) return;
+  const insetHost = document.getElementById("impact-map-inset");
+  if (!insetHost) return;
+  const inset = L.map(insetHost, { zoomControl: false, scrollWheelZoom: false, dragging: false, attributionControl: false, minZoom: 2, maxZoom: 8 }).setView([international[0].lat, international[0].lng], 4);
+  impactTiles().addTo(inset);
+  const insetPoints = drawImpactMarkers(inset, international, data, winner, helped, field);
+  if (insetPoints.length > 1) inset.fitBounds(L.latLngBounds(insetPoints), { padding: [24, 24], maxZoom: 5 });
+  setTimeout(() => inset.invalidateSize(), 120);
 }
 
 function shareHtml(data, winner) {
@@ -622,6 +782,7 @@ async function render() {
   try {
     const selected = params();
     recapData = await loadJson(dataFile(selected.season, selected.week));
+    venueData = await loadJson("data/winner-recaps/venues.json").catch(() => null);
     const winner = recapData.winners[0];
     document.title = `${winner.name} - FBP Week ${recapData.week} Winner`;
     raceFrames = prepareRaceFrames(recapData);
@@ -634,11 +795,13 @@ async function render() {
       standingsHtml(recapData),
       `<div id="live-race">${raceHtml(recapData)}</div>`,
       routeHtml(recapData, winner),
-      helpedHtml(winner),
+      helpedHtml(recapData, winner),
       await archiveHtml(selected),
+      mapHtml(recapData, winner),
       shareHtml(recapData, winner),
     ].join("");
     createRaceCharts(recapData, winner);
+    createImpactMap(recapData, winner);
     bindRaceControls();
     bindLeadershipTooltips();
     bindSharing(recapData, winner);
