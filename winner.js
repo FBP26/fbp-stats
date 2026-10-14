@@ -5,7 +5,9 @@ let recapData = null;
 let raceFrames = [];
 let raceFrame = 0;
 let raceTimer = null;
+const RACE_DURATION_MS = 60000;
 let playbackSpeed = 1;
+let frameDelays = [];
 
 const escapeHtml = value => String(value ?? "").replace(/[&<>"']/g, character => ({ "&": "&amp;", "<": "&lt;", ">": "&gt;", '"': "&quot;", "'": "&#39;" })[character]);
 const normalize = value => String(value || "").trim().toLowerCase();
@@ -59,18 +61,43 @@ function winnerSummary(data, winner) {
   const tied = data.players.filter(player => player.wins === winner.wins);
   const runner = tied.find(player => player.name !== winner.name && player.tiebreakerDiff > winner.tiebreakerDiff);
   const margin = runner ? runner.tiebreakerDiff - winner.tiebreakerDiff : null;
-  return `${tied.length} player${tied.length === 1 ? "" : "s"} finished at ${winner.wins} wins. The actual total of ${winner.actualTiebreaker} landed in ${winner.name}'s range; ${winner.name}'s guess of ${winner.tiebreaker} was ${winner.tiebreakerDiff} yards away${runner ? `, ${margin} yard${margin === 1 ? "" : "s"} closer than ${runner.name}'s guess` : ""}.`;
+  const others = tied.length - 1;
+  if (!others) {
+    return `${winner.name} finished with ${winner.wins} wins, alone at the top of the week. The actual total came in at ${winner.actualTiebreaker} and ${winner.name}'s guess of ${winner.tiebreaker} was ${winner.tiebreakerDiff} yards away, but the tiebreaker was never needed.`;
+  }
+  return `${winner.name} finished with ${winner.wins} wins, matched by ${others} other entr${others === 1 ? "y" : "ies"}. The actual total of ${winner.actualTiebreaker} landed in ${winner.name}'s range; ${winner.name}'s guess of ${winner.tiebreaker} was ${winner.tiebreakerDiff} yards away${runner ? `, ${margin} yard${margin === 1 ? "" : "s"} closer than ${runner.name}'s guess` : ""}.`;
+}
+
+function helpedByGame(winner) {
+  return new Map((winner.highlights?.helped || []).map(item => [item.gameNum, item]));
+}
+
+function helpedTone(percent) {
+  return percent > .001 ? "positive-value" : percent < -.001 ? "negative-value" : "neutral-value";
+}
+
+function helpedLabel(item) {
+  if (!item) return "";
+  return `${item.percent > 0 ? "+" : ""}${item.percent.toFixed(1)}%`;
 }
 
 function confirmationHtml(data, winner) {
   const gameByNumber = new Map(data.games.map(game => [game.gameNum, game]));
+  const helped = helpedByGame(winner);
   const picks = winner.picks.map((pick, index) => {
     const game = gameByNumber.get(index + 1);
     const correct = game?.winner === pick;
-    return `<div class="pick ${game?.winner === "PUSH" ? "" : correct ? "correct" : "wrong"}">${winner.bestBet === pick ? "<em>BEST BET</em>" : ""}<small>Game ${index + 1} - ${escapeHtml(game?.away)} at ${escapeHtml(game?.home)}</small><strong>${escapeHtml(pick)}</strong></div>`;
+    const impact = helped.get(index + 1);
+    const bestBet = winner.bestBet === pick;
+    return `<div class="pick ${game?.winner === "PUSH" ? "" : correct ? "correct" : "wrong"}">
+      <small>Game ${index + 1} - ${escapeHtml(game?.away)} at ${escapeHtml(game?.home)}</small>
+      <strong>${escapeHtml(pick)}</strong>
+      ${bestBet ? '<em class="best-bet-tag">BEST BET - worth 2</em>' : ""}
+      <span class="pick-helped ${helpedTone(impact?.percent || 0)}">${impact ? `${helpedLabel(impact)} helped` : "No impact"}</span>
+    </div>`;
   }).join("");
   return `<section class="section">
-    <div class="section-heading"><div><h2>The winning entry</h2><p>The confirmation details and every pick exactly as finalized.</p></div><span class="pill">${escapeHtml(data.archiveFile)}</span></div>
+    <div class="section-heading"><div><h2>The winning entry</h2><p>${escapeHtml(winnerSummary(data, winner))}</p></div><span class="pill">${escapeHtml(data.archiveFile)}</span></div>
     <div class="confirmation-grid">
       <article class="winner-card">
         <h3>${escapeHtml(winner.name)}</h3>
@@ -81,6 +108,31 @@ function confirmationHtml(data, winner) {
       </article>
       <div class="picks-grid">${picks}</div>
     </div>
+    <p class="route-note">Helped compares ${escapeHtml(winner.name)}'s weighted points on a game with the average the rest of the field earned there. A correct Best Bet counts twice.</p>
+  </section>`;
+}
+
+function standingsHtml(data) {
+  const winnerNames = new Set(data.winners.map(item => normalize(item.name)));
+  const ranked = [...data.players].sort((left, right) => right.wins - left.wins || left.tiebreakerDiff - right.tiebreakerDiff || String(left.name).localeCompare(String(right.name)));
+  let place = 0, previous = "";
+  const rows = ranked.map((player, index) => {
+    const key = `${player.wins}|${player.tiebreakerDiff}`;
+    if (key !== previous) { place = index + 1; previous = key; }
+    const isWinner = winnerNames.has(normalize(player.name));
+    return `<tr class="${isWinner ? "winner-row" : ""}">
+      <td>${ordinal(place)}</td>
+      <td><strong>${escapeHtml(player.name)}</strong>${isWinner ? '<em class="winner-tag">WINNER</em>' : ""}</td>
+      <td>${escapeHtml(player.weekName || "-")}</td>
+      <td>${player.wins}-${player.losses}${player.pushes ? `-${player.pushes}` : ""}</td>
+      <td>${escapeHtml(player.bestBet || "-")}</td>
+      <td>${player.tiebreaker}</td>
+      <td>${player.tiebreakerDiff}</td>
+    </tr>`;
+  }).join("");
+  return `<section class="section">
+    <div class="section-heading"><div><h2>Week ${data.week} standings</h2><p>Every entry for the week, sorted by wins and then by the closest tiebreaker. The actual total was ${data.players[0]?.actualTiebreaker}.</p></div><span class="pill">${data.players.length} entries</span></div>
+    <div class="table-scroll"><table class="helped-table standings-table"><thead><tr><th>Place</th><th>Entry</th><th>Week name</th><th>Record</th><th>Best Bet</th><th>Tiebreak</th><th>Off by</th></tr></thead><tbody>${rows}</tbody></table></div>
   </section>`;
 }
 
@@ -126,7 +178,7 @@ function tiebreakHtml(data, winner) {
     return `<div class="tiebreak-segment ${segment.actual ? "actual" : ""}" style="flex:${width};background:${playerColor(segment.players[0].name, .68)}"><strong>${escapeHtml(segment.players.map(player => player.name).join(" / "))}</strong><span>Guess ${segment.guess}</span><span>${escapeHtml(segment.range)}</span>${segment.actual ? `<span class="actual-badge">Actual ${winner.actualTiebreaker}</span>` : ""}</div>`;
   }).join("");
   return `<section class="section">
-    <div class="section-heading"><div><h2>Tiebreak landing</h2><p>${escapeHtml(winnerSummary(data, winner))}</p></div></div>
+    <div class="section-heading"><div><h2>Tiebreak landing</h2><p>Every entry tied at ${winner.wins} wins owns the range closest to its guess. The actual total of ${winner.actualTiebreaker} landed in the highlighted band.</p></div></div>
     <div class="tiebreak-track">${cells}</div>
   </section>`;
 }
@@ -183,6 +235,7 @@ function prepareRaceFrames(data) {
       const race = racePlayers.get(normalize(player.name));
       return {
         name: player.name,
+        tiebreakerDiff: Number(player.tiebreakerDiff ?? 0),
         wins: live.wins,
         winPct: race ? Number(race.winPercent || live.winPct) : live.winPct,
         winProbability: race ? Number(race.winProbability || 0) : null,
@@ -276,29 +329,54 @@ function raceHtml(data) {
       </div>
     </div>
     <div class="race-body">
-      <div class="section-heading"><div><h2>Watch the week unfold</h2><p>All four views share one timeline. The winner's line stays gold while the rest of the field remains visible.</p></div><span class="pill">${escapeHtml(sourceNote)}</span></div>
+      <div class="section-heading"><div><h2>Watch the week unfold</h2><p>All four views share one timeline. The full replay runs about 60 seconds at 1x, moving quickly when a single game is live and slowing down when many are. The winner's line stays gold while the rest of the field remains visible.</p></div><span class="pill">${escapeHtml(sourceNote)}</span></div>
       <div class="metric-grid">${["wins", "winPct", "winProbability", "pathsToVictory"].map(metric => `<article class="chart-card"><h3 id="title-${metric}"></h3><p id="description-${metric}"></p><div class="chart-wrap"><canvas id="race-${metric}"></canvas></div></article>`).join("")}</div>
       <div id="leadership" class="leadership-grid"></div>
     </div>
   </section>`;
 }
 
-function liveFrame(frame) {
-  return (frame.gameState || []).some(game => ["IN", "IN_PROGRESS", "LIVE", "STATUS_IN_PROGRESS"].includes(String(game.status || game.state || "").toUpperCase()));
+function liveGameCount(frame) {
+  return (frame.gameState || []).filter(game => ["IN", "IN_PROGRESS", "LIVE", "STATUS_IN_PROGRESS"].includes(String(game.status || game.state || "").toUpperCase())).length;
+}
+
+function startedGameCount(frame) {
+  return (frame.gameState || []).filter(game => startedGame(game)).length;
+}
+
+function computeFrameDelays() {
+  const transitions = Math.max(0, raceFrames.length - 1);
+  if (!transitions) {
+    frameDelays = [];
+    return;
+  }
+  const weights = [];
+  for (let index = 0; index < transitions; index += 1) weights.push(Math.max(1, liveGameCount(raceFrames[index])));
+  const total = weights.reduce((sum, weight) => sum + weight, 0) || transitions;
+  frameDelays = weights.map(weight => RACE_DURATION_MS * weight / total);
+}
+
+function frameDelay() {
+  const fallback = RACE_DURATION_MS / Math.max(1, raceFrames.length - 1);
+  return Math.max(16, (frameDelays[raceFrame] || fallback) / playbackSpeed);
+}
+
+function frameLeader(frame) {
+  if (!startedGameCount(frame)) return null;
+  return [...frame.players].sort((left, right) => right.wins - left.wins || left.tiebreakerDiff - right.tiebreakerDiff || String(left.name).localeCompare(String(right.name)))[0] || null;
 }
 
 function leadershipAnalysis(winnerName) {
   const intervals = [];
-  for (let index = 0; index < Math.min(raceFrame + 1, raceFrames.length - 1); index += 1) {
+  const limit = Math.min(raceFrame, raceFrames.length - 1);
+  for (let index = 0; index < limit; index += 1) {
     const frame = raceFrames[index], next = raceFrames[index + 1];
-    if (!liveFrame(frame)) continue;
-    const available = frame.players.filter(player => player.winProbability != null);
-    if (!available.length) continue;
-    const top = Math.max(...available.map(player => player.winProbability));
-    const names = available.filter(player => player.winProbability === top).map(player => player.name).sort();
+    const leader = frameLeader(frame);
+    if (!leader) continue;
     const start = new Date(frame.timestamp).getTime(), end = new Date(next.timestamp).getTime();
     const duration = Math.min(10 * 60 * 1000, end - start);
-    if (names.length && Number.isFinite(duration) && duration > 0) intervals.push({ name: names.join(" + "), duration, start, end, winnerOnTop: names.some(name => normalize(name) === normalize(winnerName)) });
+    if (!Number.isFinite(duration) || duration <= 0) continue;
+    intervals.push({ name: leader.name, duration, start, end, wins: leader.wins });
   }
   const reigns = [], totals = new Map();
   intervals.forEach(interval => {
@@ -307,10 +385,12 @@ function leadershipAnalysis(winnerName) {
     if (latest?.name === interval.name) {
       latest.duration += interval.duration;
       latest.end = interval.end;
+      latest.wins = interval.wins;
     } else {
       reigns.push({ ...interval });
     }
   });
+  if (!totals.has(winnerName)) totals.set(winnerName, 0);
   return { intervals, reigns, totals, totalDuration: intervals.reduce((total, interval) => total + interval.duration, 0) };
 }
 
@@ -318,14 +398,18 @@ function renderLeadership(winnerName) {
   const host = document.getElementById("leadership");
   const analysis = leadershipAnalysis(winnerName);
   if (!analysis.intervals.length) {
-    host.innerHTML = '<div class="empty-note">Time on top begins when preserved snapshots show a live game.</div>';
+    host.innerHTML = '<div class="empty-note">Time on top begins once the first game of the week kicks off.</div>';
     return;
   }
   const leadChanges = analysis.reigns.slice(1);
-  const trail = analysis.reigns.map(reign => `<span class="leader-segment" style="flex:${reign.duration};background:${normalize(reign.name).includes(normalize(winnerName)) ? "#9b7a22" : playerColor(reign.name, .72)}" title="${escapeHtml(reign.name)} - ${formatDuration(reign.duration)}">${reign.duration / analysis.totalDuration > .07 ? escapeHtml(reign.name) : ""}</span>`).join("");
-  const leaders = [...analysis.totals].sort((left, right) => right[1] - left[1]).map(([name, duration]) => `<div class="leader-stat" style="--runner-color:${normalize(name).includes(normalize(winnerName)) ? "#f4c44f" : playerColor(name)}"><strong>${escapeHtml(name)}</strong><span>${formatDuration(duration)} on top</span></div>`).join("");
-  const changes = leadChanges.slice(-8).reverse().map(change => `<div class="lead-change" style="--runner-color:${normalize(change.name).includes(normalize(winnerName)) ? "#f4c44f" : playerColor(change.name)}"><strong>${escapeHtml(change.name)} took over</strong><time>${new Date(change.start).toLocaleString([], { weekday: "short", hour: "numeric", minute: "2-digit" })}</time></div>`).join("");
-  host.innerHTML = `<div><div class="section-heading"><div><h2>Time on top</h2><p>${leadChanges.length} lead change${leadChanges.length === 1 ? "" : "s"} through this checkpoint.</p></div></div><div class="leader-trail">${trail}</div><div class="leader-stats">${leaders}</div></div><div><div class="section-heading"><div><h2>Lead changes</h2><p>Most recent takeover first.</p></div></div><div class="lead-change-list">${changes || '<div class="empty-note">No lead changes yet.</div>'}</div></div>`;
+  const trail = analysis.reigns.map(reign => `<span class="leader-segment" style="flex:${reign.duration};background:${normalize(reign.name) === normalize(winnerName) ? "#9b7a22" : playerColor(reign.name, .72)}" title="${escapeHtml(reign.name)} - ${formatDuration(reign.duration)}">${reign.duration / analysis.totalDuration > .07 ? escapeHtml(reign.name) : ""}</span>`).join("");
+  const leaders = [...analysis.totals].sort((left, right) => right[1] - left[1] || String(left[0]).localeCompare(String(right[0]))).map(([name, duration]) => {
+    const isWinner = normalize(name) === normalize(winnerName);
+    const share = analysis.totalDuration ? 100 * duration / analysis.totalDuration : 0;
+    return `<div class="leader-stat ${isWinner ? "winner-leader" : ""}" style="--runner-color:${isWinner ? "#f4c44f" : playerColor(name)}"><strong>${escapeHtml(name)}${isWinner ? '<em class="winner-tag">WINNER</em>' : ""}</strong><span>${duration ? `${formatDuration(duration)} on top (${share.toFixed(1)}%)` : "Never held the lead"}</span></div>`;
+  }).join("");
+  const changes = [...leadChanges].reverse().map(change => `<div class="lead-change ${normalize(change.name) === normalize(winnerName) ? "winner-leader" : ""}" style="--runner-color:${normalize(change.name) === normalize(winnerName) ? "#f4c44f" : playerColor(change.name)}"><strong>${escapeHtml(change.name)} took over at ${change.wins}</strong><time>${new Date(change.start).toLocaleString([], { weekday: "short", hour: "numeric", minute: "2-digit" })}</time></div>`).join("");
+  host.innerHTML = `<div><div class="section-heading"><div><h2>Time on top</h2><p>${leadChanges.length} lead change${leadChanges.length === 1 ? "" : "s"} through this checkpoint. The leader is the entry with the most weighted points, with ties going to the closest tiebreaker. Every entry that led is listed, and the winner is always shown.</p></div></div><div class="leader-trail">${trail}</div><div class="leader-stats">${leaders}</div></div><div><div class="section-heading"><div><h2>Lead changes</h2><p>All ${leadChanges.length} takeover${leadChanges.length === 1 ? "" : "s"}, most recent first.</p></div></div><div class="lead-change-list">${changes || '<div class="empty-note">No lead changes yet.</div>'}</div></div>`;
 }
 
 function updateRaceFrame(index) {
@@ -356,7 +440,7 @@ function advanceRace() {
     return;
   }
   updateRaceFrame(raceFrame + 1);
-  raceTimer = setTimeout(advanceRace, Math.max(70, 650 / playbackSpeed));
+  raceTimer = setTimeout(advanceRace, frameDelay());
 }
 
 function bindRaceControls() {
@@ -369,39 +453,48 @@ function bindRaceControls() {
     if (raceTimer) { stopRace(); return; }
     if (raceFrame >= raceFrames.length - 1) updateRaceFrame(0);
     event.currentTarget.textContent = "Pause";
-    raceTimer = setTimeout(advanceRace, Math.max(70, 650 / playbackSpeed));
+    raceTimer = setTimeout(advanceRace, frameDelay());
   };
 }
 
-function sankeyHtml(data, winner) {
+function routeHtml(data, winner) {
+  const helped = helpedByGame(winner);
+  let wins = 0, losses = 0, pushes = 0;
+  const steps = data.games.map((game, index) => {
+    const pick = winner.picks[index];
+    const push = game.winner === "PUSH";
+    const correct = !push && game.winner === pick;
+    if (push) pushes += 1;
+    else if (correct) wins += 1;
+    else losses += 1;
+    const impact = helped.get(game.gameNum);
+    const bestBet = winner.bestBet === pick;
+    const outcome = push ? "pushed" : correct ? "covered" : `lost to ${game.winner}`;
+    return `<li class="route-step ${push ? "push" : correct ? "hit" : "miss"}">
+      <span class="route-node">G${game.gameNum}</span>
+      <div class="route-detail">
+        <small>${escapeHtml(game.away)} at ${escapeHtml(game.home)}</small>
+        <strong>${escapeHtml(pick)} ${escapeHtml(outcome)}${bestBet ? '<em class="best-bet-tag">BEST BET</em>' : ""}</strong>
+        <span class="route-meta">Running ${wins}-${losses}${pushes ? `-${pushes}` : ""}${impact ? ` <b class="${helpedTone(impact.percent)}">${helpedLabel(impact)} helped</b>` : ""}</span>
+      </div>
+    </li>`;
+  }).join("");
+  const chips = data.games.map((game, index) => {
+    const pick = winner.picks[index];
+    const push = game.winner === "PUSH";
+    const correct = !push && game.winner === pick;
+    return `<span class="thread-chip ${push ? "push" : correct ? "hit" : "miss"}" title="Game ${game.gameNum}: ${escapeHtml(pick)} ${push ? "pushed" : correct ? "covered" : "missed"}">${escapeHtml(pick)}</span>`;
+  }).join("");
   return `<section class="section">
-    <div class="section-heading"><div><h2>The thread that made it all the way</h2><p>The possibility chart is collapsed to the one realized route. Green links are winning picks, red links are misses, and the gold finish is the tiebreaker that delivered the week.</p></div></div>
-    <div class="sankey-wrap"><canvas id="winner-sankey" class="sankey-canvas"></canvas></div>
-    <p class="route-note">Scroll sideways to follow every completed game from kickoff to ${escapeHtml(winner.name)}. Hover a link for the result and pick.</p>
+    <div class="section-heading"><div><h2>The thread that made it all the way</h2><p>Every completed game in order, from kickoff to the tiebreaker that delivered the week. Green is a winning pick, red is a miss, and gold is the finish.</p></div></div>
+    <div class="thread-strip"><span class="thread-chip start">Kickoff</span>${chips}<span class="thread-chip finish">${escapeHtml(winner.name)}</span></div>
+    <ol class="route-list">
+      <li class="route-step start"><span class="route-node">GO</span><div class="route-detail"><small>Week ${data.week} kickoff</small><strong>${escapeHtml(winner.name)} is 0-0 with ${escapeHtml(winner.bestBet)} as the Best Bet</strong><span class="route-meta">Tiebreak guess ${winner.tiebreaker}</span></div></li>
+      ${steps}
+      <li class="route-step finish"><span class="route-node">TB</span><div class="route-detail"><small>Tiebreaker</small><strong>Actual total ${winner.actualTiebreaker}; ${escapeHtml(winner.name)} guessed ${winner.tiebreaker}</strong><span class="route-meta">${winner.tiebreakerDiff} yards away</span></div></li>
+      <li class="route-step finish"><span class="route-node">W</span><div class="route-detail"><small>Final</small><strong>${escapeHtml(winner.name)} wins Week ${data.week} at ${winner.wins}-${winner.losses}${winner.pushes ? `-${winner.pushes}` : ""}</strong><span class="route-meta">${escapeHtml(winner.weekName || "")}</span></div></li>
+    </ol>
   </section>`;
-}
-
-function createSankey(data, winner) {
-  const labels = { start: "Kickoff" };
-  const edges = [];
-  let from = "start";
-  data.games.forEach((game, index) => {
-    const correct = winner.picks[index] === game.winner;
-    const node = `game:${game.gameNum}`;
-    labels[node] = `G${game.gameNum} ${game.winner === "PUSH" ? "push" : `${game.winner} covers`}`;
-    edges.push({ from, to: node, flow: 1, correct, detail: `${game.away} at ${game.home}: ${game.winner === "PUSH" ? "push" : `${game.winner} covered`}; ${winner.name} picked ${winner.picks[index]}` });
-    from = node;
-  });
-  const tiebreakNode = "tiebreak";
-  labels[tiebreakNode] = `TB actual ${winner.actualTiebreaker}`;
-  edges.push({ from, to: tiebreakNode, flow: 1, tiebreak: true, detail: `${winner.name} guessed ${winner.tiebreaker} and missed by ${winner.tiebreakerDiff} yards` });
-  labels.winner = `${winner.name} wins`;
-  edges.push({ from: tiebreakNode, to: "winner", flow: 1, tiebreak: true, detail: `${winner.name} wins Week ${data.week}` });
-  new Chart(document.getElementById("winner-sankey"), {
-    type: "sankey",
-    data: { datasets: [{ data: edges, labels, colorFrom: context => context.raw.tiebreak ? "#f4c44f" : context.raw.correct ? "#55d7b0" : "#f4847a", colorTo: context => context.raw.tiebreak ? "#f4c44f" : context.raw.correct ? "#55d7b0" : "#f4847a", colorMode: "gradient", borderWidth: 0 }] },
-    options: { responsive: true, maintainAspectRatio: false, color: "#edf4f8", layout: { padding: { right: 110 } }, plugins: { legend: { display: false }, tooltip: { callbacks: { label: context => context.raw.detail } } } },
-  });
 }
 
 function helpedHtml(winner) {
@@ -417,7 +510,7 @@ function helpedHtml(winner) {
 
 async function archiveHtml(current) {
   const archive = await loadJson("data/winner-recaps/index.json");
-  const cards = [...archive.weeks].reverse().map(item => `<a class="archive-card ${item.season === current.season && item.week === current.week ? "current" : ""}" href="winner.html?season=${item.season}&week=${item.week}"><small>${escapeHtml(item.seasonLabel)} - Week ${item.week}</small><strong>${escapeHtml(item.winners.join(" / "))}</strong><span>${escapeHtml(item.record)}${item.weekName ? ` - ${escapeHtml(item.weekName)}` : ""}</span><small>${item.raceFrames} preserved race frames</small></a>`).join("");
+  const cards = [...archive.weeks].reverse().map(item => `<a class="archive-card ${item.season === current.season && item.week === current.week ? "current" : ""}" href="winner.html?season=${item.season}&week=${item.week}"><small>${escapeHtml(item.seasonLabel)} - Week ${item.week}</small><strong>${escapeHtml(item.winners.join(" / "))}</strong><span>${escapeHtml(item.record)}</span>${item.weekName ? `<small class="archive-week-name">${escapeHtml(item.weekName)}</small>` : ""}</a>`).join("");
   return `<section id="winner-archive" class="section"><div class="section-heading"><div><h2>Weekly winner archive</h2><p>Every finalized winner gets a permanent page at its own season and week URL.</p></div></div><div class="archive-grid">${cards}</div></section>`;
 }
 
@@ -426,14 +519,20 @@ function heroHtml(data, winner) {
   return `<section class="hero">
     <p class="eyebrow">${escapeHtml(data.seasonLabel)} - Week ${data.week} winner</p>
     <h1>${escapeHtml(data.winners.map(item => item.name).join(" + "))}</h1>
-    <p class="hero-summary">${escapeHtml(winnerSummary(data, winner))}</p>
-    <div class="hero-actions"><button id="share-winner" class="button primary" type="button">Share this winner page</button><button id="copy-winner" class="button" type="button">Copy link</button><a class="button" href="#live-race">Watch the race</a></div>
+    <p class="hero-week-name">${escapeHtml(winner.weekName || `Week ${data.week}`)}</p>
     <div class="stat-grid">
       <div class="stat"><span>Final record</span><strong>${record}</strong></div>
-      <div class="stat"><span>Week name</span><strong>${escapeHtml(winner.weekName || "-")}</strong></div>
       <div class="stat"><span>Best Bet</span><strong>${escapeHtml(winner.bestBet)}</strong></div>
+      <div class="stat"><span>Correct picks</span><strong>${winner.highlights.correctPicks} of ${data.games.length}</strong></div>
       <div class="stat"><span>Tiebreak miss</span><strong>${winner.tiebreakerDiff} yards</strong></div>
     </div>
+  </section>`;
+}
+
+function shareHtml(data, winner) {
+  return `<section class="section share-section">
+    <div class="section-heading"><div><h2>Share this winner page</h2><p>This link is permanent, so ${escapeHtml(winner.name)} can come back to Week ${data.week} any time.</p></div></div>
+    <div class="hero-actions"><button id="share-winner" class="button primary" type="button">Share this winner page</button><button id="copy-winner" class="button" type="button">Copy link</button></div>
   </section>`;
 }
 
@@ -457,19 +556,21 @@ async function render() {
     const winner = recapData.winners[0];
     document.title = `${winner.name} - FBP Week ${recapData.week} Winner`;
     raceFrames = prepareRaceFrames(recapData);
+    computeFrameDelays();
     raceFrame = Math.max(0, raceFrames.length - 1);
     app.innerHTML = [
       heroHtml(recapData, winner),
       confirmationHtml(recapData, winner),
       highlightsHtml(recapData, winner),
       tiebreakHtml(recapData, winner),
+      standingsHtml(recapData),
       `<div id="live-race">${raceHtml(recapData)}</div>`,
-      sankeyHtml(recapData, winner),
+      routeHtml(recapData, winner),
       helpedHtml(winner),
       await archiveHtml(selected),
+      shareHtml(recapData, winner),
     ].join("");
     createRaceCharts(recapData, winner);
-    createSankey(recapData, winner);
     bindRaceControls();
     bindSharing(recapData, winner);
     updateRaceFrame(raceFrame);
