@@ -3573,7 +3573,11 @@ async function renderConfirmationHistory(submission) {
     const opponentFor = row => [row.game.favorite, row.game.underdog].map(team => String(team).toUpperCase()).find(team => team !== String(row.pick).toUpperCase()) || "";
     const countTeams = teams => [...teams.reduce((counts, team) => counts.set(team, (counts.get(team) || 0) + 1), new Map()).entries()].sort((left, right) => right[1] - left[1] || websiteNaturalTeamName(left[0]).localeCompare(websiteNaturalTeamName(right[0])))[0] || ["", 0];
     const periodKey = game => String(game.gameId || `${game.season}|${game.week}|${game.gameDate}|${game.gameTime}`);
-    const periods = [...new Map(websiteGames.map(game => [periodKey(game), { key: periodKey(game), date: `${game.gameDate || ""} ${game.gameTime || ""}` }])).values()].sort((left, right) => left.date.localeCompare(right.date));
+    const periodTime = game => {
+      const timestamp = Date.parse(`${game.gameDate || ""} ${game.gameTime || ""}`.trim());
+      return Number.isFinite(timestamp) ? timestamp : 0;
+    };
+    const periods = [...new Map(websiteGames.map(game => [periodKey(game), { key: periodKey(game), time: periodTime(game) }])).values()].sort((left, right) => left.time - right.time || left.key.localeCompare(right.key));
     const gamesByPeriod = websiteGames.reduce((groups, game) => { const key = periodKey(game); const games = groups.get(key) || []; games.push(game); groups.set(key, games); return groups; }, new Map());
     const picksByPeriod = completedHistory.reduce((groups, row) => { const key = periodKey(row.game); const picks = groups.get(key) || []; picks.push(row); groups.set(key, picks); return groups; }, new Map());
     const teamPlayed = (team, games) => games.some(game => [game.favorite, game.underdog].some(value => String(value).toUpperCase() === team));

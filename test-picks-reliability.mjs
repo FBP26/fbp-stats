@@ -3,6 +3,12 @@ import { readFileSync } from 'node:fs';
 import vm from 'node:vm';
 
 const html = readFileSync(new URL('./index.html', import.meta.url), 'utf8');
+const historicalGames = JSON.parse(readFileSync(new URL('./data/games.json', import.meta.url), 'utf8'));
+const clevelandWeeks = historicalGames
+  .filter(game => String(game.season) === '2026-2027' && Number(game.week) <= 5 && [game.favorite, game.underdog].some(team => String(team).toUpperCase() === 'CLE'))
+  .sort((left, right) => Date.parse(`${left.gameDate || ''} ${left.gameTime || ''}`.trim()) - Date.parse(`${right.gameDate || ''} ${right.gameTime || ''}`.trim()))
+  .map(game => Number(game.week));
+assert.deepEqual(clevelandWeeks, [1, 2, 3, 4, 5]);
 assert.match(html, /table-layout: auto/);
 assert.match(html, /\.confirmation-metric-table th \{ width: 1%; white-space: nowrap;/);
 assert.match(html, /Longest time since picked"/);
@@ -12,6 +18,8 @@ assert.match(html, /team \$\{missed === 1 \? "game" : "games"\}/);
 assert.match(html, /Current Best Bet record/);
 assert.doesNotMatch(html, /Current Best Bet run/);
 assert.match(html, /currentBestBetRecordValue\(currentBestBetRecord, "No current Best Bet"\)/);
+assert.match(html, /const periodTime = game =>/);
+assert.match(html, /left\.time - right\.time/);
 const clientContext = vm.createContext({ URL, URLSearchParams, AbortSignal, Date });
 vm.runInContext(readFileSync(new URL('./live-client.js', import.meta.url), 'utf8'), clientContext);
 const pendingStorage = new Map();
