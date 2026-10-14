@@ -9,7 +9,7 @@ import { operationalPicksVisible, readOperationalSeasonStatus } from './operatio
 import { publicReadSnapshot, refreshPublicReadSnapshots } from "./read-snapshots.ts";
 import { adaptCompletedArchive } from './completed-history-adapter.ts';
 import { espnEventId, fetchEspnGame, isRefreshWindow, parseEspnGame, type StoredGame } from "./espn.ts";
-import { validateRaceSnapshotPlayers } from "./race.ts";
+import { buildRaceGameState, validateRaceSnapshotPlayers } from "./race.ts";
 import { alertEmailHtml, nightPaths, observeLeads, parseAlertFeed, type AlertFeed, type AlertObservation } from "./alert-details.ts";
 import { maskNotificationDestination, normalizeNotificationDestination, notificationEvents, notificationPreferenceColumns, ordinalRank, parseNotificationPreferences, picksDueReminderIsEligible, scheduledNotificationEvents, seasonRankMovementSummary, weeklyRecapMessage, type NotificationChannel, type NotificationEvent, type SeasonStanding } from "./notifications.ts";
 import { sendWebPush, type PushSubscriptionRecord } from "./web-push.ts";
@@ -1566,17 +1566,7 @@ const storeRaceSnapshot = async (payload: JsonObject, env: Env): Promise<Respons
   );
   const submittedPlayers = validateRaceSnapshotPlayers(payload.players, scoredPlayers.map((player) => player.name));
   const scoreByName = new Map(scoredPlayers.map((player) => [player.name, player]));
-  const gameState = games.map((game) => ({
-    gameId: game.gameId,
-    away: game.away || game.awayTeam,
-    home: game.home || game.homeTeam,
-    awayScore: game.awayScore ?? "",
-    homeScore: game.homeScore ?? "",
-    status: game.status || game.state,
-    period: game.period || "",
-    clock: game.clock || "",
-    possession: game.possession || "",
-  }));
+  const gameState = buildRaceGameState(games as Record<string, unknown>[]);
   const gameStateJson = JSON.stringify(gameState);
   const latest = await env.DB
     .prepare(

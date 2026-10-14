@@ -6,6 +6,37 @@ export interface RaceSnapshotPlayer {
 
 type RacePlayerRecord = Record<string, unknown>;
 
+export interface RaceGameState {
+  gameId: unknown;
+  away: unknown;
+  home: unknown;
+  awayScore: unknown;
+  homeScore: unknown;
+  status: unknown;
+  period: unknown;
+  clock: unknown;
+  possession: unknown;
+  combinedNetPassingYards?: number;
+}
+
+// Shapes week-config rows for the preserved race snapshot that the winner page replays.
+export const buildRaceGameState = (games: Record<string, unknown>[]): RaceGameState[] =>
+  games.map((game) => {
+    const yards = Number(game.netPassingYards);
+    return {
+      gameId: game.gameId,
+      away: game.away || game.awayTeam,
+      home: game.home || game.homeTeam,
+      awayScore: game.awayScore ?? "",
+      homeScore: game.homeScore ?? "",
+      status: game.status || game.state,
+      period: game.period || "",
+      clock: game.clock || "",
+      possession: game.possession || "",
+      ...(Number.isFinite(yards) && yards > 0 ? { combinedNetPassingYards: yards } : {}),
+    };
+  });
+
 export const validateRaceSnapshotPlayers = (
   value: unknown,
   authoritativeNames: string[],
