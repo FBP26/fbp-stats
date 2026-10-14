@@ -2879,7 +2879,10 @@ async function initializePushNotifications() {
     try {
       const response = await fetch(WEBSITE_NOTIFICATION_ENDPOINT, { method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify({ action: "disable-push", deviceToken: deviceToken() }) });
       const data = await response.json(); if (!response.ok || !data.ok) throw new Error(data.error || "Notifications could not be disabled.");
-      const registration = await navigator.serviceWorker.ready, subscription = await registration.pushManager.getSubscription(); await subscription?.unsubscribe();
+      try {
+        const registration = await navigator.serviceWorker.ready, subscription = await registration.pushManager.getSubscription();
+        await subscription?.unsubscribe();
+      } catch (error) { console.warn(`Browser Push subscription cleanup failed after disable: ${error.message}`); }
       localStorage.removeItem(WEBSITE_PUSH_DEVICE_TOKEN); localStorage.removeItem("fbpPushPlayer"); pushPlayerInput.value = ""; status.textContent = "Notifications are disabled on this device.";
     } catch (error) { status.textContent = error.message || "Notifications could not be disabled."; }
     finally { save.disabled = false; updatePushButton(); }
@@ -3322,6 +3325,18 @@ async function renderWebsitePicksFormNow(forceRefresh = false) {
     }
   }
   const selection = websitePickSelection();
+  if (!selection.testMode && !selection.staged) {
+    websiteActiveGames = [];
+    host.dataset.ready = "no-active-slate";
+    host.innerHTML = '<p class="website-instructions">The next weekly slate is being reviewed. Picks will open here as soon as it is approved.</p>';
+    document.getElementById("website-test-notice").classList.remove("active");
+    document.getElementById("website-week-name-label").style.visibility = "hidden";
+    document.getElementById("website-best-bet").innerHTML = '';
+    document.getElementById("website-best-bet").disabled = true;
+    document.querySelector('#website-picks-form button[type="submit"]').disabled = true;
+    document.getElementById("website-picks-status").textContent = "Picks are unavailable until the next slate is approved.";
+    return;
+  }
   const configKey = `${selection.phase}-${selection.season}-${selection.week}`;
   const cachedGames = websiteStagedGamesCache.get(configKey)?.games || [];
   if (!forceRefresh && host.dataset.ready === configKey && websiteSlateSignature(websiteActiveGames) === websiteSlateSignature(cachedGames)) { websiteRefreshMessage("view-enter-picks", false, websiteStagedGamesCache.get(configKey)?.storedAt, useCachedSlate); queueWebsitePicksWeatherRefresh(selection); return; }
