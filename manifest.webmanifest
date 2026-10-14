@@ -2,7 +2,7 @@
   "name": "FBP",
   "short_name": "FBP",
   "description": "Football pool picks, standings, history, and results.",
-  "start_url": "./",
+  "start_url": "./?release=submit-fix-20261014",
   "scope": "./",
   "display": "standalone",
   "background_color": "#0d1117",
