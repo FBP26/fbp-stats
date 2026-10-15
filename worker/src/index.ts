@@ -515,7 +515,10 @@ const handleGet = async (request: Request, env: Env): Promise<Response> => {
 
   if (action === "week-config") {
     const games = await getWeekConfig(env.DB, weekId);
-    return json({ ok: true, season, week: weekNumber, phase, games, enrichmentError: "" }, 200, env.CORS_ORIGIN);
+    const enrichedGames = url.searchParams.get("enrich") === "1"
+      ? await enrichActiveSlateGames(games, season, weekNumber)
+      : games;
+    return json({ ok: true, season, week: weekNumber, phase, games: enrichedGames, enrichmentError: "" }, 200, env.CORS_ORIGIN);
   }
 
   if (action === "race-archive") {
@@ -860,8 +863,32 @@ const normalizeNflAbbreviation = (value: unknown): string => ({ WSH: "WAS", JAC:
 const enrichActiveSlateGames = async (games: JsonObject[], season: number, week: number): Promise<JsonObject[]> => {
   const response = await fetch(`https://site.api.espn.com/apis/site/v2/sports/football/nfl/scoreboard?dates=${season}&seasontype=2&week=${week}&limit=100`, { cf: { cacheTtl: 300 } });
   if (!response.ok) return games;
-  const scoreboard = await response.json() as { events?: { id?: string; competitions?: { competitors?: { homeAway?: string; team?: { abbreviation?: string; displayName?: string } }[]; venue?: { fullName?: string; address?: { city?: string; state?: string } }; broadcasts?: { names?: string[] }[] }[] }[] };
+  const scoreboard = await response.json() as { events?: { id?: string; competitions?: { competitors?: { homeAway?: string; team?: { abbreviation?: string; displayName?: string } }[]; venue?: { fullName?: string; indoor?: boolean; address?: { city?: string; state?: string } }; broadcasts?: { names?: string[] }[] }[] }[] };
   const events = new Map((scoreboard.events || []).map((event) => [String(event.id || ""), event]));
+  const summaries = await Promise.all(games.map(async (game) => {
+    const eventId = String(game.gameId || "").replace(/^espn\./, "");
+    const competition = events.get(eventId)?.competitions?.[0];
+    if (!eventId || competition?.venue?.indoor) return [eventId, null] as const;
+    try {
+      const summaryResponse = await fetch(`https://site.api.espn.com/apis/site/v2/sports/football/nfl/summary?event=${encodeURIComponent(eventId)}`, { cf: { cacheTtl: 900 } });
+      if (!summaryResponse.ok) return [eventId, null] as const;
+      const summary = await summaryResponse.json() as { gameInfo?: { weather?: { temperature?: number; gust?: number; precipitation?: number } } };
+      const weather = summary.gameInfo?.weather;
+      if (!weather) return [eventId, null] as const;
+      const details = [
+        Number.isFinite(Number(weather.precipitation)) ? `${Number(weather.precipitation)}% precip` : "",
+        Number.isFinite(Number(weather.gust)) ? `gusts ${Number(weather.gust)} mph` : "",
+      ].filter(Boolean).join(" · ");
+      return [eventId, {
+        temperature: Number.isFinite(Number(weather.temperature)) ? Number(weather.temperature) : null,
+        weather: details,
+      }] as const;
+    } catch (error) {
+      console.warn("ESPN forecast enrichment failed", eventId, error);
+      return [eventId, null] as const;
+    }
+  }));
+  const forecastByEventId = new Map(summaries);
   return games.map((game) => {
     const event = events.get(String(game.gameId || "").replace(/^espn\./, ""));
     const competition = event?.competitions?.[0];
@@ -881,6 +908,8 @@ const enrichActiveSlateGames = async (games: JsonObject[], season: number, week:
       venueName: venue?.fullName || "",
       venueCity: venue?.address?.city || "",
       venueState: venue?.address?.state || "",
+      indoor: Boolean(venue?.indoor),
+      ...(forecastByEventId.get(String(game.gameId || "").replace(/^espn\./, "")) || {}),
       broadcast: competition.broadcasts?.flatMap((entry) => entry.names || []).join(", ") || "",
     };
   });

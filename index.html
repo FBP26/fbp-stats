@@ -2715,6 +2715,14 @@ async function loadActiveRegularWeek(forceRefresh = false) {
   return websiteActiveRegularWeekPromise;
 }
 async function selectStagedPreseasonWeek() { if (!WEBSITE_SUBMISSIONS_ENDPOINT) return false; const regular = await loadActiveRegularWeek(); if (regular.staged) return false; const separator = WEBSITE_SUBMISSIONS_ENDPOINT.includes("?") ? "&" : "?"; for (const week of [4, 3, 2, 1]) { try { const response = await fetch(`${WEBSITE_SUBMISSIONS_ENDPOINT}${separator}action=preseason-test&season=2026&week=${week}`, { signal: AbortSignal.timeout(20000) }); const data = await response.json(); if (!response.ok || !data.ok || !(data.games || []).length) continue; websiteDiscoveredPreseasonData = data; websiteEntrySelection = { testMode: true, season: 2026, week, phase: "PRESEASON" }; updateWebsiteWeekLabels(websiteEntrySelection); document.getElementById("website-game-picks").dataset.ready = ""; return true; } catch (error) { console.warn(`Preseason Week ${week} discovery failed: ${error.message}`); } } return false; }
+function websiteKickoffGroup(game) {
+  const kickoff = String(game?.kickoff || game?.startTime || "");
+  const date = new Date(kickoff);
+  if (Number.isNaN(date.getTime())) return game?.kickoffGroup || kickoff || "Game time TBD";
+  const day = date.toLocaleDateString("en-US", { timeZone: "America/New_York", weekday: "short" });
+  const time = date.toLocaleTimeString("en-US", { timeZone: "America/New_York", hour: "numeric", minute: "2-digit" });
+  return `${day} · ${time} ET`;
+}
 async function loadWebsiteStagedGames(selection, forceRefresh = false) {
   if (!WEBSITE_SUBMISSIONS_ENDPOINT) return selection.testMode ? [] : WEBSITE_WEEK_ONE_GAMES;
   const cacheKey = `${selection.phase}-${selection.season}-${selection.week}`;
@@ -2724,7 +2732,7 @@ async function loadWebsiteStagedGames(selection, forceRefresh = false) {
     websiteDiscoveredPreseasonData = null;
     websiteStagedGamesCache.set(cacheKey, { games: discoveredGames, storedAt: Date.now() });
   } else if (cached?.games?.length && !forceRefresh) {
-    return cached.games.map((game, index) => ({ ...game, id: game.gameId || `game-${index + 1}`, time: game.kickoffGroup || game.kickoff || `Game ${index + 1}` }));
+    return cached.games.map((game, index) => ({ ...game, id: game.gameId || `game-${index + 1}`, time: websiteKickoffGroup(game) || `Game ${index + 1}` }));
   }
   const rawGames = discoveredGames?.length ? discoveredGames : await (async () => {
     const separator = WEBSITE_SUBMISSIONS_ENDPOINT.includes("?") ? "&" : "?";
@@ -2737,7 +2745,7 @@ async function loadWebsiteStagedGames(selection, forceRefresh = false) {
     websiteStagedGamesCache.set(cacheKey, { games, storedAt: Date.now() });
     return games;
   })();
-  return rawGames.map((game, index) => ({ ...game, id: game.gameId || `game-${index + 1}`, time: game.kickoffGroup || game.kickoff || `Game ${index + 1}` }));
+  return rawGames.map((game, index) => ({ ...game, id: game.gameId || `game-${index + 1}`, time: websiteKickoffGroup(game) || `Game ${index + 1}` }));
 }
 function websiteGameContext(game) {
   const location = [game.venueCity, game.venueState].filter(Boolean).join(", ");
