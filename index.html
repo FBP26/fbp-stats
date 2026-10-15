@@ -3010,6 +3010,11 @@ function interpretWebsiteWeekName(weekName, playerName) {
   const archive = relatedExample ? ` It fits beside “${relatedExample}” in your archive, so this is not the first time you have used that kind of material.` : " The archive does not identify the exact source, so this is a reading of the wording rather than a claim of certainty.";
   return { category: "Our best read", read: `Our best read is that “${text}” is ${shape}.${archive}${history}` };
 }
+const WEBSITE_CURRENT_NFL_TEAMS = ["ARI", "ATL", "BAL", "BUF", "CAR", "CHI", "CIN", "CLE", "DAL", "DEN", "DET", "GB", "HOU", "IND", "JAX", "KC", "LAC", "LA", "LV", "MIA", "MIN", "NE", "NO", "NYG", "NYJ", "PHI", "PIT", "SEA", "SF", "TB", "TEN", "WAS"];
+function websiteCanonicalTeam(value) {
+  const code = String(value || "").trim().toUpperCase();
+  return { LAR: "LA", OAK: "LV", SD: "LAC", STL: "LA" }[code] || code;
+}
 function confirmationMetricTable(rows) {
   return `<table class="confirmation-metric-table"><tbody>${rows.map(row => `<tr><th scope="row">${websiteEscapeHtml(row.label)}</th><td>${row.value}${row.detail ? `<small>${row.detail}</small>` : ""}</td></tr>`).join("")}</tbody></table>`;
 }
