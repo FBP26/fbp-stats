@@ -52,7 +52,9 @@ const lookup = await request(api("existing-submission", {
   phase: active.phase || "REGULAR_SEASON",
   name: "Health Check",
 }));
-if (lookup.canSubmit !== true) fail("The active week is visible but new picks cannot be submitted.");
+if (lookup.owner !== "D1" || lookup.writesEnabled !== true || lookup.exists !== false) {
+  fail("The active week is visible but new-pick lookup is not enabled.");
+}
 
 console.log(JSON.stringify({ ok: true, season: active.season, week: active.week, games: active.games.length, players: current.players?.length || 0 }));
 }
