@@ -816,8 +816,8 @@ async function render() {
       `<div id="live-race">${raceHtml(recapData)}</div>`,
       routeHtml(recapData, winner),
       helpedHtml(recapData, winner),
-      await archiveHtml(selected),
       mapHtml(recapData, winner),
+      await archiveHtml(selected),
       shareHtml(recapData, winner),
     ].join("");
     createRaceCharts(recapData, winner);
