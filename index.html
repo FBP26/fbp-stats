@@ -3366,7 +3366,10 @@ async function renderConfirmationHistory(submission) {
       metric("Best team picked streak", backingHabit ? `${teamName(backingHabit.team)} · ${backingHabit.length} including this card` : "—"),
       metric("Worst team picked streak", fadingHabit ? `${teamName(fadingHabit.team)} · ${fadingHabit.length} including this card` : "—")
     ].join("")}</tbody></table></div>`;
-  } catch (error) { host.innerHTML = '<h3>Pick form</h3><p>The archive is taking the week off. Your submitted picks are still saved.</p>'; }
+  } catch (error) {
+    console.error("Failed to render pick confirmation history", error);
+    host.innerHTML = '<h3>Pick form</h3><p>The archive is taking the week off. Your submitted picks are still saved.</p>';
+  }
 }
 async function renderWebsiteConfirmation(submission, result) {
   submission.submittedAt = result?.submittedAt || submission.submittedAt || "";
