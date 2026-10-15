@@ -3010,6 +3010,9 @@ function interpretWebsiteWeekName(weekName, playerName) {
   const archive = relatedExample ? ` It fits beside “${relatedExample}” in your archive, so this is not the first time you have used that kind of material.` : " The archive does not identify the exact source, so this is a reading of the wording rather than a claim of certainty.";
   return { category: "Our best read", read: `Our best read is that “${text}” is ${shape}.${archive}${history}` };
 }
+function confirmationMetricTable(rows) {
+  return `<table class="confirmation-metric-table"><tbody>${rows.map(row => `<tr><th scope="row">${websiteEscapeHtml(row.label)}</th><td>${row.value}${row.detail ? `<small>${row.detail}</small>` : ""}</td></tr>`).join("")}</tbody></table>`;
+}
 function renderConfirmationIdentity(submission, identity) {
   const host = document.getElementById("confirmation-identity");
   const effective = identity || { status: "new", submittedName: submission.name.trim(), suggestedName: "" };
