@@ -3406,7 +3406,10 @@ function websiteConfirmationEmailText() {
 }
 function websiteConfirmationEmailSections() {
   const cleanText = value => String(value || "").replace(/\s+/g, " ").trim();
-  const cleanCellText = cell => cleanText(cell.innerText || cell.textContent);
+  const cleanCellText = cell => {
+    const textParts = node => node.nodeType === Node.TEXT_NODE ? [node.textContent] : [...node.childNodes].flatMap(textParts);
+    return cleanText(textParts(cell).join(" "));
+  };
   return ["confirmation-identity", "confirmation-picks", "confirmation-history"].flatMap(id => {
     const host = document.getElementById(id);
     if (!host) return [];
