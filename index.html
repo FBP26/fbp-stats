@@ -3406,16 +3406,25 @@ function websiteConfirmationEmailText() {
 }
 function websiteConfirmationEmailSections() {
   const cleanText = value => String(value || "").replace(/\s+/g, " ").trim();
-  return ["confirmation-identity", "confirmation-picks", "confirmation-history"].map(id => {
+  return ["confirmation-identity", "confirmation-picks", "confirmation-history"].flatMap(id => {
     const host = document.getElementById(id);
-    if (!host) return null;
-    const headings = [...host.querySelectorAll("h3, h4")].map(heading => cleanText(heading.textContent)).filter(Boolean);
-    const paragraphs = [...host.querySelectorAll("p")].map(paragraph => cleanText(paragraph.textContent)).filter(Boolean).slice(0, 12);
-    const table = host.querySelector("table");
-    const headers = table ? [...table.querySelectorAll("thead th")].map(header => cleanText(header.textContent)).filter(Boolean).slice(0, 8) : [];
-    const rows = table ? [...table.querySelectorAll("tbody tr")].map(row => [...row.querySelectorAll("td")].map(cell => cleanText(cell.textContent).slice(0, 1000)).slice(0, headers.length || 8)).filter(row => row.some(Boolean)).slice(0, 8) : [];
-    return { heading: headings[0] || "", paragraphs, headers, rows };
-  }).filter(section => section && (section.heading || section.paragraphs.length || section.rows.length));
+    if (!host) return [];
+    const sections = [];
+    let section = null;
+    [...host.querySelectorAll("h3, h4, p, table")].forEach(element => {
+      if (element.matches("h3, h4")) {
+        section = { heading: cleanText(element.textContent), paragraphs: [], headers: [], rows: [] };
+        sections.push(section);
+      } else if (section && element.matches("p")) {
+        const paragraph = cleanText(element.textContent);
+        if (paragraph) section.paragraphs.push(paragraph);
+      } else if (section && element.matches("table")) {
+        section.headers = [...element.querySelectorAll("thead th")].map(header => cleanText(header.textContent)).filter(Boolean).slice(0, 8);
+        section.rows = [...element.querySelectorAll("tbody tr")].map(row => [...row.querySelectorAll("th, td")].map(cell => cleanText(cell.textContent).slice(0, 1000)).slice(0, section.headers.length || 8)).filter(row => row.some(Boolean)).slice(0, 8);
+      }
+    });
+    return sections;
+  }).filter(section => section.heading || section.paragraphs.length || section.rows.length).slice(0, 4);
 }
 async function sendWebsitePickConfirmationEmail(confirmationEmailToken) {
   if (!confirmationEmailToken || !WEBSITE_SUBMISSIONS_ENDPOINT) return true;
