@@ -780,15 +780,15 @@ const sendEmail = async (env: Env, to: string, subject: string, body: string, ht
   }
 };
 
-const sendPickSubmissionEmail = async (env: Env, details: JsonObject): Promise<boolean> => {
-  if (!env.EMAIL_RELAY_URL?.trim() || !env.EMAIL_RELAY_SECRET?.trim()) return false;
+const preparePickSubmissionConfirmation = async (env: Env, details: JsonObject): Promise<string> => {
+  if (!env.EMAIL_RELAY_URL?.trim() || !env.EMAIL_RELAY_SECRET?.trim()) return "";
   const response = await fetch(env.EMAIL_RELAY_URL.trim(), {
     method: "POST",
     headers: { "Content-Type": "text/plain;charset=UTF-8" },
-    body: JSON.stringify({ action: "send-pick-submission-email", secret: env.EMAIL_RELAY_SECRET, ...details }),
+    body: JSON.stringify({ action: "prepare-d1-pick-confirmation-email", secret: env.EMAIL_RELAY_SECRET, ...details }),
   });
-  const result = await response.json().catch(() => null) as { ok?: boolean } | null;
-  return response.ok && result?.ok === true;
+  const result = await response.json().catch(() => null) as { ok?: boolean; confirmationEmailToken?: unknown } | null;
+  return response.ok && result?.ok === true ? cleanText(result.confirmationEmailToken, 100) : "";
 };
 
 const sendOwnerOperationalEmail = async (env: Env, subject: string, body: string): Promise<boolean> => {
@@ -1422,7 +1422,7 @@ const submitCard = async (payload: JsonObject, env: Env): Promise<Response> => {
   if (!priorPlayer) await sendAdministratorPushOnce(env, "adminNewPlayer", `admin-new-player:${player.id}`, "New player joined", `${player.canonical_name} submitted their first FBP picks.`, Number(week.id));
   const firstKickoff = Math.min(...gameRows.results.map((game) => Date.parse(String(game.kickoff_at))));
   if (Number.isFinite(firstKickoff) && Date.parse(submittedAt) > firstKickoff) await sendAdministratorPushOnce(env, "adminLateSubmission", `admin-late-submission:${week.id}:${player.id}:${submittedAt}`, `Late picks - Week ${weekNumber}`, `${player.canonical_name} submitted picks after the first kickoff.`, Number(week.id));
-  const confirmationEmailSent = payload.mode === "test" ? false : await sendPickSubmissionEmail(env, {
+  const confirmationEmailToken = payload.mode === "test" ? "" : await preparePickSubmissionConfirmation(env, {
     name,
     weekName,
     picks,
@@ -1436,7 +1436,7 @@ const submitCard = async (payload: JsonObject, env: Env): Promise<Response> => {
     ok: true,
     testMode: payload.mode === "test",
     submittedAt,
-    confirmationEmailSent,
+    confirmationEmailToken,
     identity: {
       status: rawName === player.canonical_name ? "known" : "suggestion",
       submittedName: player.canonical_name,
