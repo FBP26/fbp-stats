@@ -791,6 +791,34 @@ const preparePickSubmissionConfirmation = async (env: Env, details: JsonObject):
   return response.ok && result?.ok === true ? cleanText(result.confirmationEmailToken, 100) : "";
 };
 
+const relayPickConfirmationEmail = async (env: Env, payload: JsonObject): Promise<Response> => {
+  if (!env.EMAIL_RELAY_URL?.trim()) {
+    return json({ ok: false, error: "Pick confirmation email delivery is unavailable." }, 503, env.CORS_ORIGIN);
+  }
+  try {
+    const response = await fetch(env.EMAIL_RELAY_URL.trim(), {
+      method: "POST",
+      headers: { "Content-Type": "text/plain;charset=UTF-8" },
+      body: JSON.stringify({
+        action: "send-pick-confirmation-email",
+        confirmationEmailToken: cleanText(payload.confirmationEmailToken, 100),
+        confirmationText: cleanText(payload.confirmationText, 15_000),
+        confirmationSections: payload.confirmationSections,
+      }),
+    });
+    return new Response(await response.text(), {
+      status: response.status,
+      headers: {
+        "Content-Type": response.headers.get("Content-Type") || "application/json; charset=UTF-8",
+        "Access-Control-Allow-Origin": env.CORS_ORIGIN,
+      },
+    });
+  } catch (error) {
+    console.warn("Pick confirmation email relay failed", error);
+    return json({ ok: false, error: "Pick confirmation email delivery failed." }, 502, env.CORS_ORIGIN);
+  }
+};
+
 const sendOwnerOperationalEmail = async (env: Env, subject: string, body: string): Promise<boolean> => {
   if (directEmailConfigured(env)) return sendEmail(env, "fbpool07@gmail.com", subject, body);
   const relayUrl = env.EMAIL_RELAY_URL?.trim();
@@ -1578,6 +1606,7 @@ const storeRaceSnapshot = async (payload: JsonObject, env: Env): Promise<Respons
 const handlePost = async (request: Request, env: Env): Promise<Response> => {
   const payload = await parsePayload(request);
   const action = cleanText(payload.action, 50);
+  if (action === "send-pick-confirmation-email") return relayPickConfirmationEmail(env, payload);
   if (action === "approve-week-setup") return approveWeekSetupCandidate(payload, env);
   if (action === "resend-week-setup-review") return resendWeekSetupReview(payload, env);
   if (action === "subscribe-push") return savePushDevice(payload, env);
