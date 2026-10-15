@@ -2753,7 +2753,7 @@ function websiteGameContext(game) {
   const hasTemperature = game.temperature !== "" && game.temperature != null;
   const weatherIcon = game.indoor ? "🏟️" : /thunder|storm/.test(normalizedCondition) ? "⛈️" : /snow|flurr/.test(normalizedCondition) ? "❄️" : /rain|shower/.test(normalizedCondition) ? "🌧️" : /cloud|overcast/.test(normalizedCondition) ? "☁️" : /fog|mist/.test(normalizedCondition) ? "🌫️" : /wind/.test(normalizedCondition) ? "💨" : /sun|clear/.test(normalizedCondition) ? "☀️" : hasTemperature ? "🌡️" : "🌤️";
   const weather = [hasTemperature ? `${game.temperature}°` : "", condition].filter(Boolean).join(" ");
-  const weatherDetail = game.indoor ? "Indoor" : weather;
+  const weatherDetail = game.indoor ? "Indoor" : weather || (game.venueName ? "Forecast pending" : "");
   const details = [["venue", game.venueName || game.venue], ["location", location], ["weather", weatherDetail], ["broadcast", game.broadcast || game.tv]].filter(([, value]) => value);
   return details.length ? `<div class="website-game-context${websiteIsNeutralSite(game) ? " website-game-context-neutral" : ""}">${details.map(([type, value]) => `<span class="website-context-${type}">${type === "weather" ? `<span class="website-weather-icon" aria-hidden="true">${weatherIcon}</span>` : ""}${websiteEscapeHtml(value)}</span>`).join("")}</div>` : "";
 }
