@@ -1054,7 +1054,11 @@ function initializeWebsiteNameAutocomplete() {
   menu.hidden = true;
   field.append(menu);
   let activeIndex = -1;
-  const names = [...new Set([...(websitePlayers || []).map(player => player.name), ...(tableData.overall || []).map(row => row.Name)].map(name => String(name || "").trim()).filter(Boolean))].sort((left, right) => left.localeCompare(right));
+  let names;
+  const availableNames = () => {
+    if (!names) names = [...new Set([...(websitePlayers || []).map(player => player.name), ...(tableData.overall || []).map(row => row.Name)].map(name => String(name || "").trim()).filter(Boolean))].sort((left, right) => left.localeCompare(right));
+    return names;
+  };
   const options = () => [...menu.querySelectorAll(".website-name-option")];
   const setActive = index => {
     const items = options();
@@ -1068,7 +1072,7 @@ function initializeWebsiteNameAutocomplete() {
   const choose = option => { if (!option) return false; input.value = option.dataset.name; input.dispatchEvent(new Event("input", { bubbles: true })); close(); return true; };
   const render = () => {
     const query = input.value.trim().toLowerCase();
-    const matches = query ? names.filter(name => name.toLowerCase().startsWith(query)).slice(0, 10) : [];
+    const matches = query ? availableNames().filter(name => name.toLowerCase().startsWith(query)).slice(0, 10) : [];
     menu.innerHTML = matches.map((name, index) => `<button id="website-name-option-${index}" class="website-name-option" type="button" role="option" data-name="${websiteEscapeHtml(name)}">${websiteEscapeHtml(name)}</button>`).join("");
     menu.hidden = !matches.length || matches.some(name => name.toLowerCase() === query);
     input.setAttribute("aria-expanded", String(!menu.hidden));
