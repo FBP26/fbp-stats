@@ -906,7 +906,7 @@ const enrichActiveSlateGames = async (games: JsonObject[], season: number, week:
       const details = [
         Number.isFinite(Number(weather.precipitation)) ? `${Number(weather.precipitation)}% precip` : "",
         Number.isFinite(Number(weather.gust)) ? `gusts ${Number(weather.gust)} mph` : "",
-      ].filter(Boolean).join(" · ");
+      ].filter(Boolean).join("; ");
       return [eventId, {
         temperature: Number.isFinite(Number(weather.temperature)) ? Number(weather.temperature) : null,
         weather: details,
