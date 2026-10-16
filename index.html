@@ -2737,6 +2737,9 @@ function websiteKickoffGroup(game) {
   const time = date.toLocaleTimeString("en-US", { timeZone: "America/New_York", hour: "numeric", minute: "2-digit" });
   return `${day} · ${time} ET`;
 }
+function websiteEnterPicksKickoffGroup(game) {
+  return websiteKickoffGroup(game).replace(/\s*[^A-Za-z0-9:]+\s*(?=\d{1,2}:\d{2})/, " ");
+}
 async function loadWebsiteStagedGames(selection, forceRefresh = false) {
   if (!WEBSITE_SUBMISSIONS_ENDPOINT) return selection.testMode ? [] : WEBSITE_WEEK_ONE_GAMES;
   const cacheKey = `${selection.phase}-${selection.season}-${selection.week}`;
@@ -2746,7 +2749,7 @@ async function loadWebsiteStagedGames(selection, forceRefresh = false) {
     websiteDiscoveredPreseasonData = null;
     websiteStagedGamesCache.set(cacheKey, { games: discoveredGames, storedAt: Date.now() });
   } else if (cached?.games?.length && !forceRefresh) {
-    return cached.games.map((game, index) => ({ ...game, id: game.gameId || `game-${index + 1}`, time: websiteKickoffGroup(game) || `Game ${index + 1}` }));
+    return cached.games.map((game, index) => ({ ...game, id: game.gameId || `game-${index + 1}`, time: websiteEnterPicksKickoffGroup(game) || `Game ${index + 1}` }));
   }
   const rawGames = discoveredGames?.length ? discoveredGames : await (async () => {
     const separator = WEBSITE_SUBMISSIONS_ENDPOINT.includes("?") ? "&" : "?";
@@ -2759,7 +2762,7 @@ async function loadWebsiteStagedGames(selection, forceRefresh = false) {
     websiteStagedGamesCache.set(cacheKey, { games, storedAt: Date.now() });
     return games;
   })();
-  return rawGames.map((game, index) => ({ ...game, id: game.gameId || `game-${index + 1}`, time: websiteKickoffGroup(game) || `Game ${index + 1}` }));
+  return rawGames.map((game, index) => ({ ...game, id: game.gameId || `game-${index + 1}`, time: websiteEnterPicksKickoffGroup(game) || `Game ${index + 1}` }));
 }
 function websiteGameContext(game) {
   const location = [game.venueCity, game.venueState].filter(Boolean).join(", ");
