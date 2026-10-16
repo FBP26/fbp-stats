@@ -477,6 +477,11 @@ const handleGet = async (request: Request, env: Env): Promise<Response> => {
     const week = await activeWeek(env.DB);
     if (!week) return json({ ok: false, error: "No regular-season week is staged." }, 404, env.CORS_ORIGIN);
     const body = await buildCurrentWeek(env.DB, week);
+    body.games = await enrichActiveSlateGames(
+      Array.isArray(body.games) ? body.games as JsonObject[] : [],
+      Number(week.season),
+      Number(week.week),
+    );
     return json(body, 200, env.CORS_ORIGIN);
   }
 
