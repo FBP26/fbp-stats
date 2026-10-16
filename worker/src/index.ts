@@ -498,6 +498,40 @@ const handleGet = async (request: Request, env: Env): Promise<Response> => {
     }, 200, env.CORS_ORIGIN);
   }
 
+  if (action === "season-status") {
+    const week = await activeWeek(env.DB);
+    if (!week) return json({ ok: false, error: "No regular-season week is staged." }, 404, env.CORS_ORIGIN);
+    const [playedThisSeason, submittedCurrentWeek] = await Promise.all([
+      env.DB.prepare(
+        `SELECT DISTINCT p.canonical_name AS name
+         FROM submissions s
+         JOIN players p ON p.id = s.player_id
+         JOIN weeks w ON w.id = s.week_id
+         WHERE w.season = ? AND w.phase = 'REGULAR_SEASON' AND s.superseded_at IS NULL
+         ORDER BY p.canonical_name COLLATE NOCASE`,
+      ).bind(week.season).all<{ name: string }>(),
+      env.DB.prepare(
+        `SELECT DISTINCT p.canonical_name AS name
+         FROM submissions s
+         JOIN players p ON p.id = s.player_id
+         WHERE s.week_id = ? AND s.superseded_at IS NULL
+         ORDER BY p.canonical_name COLLATE NOCASE`,
+      ).bind(week.id).all<{ name: string }>(),
+    ]);
+    const submittedNames = submittedCurrentWeek.results.map((player) => player.name);
+    const submitted = new Set(submittedNames.map((name) => name.toLocaleLowerCase()));
+    return json({
+      ok: true,
+      season: Number(week.season),
+      week: Number(week.week),
+      playedThisSeason: playedThisSeason.results.map((player) => player.name),
+      submittedCurrentWeek: submittedNames,
+      notYetSubmittedCurrentWeek: playedThisSeason.results
+        .map((player) => player.name)
+        .filter((name) => !submitted.has(name.toLocaleLowerCase())),
+    }, 200, env.CORS_ORIGIN);
+  }
+
   if (action === "current-week" || action === "week-one") {
     const week = await activeWeek(env.DB);
     if (!week) return json({ ok: false, error: "No regular-season week is staged." }, 404, env.CORS_ORIGIN);
