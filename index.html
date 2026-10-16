@@ -4197,7 +4197,7 @@ function decorateWebsiteWeekOneHeadersLive(data) {
     const gameStatus = websiteGameStatus(game);
     const started = ["IN", "LIVE", "POST", "IN_PROGRESS", "FINAL", "COMPLETED"].includes(gameStatus);
     const spread = `<small class="pg-header-spread">${data.spreads[index]}</small>`;
-    if (!started) { const formattedKickoff = websiteKickoffGroup(game); const kickoff = formattedKickoff ? formattedKickoff.replace(" Â· ", " ").replace(/\s(?:AM|PM) ET$/, "") : game?.kickoffGroup || game?.statusText || ""; header.innerHTML = `${favorite}${spread}${underdog}${kickoff ? `<small class="pg-header-kickoff">${kickoff}</small>` : ""}`; return; }
+    if (!started) { const formattedKickoff = websiteKickoffGroup(game); const kickoff = formattedKickoff ? formattedKickoff.replace(/\s*[^A-Za-z0-9:]+\s*/, " ").replace(/\s(?:AM|PM) ET$/, "") : game?.kickoffGroup || game?.statusText || ""; header.innerHTML = `${favorite}${spread}${underdog}${kickoff ? `<small class="pg-header-kickoff">${kickoff}</small>` : ""}`; return; }
     const score = value => `<span class="pg-header-score">${value === "" ? "-" : value}</span>`;
     const final = ["POST", "FINAL", "COMPLETED"].includes(gameStatus);
     const liveState = final ? "" : game?.espnStatusText || game?.statusText || [game?.period ? `Q${game.period}` : "", game?.clock, game?.possession ? `${game.possession} ball` : ""].filter(Boolean).join(" · ");
