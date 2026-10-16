@@ -966,7 +966,12 @@ const fetchOpenMeteoForecast = async (
   kickoff: string,
 ): Promise<{ temperature: number | null; weather: string } | null> => {
   if (!city || !kickoff) return null;
-  const countryCode = country === "England" || country === "United Kingdom" ? "GB" : country;
+  const countryCode = ({
+    England: "GB",
+    "United Kingdom": "GB",
+    "United States": "US",
+    USA: "US",
+  } as Record<string, string>)[country] || (/^[A-Z]{2}$/.test(country) ? country : "");
   const geocode = await fetch(
     `https://geocoding-api.open-meteo.com/v1/search?name=${encodeURIComponent(city)}&count=1&language=en&format=json${countryCode ? `&countryCode=${encodeURIComponent(countryCode)}` : ""}`,
     { cf: { cacheTtl: 86_400 } },
