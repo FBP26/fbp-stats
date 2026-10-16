@@ -944,6 +944,69 @@ const fetchYahooWeekGames = async (season: number, week: number): Promise<YahooW
 
 const normalizeNflAbbreviation = (value: unknown): string => ({ WSH: "WAS", JAC: "JAX", LA: "LAR" }[String(value || "").toUpperCase()] || String(value || "").toUpperCase());
 
+const openMeteoWeatherLabel = (code: number): string => {
+  if ([95, 96, 99].includes(code)) return "Thunderstorms";
+  if ([71, 73, 75, 77, 85, 86].includes(code)) return "Snow";
+  if ([51, 53, 55, 56, 57, 61, 63, 65, 66, 67, 80, 81, 82].includes(code)) return "Rain";
+  if ([45, 48].includes(code)) return "Fog";
+  if (code === 3) return "Overcast";
+  if ([1, 2].includes(code)) return "Cloudy";
+  if (code === 0) return "Clear";
+  return "";
+};
+
+const fetchOpenMeteoForecast = async (
+  city: string,
+  country: string,
+  kickoff: string,
+): Promise<{ temperature: number | null; weather: string } | null> => {
+  if (!city || !kickoff) return null;
+  const countryCode = country === "England" || country === "United Kingdom" ? "GB" : country;
+  const geocode = await fetch(
+    `https://geocoding-api.open-meteo.com/v1/search?name=${encodeURIComponent(city)}&count=1&language=en&format=json${countryCode ? `&countryCode=${encodeURIComponent(countryCode)}` : ""}`,
+    { cf: { cacheTtl: 86_400 } },
+  );
+  if (!geocode.ok) return null;
+  const locations = await geocode.json() as { results?: { latitude?: number; longitude?: number }[] };
+  const location = locations.results?.[0];
+  const latitude = Number(location?.latitude);
+  const longitude = Number(location?.longitude);
+  if (!Number.isFinite(latitude) || !Number.isFinite(longitude)) return null;
+  const forecast = await fetch(
+    `https://api.open-meteo.com/v1/forecast?latitude=${latitude}&longitude=${longitude}&hourly=temperature_2m,precipitation_probability,wind_gusts_10m,weather_code&timezone=UTC&forecast_days=7`,
+    { cf: { cacheTtl: 900 } },
+  );
+  if (!forecast.ok) return null;
+  const hourly = (await forecast.json()) as {
+    hourly?: { time?: string[]; temperature_2m?: number[]; precipitation_probability?: number[]; wind_gusts_10m?: number[]; weather_code?: number[] };
+  };
+  const kickoffTime = Date.parse(kickoff);
+  if (!Number.isFinite(kickoffTime) || !hourly.hourly?.time?.length) return null;
+  let closestIndex = -1;
+  let closestDifference = Number.POSITIVE_INFINITY;
+  for (const [index, time] of hourly.hourly.time.entries()) {
+    const difference = Math.abs(Date.parse(`${time}Z`) - kickoffTime);
+    if (difference < closestDifference) {
+      closestDifference = difference;
+      closestIndex = index;
+    }
+  }
+  if (closestIndex < 0 || closestDifference > 90 * 60 * 1000) return null;
+  const temperatureCelsius = Number(hourly.hourly.temperature_2m?.[closestIndex]);
+  const precipitation = Number(hourly.hourly.precipitation_probability?.[closestIndex]);
+  const gustKilometersPerHour = Number(hourly.hourly.wind_gusts_10m?.[closestIndex]);
+  const condition = openMeteoWeatherLabel(Number(hourly.hourly.weather_code?.[closestIndex]));
+  const details = [
+    condition,
+    Number.isFinite(precipitation) ? `${Math.round(precipitation)}% precip` : "",
+    Number.isFinite(gustKilometersPerHour) ? `gusts ${Math.round(gustKilometersPerHour * 0.621371)} mph` : "",
+  ].filter(Boolean).join("; ");
+  return {
+    temperature: Number.isFinite(temperatureCelsius) ? Math.round((temperatureCelsius * 9) / 5 + 32) : null,
+    weather: details,
+  };
+};
+
 const enrichActiveSlateGames = async (games: JsonObject[], season: number, week: number): Promise<JsonObject[]> => {
   const response = await fetch(`https://site.api.espn.com/apis/site/v2/sports/football/nfl/scoreboard?dates=${season}&seasontype=2&week=${week}&limit=100`, { cf: { cacheTtl: 300 } });
   if (!response.ok) return games;
@@ -956,9 +1019,20 @@ const enrichActiveSlateGames = async (games: JsonObject[], season: number, week:
     try {
       const summaryResponse = await fetch(`https://site.api.espn.com/apis/site/v2/sports/football/nfl/summary?event=${encodeURIComponent(eventId)}`, { cf: { cacheTtl: 900 } });
       if (!summaryResponse.ok) return [eventId, null] as const;
-      const summary = await summaryResponse.json() as { gameInfo?: { weather?: { temperature?: number; gust?: number; precipitation?: number } } };
+      const summary = await summaryResponse.json() as {
+        gameInfo?: {
+          weather?: { temperature?: number; gust?: number; precipitation?: number };
+          venue?: { address?: { city?: string; country?: string } };
+        };
+      };
       const weather = summary.gameInfo?.weather;
-      if (!weather) return [eventId, null] as const;
+      if (!weather) {
+        return [eventId, await fetchOpenMeteoForecast(
+          String(summary.gameInfo?.venue?.address?.city || ""),
+          String(summary.gameInfo?.venue?.address?.country || ""),
+          String(game.kickoff || ""),
+        )] as const;
+      }
       const details = [
         Number.isFinite(Number(weather.precipitation)) ? `${Number(weather.precipitation)}% precip` : "",
         Number.isFinite(Number(weather.gust)) ? `gusts ${Number(weather.gust)} mph` : "",

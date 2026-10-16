@@ -2763,12 +2763,14 @@ function websiteGameContext(game) {
   const condition = String(game.weather || ""), normalizedCondition = condition.toLowerCase();
   const hasTemperature = game.temperature !== "" && game.temperature != null;
   const weatherLabel = game.indoor ? "" : /thunder|storm/.test(normalizedCondition) ? "Storm" : /snow|flurr/.test(normalizedCondition) ? "Snow" : /rain|shower/.test(normalizedCondition) ? "Rain" : /cloud|overcast/.test(normalizedCondition) ? "Cloudy" : /fog|mist/.test(normalizedCondition) ? "Fog" : /wind/.test(normalizedCondition) ? "Windy" : /sun|clear/.test(normalizedCondition) ? "Sunny" : hasTemperature ? "Weather" : "";
-  const safeWeather = [hasTemperature ? `${game.temperature} deg` : "", condition].filter(Boolean).join("; ");
+  const weatherDescription = condition.replace(/^(Sunny|Cloudy|Rain|Storm|Snow|Fog|Windy|Weather):?\s*/i, "");
+  const safeWeather = [hasTemperature ? `${game.temperature} deg` : "", weatherDescription].filter(Boolean).join("; ");
+  const weatherGlyph = game.indoor ? "&#8962;" : /thunder|storm/.test(normalizedCondition) ? "&#9889;" : /snow|flurr/.test(normalizedCondition) ? "&#10052;" : /rain|shower/.test(normalizedCondition) ? "&#9730;" : /cloud|overcast/.test(normalizedCondition) ? "&#9729;" : /fog|mist/.test(normalizedCondition) ? "&#8776;" : /wind/.test(normalizedCondition) ? "&#8649;" : /sun|clear/.test(normalizedCondition) ? "&#9728;" : hasTemperature ? "&#9678;" : "";
   const weatherIcon = game.indoor ? "ðŸŸï¸" : /thunder|storm/.test(normalizedCondition) ? "⛈️" : /snow|flurr/.test(normalizedCondition) ? "❄️" : /rain|shower/.test(normalizedCondition) ? "ðŸŒ§ï¸" : /cloud|overcast/.test(normalizedCondition) ? "☁️" : /fog|mist/.test(normalizedCondition) ? "ðŸŒ«ï¸" : /wind/.test(normalizedCondition) ? "ðŸ’¨" : /sun|clear/.test(normalizedCondition) ? "☀️" : hasTemperature ? "ðŸŒ¡ï¸" : "ðŸŒ¤ï¸";
   const weather = [hasTemperature ? `${game.temperature}°` : "", condition].filter(Boolean).join(" ");
-  const weatherDetail = game.indoor ? "Indoor" : safeWeather || (game.venueName ? "Forecast pending" : "");
+  const weatherDetail = game.indoor ? "Indoor" : safeWeather;
   const details = [["venue", game.venueName || game.venue], ["location", location], ["weather", weatherDetail], ["broadcast", game.broadcast || game.tv]].filter(([, value]) => value);
-  return details.length ? `<div class="website-game-context${websiteIsNeutralSite(game) ? " website-game-context-neutral" : ""}">${details.map(([type, value]) => `<span class="website-context-${type}">${type === "weather" && weatherLabel ? `<span class="website-weather-icon">${weatherLabel}: </span>` : ""}${websiteEscapeHtml(value)}</span>`).join("")}</div>` : "";
+  return details.length ? `<div class="website-game-context${websiteIsNeutralSite(game) ? " website-game-context-neutral" : ""}">${details.map(([type, value]) => `<span class="website-context-${type}">${type === "weather" && weatherGlyph ? `<span class="website-weather-icon" role="img" aria-label="${weatherLabel || "Weather"}">${weatherGlyph}</span>` : ""}${websiteEscapeHtml(value)}</span>`).join("")}</div>` : "";
 }
 function websiteGamesMatch(left, right) {
   const leftId = left?.gameId || left?.id, rightId = right?.gameId || right?.id;
