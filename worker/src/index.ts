@@ -1,7 +1,7 @@
 import { compareStandings, scoreWeekWithoutProbabilities, type PlayerCard, type ScoringGame } from "./scoring";
 import { espnEventId, fetchEspnGame, isRefreshWindow, parseEspnGame, type StoredGame } from "./espn";
 import { buildRaceGameState, validateRaceSnapshotPlayers } from "./race";
-import { leaderPushSummary, maskNotificationDestination, normalizeNotificationDestination, notificationEvents, notificationPreferenceColumns, parseNotificationPreferences, picksDueReminderIsEligible, scheduledNotificationEvents, seasonRankMovementSummary, type LeaderPushScoreChange, type NotificationChannel, type NotificationEvent, type SeasonStanding } from "./notifications";
+import { leaderPushSummary, maskNotificationDestination, normalizeNotificationDestination, notificationEvents, notificationPreferenceColumns, parseNotificationPreferences, picksDueReminderCheckpoints, picksDueReminderIsEligible, scheduledNotificationEvents, seasonRankMovementSummary, type LeaderPushScoreChange, type NotificationChannel, type NotificationEvent, type SeasonStanding } from "./notifications";
 import { sendWebPush, type PushSubscriptionRecord } from "./web-push";
 
 interface Env {
@@ -683,10 +683,46 @@ const sendAdministratorPushOnce = async (env: Env, eventType: string, deduplicat
   }
 };
 
+const missingPicksFromPriorWeek = async (
+  db: D1Database,
+  week: Record<string, unknown>,
+): Promise<{ names: string[]; expectedCount: number }> => {
+  const previousWeek = await db.prepare(
+    `SELECT id FROM weeks
+     WHERE season = ? AND phase = ? AND week < ? AND status = 'finalized'
+     ORDER BY week DESC LIMIT 1`,
+  ).bind(week.season, week.phase, week.week).first<{ id: number }>();
+  if (!previousWeek) return { names: [], expectedCount: 0 };
+  const expected = await db.prepare(
+    `SELECT DISTINCT p.canonical_name AS name
+     FROM submissions s
+     JOIN players p ON p.id = s.player_id
+     WHERE s.week_id = ? AND s.superseded_at IS NULL
+     ORDER BY p.canonical_name COLLATE NOCASE`,
+  ).bind(previousWeek.id).all<{ name: string }>();
+  const submitted = await db.prepare(
+    `SELECT DISTINCT p.canonical_name AS name
+     FROM submissions s
+     JOIN players p ON p.id = s.player_id
+     WHERE s.week_id = ? AND s.superseded_at IS NULL`,
+  ).bind(week.id).all<{ name: string }>();
+  const expectedNames = [...new Set(expected.results.map((player) => player.name))];
+  const submittedNames = new Set(submitted.results.map((player) => player.name.toLocaleLowerCase()));
+  return {
+    names: expectedNames.filter((name) => !submittedNames.has(name.toLocaleLowerCase())),
+    expectedCount: expectedNames.length,
+  };
+};
+
 const dispatchWeekPushNotifications = async (env: Env, week: Record<string, unknown>, scoreChanges: LeaderPushScoreChange[] = []): Promise<void> => {
   if (!pushConfigured(env)) return;
   const games = await getWeekConfig(env.DB, Number(week.id));
-  const events = new Set(scheduledNotificationEvents(new Date(), games, String(week.status)));
+  const now = new Date();
+  const events = new Set(scheduledNotificationEvents(now, games, String(week.status)));
+  const picksDueCheckpoints = picksDueReminderCheckpoints(now, games, String(week.status));
+  const missingPicks = picksDueCheckpoints.length
+    ? await missingPicksFromPriorWeek(env.DB, week)
+    : { names: [], expectedCount: 0 };
   const current = await buildCurrentWeek(env.DB, week);
   const players = (Array.isArray(current.players) ? current.players as JsonObject[] : []).sort((left, right) =>
     Number(right.total || 0) - Number(left.total || 0)
@@ -730,6 +766,26 @@ const dispatchWeekPushNotifications = async (env: Env, week: Record<string, unkn
         title: `FBP Week ${week.week}: ${notificationEventLabels[event]}`,
         body,
         url: `${(env.PUBLIC_SITE_URL || "https://fbp26.github.io/fbp-stats/").replace(/\/$/, "")}#current-week`, tag: `fbp-${key}`,
+      }, { publicKey: env.VAPID_PUBLIC_KEY!, privateKey: env.VAPID_PRIVATE_KEY!, subject: env.VAPID_SUBJECT! });
+      if (sent.expired) await env.DB.prepare("UPDATE push_devices SET status='unsubscribed',unsubscribed_at=CURRENT_TIMESTAMP,updated_at=CURRENT_TIMESTAMP WHERE id=?").bind(device.id).run();
+      await env.DB.prepare("UPDATE push_deliveries SET status=?,sent_at=?,error_message=? WHERE device_id=? AND deduplication_key=?")
+        .bind(sent.ok ? "sent" : "failed", sent.ok ? new Date().toISOString() : null, sent.error || null, device.id, key).run();
+    }
+    const administrator = cleanText(env.ADMIN_PUSH_PLAYER, 100).replace(/\s+/g, " ");
+    const isAdministratorDevice = administrator
+      && linked.results.some((player) => player.player_name.localeCompare(administrator, undefined, { sensitivity: "accent" }) === 0);
+    if (!Number(device.picks_due) || !isAdministratorDevice || !missingPicks.names.length) continue;
+    for (const minutesBeforeKickoff of picksDueCheckpoints) {
+      const key = `picksDue:${week.id}:${minutesBeforeKickoff}`;
+      const queued = await env.DB.prepare("INSERT INTO push_deliveries(device_id,week_id,event_type,deduplication_key,status) VALUES(?,?,?,?, 'queued') ON CONFLICT(device_id,deduplication_key) DO NOTHING")
+        .bind(device.id, week.id, "picksDue", key).run();
+      if (!queued.meta.changes) continue;
+      const body = `${missingPicks.names.length} of ${missingPicks.expectedCount} expected entries are missing: ${missingPicks.names.join(", ")}.`;
+      const sent = await sendWebPush({ endpoint: String(device.endpoint), p256dh: String(device.p256dh), auth: String(device.auth) }, {
+        title: `FBP Week ${week.week}: ${missingPicks.names.length} missing picks (${minutesBeforeKickoff} min)`,
+        body,
+        url: `${(env.PUBLIC_SITE_URL || "https://fbp26.github.io/fbp-stats/").replace(/\/$/, "")}#enter-picks`,
+        tag: `fbp-${key}`,
       }, { publicKey: env.VAPID_PUBLIC_KEY!, privateKey: env.VAPID_PRIVATE_KEY!, subject: env.VAPID_SUBJECT! });
       if (sent.expired) await env.DB.prepare("UPDATE push_devices SET status='unsubscribed',unsubscribed_at=CURRENT_TIMESTAMP,updated_at=CURRENT_TIMESTAMP WHERE id=?").bind(device.id).run();
       await env.DB.prepare("UPDATE push_deliveries SET status=?,sent_at=?,error_message=? WHERE device_id=? AND deduplication_key=?")

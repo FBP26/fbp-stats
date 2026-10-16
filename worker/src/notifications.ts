@@ -154,6 +154,19 @@ export const picksDueReminderIsEligible = (
   return untilFirstKickoff >= 0 && untilFirstKickoff <= minutesBeforeKickoff * 60 * 1000;
 };
 
+export const picksDueReminderCheckpoints = (
+  now: Date,
+  games: NotificationGame[],
+  weekStatus: string,
+): number[] => {
+  if (!["staged", "open"].includes(weekStatus)) return [];
+  const kickoffs = games.map((game) => easternKickoff(game.kickoff)?.time).filter((time): time is number => Number.isFinite(time));
+  if (!kickoffs.length) return [];
+  const untilFirstKickoff = Math.min(...kickoffs) - now.getTime();
+  if (untilFirstKickoff < 0) return [];
+  return [60, 30, 15].filter((minutes) => untilFirstKickoff <= minutes * 60 * 1000);
+};
+
 const ordinal = (rank: number): string => {
   const remainder = rank % 100;
   if (remainder >= 11 && remainder <= 13) return `${rank}th`;

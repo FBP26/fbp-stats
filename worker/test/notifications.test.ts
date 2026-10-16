@@ -6,6 +6,7 @@ import {
   maskNotificationDestination,
   normalizeNotificationDestination,
   parseNotificationPreferences,
+  picksDueReminderCheckpoints,
   picksDueReminderIsEligible,
   scheduledNotificationEvents,
   seasonRankMovementSummary,
@@ -53,6 +54,14 @@ test("picks due reminder honors a configurable lead time before the first kickof
   assert.equal(picksDueReminderIsEligible(new Date("2026-09-09T19:20:00Z"), games, "staged", 300), true);
   assert.equal(picksDueReminderIsEligible(new Date("2026-09-10T00:20:00Z"), games, "staged", 15), true);
   assert.equal(picksDueReminderIsEligible(new Date("2026-09-10T00:20:01Z"), games, "staged", 15), false);
+});
+
+test("owner missing-picks summaries use the 60, 30, and 15 minute checkpoints", () => {
+  const games = [{ kickoff: "2026-09-10T00:20:00Z", state: "PREGAME" }];
+  assert.deepEqual(picksDueReminderCheckpoints(new Date("2026-09-09T23:20:00Z"), games, "staged"), [60]);
+  assert.deepEqual(picksDueReminderCheckpoints(new Date("2026-09-09T23:50:00Z"), games, "open"), [60, 30]);
+  assert.deepEqual(picksDueReminderCheckpoints(new Date("2026-09-10T00:06:00Z"), games, "staged"), [60, 30, 15]);
+  assert.deepEqual(picksDueReminderCheckpoints(new Date("2026-09-10T00:20:01Z"), games, "staged"), []);
 });
 
 test("weekly result is eligible only after finalization", () => {

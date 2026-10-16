@@ -14,9 +14,12 @@ The report is private and reads D1 directly. It lists each player or pool-wide s
 
 Player subscriptions include a missing-picks reminder. It defaults to one hour before the first kickoff and can be set from 5 through 300 minutes. The reminder is sent once per week only when the followed player's active card is absent.
 
+The configured owner push device also receives a pool-wide missing-picks summary at 60, 30, and 15 minutes before the first kickoff. Each summary is independently deduplicated, recalculates the missing names immediately before delivery, and uses the prior finalized week's active field as the expected-entry baseline. No summary is sent after kickoff or when nobody is missing.
+
 The five-minute Worker schedule evaluates alerts at these points:
 
 - Picks due: at the subscriber's selected lead time before the week's earliest kickoff, skipped after that player submits.
+- Owner missing picks: at 60, 30, and 15 minutes before the earliest kickoff, listing the current missing players.
 - First place: the first check where the followed player is ranked first after play begins.
 - Early games: after every Sunday game starting before 4 PM Eastern is final.
 - Before Sunday Night Football: after the Sunday afternoon games are final and SNF is within 35 minutes. This replaces the former separate late-games alert.
