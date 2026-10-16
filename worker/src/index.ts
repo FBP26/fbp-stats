@@ -391,6 +391,29 @@ const handleGet = async (request: Request, env: Env): Promise<Response> => {
   const url = new URL(request.url);
   const action = url.searchParams.get("action") || "current-week";
   if (action === "analytics-status") return json({ ok: true, analytics: true }, 200, env.CORS_ORIGIN);
+  if (action === "visitor-geography") {
+    const relayUrl = env.EMAIL_RELAY_URL?.trim();
+    if (!relayUrl) return json({ ok: false, error: "Visitor geography is not configured." }, 503, env.CORS_ORIGIN);
+    const reportUrl = new URL(relayUrl);
+    reportUrl.searchParams.set("action", "visitor-geography");
+    let response: Response;
+    try {
+      response = await fetch(reportUrl);
+    } catch (error) {
+      console.error("Visitor geography relay request failed.", error);
+      return json({ ok: false, error: "Visitor geography is temporarily unavailable." }, 502, env.CORS_ORIGIN);
+    }
+    if (!response.ok) {
+      console.error(`Visitor geography relay returned ${response.status}.`);
+      return json({ ok: false, error: "Visitor geography is temporarily unavailable." }, 502, env.CORS_ORIGIN);
+    }
+    try {
+      return json(JSON.parse(await response.text()) as JsonObject, 200, env.CORS_ORIGIN);
+    } catch (error) {
+      console.error("Visitor geography relay returned invalid JSON.", error);
+      return json({ ok: false, error: "Visitor geography is temporarily unavailable." }, 502, env.CORS_ORIGIN);
+    }
+  }
   if (action === "analytics-context") {
     const context = request.cf;
     const approximateCoordinate = (value: unknown): number | "" => {
