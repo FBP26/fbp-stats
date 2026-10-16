@@ -136,39 +136,44 @@
   .profile-list { display: grid; gap: 11px; font: 13px Arial, sans-serif; }
   .profile-list div { display: flex; justify-content: space-between; gap: 12px; border-bottom: 1px solid var(--border); padding-bottom: 8px; }
   .profile-list span { color: var(--muted); }
-  .website-game-group { margin: 0; padding: 0; border: 0; }
+  .website-game-group { margin: 0 0 18px; padding: 0; border: 0; }
   .website-game-list { display: block; }
-  .website-game-group legend { width: 100%; padding: 7px 0 2px; color: var(--accent); font: 10px Arial, sans-serif; letter-spacing: .8px; text-transform: uppercase; }
-  .website-game-group legend { text-align: center; }
+  .website-game-group legend { width: 100%; margin: 0 0 8px; padding: 0; color: var(--accent); font: bold 12px Arial, sans-serif; letter-spacing: 1px; text-align: center; text-transform: uppercase; }
+  .website-game-group legend span { display: inline-block; min-width: 148px; border-block: 1px solid var(--border); padding: 8px 14px; background: var(--panel-2); }
   .website-identity-controls, .website-final-controls { grid-template-columns: 1fr; gap: 7px; margin-bottom: 8px; }
   #website-picks-form > label { margin-bottom: 7px; }
-  .website-game-row { position: relative; padding: 2px 0 4px; border-bottom: 1px solid var(--border); }
-  .website-matchup { display: grid; grid-template-columns: minmax(0, 1fr) 48px minmax(0, 1fr); align-items: center; gap: 8px; }
-  .website-game-context { margin: 0; padding: 0 4px 1px; color: var(--muted); font: 10px/1.3 Arial, sans-serif; text-align: center; }
-  .website-game-context > span + span::before { content: " · "; }
-  .website-weather-icon { display: inline-block; min-width: 15px; margin-right: 2px; font-size: 12px; line-height: 1; vertical-align: -1px; }
-  .website-side { display: flex; align-items: center; gap: 8px; min-width: 0; padding: 5px 8px; border: 1px solid transparent; border-radius: 5px; font: 14px Arial, sans-serif; text-transform: none; letter-spacing: 0; cursor: pointer; transition: background .15s, border-color .15s, color .15s; }
-  .website-team-choice { display: grid; flex: 1; grid-template-columns: 38px minmax(0, 1fr); grid-template-areas: "logo name" "logo record"; align-items: center; column-gap: 8px; width: 100%; min-width: 0; padding: 6px 8px; border: 1px solid transparent; border-radius: 5px; }
-  .website-team-logo { grid-area: logo; width: 38px; height: 38px; object-fit: contain; }
-  .website-team-name { grid-area: name; overflow: hidden; font-weight: bold; text-overflow: ellipsis; white-space: nowrap; }
-  .website-team-abbreviation { display: none; grid-area: name; font-weight: bold; }
-  .website-team-record { grid-area: record; color: var(--muted); font-size: 13px; }
-  .website-mobile-venue { display: none; grid-area: venue; overflow: hidden; color: var(--muted); font-size: 8px; font-weight: normal; text-overflow: ellipsis; white-space: nowrap; }
-  .website-home-marker { color: var(--muted); font-size: .8em; font-weight: normal; }
-  .website-side:hover .website-team-choice { background: var(--panel-2); border-color: var(--border); }
+  .website-game-row { position: relative; margin-bottom: 9px; }
+  .website-matchup { display: grid; grid-template-columns: minmax(0, 1fr) minmax(132px, .44fr) minmax(0, 1fr); align-items: stretch; gap: 10px; }
+  .website-side { display: flex; min-width: 0; padding: 0; font: 14px Arial, sans-serif; text-transform: none; letter-spacing: 0; cursor: pointer; }
+  .website-team-choice { display: grid; flex: 1; grid-template-columns: 56px minmax(0, 1fr); grid-template-areas: "logo abbreviation" "logo name" "logo record" "logo picked"; align-content: center; column-gap: 10px; min-width: 0; min-height: 104px; padding: 12px; border: 1px solid var(--border); border-radius: 8px; background: var(--panel); }
+  .website-team-logo { grid-area: logo; width: 56px; height: 56px; object-fit: contain; }
+  .website-team-name { grid-area: name; overflow: hidden; color: var(--muted); font: 11px/1.15 Arial, sans-serif; text-overflow: ellipsis; white-space: nowrap; }
+  .website-team-abbreviation { display: block; grid-area: abbreviation; font: bold clamp(25px, 3vw, 34px)/1 Arial, sans-serif; letter-spacing: -.8px; }
+  .website-team-record { grid-area: record; color: var(--text); font: 12px/1.25 Arial, sans-serif; }
+  .website-team-picked { grid-area: picked; color: var(--muted); font: 11px/1.25 Arial, sans-serif; }
+  .website-home-marker { color: var(--muted); font-size: .75em; font-weight: normal; }
+  .website-side:hover .website-team-choice { background: var(--panel-2); border-color: var(--accent-2); }
   .website-side:has(input:focus-visible) .website-team-choice { outline: 2px solid var(--accent-2); outline-offset: 2px; }
   .website-side:has(input:checked) .website-team-choice { background: #3b3315; border-color: var(--accent); color: var(--accent); }
-  .website-side:has(input:checked) .website-team-record { color: #f7e7a0; }
+  .website-side:has(input:checked) :is(.website-team-record, .website-team-picked) { color: #f7e7a0; }
   .website-side.right { justify-content: flex-end; text-align: right; }
-  .website-side.right .website-team-choice { grid-template-columns: minmax(0, 1fr) 38px; grid-template-areas: "name logo" "record logo"; }
+  .website-side.right .website-team-choice { grid-template-columns: minmax(0, 1fr) 56px; grid-template-areas: "abbreviation logo" "name logo" "record logo" "picked logo"; }
   .website-side input { position: absolute; width: 1px; height: 1px; margin: 0; opacity: 0; pointer-events: none; }
-  .website-spread { display: flex; align-items: center; justify-content: center; color: var(--accent-2); font: bold 13px Arial, sans-serif; text-align: center; width: 48px; min-height: 28px; }
-  @media (min-width: 561px) {
-    #view-enter-picks .website-side { justify-content: flex-start; font-size: 18px; }
-    #view-enter-picks .website-side.right { justify-content: flex-end; }
-    #view-enter-picks .website-team-choice { flex: 1; grid-template-columns: 62px minmax(0, 1fr); column-gap: 12px; width: 100%; max-width: none; min-width: 0; }
-    #view-enter-picks .website-side.right .website-team-choice { grid-template-columns: minmax(0, 1fr) 62px; }
-    #view-enter-picks .website-team-logo { width: 62px; height: 62px; }
+  .website-game-hub { display: grid; align-content: center; justify-items: center; min-width: 0; border-inline: 1px solid var(--border); padding: 8px 4px; text-align: center; }
+  .website-spread { display: block; color: var(--accent); font: bold clamp(25px, 3vw, 34px)/1 Arial, sans-serif; letter-spacing: -.8px; }
+  .website-game-context { display: grid; gap: 3px; margin-top: 8px; color: var(--muted); font: 10px/1.2 Arial, sans-serif; }
+  .website-game-context > span { overflow: hidden; max-width: 142px; text-overflow: ellipsis; white-space: nowrap; }
+  .website-weather-icon { display: inline-block; min-width: 15px; margin-right: 2px; font-size: 12px; line-height: 1; vertical-align: -1px; }
+  #view-enter-picks .notification-settings:not(#push-notification-settings) { display: none !important; }
+  @media (max-width: 560px) {
+    .website-matchup { grid-template-columns: minmax(0, 1fr) minmax(96px, .55fr) minmax(0, 1fr); gap: 6px; }
+    .website-team-choice { grid-template-columns: 42px minmax(0, 1fr); min-height: 88px; padding: 8px; column-gap: 6px; }
+    .website-team-logo { width: 42px; height: 42px; }
+    .website-side.right .website-team-choice { grid-template-columns: minmax(0, 1fr) 42px; }
+    .website-team-abbreviation, .website-spread { font-size: 23px; }
+    .website-team-name { font-size: 9px; }
+    .website-team-record, .website-team-picked, .website-game-context { font-size: 9px; }
+    .website-game-context > span { max-width: 94px; }
   }
   .website-instructions { margin: 0 0 18px; color: var(--muted); font: 13px/1.55 Arial, sans-serif; }
   .website-entry-context { margin: 0 0 14px; color: var(--accent); font: 12px/1.5 Arial, sans-serif; }
@@ -1265,8 +1270,8 @@ function websiteTeamChoice(game, abbreviation) {
   const record = String(metadata?.record || "").trim();
   const picked = Number(game.pickCounts?.[String(abbreviation).toUpperCase()] || 0);
   const pickCountTotal = Number(game.pickCountTotal || 0);
-  const detail = [record, pickCountTotal ? `${picked} / ${pickCountTotal} picked` : ""].filter(Boolean).join(" · ");
-  return `<span class="website-team-choice"><img class="website-team-logo" src="${websiteEscapeHtml(logo)}" alt="" loading="lazy"><span class="website-team-name">${homeMarker}${websiteEscapeHtml(displayName)}</span><span class="website-team-abbreviation">${homeMarker}${websiteEscapeHtml(abbreviation)}</span><span class="website-team-record">${websiteEscapeHtml(detail)}</span></span>`;
+  const pickedLabel = pickCountTotal ? `${picked} / ${pickCountTotal} picked` : "";
+  return `<span class="website-team-choice"><img class="website-team-logo" src="${websiteEscapeHtml(logo)}" alt="" loading="lazy"><span class="website-team-name">${homeMarker}${websiteEscapeHtml(displayName)}</span><span class="website-team-abbreviation">${websiteEscapeHtml(abbreviation)}</span><span class="website-team-record">${websiteEscapeHtml(record)}</span><span class="website-team-picked">${websiteEscapeHtml(pickedLabel)}</span></span>`;
 }
 const WEBSITE_WEEK_ONE_GAMES = [["wed 8:20","SEA","3.5","ne"],["thu 8:35","LAR","3.5","sf"],["sun 1:00","HOU","1.5","buf"],["sun 1:00","PIT","3","atl"],["sun 1:00","JAX","7.5","cle"],["sun 1:00","TEN","2.5","nyj"],["sun 1:00","DET","6.5","no"],["sun 1:00","bal","3.5","IND"],["sun 1:00","chi","2.5","CAR"],["sun 1:00","CIN","3.5","tb"],["sun 4:25","MIN","1.5","gb"],["sun 4:25","PHI","5.5","was"],["sun 4:25","LAC","10.5","ari"],["sun 4:25","LV","3.5","mia"],["sun 8:20","dal","2.5","NYG"],["mon 8:15","KC","2.5","den"]].map(([time,favorite,spread,underdog],index)=>({id:`game-${index+1}`,time,favorite,spread,underdog}));
 function renderWebsitePicksForm() { const host = document.getElementById("website-game-picks"); if (!host || host.dataset.ready) return; host.dataset.ready = "true"; const choices = WEBSITE_WEEK_ONE_GAMES.flatMap(game => [game.favorite, game.underdog]).sort((a, b) => websiteTeamName(a).localeCompare(websiteTeamName(b), undefined, { sensitivity: "base" })); const groups = []; WEBSITE_WEEK_ONE_GAMES.forEach((game, index) => { const previous = WEBSITE_WEEK_ONE_GAMES[index - 1]; if (!previous || previous.time !== game.time) groups.push({ time: game.time, games: [] }); groups[groups.length - 1].games.push({ game, index }); }); host.innerHTML = groups.map(group => `<fieldset class="website-game-group"><legend>${group.time}</legend>${group.games.map(({ game, index }) => `<div class="website-game-row"><label class="website-side"><input type="radio" name="game-${index + 1}" value="${game.favorite}" required><span>${websiteTeamName(game.favorite)}</span></label><span class="website-spread">${game.spread}</span><label class="website-side right"><span>${websiteTeamName(game.underdog)}</span><input type="radio" name="game-${index + 1}" value="${game.underdog}" required></label></div>`).join("")}</fieldset>`).join(""); const bestBet = document.getElementById("website-best-bet"); choices.forEach(team => bestBet.add(new Option(websiteTeamName(team), team))); document.getElementById("website-picks-form").onsubmit = async event => { event.preventDefault(); const form = event.currentTarget; const submission = { submittedAt: new Date().toISOString(), name: document.getElementById("website-picks-name").value.trim(), weekName: document.getElementById("website-week-name").value.trim(), picks: WEBSITE_WEEK_ONE_GAMES.map((game, index) => form.elements[`game-${index + 1}`].value), bestBet: bestBet.value, tiebreaker: document.getElementById("website-tiebreaker").value }; const stored = JSON.parse(localStorage.getItem("fbpWebsiteSubmissions") || "[]"); stored.push(submission); localStorage.setItem("fbpWebsiteSubmissions", JSON.stringify(stored)); if (WEBSITE_SUBMISSIONS_ENDPOINT) await fetch(WEBSITE_SUBMISSIONS_ENDPOINT, { method: "POST", mode: "no-cors", headers: { "Content-Type": "text/plain" }, body: JSON.stringify(submission) }); document.getElementById("website-picks-status").textContent = WEBSITE_SUBMISSIONS_ENDPOINT ? "Submitted to the test workbook." : "Saved in this browser test. Add the Apps Script URL to submit to Sheets."; renderWebsiteWeekOne(); }; }
@@ -2839,6 +2844,9 @@ function websiteGameContext(game) {
   const details = [["venue", game.venueName || game.venue], ["location", location], ["weather", weatherDetail], ["broadcast", game.broadcast || game.tv]].filter(([, value]) => value);
   return details.length ? `<div class="website-game-context${websiteIsNeutralSite(game) ? " website-game-context-neutral" : ""}">${details.map(([type, value]) => `<span class="website-context-${type}">${type === "weather" && weatherGlyph ? `<span class="website-weather-icon" role="img" aria-label="${weatherLabel || "Weather"}">${weatherGlyph}</span>` : ""}${websiteEscapeHtml(value)}</span>`).join("")}</div>` : "";
 }
+function websiteGameHub(game, linesReady) {
+  return `<div class="website-game-hub"><span class="website-spread">${linesReady ? websiteEscapeHtml(game.spread) : "Line pending"}</span>${websiteGameContext(game)}</div>`;
+}
 function websiteGamesMatch(left, right) {
   const leftId = left?.gameId || left?.id, rightId = right?.gameId || right?.id;
   if (leftId && rightId && leftId === rightId) return true;
@@ -2965,7 +2973,7 @@ async function renderWebsitePicksForm(forceRefresh = false) {
     const groups = [];
     websiteActiveGames.forEach((game, index) => { const previous = websiteActiveGames[index - 1]; if (!previous || previous.time !== game.time) groups.push({ time: game.time, games: [] }); groups[groups.length - 1].games.push({ game, index }); });
     const linesReady = websiteActiveGames.every(game => game.favorite && game.underdog && game.spread !== "" && game.spread != null);
-    host.innerHTML = groups.map(group => `<fieldset class="website-game-group"><legend>${group.time}</legend>${group.games.map(({ game, index }) => { const favorite = game.favorite || game.away; const underdog = game.favorite ? game.underdog : game.home; return `<div class="website-game-row"><div class="website-matchup"><label class="website-side"><input type="radio" name="game-${index + 1}" value="${favorite}" ${linesReady ? "required" : "disabled"}>${websiteTeamChoice(game, favorite)}</label><span class="website-spread">${linesReady ? game.spread : "Line pending"}</span><label class="website-side right">${websiteTeamChoice(game, underdog)}<input type="radio" name="game-${index + 1}" value="${underdog}" ${linesReady ? "required" : "disabled"}></label></div>${websiteGameContext(game)}</div>`; }).join("")}</fieldset>`).join("");
+    host.innerHTML = groups.map(group => `<fieldset class="website-game-group"><legend><span>${websiteEscapeHtml(group.time)}</span></legend>${group.games.map(({ game, index }) => { const favorite = game.favorite || game.away; const underdog = game.favorite ? game.underdog : game.home; return `<div class="website-game-row"><div class="website-matchup"><label class="website-side"><input type="radio" name="game-${index + 1}" value="${favorite}" ${linesReady ? "required" : "disabled"}>${websiteTeamChoice(game, favorite)}</label>${websiteGameHub(game, linesReady)}<label class="website-side right">${websiteTeamChoice(game, underdog)}<input type="radio" name="game-${index + 1}" value="${underdog}" ${linesReady ? "required" : "disabled"}></label></div></div>`; }).join("")}</fieldset>`).join("");
     initializeWebsiteGamePickKeyboard(host);
     const bestBet = document.getElementById("website-best-bet");
     bestBet.innerHTML = '';
