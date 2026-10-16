@@ -1,5 +1,5 @@
 {
-  "updatedAt": "2026-10-09T15:29:26+00:00",
+  "updatedAt": "2026-10-16T19:06:40+00:00",
   "privacy": "Session timelines contain page names, active time, and approximate network city/region/country; a session is labeled with a player name only when that browser has submitted picks. No IP addresses, browser IDs, or session IDs are published.",
   "locations": [
     {
@@ -10,11 +10,11 @@
       "city": "Richmond",
       "latitude": 37.55376,
       "longitude": -77.46026,
-      "views": 991,
-      "uniqueBrowsers": 54,
-      "sessions": 386,
-      "pickStarts": 30,
-      "submissions": 10,
+      "views": 1162,
+      "uniqueBrowsers": 58,
+      "sessions": 479,
+      "pickStarts": 32,
+      "submissions": 12,
       "players": [
         "Blake",
         "Bo",
@@ -37,9 +37,9 @@
       "city": "New York City",
       "latitude": 40.71427,
       "longitude": -74.00597,
-      "views": 55,
-      "uniqueBrowsers": 15,
-      "sessions": 30,
+      "views": 61,
+      "uniqueBrowsers": 18,
+      "sessions": 34,
       "pickStarts": 4,
       "submissions": 1,
       "players": [
@@ -49,15 +49,32 @@
     },
     {
       "country": "US",
+      "region": "Rhode Island",
+      "regionCode": "RI",
+      "continent": "NA",
+      "city": "Westerly",
+      "latitude": 41.3776,
+      "longitude": -71.82729,
+      "views": 59,
+      "uniqueBrowsers": 5,
+      "sessions": 31,
+      "pickStarts": 4,
+      "submissions": 5,
+      "players": [
+        "Barb"
+      ]
+    },
+    {
+      "country": "US",
       "region": "Texas",
       "regionCode": "TX",
       "continent": "NA",
       "city": "Austin",
-      "latitude": 30.1204,
-      "longitude": -97.7433,
-      "views": 51,
+      "latitude": 30.3093,
+      "longitude": -97.7242,
+      "views": 54,
       "uniqueBrowsers": 4,
-      "sessions": 18,
+      "sessions": 21,
       "pickStarts": 4,
       "submissions": 4,
       "players": [
@@ -71,13 +88,32 @@
       "region": "Virginia",
       "regionCode": "VA",
       "continent": "NA",
+      "city": "Short Pump",
+      "latitude": 37.65042,
+      "longitude": -77.61249,
+      "views": 48,
+      "uniqueBrowsers": 3,
+      "sessions": 28,
+      "pickStarts": 3,
+      "submissions": 2,
+      "players": [
+        "BoJane",
+        "DP",
+        "RJ"
+      ]
+    },
+    {
+      "country": "US",
+      "region": "Virginia",
+      "regionCode": "VA",
+      "continent": "NA",
       "city": "Tuckahoe",
       "latitude": 37.59015,
       "longitude": -77.55638,
-      "views": 43,
+      "views": 47,
       "uniqueBrowsers": 3,
-      "sessions": 15,
-      "pickStarts": 3,
+      "sessions": 19,
+      "pickStarts": 4,
       "submissions": 3,
       "players": [
         "BoJane",
@@ -87,19 +123,19 @@
     },
     {
       "country": "US",
-      "region": "Rhode Island",
-      "regionCode": "RI",
+      "region": "New York",
+      "regionCode": "NY",
       "continent": "NA",
-      "city": "Westerly",
-      "latitude": 41.3776,
-      "longitude": -71.82729,
-      "views": 42,
-      "uniqueBrowsers": 5,
-      "sessions": 20,
-      "pickStarts": 3,
-      "submissions": 3,
+      "city": "Madison",
+      "latitude": 42.89896,
+      "longitude": -75.51212,
+      "views": 29,
+      "uniqueBrowsers": 2,
+      "sessions": 19,
+      "pickStarts": 2,
+      "submissions": 1,
       "players": [
-        "Barb"
+        "Nils"
       ]
     },
     {
@@ -121,38 +157,38 @@
     },
     {
       "country": "US",
-      "region": "New York",
-      "regionCode": "NY",
+      "region": "New Jersey",
+      "regionCode": "NJ",
       "continent": "NA",
-      "city": "Madison",
-      "latitude": 42.89896,
-      "longitude": -75.51212,
+      "city": "Closter",
+      "latitude": 40.97315,
+      "longitude": -73.96153,
       "views": 24,
-      "uniqueBrowsers": 2,
+      "uniqueBrowsers": 15,
       "sessions": 16,
-      "pickStarts": 2,
-      "submissions": 1,
+      "pickStarts": 0,
+      "submissions": 0,
       "players": [
-        "Nils"
+        "Pond"
       ]
     },
     {
       "country": "US",
-      "region": "Virginia",
-      "regionCode": "VA",
+      "region": "Texas",
+      "regionCode": "TX",
       "continent": "NA",
-      "city": "Short Pump",
-      "latitude": 37.65042,
-      "longitude": -77.61249,
+      "city": "Houston",
+      "latitude": 29.76328,
+      "longitude": -95.36327,
       "views": 24,
-      "uniqueBrowsers": 3,
+      "uniqueBrowsers": 5,
       "sessions": 15,
-      "pickStarts": 3,
-      "submissions": 2,
+      "pickStarts": 4,
+      "submissions": 3,
       "players": [
-        "BoJane",
-        "DP",
-        "RJ"
+        "D Price",
+        "DMAC",
+        "OscarsOscars"
       ]
     },
     {
@@ -174,33 +210,15 @@
     },
     {
       "country": "US",
-      "region": "Texas",
-      "regionCode": "TX",
-      "continent": "NA",
-      "city": "Houston",
-      "latitude": 29.76328,
-      "longitude": -95.36327,
-      "views": 22,
-      "uniqueBrowsers": 4,
-      "sessions": 13,
-      "pickStarts": 4,
-      "submissions": 3,
-      "players": [
-        "D Price",
-        "DMAC"
-      ]
-    },
-    {
-      "country": "US",
       "region": "Florida",
       "regionCode": "FL",
       "continent": "NA",
       "city": "Coral Springs",
       "latitude": 26.27119,
       "longitude": -80.2706,
-      "views": 20,
-      "uniqueBrowsers": 1,
-      "sessions": 9,
+      "views": 22,
+      "uniqueBrowsers": 2,
+      "sessions": 11,
       "pickStarts": 2,
       "submissions": 1,
       "players": [
@@ -215,30 +233,13 @@
       "city": "Winchester",
       "latitude": 39.18566,
       "longitude": -78.16333,
-      "views": 20,
+      "views": 21,
       "uniqueBrowsers": 1,
-      "sessions": 6,
+      "sessions": 7,
       "pickStarts": 1,
       "submissions": 0,
       "players": [
         "Sean"
-      ]
-    },
-    {
-      "country": "US",
-      "region": "New Jersey",
-      "regionCode": "NJ",
-      "continent": "NA",
-      "city": "Closter",
-      "latitude": 40.97315,
-      "longitude": -73.96153,
-      "views": 18,
-      "uniqueBrowsers": 11,
-      "sessions": 12,
-      "pickStarts": 0,
-      "submissions": 0,
-      "players": [
-        "Pond"
       ]
     },
     {
@@ -249,13 +250,31 @@
       "city": "Allentown",
       "latitude": 40.60843,
       "longitude": -75.49018,
-      "views": 18,
+      "views": 19,
       "uniqueBrowsers": 3,
-      "sessions": 13,
+      "sessions": 14,
       "pickStarts": 3,
       "submissions": 1,
       "players": [
         "Ron"
+      ]
+    },
+    {
+      "country": "US",
+      "region": "Virginia",
+      "regionCode": "VA",
+      "continent": "NA",
+      "city": "Ashburn",
+      "latitude": 39.04372,
+      "longitude": -77.48749,
+      "views": 18,
+      "uniqueBrowsers": 5,
+      "sessions": 13,
+      "pickStarts": 3,
+      "submissions": 2,
+      "players": [
+        "Mel",
+        "Watts"
       ]
     },
     {
@@ -299,23 +318,6 @@
       "region": "Virginia",
       "regionCode": "VA",
       "continent": "NA",
-      "city": "Ashburn",
-      "latitude": 39.04372,
-      "longitude": -77.48749,
-      "views": 15,
-      "uniqueBrowsers": 4,
-      "sessions": 10,
-      "pickStarts": 3,
-      "submissions": 2,
-      "players": [
-        "Watts"
-      ]
-    },
-    {
-      "country": "US",
-      "region": "Virginia",
-      "regionCode": "VA",
-      "continent": "NA",
       "city": "Roanoke",
       "latitude": 37.27097,
       "longitude": -79.94143,
@@ -337,14 +339,29 @@
       "city": "Aurora",
       "latitude": 39.72943,
       "longitude": -104.83192,
-      "views": 9,
+      "views": 13,
       "uniqueBrowsers": 1,
-      "sessions": 6,
+      "sessions": 8,
       "pickStarts": 2,
-      "submissions": 0,
+      "submissions": 1,
       "players": [
         "DG"
       ]
+    },
+    {
+      "country": "US",
+      "region": "Ohio",
+      "regionCode": "OH",
+      "continent": "NA",
+      "city": "Solon",
+      "latitude": 41.38978,
+      "longitude": -81.44123,
+      "views": 13,
+      "uniqueBrowsers": 1,
+      "sessions": 12,
+      "pickStarts": 0,
+      "submissions": 0,
+      "players": []
     },
     {
       "country": "US",
@@ -365,6 +382,23 @@
     },
     {
       "country": "US",
+      "region": "North Carolina",
+      "regionCode": "NC",
+      "continent": "NA",
+      "city": "Holly Ridge",
+      "latitude": 34.49544,
+      "longitude": -77.55497,
+      "views": 8,
+      "uniqueBrowsers": 1,
+      "sessions": 3,
+      "pickStarts": 2,
+      "submissions": 0,
+      "players": [
+        "Jon Campbell"
+      ]
+    },
+    {
+      "country": "US",
       "region": "Virginia",
       "regionCode": "VA",
       "continent": "NA",
@@ -378,6 +412,23 @@
       "submissions": 0,
       "players": [
         "Mac"
+      ]
+    },
+    {
+      "country": "US",
+      "region": "North Carolina",
+      "regionCode": "NC",
+      "continent": "NA",
+      "city": "Charlotte",
+      "latitude": 35.22709,
+      "longitude": -80.84313,
+      "views": 7,
+      "uniqueBrowsers": 4,
+      "sessions": 7,
+      "pickStarts": 0,
+      "submissions": 0,
+      "players": [
+        "Mel"
       ]
     },
     {
@@ -431,6 +482,23 @@
     },
     {
       "country": "US",
+      "region": "Colorado",
+      "regionCode": "CO",
+      "continent": "NA",
+      "city": "Denver",
+      "latitude": 39.73915,
+      "longitude": -104.9847,
+      "views": 6,
+      "uniqueBrowsers": 1,
+      "sessions": 5,
+      "pickStarts": 0,
+      "submissions": 0,
+      "players": [
+        "D Price"
+      ]
+    },
+    {
+      "country": "US",
       "region": "New Hampshire",
       "regionCode": "NH",
       "continent": "NA",
@@ -444,23 +512,6 @@
       "submissions": 0,
       "players": [
         "Pops"
-      ]
-    },
-    {
-      "country": "US",
-      "region": "North Carolina",
-      "regionCode": "NC",
-      "continent": "NA",
-      "city": "Charlotte",
-      "latitude": 35.22709,
-      "longitude": -80.84313,
-      "views": 6,
-      "uniqueBrowsers": 3,
-      "sessions": 6,
-      "pickStarts": 0,
-      "submissions": 0,
-      "players": [
-        "Mel"
       ]
     },
     {
@@ -514,6 +565,21 @@
     },
     {
       "country": "US",
+      "region": "Florida",
+      "regionCode": "FL",
+      "continent": "NA",
+      "city": "St. Petersburg",
+      "latitude": 27.77086,
+      "longitude": -82.67927,
+      "views": 5,
+      "uniqueBrowsers": 1,
+      "sessions": 3,
+      "pickStarts": 1,
+      "submissions": 0,
+      "players": []
+    },
+    {
+      "country": "US",
       "region": "New York",
       "regionCode": "NY",
       "continent": "NA",
@@ -544,23 +610,6 @@
       "submissions": 0,
       "players": [
         "DMAC"
-      ]
-    },
-    {
-      "country": "US",
-      "region": "North Carolina",
-      "regionCode": "NC",
-      "continent": "NA",
-      "city": "Holly Ridge",
-      "latitude": 34.49544,
-      "longitude": -77.55497,
-      "views": 4,
-      "uniqueBrowsers": 1,
-      "sessions": 1,
-      "pickStarts": 1,
-      "submissions": 0,
-      "players": [
-        "Jon Campbell"
       ]
     },
     {
@@ -617,23 +666,6 @@
     },
     {
       "country": "US",
-      "region": "Colorado",
-      "regionCode": "CO",
-      "continent": "NA",
-      "city": "Denver",
-      "latitude": 39.73915,
-      "longitude": -104.9847,
-      "views": 3,
-      "uniqueBrowsers": 1,
-      "sessions": 3,
-      "pickStarts": 0,
-      "submissions": 0,
-      "players": [
-        "D Price"
-      ]
-    },
-    {
-      "country": "US",
       "region": "Florida",
       "regionCode": "FL",
       "continent": "NA",
@@ -661,6 +693,53 @@
       "pickStarts": 1,
       "submissions": 1,
       "players": []
+    },
+    {
+      "country": "US",
+      "region": "New York",
+      "regionCode": "NY",
+      "continent": "NA",
+      "city": "Yonkers",
+      "latitude": 40.9304,
+      "longitude": -73.89789,
+      "views": 3,
+      "uniqueBrowsers": 2,
+      "sessions": 2,
+      "pickStarts": 1,
+      "submissions": 0,
+      "players": []
+    },
+    {
+      "country": "US",
+      "region": "Pennsylvania",
+      "regionCode": "PA",
+      "continent": "NA",
+      "city": "Plymouth Meeting",
+      "latitude": 40.10233,
+      "longitude": -75.27435,
+      "views": 3,
+      "uniqueBrowsers": 2,
+      "sessions": 2,
+      "pickStarts": 0,
+      "submissions": 0,
+      "players": []
+    },
+    {
+      "country": "US",
+      "region": "Texas",
+      "regionCode": "TX",
+      "continent": "NA",
+      "city": "Kyle",
+      "latitude": 29.98911,
+      "longitude": -97.87723,
+      "views": 3,
+      "uniqueBrowsers": 2,
+      "sessions": 2,
+      "pickStarts": 0,
+      "submissions": 0,
+      "players": [
+        "OscarsOscars"
+      ]
     },
     {
       "country": "US",
@@ -696,15 +775,49 @@
     },
     {
       "country": "US",
-      "region": "Pennsylvania",
-      "regionCode": "PA",
+      "region": "California",
+      "regionCode": "CA",
       "continent": "NA",
-      "city": "Fountain Hill",
-      "latitude": 40.60149,
-      "longitude": -75.39518,
+      "city": "Los Angeles",
+      "latitude": 34.05223,
+      "longitude": -118.24368,
       "views": 2,
       "uniqueBrowsers": 1,
-      "sessions": 1,
+      "sessions": 2,
+      "pickStarts": 1,
+      "submissions": 1,
+      "players": [
+        "Mel"
+      ]
+    },
+    {
+      "country": "US",
+      "region": "Florida",
+      "regionCode": "FL",
+      "continent": "NA",
+      "city": "Orlando",
+      "latitude": 28.53834,
+      "longitude": -81.37924,
+      "views": 2,
+      "uniqueBrowsers": 1,
+      "sessions": 2,
+      "pickStarts": 0,
+      "submissions": 0,
+      "players": [
+        "Gary"
+      ]
+    },
+    {
+      "country": "US",
+      "region": "Ohio",
+      "regionCode": "OH",
+      "continent": "NA",
+      "city": "Columbus",
+      "latitude": 39.96118,
+      "longitude": -82.99879,
+      "views": 2,
+      "uniqueBrowsers": 1,
+      "sessions": 2,
       "pickStarts": 0,
       "submissions": 0,
       "players": []
@@ -714,9 +827,9 @@
       "region": "Pennsylvania",
       "regionCode": "PA",
       "continent": "NA",
-      "city": "Plymouth Meeting",
-      "latitude": 40.10233,
-      "longitude": -75.27435,
+      "city": "Fountain Hill",
+      "latitude": 40.60149,
+      "longitude": -75.39518,
       "views": 2,
       "uniqueBrowsers": 1,
       "sessions": 1,
@@ -771,6 +884,21 @@
         "BoJane",
         "kp"
       ]
+    },
+    {
+      "country": "US",
+      "region": "Virginia",
+      "regionCode": "VA",
+      "continent": "NA",
+      "city": "Collinsville",
+      "latitude": 36.71514,
+      "longitude": -79.91532,
+      "views": 2,
+      "uniqueBrowsers": 1,
+      "sessions": 1,
+      "pickStarts": 0,
+      "submissions": 0,
+      "players": []
     },
     {
       "country": "RU",
@@ -839,17 +967,15 @@
       "region": "Florida",
       "regionCode": "FL",
       "continent": "NA",
-      "city": "Orlando",
-      "latitude": 28.53834,
-      "longitude": -81.37924,
+      "city": "Pembroke Pines",
+      "latitude": 26.00315,
+      "longitude": -80.22394,
       "views": 1,
       "uniqueBrowsers": 1,
       "sessions": 1,
       "pickStarts": 0,
       "submissions": 0,
-      "players": [
-        "Gary"
-      ]
+      "players": []
     },
     {
       "country": "US",
@@ -962,6 +1088,21 @@
     },
     {
       "country": "US",
+      "region": "New York",
+      "regionCode": "NY",
+      "continent": "NA",
+      "city": "Utica",
+      "latitude": 43.1009,
+      "longitude": -75.23266,
+      "views": 1,
+      "uniqueBrowsers": 1,
+      "sessions": 1,
+      "pickStarts": 0,
+      "submissions": 0,
+      "players": []
+    },
+    {
+      "country": "US",
       "region": "North Carolina",
       "regionCode": "NC",
       "continent": "NA",
@@ -992,6 +1133,21 @@
     },
     {
       "country": "US",
+      "region": "Rhode Island",
+      "regionCode": "RI",
+      "continent": "NA",
+      "city": "Warwick",
+      "latitude": 41.7001,
+      "longitude": -71.41617,
+      "views": 1,
+      "uniqueBrowsers": 1,
+      "sessions": 1,
+      "pickStarts": 0,
+      "submissions": 0,
+      "players": []
+    },
+    {
+      "country": "US",
       "region": "South Carolina",
       "regionCode": "SC",
       "continent": "NA",
@@ -1004,23 +1160,6 @@
       "pickStarts": 0,
       "submissions": 0,
       "players": []
-    },
-    {
-      "country": "US",
-      "region": "Texas",
-      "regionCode": "TX",
-      "continent": "NA",
-      "city": "Kyle",
-      "latitude": 29.98911,
-      "longitude": -97.87723,
-      "views": 1,
-      "uniqueBrowsers": 1,
-      "sessions": 1,
-      "pickStarts": 0,
-      "submissions": 0,
-      "players": [
-        "OscarsOscars"
-      ]
     },
     {
       "country": "ZA",
@@ -1054,6 +1193,3762 @@
     }
   ],
   "sessions": [
+    {
+      "sessionNumber": 1086,
+      "startedAt": "2026-10-15T19:05:16-04:00",
+      "activeSeconds": 109,
+      "location": {
+        "city": "Plymouth Meeting",
+        "region": "Pennsylvania",
+        "country": "US"
+      },
+      "playerName": "",
+      "pages": [
+        {
+          "view": "names",
+          "enteredAt": "2026-10-15T19:05:16-04:00",
+          "durationSeconds": 109
+        }
+      ]
+    },
+    {
+      "sessionNumber": 1085,
+      "startedAt": "2026-10-15T19:01:13-04:00",
+      "activeSeconds": 0,
+      "location": {
+        "city": "Richmond",
+        "region": "Virginia",
+        "country": "US"
+      },
+      "playerName": "Thomas",
+      "pages": [
+        {
+          "view": "current-week",
+          "enteredAt": "2026-10-15T19:01:13-04:00",
+          "durationSeconds": null
+        }
+      ]
+    },
+    {
+      "sessionNumber": 1084,
+      "startedAt": "2026-10-15T18:58:22-04:00",
+      "activeSeconds": 58,
+      "location": {
+        "city": "Richmond",
+        "region": "Virginia",
+        "country": "US"
+      },
+      "playerName": "Mike H",
+      "pages": [
+        {
+          "view": "season",
+          "enteredAt": "2026-10-15T18:58:22-04:00",
+          "durationSeconds": 13
+        },
+        {
+          "view": "enter-picks",
+          "enteredAt": "2026-10-15T18:58:34-04:00",
+          "durationSeconds": null
+        },
+        {
+          "view": "picks-confirmation",
+          "enteredAt": "2026-10-15T19:02:27-04:00",
+          "durationSeconds": 45
+        },
+        {
+          "view": "week-one",
+          "enteredAt": "2026-10-15T19:03:17-04:00",
+          "durationSeconds": null
+        }
+      ]
+    },
+    {
+      "sessionNumber": 1083,
+      "startedAt": "2026-10-15T18:22:36-04:00",
+      "activeSeconds": 2,
+      "location": {
+        "city": "Richmond",
+        "region": "Virginia",
+        "country": "US"
+      },
+      "playerName": "Mac",
+      "pages": [
+        {
+          "view": "current-week",
+          "enteredAt": "2026-10-15T18:22:36-04:00",
+          "durationSeconds": 2
+        },
+        {
+          "view": "picks-confirmation",
+          "enteredAt": "2026-10-15T18:26:46-04:00",
+          "durationSeconds": null
+        }
+      ]
+    },
+    {
+      "sessionNumber": 1082,
+      "startedAt": "2026-10-14T23:20:14-04:00",
+      "activeSeconds": 5,
+      "location": {
+        "city": "Richmond",
+        "region": "Virginia",
+        "country": "US"
+      },
+      "playerName": "Thomas",
+      "pages": [
+        {
+          "view": "current-week",
+          "enteredAt": "2026-10-14T23:20:14-04:00",
+          "durationSeconds": null
+        },
+        {
+          "view": "names",
+          "enteredAt": "2026-10-14T23:20:47-04:00",
+          "durationSeconds": 2
+        },
+        {
+          "view": "season",
+          "enteredAt": "2026-10-14T23:21:40-04:00",
+          "durationSeconds": null
+        },
+        {
+          "view": "alltime",
+          "enteredAt": "2026-10-14T23:21:52-04:00",
+          "durationSeconds": null
+        },
+        {
+          "view": "week-one",
+          "enteredAt": "2026-10-14T23:22:03-04:00",
+          "durationSeconds": 3
+        }
+      ]
+    },
+    {
+      "sessionNumber": 1081,
+      "startedAt": "2026-10-14T17:39:47-04:00",
+      "activeSeconds": 744,
+      "location": {
+        "city": "Westerly",
+        "region": "Rhode Island",
+        "country": "US"
+      },
+      "playerName": "Barb",
+      "pages": [
+        {
+          "view": "current-week",
+          "enteredAt": "2026-10-14T17:39:47-04:00",
+          "durationSeconds": null
+        },
+        {
+          "view": "week-one",
+          "enteredAt": "2026-10-15T09:24:52-04:00",
+          "durationSeconds": 21
+        },
+        {
+          "view": "week-one",
+          "enteredAt": "2026-10-15T18:11:23-04:00",
+          "durationSeconds": 388
+        },
+        {
+          "view": "enter-picks",
+          "enteredAt": "2026-10-15T18:17:52-04:00",
+          "durationSeconds": 335
+        },
+        {
+          "view": "week-one",
+          "enteredAt": "2026-10-15T18:25:43-04:00",
+          "durationSeconds": null
+        }
+      ]
+    },
+    {
+      "sessionNumber": 1080,
+      "startedAt": "2026-10-14T16:00:48-04:00",
+      "activeSeconds": 0,
+      "location": {
+        "city": "Westerly",
+        "region": "Rhode Island",
+        "country": "US"
+      },
+      "playerName": "",
+      "pages": [
+        {
+          "view": "payout",
+          "enteredAt": "2026-10-14T16:00:48-04:00",
+          "durationSeconds": null
+        }
+      ]
+    },
+    {
+      "sessionNumber": 1079,
+      "startedAt": "2026-10-14T14:23:18-04:00",
+      "activeSeconds": 0,
+      "location": {
+        "city": "Allentown",
+        "region": "Pennsylvania",
+        "country": "US"
+      },
+      "playerName": "Ron",
+      "pages": [
+        {
+          "view": "current-week",
+          "enteredAt": "2026-10-14T14:23:18-04:00",
+          "durationSeconds": null
+        }
+      ]
+    },
+    {
+      "sessionNumber": 1078,
+      "startedAt": "2026-10-14T13:50:32-04:00",
+      "activeSeconds": 0,
+      "location": {
+        "city": "Tuckahoe",
+        "region": "Virginia",
+        "country": "US"
+      },
+      "playerName": "BoJane",
+      "pages": [
+        {
+          "view": "current-week",
+          "enteredAt": "2026-10-14T13:50:32-04:00",
+          "durationSeconds": null
+        }
+      ]
+    },
+    {
+      "sessionNumber": 1077,
+      "startedAt": "2026-10-14T13:02:00-04:00",
+      "activeSeconds": 195,
+      "location": {
+        "city": "Los Angeles",
+        "region": "California",
+        "country": "US"
+      },
+      "playerName": "Mel",
+      "pages": [
+        {
+          "view": "enter-picks",
+          "enteredAt": "2026-10-14T13:02:00-04:00",
+          "durationSeconds": 195
+        }
+      ]
+    },
+    {
+      "sessionNumber": 1076,
+      "startedAt": "2026-10-14T12:40:21-04:00",
+      "activeSeconds": 0,
+      "location": {
+        "city": "New York City",
+        "region": "New York",
+        "country": "US"
+      },
+      "playerName": "",
+      "pages": [
+        {
+          "view": "current-week",
+          "enteredAt": "2026-10-14T12:40:21-04:00",
+          "durationSeconds": null
+        },
+        {
+          "view": "enter-picks",
+          "enteredAt": "2026-10-14T12:40:30-04:00",
+          "durationSeconds": null
+        }
+      ]
+    },
+    {
+      "sessionNumber": 1075,
+      "startedAt": "2026-10-14T11:12:31-04:00",
+      "activeSeconds": 0,
+      "location": {
+        "city": "Aurora",
+        "region": "Colorado",
+        "country": "US"
+      },
+      "playerName": "DG",
+      "pages": [
+        {
+          "view": "current-week",
+          "enteredAt": "2026-10-14T11:12:31-04:00",
+          "durationSeconds": null
+        }
+      ]
+    },
+    {
+      "sessionNumber": 1074,
+      "startedAt": "2026-10-14T11:12:20-04:00",
+      "activeSeconds": 6,
+      "location": {
+        "city": "Austin",
+        "region": "Texas",
+        "country": "US"
+      },
+      "playerName": "Will",
+      "pages": [
+        {
+          "view": "current-week",
+          "enteredAt": "2026-10-14T11:12:20-04:00",
+          "durationSeconds": 6
+        }
+      ]
+    },
+    {
+      "sessionNumber": 1073,
+      "startedAt": "2026-10-14T10:34:00-04:00",
+      "activeSeconds": 2230,
+      "location": {
+        "city": "Richmond",
+        "region": "Virginia",
+        "country": "US"
+      },
+      "playerName": "Jim",
+      "pages": [
+        {
+          "view": "enter-picks",
+          "enteredAt": "2026-10-14T10:34:00-04:00",
+          "durationSeconds": 164
+        },
+        {
+          "view": "picks-confirmation",
+          "enteredAt": "2026-10-14T11:08:40-04:00",
+          "durationSeconds": 1818
+        },
+        {
+          "view": "players",
+          "enteredAt": "2026-10-14T11:42:04-04:00",
+          "durationSeconds": 43
+        },
+        {
+          "view": "enter-picks",
+          "enteredAt": "2026-10-14T13:31:19-04:00",
+          "durationSeconds": 143
+        },
+        {
+          "view": "live-analysis",
+          "enteredAt": "2026-10-14T17:38:38-04:00",
+          "durationSeconds": null
+        },
+        {
+          "view": "enter-picks",
+          "enteredAt": "2026-10-14T17:38:50-04:00",
+          "durationSeconds": 54
+        },
+        {
+          "view": "payout",
+          "enteredAt": "2026-10-14T17:46:21-04:00",
+          "durationSeconds": 8
+        },
+        {
+          "view": "enter-picks",
+          "enteredAt": "2026-10-14T19:24:06-04:00",
+          "durationSeconds": null
+        },
+        {
+          "view": "payout",
+          "enteredAt": "2026-10-14T19:24:18-04:00",
+          "durationSeconds": null
+        }
+      ]
+    },
+    {
+      "sessionNumber": 1072,
+      "startedAt": "2026-10-14T10:25:24-04:00",
+      "activeSeconds": 5715,
+      "location": {
+        "city": "Richmond",
+        "region": "Virginia",
+        "country": "US"
+      },
+      "playerName": "Jim",
+      "pages": [
+        {
+          "view": "names",
+          "enteredAt": "2026-10-14T10:25:24-04:00",
+          "durationSeconds": 1885
+        },
+        {
+          "view": "players",
+          "enteredAt": "2026-10-14T14:27:37-04:00",
+          "durationSeconds": 891
+        },
+        {
+          "view": "weeks",
+          "enteredAt": "2026-10-14T16:38:06-04:00",
+          "durationSeconds": 2152
+        },
+        {
+          "view": "payout",
+          "enteredAt": "2026-10-14T17:27:47-04:00",
+          "durationSeconds": 214
+        },
+        {
+          "view": "enter-picks",
+          "enteredAt": "2026-10-14T22:48:15-04:00",
+          "durationSeconds": null
+        },
+        {
+          "view": "picks-confirmation",
+          "enteredAt": "2026-10-14T22:48:47-04:00",
+          "durationSeconds": 573
+        },
+        {
+          "view": "weeks",
+          "enteredAt": "2026-10-15T00:39:52-04:00",
+          "durationSeconds": null
+        }
+      ]
+    },
+    {
+      "sessionNumber": 1071,
+      "startedAt": "2026-10-14T10:02:50-04:00",
+      "activeSeconds": 4,
+      "location": {
+        "city": "Tuckahoe",
+        "region": "Virginia",
+        "country": "US"
+      },
+      "playerName": "BoJane",
+      "pages": [
+        {
+          "view": "payout",
+          "enteredAt": "2026-10-14T10:02:50-04:00",
+          "durationSeconds": 4
+        }
+      ]
+    },
+    {
+      "sessionNumber": 1070,
+      "startedAt": "2026-10-14T09:58:21-04:00",
+      "activeSeconds": 27,
+      "location": {
+        "city": "Aurora",
+        "region": "Colorado",
+        "country": "US"
+      },
+      "playerName": "DG",
+      "pages": [
+        {
+          "view": "enter-picks",
+          "enteredAt": "2026-10-14T09:58:21-04:00",
+          "durationSeconds": null
+        },
+        {
+          "view": "week-one",
+          "enteredAt": "2026-10-14T09:58:37-04:00",
+          "durationSeconds": 27
+        },
+        {
+          "view": "enter-picks",
+          "enteredAt": "2026-10-14T10:43:05-04:00",
+          "durationSeconds": null
+        }
+      ]
+    },
+    {
+      "sessionNumber": 1069,
+      "startedAt": "2026-10-14T09:35:30-04:00",
+      "activeSeconds": 0,
+      "location": {
+        "city": "Richmond",
+        "region": "Virginia",
+        "country": "US"
+      },
+      "playerName": "",
+      "pages": [
+        {
+          "view": "current-week",
+          "enteredAt": "2026-10-14T09:35:30-04:00",
+          "durationSeconds": null
+        },
+        {
+          "view": "enter-picks",
+          "enteredAt": "2026-10-14T09:36:27-04:00",
+          "durationSeconds": null
+        },
+        {
+          "view": "week-one",
+          "enteredAt": "2026-10-14T09:39:21-04:00",
+          "durationSeconds": null
+        },
+        {
+          "view": "enter-picks",
+          "enteredAt": "2026-10-14T09:40:05-04:00",
+          "durationSeconds": null
+        },
+        {
+          "view": "enter-picks",
+          "enteredAt": "2026-10-14T09:42:34-04:00",
+          "durationSeconds": null
+        },
+        {
+          "view": "enter-picks",
+          "enteredAt": "2026-10-14T10:46:17-04:00",
+          "durationSeconds": null
+        }
+      ]
+    },
+    {
+      "sessionNumber": 1068,
+      "startedAt": "2026-10-14T09:28:12-04:00",
+      "activeSeconds": 0,
+      "location": {
+        "city": "Richmond",
+        "region": "Virginia",
+        "country": "US"
+      },
+      "playerName": "",
+      "pages": [
+        {
+          "view": "live-analysis",
+          "enteredAt": "2026-10-14T09:28:12-04:00",
+          "durationSeconds": null
+        },
+        {
+          "view": "week-one",
+          "enteredAt": "2026-10-14T09:28:22-04:00",
+          "durationSeconds": null
+        }
+      ]
+    },
+    {
+      "sessionNumber": 1067,
+      "startedAt": "2026-10-14T07:56:03-04:00",
+      "activeSeconds": 0,
+      "location": {
+        "city": "Westerly",
+        "region": "Rhode Island",
+        "country": "US"
+      },
+      "playerName": "",
+      "pages": [
+        {
+          "view": "payout",
+          "enteredAt": "2026-10-14T07:56:03-04:00",
+          "durationSeconds": null
+        },
+        {
+          "view": "payout",
+          "enteredAt": "2026-10-14T07:56:25-04:00",
+          "durationSeconds": null
+        }
+      ]
+    },
+    {
+      "sessionNumber": 1066,
+      "startedAt": "2026-10-14T07:55:16-04:00",
+      "activeSeconds": 0,
+      "location": {
+        "city": "Westerly",
+        "region": "Rhode Island",
+        "country": "US"
+      },
+      "playerName": "",
+      "pages": [
+        {
+          "view": "payout",
+          "enteredAt": "2026-10-14T07:55:16-04:00",
+          "durationSeconds": null
+        }
+      ]
+    },
+    {
+      "sessionNumber": 1065,
+      "startedAt": "2026-10-14T07:34:53-04:00",
+      "activeSeconds": 159,
+      "location": {
+        "city": "Yonkers",
+        "region": "New York",
+        "country": "US"
+      },
+      "playerName": "",
+      "pages": [
+        {
+          "view": "enter-picks",
+          "enteredAt": "2026-10-14T07:34:53-04:00",
+          "durationSeconds": 144
+        },
+        {
+          "view": "enter-picks",
+          "enteredAt": "2026-10-14T08:22:10-04:00",
+          "durationSeconds": 15
+        },
+        {
+          "view": "week-one",
+          "enteredAt": "2026-10-14T08:22:24-04:00",
+          "durationSeconds": null
+        }
+      ]
+    },
+    {
+      "sessionNumber": 1064,
+      "startedAt": "2026-10-14T06:25:31-04:00",
+      "activeSeconds": 362,
+      "location": {
+        "city": "Richmond",
+        "region": "Virginia",
+        "country": "US"
+      },
+      "playerName": "Jim",
+      "pages": [
+        {
+          "view": "enter-picks",
+          "enteredAt": "2026-10-14T06:25:39-04:00",
+          "durationSeconds": 32
+        },
+        {
+          "view": "enter-picks",
+          "enteredAt": "2026-10-14T09:01:06-04:00",
+          "durationSeconds": 330
+        },
+        {
+          "view": "enter-picks",
+          "enteredAt": "2026-10-14T10:33:49-04:00",
+          "durationSeconds": null
+        }
+      ]
+    },
+    {
+      "sessionNumber": 1063,
+      "startedAt": "2026-10-14T04:05:08-04:00",
+      "activeSeconds": 0,
+      "location": {
+        "city": "Closter",
+        "region": "New Jersey",
+        "country": "US"
+      },
+      "playerName": "",
+      "pages": [
+        {
+          "view": "enter-picks",
+          "enteredAt": "2026-10-14T04:05:08-04:00",
+          "durationSeconds": null
+        }
+      ]
+    },
+    {
+      "sessionNumber": 1062,
+      "startedAt": "2026-10-14T00:26:16-04:00",
+      "activeSeconds": 0,
+      "location": {
+        "city": "Richmond",
+        "region": "Virginia",
+        "country": "US"
+      },
+      "playerName": "",
+      "pages": [
+        {
+          "view": "enter-picks",
+          "enteredAt": "2026-10-14T00:26:16-04:00",
+          "durationSeconds": null
+        }
+      ]
+    },
+    {
+      "sessionNumber": 1061,
+      "startedAt": "2026-10-14T00:12:04-04:00",
+      "activeSeconds": 0,
+      "location": {
+        "city": "Richmond",
+        "region": "Virginia",
+        "country": "US"
+      },
+      "playerName": "",
+      "pages": [
+        {
+          "view": "enter-picks",
+          "enteredAt": "2026-10-14T00:12:04-04:00",
+          "durationSeconds": null
+        }
+      ]
+    },
+    {
+      "sessionNumber": 1060,
+      "startedAt": "2026-10-14T00:05:58-04:00",
+      "activeSeconds": 36,
+      "location": {
+        "city": "Richmond",
+        "region": "Virginia",
+        "country": "US"
+      },
+      "playerName": "Jim",
+      "pages": [
+        {
+          "view": "enter-picks",
+          "enteredAt": "2026-10-14T00:05:58-04:00",
+          "durationSeconds": null
+        },
+        {
+          "view": "enter-picks",
+          "enteredAt": "2026-10-14T06:18:08-04:00",
+          "durationSeconds": 2
+        },
+        {
+          "view": "live-analysis",
+          "enteredAt": "2026-10-14T06:22:10-04:00",
+          "durationSeconds": 18
+        },
+        {
+          "view": "week-one",
+          "enteredAt": "2026-10-14T06:22:20-04:00",
+          "durationSeconds": 12
+        },
+        {
+          "view": "enter-picks",
+          "enteredAt": "2026-10-14T06:24:29-04:00",
+          "durationSeconds": 2
+        },
+        {
+          "view": "enter-picks",
+          "enteredAt": "2026-10-14T06:25:05-04:00",
+          "durationSeconds": 2
+        }
+      ]
+    },
+    {
+      "sessionNumber": 1059,
+      "startedAt": "2026-10-14T00:04:14-04:00",
+      "activeSeconds": 81,
+      "location": {
+        "city": "Richmond",
+        "region": "Virginia",
+        "country": "US"
+      },
+      "playerName": "",
+      "pages": [
+        {
+          "view": "payout",
+          "enteredAt": "2026-10-14T00:04:14-04:00",
+          "durationSeconds": null
+        },
+        {
+          "view": "enter-picks",
+          "enteredAt": "2026-10-14T00:04:29-04:00",
+          "durationSeconds": 81
+        }
+      ]
+    },
+    {
+      "sessionNumber": 1058,
+      "startedAt": "2026-10-14T00:03:48-04:00",
+      "activeSeconds": 1,
+      "location": {
+        "city": "Richmond",
+        "region": "Virginia",
+        "country": "US"
+      },
+      "playerName": "Jim",
+      "pages": [
+        {
+          "view": "enter-picks",
+          "enteredAt": "2026-10-14T00:03:48-04:00",
+          "durationSeconds": 1
+        }
+      ]
+    },
+    {
+      "sessionNumber": 1057,
+      "startedAt": "2026-10-13T23:53:59-04:00",
+      "activeSeconds": 0,
+      "location": {
+        "city": "Richmond",
+        "region": "Virginia",
+        "country": "US"
+      },
+      "playerName": "Jim",
+      "pages": [
+        {
+          "view": "enter-picks",
+          "enteredAt": "2026-10-13T23:53:59-04:00",
+          "durationSeconds": null
+        }
+      ]
+    },
+    {
+      "sessionNumber": 1056,
+      "startedAt": "2026-10-13T21:26:55-04:00",
+      "activeSeconds": 0,
+      "location": {
+        "city": "Richmond",
+        "region": "Virginia",
+        "country": "US"
+      },
+      "playerName": "Mike H",
+      "pages": [
+        {
+          "view": "current-week",
+          "enteredAt": "2026-10-13T21:26:55-04:00",
+          "durationSeconds": null
+        },
+        {
+          "view": "season",
+          "enteredAt": "2026-10-13T21:27:08-04:00",
+          "durationSeconds": null
+        }
+      ]
+    },
+    {
+      "sessionNumber": 1055,
+      "startedAt": "2026-10-13T18:22:55-04:00",
+      "activeSeconds": 19,
+      "location": {
+        "city": "Yonkers",
+        "region": "New York",
+        "country": "US"
+      },
+      "playerName": "",
+      "pages": [
+        {
+          "view": "enter-picks",
+          "enteredAt": "2026-10-13T18:22:55-04:00",
+          "durationSeconds": 19
+        },
+        {
+          "view": "week-one",
+          "enteredAt": "2026-10-13T18:23:25-04:00",
+          "durationSeconds": null
+        }
+      ]
+    },
+    {
+      "sessionNumber": 1054,
+      "startedAt": "2026-10-13T17:42:20-04:00",
+      "activeSeconds": 11,
+      "location": {
+        "city": "Kyle",
+        "region": "Texas",
+        "country": "US"
+      },
+      "playerName": "",
+      "pages": [
+        {
+          "view": "current-week",
+          "enteredAt": "2026-10-13T17:42:20-04:00",
+          "durationSeconds": 11
+        },
+        {
+          "view": "alltime",
+          "enteredAt": "2026-10-13T17:42:31-04:00",
+          "durationSeconds": null
+        }
+      ]
+    },
+    {
+      "sessionNumber": 1053,
+      "startedAt": "2026-10-13T17:09:07-04:00",
+      "activeSeconds": 0,
+      "location": {
+        "city": "Westerly",
+        "region": "Rhode Island",
+        "country": "US"
+      },
+      "playerName": "",
+      "pages": [
+        {
+          "view": "payout",
+          "enteredAt": "2026-10-13T17:09:07-04:00",
+          "durationSeconds": null
+        }
+      ]
+    },
+    {
+      "sessionNumber": 1052,
+      "startedAt": "2026-10-13T17:08:56-04:00",
+      "activeSeconds": 0,
+      "location": {
+        "city": "Westerly",
+        "region": "Rhode Island",
+        "country": "US"
+      },
+      "playerName": "",
+      "pages": [
+        {
+          "view": "payout",
+          "enteredAt": "2026-10-13T17:08:56-04:00",
+          "durationSeconds": null
+        }
+      ]
+    },
+    {
+      "sessionNumber": 1051,
+      "startedAt": "2026-10-13T16:57:13-04:00",
+      "activeSeconds": 0,
+      "location": {
+        "city": "Richmond",
+        "region": "Virginia",
+        "country": "US"
+      },
+      "playerName": "Jim",
+      "pages": [
+        {
+          "view": "current-week",
+          "enteredAt": "2026-10-13T16:57:13-04:00",
+          "durationSeconds": null
+        }
+      ]
+    },
+    {
+      "sessionNumber": 1050,
+      "startedAt": "2026-10-13T14:30:22-04:00",
+      "activeSeconds": 0,
+      "location": {
+        "city": "New York City",
+        "region": "New York",
+        "country": "US"
+      },
+      "playerName": "",
+      "pages": [
+        {
+          "view": "enter-picks",
+          "enteredAt": "2026-10-13T14:30:22-04:00",
+          "durationSeconds": null
+        }
+      ]
+    },
+    {
+      "sessionNumber": 1049,
+      "startedAt": "2026-10-13T13:57:32-04:00",
+      "activeSeconds": 0,
+      "location": {
+        "city": "Westerly",
+        "region": "Rhode Island",
+        "country": "US"
+      },
+      "playerName": "",
+      "pages": [
+        {
+          "view": "payout",
+          "enteredAt": "2026-10-13T13:57:32-04:00",
+          "durationSeconds": null
+        }
+      ]
+    },
+    {
+      "sessionNumber": 1048,
+      "startedAt": "2026-10-13T12:43:02-04:00",
+      "activeSeconds": 0,
+      "location": {
+        "city": "Richmond",
+        "region": "Virginia",
+        "country": "US"
+      },
+      "playerName": "Jim",
+      "pages": [
+        {
+          "view": "current-week",
+          "enteredAt": "2026-10-13T12:43:02-04:00",
+          "durationSeconds": null
+        }
+      ]
+    },
+    {
+      "sessionNumber": 1047,
+      "startedAt": "2026-10-13T11:01:41-04:00",
+      "activeSeconds": 13,
+      "location": {
+        "city": "Westerly",
+        "region": "Rhode Island",
+        "country": "US"
+      },
+      "playerName": "",
+      "pages": [
+        {
+          "view": "payout",
+          "enteredAt": "2026-10-13T11:01:41-04:00",
+          "durationSeconds": 13
+        }
+      ]
+    },
+    {
+      "sessionNumber": 1045,
+      "startedAt": "2026-10-13T10:25:30-04:00",
+      "activeSeconds": 0,
+      "location": {
+        "city": "Charlotte",
+        "region": "North Carolina",
+        "country": "US"
+      },
+      "playerName": "",
+      "pages": [
+        {
+          "view": "payout",
+          "enteredAt": "2026-10-13T10:25:30-04:00",
+          "durationSeconds": null
+        }
+      ]
+    },
+    {
+      "sessionNumber": 1044,
+      "startedAt": "2026-10-13T10:23:47-04:00",
+      "activeSeconds": 7,
+      "location": {
+        "city": "Westerly",
+        "region": "Rhode Island",
+        "country": "US"
+      },
+      "playerName": "",
+      "pages": [
+        {
+          "view": "current-week",
+          "enteredAt": "2026-10-13T10:23:47-04:00",
+          "durationSeconds": 7
+        },
+        {
+          "view": "payout",
+          "enteredAt": "2026-10-13T10:24:01-04:00",
+          "durationSeconds": null
+        }
+      ]
+    },
+    {
+      "sessionNumber": 1043,
+      "startedAt": "2026-10-13T09:40:18-04:00",
+      "activeSeconds": 20,
+      "location": {
+        "city": "Holly Ridge",
+        "region": "North Carolina",
+        "country": "US"
+      },
+      "playerName": "Jon Campbell",
+      "pages": [
+        {
+          "view": "current-week",
+          "enteredAt": "2026-10-13T09:40:18-04:00",
+          "durationSeconds": null
+        },
+        {
+          "view": "season",
+          "enteredAt": "2026-10-13T09:40:37-04:00",
+          "durationSeconds": 20
+        }
+      ]
+    },
+    {
+      "sessionNumber": 1042,
+      "startedAt": "2026-10-13T08:25:03-04:00",
+      "activeSeconds": 0,
+      "location": {
+        "city": "Westerly",
+        "region": "Rhode Island",
+        "country": "US"
+      },
+      "playerName": "",
+      "pages": [
+        {
+          "view": "current-week",
+          "enteredAt": "2026-10-13T08:25:03-04:00",
+          "durationSeconds": null
+        }
+      ]
+    },
+    {
+      "sessionNumber": 1041,
+      "startedAt": "2026-10-13T08:16:14-04:00",
+      "activeSeconds": 0,
+      "location": {
+        "city": "Richmond",
+        "region": "Virginia",
+        "country": "US"
+      },
+      "playerName": "Bo",
+      "pages": [
+        {
+          "view": "current-week",
+          "enteredAt": "2026-10-13T08:16:14-04:00",
+          "durationSeconds": null
+        }
+      ]
+    },
+    {
+      "sessionNumber": 1040,
+      "startedAt": "2026-10-13T07:28:22-04:00",
+      "activeSeconds": 67,
+      "location": {
+        "city": "Winchester",
+        "region": "Virginia",
+        "country": "US"
+      },
+      "playerName": "Sean",
+      "pages": [
+        {
+          "view": "current-week",
+          "enteredAt": "2026-10-13T07:28:22-04:00",
+          "durationSeconds": 67
+        }
+      ]
+    },
+    {
+      "sessionNumber": 1039,
+      "startedAt": "2026-10-13T07:27:21-04:00",
+      "activeSeconds": 0,
+      "location": {
+        "city": "Richmond",
+        "region": "Virginia",
+        "country": "US"
+      },
+      "playerName": "Bo",
+      "pages": [
+        {
+          "view": "picks-confirmation",
+          "enteredAt": "2026-10-13T07:27:21-04:00",
+          "durationSeconds": null
+        },
+        {
+          "view": "week-one",
+          "enteredAt": "2026-10-13T07:27:29-04:00",
+          "durationSeconds": null
+        }
+      ]
+    },
+    {
+      "sessionNumber": 1038,
+      "startedAt": "2026-10-13T06:48:14-04:00",
+      "activeSeconds": 0,
+      "location": {
+        "city": "Richmond",
+        "region": "Virginia",
+        "country": "US"
+      },
+      "playerName": "",
+      "pages": [
+        {
+          "view": "season",
+          "enteredAt": "2026-10-13T06:48:14-04:00",
+          "durationSeconds": null
+        },
+        {
+          "view": "week-one",
+          "enteredAt": "2026-10-13T06:48:24-04:00",
+          "durationSeconds": null
+        }
+      ]
+    },
+    {
+      "sessionNumber": 1037,
+      "startedAt": "2026-10-13T06:26:21-04:00",
+      "activeSeconds": 76,
+      "location": {
+        "city": "Richmond",
+        "region": "Virginia",
+        "country": "US"
+      },
+      "playerName": "",
+      "pages": [
+        {
+          "view": "current-week",
+          "enteredAt": "2026-10-13T06:26:21-04:00",
+          "durationSeconds": null
+        },
+        {
+          "view": "current-week",
+          "enteredAt": "2026-10-13T06:26:32-04:00",
+          "durationSeconds": 76
+        },
+        {
+          "view": "season",
+          "enteredAt": "2026-10-13T06:27:41-04:00",
+          "durationSeconds": null
+        }
+      ]
+    },
+    {
+      "sessionNumber": 1036,
+      "startedAt": "2026-10-13T05:59:10-04:00",
+      "activeSeconds": 38,
+      "location": {
+        "city": "Richmond",
+        "region": "Virginia",
+        "country": "US"
+      },
+      "playerName": "Thomas",
+      "pages": [
+        {
+          "view": "current-week",
+          "enteredAt": "2026-10-13T05:59:10-04:00",
+          "durationSeconds": 38
+        }
+      ]
+    },
+    {
+      "sessionNumber": 1035,
+      "startedAt": "2026-10-13T00:20:04-04:00",
+      "activeSeconds": 0,
+      "location": {
+        "city": "Richmond",
+        "region": "Virginia",
+        "country": "US"
+      },
+      "playerName": "",
+      "pages": [
+        {
+          "view": "current-week",
+          "enteredAt": "2026-10-13T00:20:04-04:00",
+          "durationSeconds": null
+        },
+        {
+          "view": "live-analysis",
+          "enteredAt": "2026-10-13T16:31:04-04:00",
+          "durationSeconds": null
+        }
+      ]
+    },
+    {
+      "sessionNumber": 1034,
+      "startedAt": "2026-10-13T00:11:55-04:00",
+      "activeSeconds": 0,
+      "location": {
+        "city": "Richmond",
+        "region": "Virginia",
+        "country": "US"
+      },
+      "playerName": "Jim",
+      "pages": [
+        {
+          "view": "current-week",
+          "enteredAt": "2026-10-13T00:11:55-04:00",
+          "durationSeconds": null
+        }
+      ]
+    },
+    {
+      "sessionNumber": 1033,
+      "startedAt": "2026-10-12T23:50:48-04:00",
+      "activeSeconds": 0,
+      "location": {
+        "city": "Westerly",
+        "region": "Rhode Island",
+        "country": "US"
+      },
+      "playerName": "",
+      "pages": [
+        {
+          "view": "current-week",
+          "enteredAt": "2026-10-12T23:50:48-04:00",
+          "durationSeconds": null
+        }
+      ]
+    },
+    {
+      "sessionNumber": 1032,
+      "startedAt": "2026-10-12T23:21:10-04:00",
+      "activeSeconds": 103,
+      "location": {
+        "city": "Tuckahoe",
+        "region": "Virginia",
+        "country": "US"
+      },
+      "playerName": "RJ",
+      "pages": [
+        {
+          "view": "current-week",
+          "enteredAt": "2026-10-12T23:21:10-04:00",
+          "durationSeconds": 103
+        }
+      ]
+    },
+    {
+      "sessionNumber": 1031,
+      "startedAt": "2026-10-12T22:57:00-04:00",
+      "activeSeconds": 49,
+      "location": {
+        "city": "Richmond",
+        "region": "Virginia",
+        "country": "US"
+      },
+      "playerName": "Jim",
+      "pages": [
+        {
+          "view": "week-one",
+          "enteredAt": "2026-10-12T22:57:00-04:00",
+          "durationSeconds": null
+        },
+        {
+          "view": "live-analysis",
+          "enteredAt": "2026-10-12T22:57:31-04:00",
+          "durationSeconds": 49
+        },
+        {
+          "view": "week-one",
+          "enteredAt": "2026-10-12T23:27:45-04:00",
+          "durationSeconds": null
+        }
+      ]
+    },
+    {
+      "sessionNumber": 1030,
+      "startedAt": "2026-10-12T22:27:36-04:00",
+      "activeSeconds": 1083,
+      "location": {
+        "city": "Short Pump",
+        "region": "Virginia",
+        "country": "US"
+      },
+      "playerName": "BoJane",
+      "pages": [
+        {
+          "view": "current-week",
+          "enteredAt": "2026-10-12T22:27:36-04:00",
+          "durationSeconds": 29
+        },
+        {
+          "view": "current-week",
+          "enteredAt": "2026-10-12T22:29:20-04:00",
+          "durationSeconds": 624
+        },
+        {
+          "view": "week-one",
+          "enteredAt": "2026-10-12T23:42:38-04:00",
+          "durationSeconds": null
+        },
+        {
+          "view": "season",
+          "enteredAt": "2026-10-13T07:36:24-04:00",
+          "durationSeconds": 112
+        },
+        {
+          "view": "names",
+          "enteredAt": "2026-10-13T07:38:16-04:00",
+          "durationSeconds": 188
+        },
+        {
+          "view": "alltime",
+          "enteredAt": "2026-10-13T07:41:37-04:00",
+          "durationSeconds": 45
+        },
+        {
+          "view": "payout",
+          "enteredAt": "2026-10-13T07:42:30-04:00",
+          "durationSeconds": 85
+        }
+      ]
+    },
+    {
+      "sessionNumber": 1029,
+      "startedAt": "2026-10-12T21:57:01-04:00",
+      "activeSeconds": 0,
+      "location": {
+        "city": "Richmond",
+        "region": "Virginia",
+        "country": "US"
+      },
+      "playerName": "Thomas",
+      "pages": [
+        {
+          "view": "current-week",
+          "enteredAt": "2026-10-12T21:57:01-04:00",
+          "durationSeconds": null
+        }
+      ]
+    },
+    {
+      "sessionNumber": 1028,
+      "startedAt": "2026-10-12T21:39:14-04:00",
+      "activeSeconds": 269,
+      "location": {
+        "city": "Madison",
+        "region": "New York",
+        "country": "US"
+      },
+      "playerName": "Nils",
+      "pages": [
+        {
+          "view": "enter-picks",
+          "enteredAt": "2026-10-12T21:39:14-04:00",
+          "durationSeconds": null
+        },
+        {
+          "view": "week-one",
+          "enteredAt": "2026-10-12T21:39:22-04:00",
+          "durationSeconds": 269
+        }
+      ]
+    },
+    {
+      "sessionNumber": 1027,
+      "startedAt": "2026-10-12T21:15:34-04:00",
+      "activeSeconds": 0,
+      "location": {
+        "city": "Richmond",
+        "region": "Virginia",
+        "country": "US"
+      },
+      "playerName": "",
+      "pages": [
+        {
+          "view": "current-week",
+          "enteredAt": "2026-10-12T21:15:34-04:00",
+          "durationSeconds": null
+        },
+        {
+          "view": "current-week",
+          "enteredAt": "2026-10-12T22:07:38-04:00",
+          "durationSeconds": null
+        }
+      ]
+    },
+    {
+      "sessionNumber": 1026,
+      "startedAt": "2026-10-12T20:50:13-04:00",
+      "activeSeconds": 0,
+      "location": {
+        "city": "Denver",
+        "region": "Colorado",
+        "country": "US"
+      },
+      "playerName": "D Price",
+      "pages": [
+        {
+          "view": "current-week",
+          "enteredAt": "2026-10-12T20:50:13-04:00",
+          "durationSeconds": null
+        }
+      ]
+    },
+    {
+      "sessionNumber": 1025,
+      "startedAt": "2026-10-12T20:22:21-04:00",
+      "activeSeconds": 0,
+      "location": {
+        "city": "Richmond",
+        "region": "Virginia",
+        "country": "US"
+      },
+      "playerName": "Thomas",
+      "pages": [
+        {
+          "view": "current-week",
+          "enteredAt": "2026-10-12T20:22:21-04:00",
+          "durationSeconds": null
+        },
+        {
+          "view": "current-week",
+          "enteredAt": "2026-10-12T20:22:36-04:00",
+          "durationSeconds": null
+        }
+      ]
+    },
+    {
+      "sessionNumber": 1024,
+      "startedAt": "2026-10-12T20:14:49-04:00",
+      "activeSeconds": 0,
+      "location": {
+        "city": "Richmond",
+        "region": "Virginia",
+        "country": "US"
+      },
+      "playerName": "Jim",
+      "pages": [
+        {
+          "view": "live-analysis",
+          "enteredAt": "2026-10-12T20:14:49-04:00",
+          "durationSeconds": null
+        }
+      ]
+    },
+    {
+      "sessionNumber": 1023,
+      "startedAt": "2026-10-12T17:49:31-04:00",
+      "activeSeconds": 45,
+      "location": {
+        "city": "Short Pump",
+        "region": "Virginia",
+        "country": "US"
+      },
+      "playerName": "BoJane",
+      "pages": [
+        {
+          "view": "current-week",
+          "enteredAt": "2026-10-12T17:49:31-04:00",
+          "durationSeconds": 45
+        },
+        {
+          "view": "current-week",
+          "enteredAt": "2026-10-12T19:01:22-04:00",
+          "durationSeconds": null
+        }
+      ]
+    },
+    {
+      "sessionNumber": 1022,
+      "startedAt": "2026-10-12T17:13:37-04:00",
+      "activeSeconds": 0,
+      "location": {
+        "city": "Los Angeles",
+        "region": "California",
+        "country": "US"
+      },
+      "playerName": "Mel",
+      "pages": [
+        {
+          "view": "current-week",
+          "enteredAt": "2026-10-12T17:13:37-04:00",
+          "durationSeconds": null
+        }
+      ]
+    },
+    {
+      "sessionNumber": 1021,
+      "startedAt": "2026-10-12T11:54:27-04:00",
+      "activeSeconds": 0,
+      "location": {
+        "city": "Richmond",
+        "region": "Virginia",
+        "country": "US"
+      },
+      "playerName": "BoJane",
+      "pages": [
+        {
+          "view": "current-week",
+          "enteredAt": "2026-10-12T11:54:27-04:00",
+          "durationSeconds": null
+        }
+      ]
+    },
+    {
+      "sessionNumber": 1020,
+      "startedAt": "2026-10-12T11:46:01-04:00",
+      "activeSeconds": 195,
+      "location": {
+        "city": "Tuckahoe",
+        "region": "Virginia",
+        "country": "US"
+      },
+      "playerName": "RJ",
+      "pages": [
+        {
+          "view": "current-week",
+          "enteredAt": "2026-10-12T11:46:01-04:00",
+          "durationSeconds": 195
+        }
+      ]
+    },
+    {
+      "sessionNumber": 1019,
+      "startedAt": "2026-10-12T11:37:36-04:00",
+      "activeSeconds": 0,
+      "location": {
+        "city": "New York City",
+        "region": "New York",
+        "country": "US"
+      },
+      "playerName": "Pond",
+      "pages": [
+        {
+          "view": "current-week",
+          "enteredAt": "2026-10-12T11:37:36-04:00",
+          "durationSeconds": null
+        }
+      ]
+    },
+    {
+      "sessionNumber": 1018,
+      "startedAt": "2026-10-12T09:23:33-04:00",
+      "activeSeconds": 0,
+      "location": {
+        "city": "Houston",
+        "region": "Texas",
+        "country": "US"
+      },
+      "playerName": "DMAC",
+      "pages": [
+        {
+          "view": "current-week",
+          "enteredAt": "2026-10-12T09:23:33-04:00",
+          "durationSeconds": null
+        }
+      ]
+    },
+    {
+      "sessionNumber": 1017,
+      "startedAt": "2026-10-12T09:08:22-04:00",
+      "activeSeconds": 17,
+      "location": {
+        "city": "Orlando",
+        "region": "Florida",
+        "country": "US"
+      },
+      "playerName": "Gary",
+      "pages": [
+        {
+          "view": "current-week",
+          "enteredAt": "2026-10-12T09:08:22-04:00",
+          "durationSeconds": 17
+        }
+      ]
+    },
+    {
+      "sessionNumber": 1016,
+      "startedAt": "2026-10-12T08:46:34-04:00",
+      "activeSeconds": 51,
+      "location": {
+        "city": "Short Pump",
+        "region": "Virginia",
+        "country": "US"
+      },
+      "playerName": "BoJane",
+      "pages": [
+        {
+          "view": "current-week",
+          "enteredAt": "2026-10-12T08:46:34-04:00",
+          "durationSeconds": 51
+        }
+      ]
+    },
+    {
+      "sessionNumber": 1015,
+      "startedAt": "2026-10-12T08:43:29-04:00",
+      "activeSeconds": 92,
+      "location": {
+        "city": "Austin",
+        "region": "Texas",
+        "country": "US"
+      },
+      "playerName": "Will",
+      "pages": [
+        {
+          "view": "current-week",
+          "enteredAt": "2026-10-12T08:43:29-04:00",
+          "durationSeconds": 92
+        }
+      ]
+    },
+    {
+      "sessionNumber": 1014,
+      "startedAt": "2026-10-12T07:50:11-04:00",
+      "activeSeconds": 0,
+      "location": {
+        "city": "Richmond",
+        "region": "Virginia",
+        "country": "US"
+      },
+      "playerName": "Jim",
+      "pages": [
+        {
+          "view": "live-analysis",
+          "enteredAt": "2026-10-12T07:50:11-04:00",
+          "durationSeconds": null
+        },
+        {
+          "view": "live-analysis",
+          "enteredAt": "2026-10-12T10:43:24-04:00",
+          "durationSeconds": null
+        }
+      ]
+    },
+    {
+      "sessionNumber": 1013,
+      "startedAt": "2026-10-12T07:49:58-04:00",
+      "activeSeconds": 0,
+      "location": {
+        "city": "Richmond",
+        "region": "Virginia",
+        "country": "US"
+      },
+      "playerName": "Jim",
+      "pages": [
+        {
+          "view": "live-analysis",
+          "enteredAt": "2026-10-12T07:49:58-04:00",
+          "durationSeconds": null
+        }
+      ]
+    },
+    {
+      "sessionNumber": 1012,
+      "startedAt": "2026-10-12T07:23:52-04:00",
+      "activeSeconds": 0,
+      "location": {
+        "city": "Columbus",
+        "region": "Ohio",
+        "country": "US"
+      },
+      "playerName": "",
+      "pages": [
+        {
+          "view": "current-week",
+          "enteredAt": "2026-10-12T07:23:52-04:00",
+          "durationSeconds": null
+        }
+      ]
+    },
+    {
+      "sessionNumber": 1011,
+      "startedAt": "2026-10-12T05:48:11-04:00",
+      "activeSeconds": 0,
+      "location": {
+        "city": "Richmond",
+        "region": "Virginia",
+        "country": "US"
+      },
+      "playerName": "",
+      "pages": [
+        {
+          "view": "current-week",
+          "enteredAt": "2026-10-12T05:48:11-04:00",
+          "durationSeconds": null
+        }
+      ]
+    },
+    {
+      "sessionNumber": 1010,
+      "startedAt": "2026-10-12T05:31:40-04:00",
+      "activeSeconds": 0,
+      "location": {
+        "city": "Solon",
+        "region": "Ohio",
+        "country": "US"
+      },
+      "playerName": "",
+      "pages": [
+        {
+          "view": "current-week",
+          "enteredAt": "2026-10-12T05:31:40-04:00",
+          "durationSeconds": null
+        }
+      ]
+    },
+    {
+      "sessionNumber": 1009,
+      "startedAt": "2026-10-12T03:49:24-04:00",
+      "activeSeconds": 12,
+      "location": {
+        "city": "St. Petersburg",
+        "region": "Florida",
+        "country": "US"
+      },
+      "playerName": "",
+      "pages": [
+        {
+          "view": "current-week",
+          "enteredAt": "2026-10-12T03:49:24-04:00",
+          "durationSeconds": 12
+        }
+      ]
+    },
+    {
+      "sessionNumber": 1008,
+      "startedAt": "2026-10-12T03:12:07-04:00",
+      "activeSeconds": 50,
+      "location": {
+        "city": "Richmond",
+        "region": "Virginia",
+        "country": "US"
+      },
+      "playerName": "Thomas",
+      "pages": [
+        {
+          "view": "current-week",
+          "enteredAt": "2026-10-12T03:12:07-04:00",
+          "durationSeconds": 50
+        }
+      ]
+    },
+    {
+      "sessionNumber": 1007,
+      "startedAt": "2026-10-12T00:19:18-04:00",
+      "activeSeconds": 21,
+      "location": {
+        "city": "Richmond",
+        "region": "Virginia",
+        "country": "US"
+      },
+      "playerName": "Thomas",
+      "pages": [
+        {
+          "view": "current-week",
+          "enteredAt": "2026-10-12T00:19:18-04:00",
+          "durationSeconds": 21
+        }
+      ]
+    },
+    {
+      "sessionNumber": 1006,
+      "startedAt": "2026-10-11T23:51:59-04:00",
+      "activeSeconds": 0,
+      "location": {
+        "city": "Short Pump",
+        "region": "Virginia",
+        "country": "US"
+      },
+      "playerName": "DP",
+      "pages": [
+        {
+          "view": "current-week",
+          "enteredAt": "2026-10-11T23:51:59-04:00",
+          "durationSeconds": null
+        }
+      ]
+    },
+    {
+      "sessionNumber": 1005,
+      "startedAt": "2026-10-11T23:48:34-04:00",
+      "activeSeconds": 9,
+      "location": {
+        "city": "Short Pump",
+        "region": "Virginia",
+        "country": "US"
+      },
+      "playerName": "BoJane",
+      "pages": [
+        {
+          "view": "current-week",
+          "enteredAt": "2026-10-11T23:48:34-04:00",
+          "durationSeconds": 9
+        },
+        {
+          "view": "week-one",
+          "enteredAt": "2026-10-11T23:48:51-04:00",
+          "durationSeconds": null
+        }
+      ]
+    },
+    {
+      "sessionNumber": 1004,
+      "startedAt": "2026-10-11T23:35:29-04:00",
+      "activeSeconds": 0,
+      "location": {
+        "city": "Richmond",
+        "region": "Virginia",
+        "country": "US"
+      },
+      "playerName": "",
+      "pages": [
+        {
+          "view": "current-week",
+          "enteredAt": "2026-10-11T23:35:29-04:00",
+          "durationSeconds": null
+        }
+      ]
+    },
+    {
+      "sessionNumber": 1003,
+      "startedAt": "2026-10-11T22:05:46-04:00",
+      "activeSeconds": 0,
+      "location": {
+        "city": "Solon",
+        "region": "Ohio",
+        "country": "US"
+      },
+      "playerName": "",
+      "pages": [
+        {
+          "view": "current-week",
+          "enteredAt": "2026-10-11T22:05:46-04:00",
+          "durationSeconds": null
+        }
+      ]
+    },
+    {
+      "sessionNumber": 1002,
+      "startedAt": "2026-10-11T21:59:02-04:00",
+      "activeSeconds": 0,
+      "location": {
+        "city": "Richmond",
+        "region": "Virginia",
+        "country": "US"
+      },
+      "playerName": "",
+      "pages": [
+        {
+          "view": "current-week",
+          "enteredAt": "2026-10-11T21:59:02-04:00",
+          "durationSeconds": null
+        }
+      ]
+    },
+    {
+      "sessionNumber": 1001,
+      "startedAt": "2026-10-11T21:29:37-04:00",
+      "activeSeconds": 0,
+      "location": {
+        "city": "Richmond",
+        "region": "Virginia",
+        "country": "US"
+      },
+      "playerName": "",
+      "pages": [
+        {
+          "view": "current-week",
+          "enteredAt": "2026-10-11T21:29:37-04:00",
+          "durationSeconds": null
+        }
+      ]
+    },
+    {
+      "sessionNumber": 1000,
+      "startedAt": "2026-10-11T21:22:32-04:00",
+      "activeSeconds": 0,
+      "location": {
+        "city": "Richmond",
+        "region": "Virginia",
+        "country": "US"
+      },
+      "playerName": "",
+      "pages": [
+        {
+          "view": "current-week",
+          "enteredAt": "2026-10-11T21:22:32-04:00",
+          "durationSeconds": null
+        }
+      ]
+    },
+    {
+      "sessionNumber": 999,
+      "startedAt": "2026-10-11T20:45:07-04:00",
+      "activeSeconds": 0,
+      "location": {
+        "city": "Columbus",
+        "region": "Ohio",
+        "country": "US"
+      },
+      "playerName": "",
+      "pages": [
+        {
+          "view": "current-week",
+          "enteredAt": "2026-10-11T20:45:07-04:00",
+          "durationSeconds": null
+        }
+      ]
+    },
+    {
+      "sessionNumber": 998,
+      "startedAt": "2026-10-11T20:27:24-04:00",
+      "activeSeconds": 0,
+      "location": {
+        "city": "Richmond",
+        "region": "Virginia",
+        "country": "US"
+      },
+      "playerName": "",
+      "pages": [
+        {
+          "view": "current-week",
+          "enteredAt": "2026-10-11T20:27:24-04:00",
+          "durationSeconds": null
+        },
+        {
+          "view": "current-week",
+          "enteredAt": "2026-10-11T20:33:29-04:00",
+          "durationSeconds": null
+        }
+      ]
+    },
+    {
+      "sessionNumber": 997,
+      "startedAt": "2026-10-11T20:26:10-04:00",
+      "activeSeconds": 1,
+      "location": {
+        "city": "Coral Springs",
+        "region": "Florida",
+        "country": "US"
+      },
+      "playerName": "",
+      "pages": [
+        {
+          "view": "enter-picks",
+          "enteredAt": "2026-10-11T20:26:10-04:00",
+          "durationSeconds": 1
+        }
+      ]
+    },
+    {
+      "sessionNumber": 996,
+      "startedAt": "2026-10-11T20:14:35-04:00",
+      "activeSeconds": 0,
+      "location": {
+        "city": "Richmond",
+        "region": "Virginia",
+        "country": "US"
+      },
+      "playerName": "Mac",
+      "pages": [
+        {
+          "view": "current-week",
+          "enteredAt": "2026-10-11T20:14:35-04:00",
+          "durationSeconds": null
+        },
+        {
+          "view": "current-week",
+          "enteredAt": "2026-10-11T20:15:31-04:00",
+          "durationSeconds": null
+        }
+      ]
+    },
+    {
+      "sessionNumber": 995,
+      "startedAt": "2026-10-11T19:50:18-04:00",
+      "activeSeconds": 0,
+      "location": {
+        "city": "Richmond",
+        "region": "Virginia",
+        "country": "US"
+      },
+      "playerName": "",
+      "pages": [
+        {
+          "view": "current-week",
+          "enteredAt": "2026-10-11T19:50:18-04:00",
+          "durationSeconds": null
+        }
+      ]
+    },
+    {
+      "sessionNumber": 994,
+      "startedAt": "2026-10-11T19:42:17-04:00",
+      "activeSeconds": 0,
+      "location": {
+        "city": "Richmond",
+        "region": "Virginia",
+        "country": "US"
+      },
+      "playerName": "Mike H",
+      "pages": [
+        {
+          "view": "current-week",
+          "enteredAt": "2026-10-11T19:42:17-04:00",
+          "durationSeconds": null
+        }
+      ]
+    },
+    {
+      "sessionNumber": 993,
+      "startedAt": "2026-10-11T19:26:04-04:00",
+      "activeSeconds": 0,
+      "location": {
+        "city": "Richmond",
+        "region": "Virginia",
+        "country": "US"
+      },
+      "playerName": "",
+      "pages": [
+        {
+          "view": "current-week",
+          "enteredAt": "2026-10-11T19:26:04-04:00",
+          "durationSeconds": null
+        },
+        {
+          "view": "current-week",
+          "enteredAt": "2026-10-11T19:31:06-04:00",
+          "durationSeconds": null
+        }
+      ]
+    },
+    {
+      "sessionNumber": 992,
+      "startedAt": "2026-10-11T19:22:52-04:00",
+      "activeSeconds": 51,
+      "location": {
+        "city": "Madison",
+        "region": "New York",
+        "country": "US"
+      },
+      "playerName": "Nils",
+      "pages": [
+        {
+          "view": "current-week",
+          "enteredAt": "2026-10-11T19:22:52-04:00",
+          "durationSeconds": 51
+        }
+      ]
+    },
+    {
+      "sessionNumber": 991,
+      "startedAt": "2026-10-11T19:14:40-04:00",
+      "activeSeconds": 506,
+      "location": {
+        "city": "Richmond",
+        "region": "Virginia",
+        "country": "US"
+      },
+      "playerName": "Jim",
+      "pages": [
+        {
+          "view": "current-week",
+          "enteredAt": "2026-10-11T19:14:40-04:00",
+          "durationSeconds": 51
+        },
+        {
+          "view": "current-week",
+          "enteredAt": "2026-10-11T19:18:13-04:00",
+          "durationSeconds": 106
+        },
+        {
+          "view": "live-analysis",
+          "enteredAt": "2026-10-11T20:16:14-04:00",
+          "durationSeconds": 34
+        },
+        {
+          "view": "live-analysis",
+          "enteredAt": "2026-10-11T22:01:05-04:00",
+          "durationSeconds": 105
+        },
+        {
+          "view": "week-one",
+          "enteredAt": "2026-10-11T23:27:34-04:00",
+          "durationSeconds": 132
+        },
+        {
+          "view": "current-week",
+          "enteredAt": "2026-10-11T23:47:28-04:00",
+          "durationSeconds": 78
+        },
+        {
+          "view": "live-analysis",
+          "enteredAt": "2026-10-11T23:54:12-04:00",
+          "durationSeconds": null
+        }
+      ]
+    },
+    {
+      "sessionNumber": 990,
+      "startedAt": "2026-10-11T18:19:08-04:00",
+      "activeSeconds": 0,
+      "location": {
+        "city": "Richmond",
+        "region": "Virginia",
+        "country": "US"
+      },
+      "playerName": "Mike H",
+      "pages": [
+        {
+          "view": "current-week",
+          "enteredAt": "2026-10-11T18:19:08-04:00",
+          "durationSeconds": null
+        }
+      ]
+    },
+    {
+      "sessionNumber": 989,
+      "startedAt": "2026-10-11T18:18:55-04:00",
+      "activeSeconds": 0,
+      "location": {
+        "city": "Richmond",
+        "region": "Virginia",
+        "country": "US"
+      },
+      "playerName": "Jim",
+      "pages": [
+        {
+          "view": "current-week",
+          "enteredAt": "2026-10-11T18:18:55-04:00",
+          "durationSeconds": null
+        }
+      ]
+    },
+    {
+      "sessionNumber": 988,
+      "startedAt": "2026-10-11T18:16:40-04:00",
+      "activeSeconds": 0,
+      "location": {
+        "city": "Richmond",
+        "region": "Virginia",
+        "country": "US"
+      },
+      "playerName": "",
+      "pages": [
+        {
+          "view": "current-week",
+          "enteredAt": "2026-10-11T18:16:40-04:00",
+          "durationSeconds": null
+        }
+      ]
+    },
+    {
+      "sessionNumber": 987,
+      "startedAt": "2026-10-11T17:49:55-04:00",
+      "activeSeconds": 0,
+      "location": {
+        "city": "Ashburn",
+        "region": "Virginia",
+        "country": "US"
+      },
+      "playerName": "Watts",
+      "pages": [
+        {
+          "view": "current-week",
+          "enteredAt": "2026-10-11T17:49:55-04:00",
+          "durationSeconds": null
+        }
+      ]
+    },
+    {
+      "sessionNumber": 986,
+      "startedAt": "2026-10-11T17:27:00-04:00",
+      "activeSeconds": 4,
+      "location": {
+        "city": "Richmond",
+        "region": "Virginia",
+        "country": "US"
+      },
+      "playerName": "Thomas",
+      "pages": [
+        {
+          "view": "current-week",
+          "enteredAt": "2026-10-11T17:27:00-04:00",
+          "durationSeconds": 4
+        }
+      ]
+    },
+    {
+      "sessionNumber": 985,
+      "startedAt": "2026-10-11T17:22:40-04:00",
+      "activeSeconds": 534,
+      "location": {
+        "city": "Richmond",
+        "region": "Virginia",
+        "country": "US"
+      },
+      "playerName": "BoJane",
+      "pages": [
+        {
+          "view": "current-week",
+          "enteredAt": "2026-10-11T17:22:40-04:00",
+          "durationSeconds": null
+        },
+        {
+          "view": "week-one",
+          "enteredAt": "2026-10-11T17:22:50-04:00",
+          "durationSeconds": null
+        },
+        {
+          "view": "live-analysis",
+          "enteredAt": "2026-10-11T19:05:22-04:00",
+          "durationSeconds": null
+        },
+        {
+          "view": "week-one",
+          "enteredAt": "2026-10-11T19:25:55-04:00",
+          "durationSeconds": 494
+        },
+        {
+          "view": "live-analysis",
+          "enteredAt": "2026-10-11T23:47:56-04:00",
+          "durationSeconds": 40
+        }
+      ]
+    },
+    {
+      "sessionNumber": 984,
+      "startedAt": "2026-10-11T16:57:19-04:00",
+      "activeSeconds": 0,
+      "location": {
+        "city": "Denver",
+        "region": "Colorado",
+        "country": "US"
+      },
+      "playerName": "D Price",
+      "pages": [
+        {
+          "view": "current-week",
+          "enteredAt": "2026-10-11T16:57:19-04:00",
+          "durationSeconds": null
+        },
+        {
+          "view": "current-week",
+          "enteredAt": "2026-10-11T21:22:52-04:00",
+          "durationSeconds": null
+        }
+      ]
+    },
+    {
+      "sessionNumber": 983,
+      "startedAt": "2026-10-11T16:56:17-04:00",
+      "activeSeconds": 0,
+      "location": {
+        "city": "Richmond",
+        "region": "Virginia",
+        "country": "US"
+      },
+      "playerName": "Bo",
+      "pages": [
+        {
+          "view": "current-week",
+          "enteredAt": "2026-10-11T16:56:17-04:00",
+          "durationSeconds": null
+        }
+      ]
+    },
+    {
+      "sessionNumber": 982,
+      "startedAt": "2026-10-11T16:53:14-04:00",
+      "activeSeconds": 96,
+      "location": {
+        "city": "Houston",
+        "region": "Texas",
+        "country": "US"
+      },
+      "playerName": "OscarsOscars",
+      "pages": [
+        {
+          "view": "current-week",
+          "enteredAt": "2026-10-11T16:53:14-04:00",
+          "durationSeconds": 96
+        }
+      ]
+    },
+    {
+      "sessionNumber": 981,
+      "startedAt": "2026-10-11T16:44:34-04:00",
+      "activeSeconds": 1,
+      "location": {
+        "city": "Short Pump",
+        "region": "Virginia",
+        "country": "US"
+      },
+      "playerName": "BoJane",
+      "pages": [
+        {
+          "view": "current-week",
+          "enteredAt": "2026-10-11T16:44:34-04:00",
+          "durationSeconds": null
+        },
+        {
+          "view": "live-analysis",
+          "enteredAt": "2026-10-11T16:47:49-04:00",
+          "durationSeconds": 1
+        },
+        {
+          "view": "current-week",
+          "enteredAt": "2026-10-11T16:48:28-04:00",
+          "durationSeconds": null
+        }
+      ]
+    },
+    {
+      "sessionNumber": 980,
+      "startedAt": "2026-10-11T16:43:08-04:00",
+      "activeSeconds": 1,
+      "location": {
+        "city": "Coral Springs",
+        "region": "Florida",
+        "country": "US"
+      },
+      "playerName": "Gary",
+      "pages": [
+        {
+          "view": "enter-picks",
+          "enteredAt": "2026-10-11T16:43:08-04:00",
+          "durationSeconds": 1
+        }
+      ]
+    },
+    {
+      "sessionNumber": 979,
+      "startedAt": "2026-10-11T16:37:02-04:00",
+      "activeSeconds": 0,
+      "location": {
+        "city": "Short Pump",
+        "region": "Virginia",
+        "country": "US"
+      },
+      "playerName": "DP",
+      "pages": [
+        {
+          "view": "current-week",
+          "enteredAt": "2026-10-11T16:37:02-04:00",
+          "durationSeconds": null
+        }
+      ]
+    },
+    {
+      "sessionNumber": 978,
+      "startedAt": "2026-10-11T16:33:10-04:00",
+      "activeSeconds": 0,
+      "location": {
+        "city": "Richmond",
+        "region": "Virginia",
+        "country": "US"
+      },
+      "playerName": "Thomas",
+      "pages": [
+        {
+          "view": "current-week",
+          "enteredAt": "2026-10-11T16:33:10-04:00",
+          "durationSeconds": null
+        }
+      ]
+    },
+    {
+      "sessionNumber": 977,
+      "startedAt": "2026-10-11T16:17:17-04:00",
+      "activeSeconds": 0,
+      "location": {
+        "city": "Richmond",
+        "region": "Virginia",
+        "country": "US"
+      },
+      "playerName": "",
+      "pages": [
+        {
+          "view": "current-week",
+          "enteredAt": "2026-10-11T16:17:17-04:00",
+          "durationSeconds": null
+        }
+      ]
+    },
+    {
+      "sessionNumber": 976,
+      "startedAt": "2026-10-11T16:15:14-04:00",
+      "activeSeconds": 0,
+      "location": {
+        "city": "Richmond",
+        "region": "Virginia",
+        "country": "US"
+      },
+      "playerName": "Bo",
+      "pages": [
+        {
+          "view": "current-week",
+          "enteredAt": "2026-10-11T16:15:14-04:00",
+          "durationSeconds": null
+        }
+      ]
+    },
+    {
+      "sessionNumber": 975,
+      "startedAt": "2026-10-11T16:08:40-04:00",
+      "activeSeconds": 0,
+      "location": {
+        "city": "Richmond",
+        "region": "Virginia",
+        "country": "US"
+      },
+      "playerName": "",
+      "pages": [
+        {
+          "view": "current-week",
+          "enteredAt": "2026-10-11T16:08:40-04:00",
+          "durationSeconds": null
+        },
+        {
+          "view": "current-week",
+          "enteredAt": "2026-10-11T16:15:37-04:00",
+          "durationSeconds": null
+        }
+      ]
+    },
+    {
+      "sessionNumber": 974,
+      "startedAt": "2026-10-11T16:06:29-04:00",
+      "activeSeconds": 0,
+      "location": {
+        "city": "Solon",
+        "region": "Ohio",
+        "country": "US"
+      },
+      "playerName": "",
+      "pages": [
+        {
+          "view": "current-week",
+          "enteredAt": "2026-10-11T16:06:29-04:00",
+          "durationSeconds": null
+        }
+      ]
+    },
+    {
+      "sessionNumber": 973,
+      "startedAt": "2026-10-11T16:01:13-04:00",
+      "activeSeconds": 309,
+      "location": {
+        "city": "Solon",
+        "region": "Ohio",
+        "country": "US"
+      },
+      "playerName": "",
+      "pages": [
+        {
+          "view": "current-week",
+          "enteredAt": "2026-10-11T16:01:13-04:00",
+          "durationSeconds": 309
+        }
+      ]
+    },
+    {
+      "sessionNumber": 972,
+      "startedAt": "2026-10-11T15:58:12-04:00",
+      "activeSeconds": 0,
+      "location": {
+        "city": "Solon",
+        "region": "Ohio",
+        "country": "US"
+      },
+      "playerName": "",
+      "pages": [
+        {
+          "view": "current-week",
+          "enteredAt": "2026-10-11T15:58:12-04:00",
+          "durationSeconds": null
+        }
+      ]
+    },
+    {
+      "sessionNumber": 971,
+      "startedAt": "2026-10-11T15:50:34-04:00",
+      "activeSeconds": 0,
+      "location": {
+        "city": "Closter",
+        "region": "New Jersey",
+        "country": "US"
+      },
+      "playerName": "",
+      "pages": [
+        {
+          "view": "current-week",
+          "enteredAt": "2026-10-11T15:50:34-04:00",
+          "durationSeconds": null
+        }
+      ]
+    },
+    {
+      "sessionNumber": 970,
+      "startedAt": "2026-10-11T15:40:19-04:00",
+      "activeSeconds": 0,
+      "location": {
+        "city": "Richmond",
+        "region": "Virginia",
+        "country": "US"
+      },
+      "playerName": "Thomas",
+      "pages": [
+        {
+          "view": "current-week",
+          "enteredAt": "2026-10-11T15:40:19-04:00",
+          "durationSeconds": null
+        }
+      ]
+    },
+    {
+      "sessionNumber": 969,
+      "startedAt": "2026-10-11T15:38:15-04:00",
+      "activeSeconds": 0,
+      "location": {
+        "city": "Ashburn",
+        "region": "Virginia",
+        "country": "US"
+      },
+      "playerName": "Watts",
+      "pages": [
+        {
+          "view": "current-week",
+          "enteredAt": "2026-10-11T15:38:15-04:00",
+          "durationSeconds": null
+        }
+      ]
+    },
+    {
+      "sessionNumber": 968,
+      "startedAt": "2026-10-11T15:34:05-04:00",
+      "activeSeconds": 37,
+      "location": {
+        "city": "Pembroke Pines",
+        "region": "Florida",
+        "country": "US"
+      },
+      "playerName": "",
+      "pages": [
+        {
+          "view": "current-week",
+          "enteredAt": "2026-10-11T15:34:05-04:00",
+          "durationSeconds": 37
+        }
+      ]
+    },
+    {
+      "sessionNumber": 967,
+      "startedAt": "2026-10-11T15:25:27-04:00",
+      "activeSeconds": 0,
+      "location": {
+        "city": "Ashburn",
+        "region": "Virginia",
+        "country": "US"
+      },
+      "playerName": "Mel",
+      "pages": [
+        {
+          "view": "current-week",
+          "enteredAt": "2026-10-11T15:25:27-04:00",
+          "durationSeconds": null
+        }
+      ]
+    },
+    {
+      "sessionNumber": 966,
+      "startedAt": "2026-10-11T15:20:31-04:00",
+      "activeSeconds": 0,
+      "location": {
+        "city": "Solon",
+        "region": "Ohio",
+        "country": "US"
+      },
+      "playerName": "",
+      "pages": [
+        {
+          "view": "current-week",
+          "enteredAt": "2026-10-11T15:20:31-04:00",
+          "durationSeconds": null
+        }
+      ]
+    },
+    {
+      "sessionNumber": 965,
+      "startedAt": "2026-10-11T15:09:18-04:00",
+      "activeSeconds": 0,
+      "location": {
+        "city": "Richmond",
+        "region": "Virginia",
+        "country": "US"
+      },
+      "playerName": "Mike H",
+      "pages": [
+        {
+          "view": "current-week",
+          "enteredAt": "2026-10-11T15:09:18-04:00",
+          "durationSeconds": null
+        }
+      ]
+    },
+    {
+      "sessionNumber": 964,
+      "startedAt": "2026-10-11T15:09:04-04:00",
+      "activeSeconds": 0,
+      "location": {
+        "city": "Short Pump",
+        "region": "Virginia",
+        "country": "US"
+      },
+      "playerName": "DP",
+      "pages": [
+        {
+          "view": "current-week",
+          "enteredAt": "2026-10-11T15:09:04-04:00",
+          "durationSeconds": null
+        }
+      ]
+    },
+    {
+      "sessionNumber": 963,
+      "startedAt": "2026-10-11T14:52:21-04:00",
+      "activeSeconds": 0,
+      "location": {
+        "city": "Austin",
+        "region": "Texas",
+        "country": "US"
+      },
+      "playerName": "OscarsOscars",
+      "pages": [
+        {
+          "view": "current-week",
+          "enteredAt": "2026-10-11T14:52:21-04:00",
+          "durationSeconds": null
+        }
+      ]
+    },
+    {
+      "sessionNumber": 962,
+      "startedAt": "2026-10-11T14:50:49-04:00",
+      "activeSeconds": 0,
+      "location": {
+        "city": "Richmond",
+        "region": "Virginia",
+        "country": "US"
+      },
+      "playerName": "",
+      "pages": [
+        {
+          "view": "current-week",
+          "enteredAt": "2026-10-11T14:50:49-04:00",
+          "durationSeconds": null
+        },
+        {
+          "view": "current-week",
+          "enteredAt": "2026-10-11T14:50:57-04:00",
+          "durationSeconds": null
+        },
+        {
+          "view": "current-week",
+          "enteredAt": "2026-10-11T14:51:53-04:00",
+          "durationSeconds": null
+        },
+        {
+          "view": "current-week",
+          "enteredAt": "2026-10-11T14:52:13-04:00",
+          "durationSeconds": null
+        }
+      ]
+    },
+    {
+      "sessionNumber": 961,
+      "startedAt": "2026-10-11T14:48:36-04:00",
+      "activeSeconds": 0,
+      "location": {
+        "city": "Short Pump",
+        "region": "Virginia",
+        "country": "US"
+      },
+      "playerName": "DP",
+      "pages": [
+        {
+          "view": "current-week",
+          "enteredAt": "2026-10-11T14:48:36-04:00",
+          "durationSeconds": null
+        }
+      ]
+    },
+    {
+      "sessionNumber": 960,
+      "startedAt": "2026-10-11T14:34:38-04:00",
+      "activeSeconds": 23,
+      "location": {
+        "city": "Richmond",
+        "region": "Virginia",
+        "country": "US"
+      },
+      "playerName": "Thomas",
+      "pages": [
+        {
+          "view": "current-week",
+          "enteredAt": "2026-10-11T14:34:38-04:00",
+          "durationSeconds": 23
+        }
+      ]
+    },
+    {
+      "sessionNumber": 959,
+      "startedAt": "2026-10-11T14:32:23-04:00",
+      "activeSeconds": 0,
+      "location": {
+        "city": "Richmond",
+        "region": "Virginia",
+        "country": "US"
+      },
+      "playerName": "",
+      "pages": [
+        {
+          "view": "current-week",
+          "enteredAt": "2026-10-11T14:32:23-04:00",
+          "durationSeconds": null
+        },
+        {
+          "view": "current-week",
+          "enteredAt": "2026-10-11T14:33:45-04:00",
+          "durationSeconds": null
+        }
+      ]
+    },
+    {
+      "sessionNumber": 958,
+      "startedAt": "2026-10-11T14:27:59-04:00",
+      "activeSeconds": 0,
+      "location": {
+        "city": "Richmond",
+        "region": "Virginia",
+        "country": "US"
+      },
+      "playerName": "Mike H",
+      "pages": [
+        {
+          "view": "current-week",
+          "enteredAt": "2026-10-11T14:27:59-04:00",
+          "durationSeconds": null
+        }
+      ]
+    },
+    {
+      "sessionNumber": 957,
+      "startedAt": "2026-10-11T14:18:33-04:00",
+      "activeSeconds": 32,
+      "location": {
+        "city": "Short Pump",
+        "region": "Virginia",
+        "country": "US"
+      },
+      "playerName": "BoJane",
+      "pages": [
+        {
+          "view": "current-week",
+          "enteredAt": "2026-10-11T14:18:33-04:00",
+          "durationSeconds": 32
+        },
+        {
+          "view": "week-one",
+          "enteredAt": "2026-10-11T14:33:39-04:00",
+          "durationSeconds": null
+        }
+      ]
+    },
+    {
+      "sessionNumber": 956,
+      "startedAt": "2026-10-11T14:14:58-04:00",
+      "activeSeconds": 16,
+      "location": {
+        "city": "Solon",
+        "region": "Ohio",
+        "country": "US"
+      },
+      "playerName": "",
+      "pages": [
+        {
+          "view": "current-week",
+          "enteredAt": "2026-10-11T14:14:58-04:00",
+          "durationSeconds": 16
+        }
+      ]
+    },
+    {
+      "sessionNumber": 955,
+      "startedAt": "2026-10-11T14:14:27-04:00",
+      "activeSeconds": 15,
+      "location": {
+        "city": "Solon",
+        "region": "Ohio",
+        "country": "US"
+      },
+      "playerName": "",
+      "pages": [
+        {
+          "view": "current-week",
+          "enteredAt": "2026-10-11T14:14:27-04:00",
+          "durationSeconds": null
+        },
+        {
+          "view": "week-one",
+          "enteredAt": "2026-10-11T14:14:39-04:00",
+          "durationSeconds": 15
+        }
+      ]
+    },
+    {
+      "sessionNumber": 954,
+      "startedAt": "2026-10-11T14:12:40-04:00",
+      "activeSeconds": 0,
+      "location": {
+        "city": "Solon",
+        "region": "Ohio",
+        "country": "US"
+      },
+      "playerName": "",
+      "pages": [
+        {
+          "view": "current-week",
+          "enteredAt": "2026-10-11T14:12:40-04:00",
+          "durationSeconds": null
+        }
+      ]
+    },
+    {
+      "sessionNumber": 953,
+      "startedAt": "2026-10-11T14:09:17-04:00",
+      "activeSeconds": 21,
+      "location": {
+        "city": "Solon",
+        "region": "Ohio",
+        "country": "US"
+      },
+      "playerName": "",
+      "pages": [
+        {
+          "view": "current-week",
+          "enteredAt": "2026-10-11T14:09:17-04:00",
+          "durationSeconds": 21
+        }
+      ]
+    },
+    {
+      "sessionNumber": 952,
+      "startedAt": "2026-10-11T14:04:38-04:00",
+      "activeSeconds": 0,
+      "location": {
+        "city": "Solon",
+        "region": "Ohio",
+        "country": "US"
+      },
+      "playerName": "",
+      "pages": [
+        {
+          "view": "current-week",
+          "enteredAt": "2026-10-11T14:04:38-04:00",
+          "durationSeconds": null
+        }
+      ]
+    },
+    {
+      "sessionNumber": 951,
+      "startedAt": "2026-10-11T13:58:47-04:00",
+      "activeSeconds": 0,
+      "location": {
+        "city": "Richmond",
+        "region": "Virginia",
+        "country": "US"
+      },
+      "playerName": "",
+      "pages": [
+        {
+          "view": "current-week",
+          "enteredAt": "2026-10-11T13:58:47-04:00",
+          "durationSeconds": null
+        }
+      ]
+    },
+    {
+      "sessionNumber": 950,
+      "startedAt": "2026-10-11T13:29:40-04:00",
+      "activeSeconds": 0,
+      "location": {
+        "city": "Richmond",
+        "region": "Virginia",
+        "country": "US"
+      },
+      "playerName": "Thomas",
+      "pages": [
+        {
+          "view": "current-week",
+          "enteredAt": "2026-10-11T13:29:40-04:00",
+          "durationSeconds": null
+        }
+      ]
+    },
+    {
+      "sessionNumber": 949,
+      "startedAt": "2026-10-11T13:16:38-04:00",
+      "activeSeconds": 0,
+      "location": {
+        "city": "Richmond",
+        "region": "Virginia",
+        "country": "US"
+      },
+      "playerName": "Mike H",
+      "pages": [
+        {
+          "view": "picks-confirmation",
+          "enteredAt": "2026-10-11T13:16:38-04:00",
+          "durationSeconds": null
+        },
+        {
+          "view": "week-one",
+          "enteredAt": "2026-10-11T13:16:46-04:00",
+          "durationSeconds": null
+        }
+      ]
+    },
+    {
+      "sessionNumber": 948,
+      "startedAt": "2026-10-11T13:11:36-04:00",
+      "activeSeconds": 0,
+      "location": {
+        "city": "Madison",
+        "region": "New York",
+        "country": "US"
+      },
+      "playerName": "Nils",
+      "pages": [
+        {
+          "view": "enter-picks",
+          "enteredAt": "2026-10-11T13:11:36-04:00",
+          "durationSeconds": null
+        },
+        {
+          "view": "current-week",
+          "enteredAt": "2026-10-11T15:35:11-04:00",
+          "durationSeconds": null
+        }
+      ]
+    },
+    {
+      "sessionNumber": 947,
+      "startedAt": "2026-10-11T13:09:38-04:00",
+      "activeSeconds": 0,
+      "location": {
+        "city": "Short Pump",
+        "region": "Virginia",
+        "country": "US"
+      },
+      "playerName": "DP",
+      "pages": [
+        {
+          "view": "current-week",
+          "enteredAt": "2026-10-11T13:09:38-04:00",
+          "durationSeconds": null
+        }
+      ]
+    },
+    {
+      "sessionNumber": 946,
+      "startedAt": "2026-10-11T12:54:03-04:00",
+      "activeSeconds": 212,
+      "location": {
+        "city": "Richmond",
+        "region": "Virginia",
+        "country": "US"
+      },
+      "playerName": "Jim",
+      "pages": [
+        {
+          "view": "live-analysis",
+          "enteredAt": "2026-10-11T12:54:03-04:00",
+          "durationSeconds": 29
+        },
+        {
+          "view": "week-one",
+          "enteredAt": "2026-10-11T12:54:39-04:00",
+          "durationSeconds": 183
+        }
+      ]
+    },
+    {
+      "sessionNumber": 945,
+      "startedAt": "2026-10-11T11:51:18-04:00",
+      "activeSeconds": 0,
+      "location": {
+        "city": "Richmond",
+        "region": "Virginia",
+        "country": "US"
+      },
+      "playerName": "Jim",
+      "pages": [
+        {
+          "view": "live-analysis",
+          "enteredAt": "2026-10-11T11:51:18-04:00",
+          "durationSeconds": null
+        }
+      ]
+    },
+    {
+      "sessionNumber": 944,
+      "startedAt": "2026-10-11T10:31:00-04:00",
+      "activeSeconds": 0,
+      "location": {
+        "city": "Solon",
+        "region": "Ohio",
+        "country": "US"
+      },
+      "playerName": "",
+      "pages": [
+        {
+          "view": "current-week",
+          "enteredAt": "2026-10-11T10:31:00-04:00",
+          "durationSeconds": null
+        }
+      ]
+    },
+    {
+      "sessionNumber": 943,
+      "startedAt": "2026-10-11T10:23:03-04:00",
+      "activeSeconds": 0,
+      "location": {
+        "city": "Richmond",
+        "region": "Virginia",
+        "country": "US"
+      },
+      "playerName": "",
+      "pages": [
+        {
+          "view": "current-week",
+          "enteredAt": "2026-10-11T10:23:03-04:00",
+          "durationSeconds": null
+        }
+      ]
+    },
+    {
+      "sessionNumber": 942,
+      "startedAt": "2026-10-11T10:20:04-04:00",
+      "activeSeconds": 25,
+      "location": {
+        "city": "Short Pump",
+        "region": "Virginia",
+        "country": "US"
+      },
+      "playerName": "DP",
+      "pages": [
+        {
+          "view": "enter-picks",
+          "enteredAt": "2026-10-11T10:20:04-04:00",
+          "durationSeconds": 25
+        },
+        {
+          "view": "week-one",
+          "enteredAt": "2026-10-11T10:20:29-04:00",
+          "durationSeconds": null
+        }
+      ]
+    },
+    {
+      "sessionNumber": 941,
+      "startedAt": "2026-10-11T09:52:27-04:00",
+      "activeSeconds": 40,
+      "location": {
+        "city": "Richmond",
+        "region": "Virginia",
+        "country": "US"
+      },
+      "playerName": "",
+      "pages": [
+        {
+          "view": "current-week",
+          "enteredAt": "2026-10-11T09:52:27-04:00",
+          "durationSeconds": null
+        },
+        {
+          "view": "current-week",
+          "enteredAt": "2026-10-11T09:52:35-04:00",
+          "durationSeconds": null
+        },
+        {
+          "view": "weeks",
+          "enteredAt": "2026-10-11T09:54:32-04:00",
+          "durationSeconds": 16
+        },
+        {
+          "view": "season",
+          "enteredAt": "2026-10-11T09:54:56-04:00",
+          "durationSeconds": 24
+        },
+        {
+          "view": "week-one",
+          "enteredAt": "2026-10-11T09:55:11-04:00",
+          "durationSeconds": null
+        }
+      ]
+    },
+    {
+      "sessionNumber": 940,
+      "startedAt": "2026-10-11T09:44:59-04:00",
+      "activeSeconds": 99,
+      "location": {
+        "city": "Richmond",
+        "region": "Virginia",
+        "country": "US"
+      },
+      "playerName": "",
+      "pages": [
+        {
+          "view": "current-week",
+          "enteredAt": "2026-10-11T09:44:59-04:00",
+          "durationSeconds": 45
+        },
+        {
+          "view": "live-analysis",
+          "enteredAt": "2026-10-11T09:45:50-04:00",
+          "durationSeconds": 20
+        },
+        {
+          "view": "live-analysis",
+          "enteredAt": "2026-10-11T10:11:26-04:00",
+          "durationSeconds": 34
+        },
+        {
+          "view": "live-analysis",
+          "enteredAt": "2026-10-11T10:12:05-04:00",
+          "durationSeconds": null
+        }
+      ]
+    },
+    {
+      "sessionNumber": 939,
+      "startedAt": "2026-10-11T09:40:13-04:00",
+      "activeSeconds": 0,
+      "location": {
+        "city": "Richmond",
+        "region": "Virginia",
+        "country": "US"
+      },
+      "playerName": "",
+      "pages": [
+        {
+          "view": "current-week",
+          "enteredAt": "2026-10-11T09:40:13-04:00",
+          "durationSeconds": null
+        }
+      ]
+    },
+    {
+      "sessionNumber": 938,
+      "startedAt": "2026-10-11T09:39:47-04:00",
+      "activeSeconds": 0,
+      "location": {
+        "city": "Richmond",
+        "region": "Virginia",
+        "country": "US"
+      },
+      "playerName": "",
+      "pages": [
+        {
+          "view": "weeks",
+          "enteredAt": "2026-10-11T09:39:47-04:00",
+          "durationSeconds": null
+        }
+      ]
+    },
+    {
+      "sessionNumber": 937,
+      "startedAt": "2026-10-11T09:39:37-04:00",
+      "activeSeconds": 0,
+      "location": {
+        "city": "Richmond",
+        "region": "Virginia",
+        "country": "US"
+      },
+      "playerName": "",
+      "pages": [
+        {
+          "view": "games",
+          "enteredAt": "2026-10-11T09:39:37-04:00",
+          "durationSeconds": null
+        }
+      ]
+    },
+    {
+      "sessionNumber": 936,
+      "startedAt": "2026-10-11T09:39:02-04:00",
+      "activeSeconds": 0,
+      "location": {
+        "city": "Richmond",
+        "region": "Virginia",
+        "country": "US"
+      },
+      "playerName": "",
+      "pages": [
+        {
+          "view": "current-week",
+          "enteredAt": "2026-10-11T09:39:02-04:00",
+          "durationSeconds": null
+        }
+      ]
+    },
+    {
+      "sessionNumber": 935,
+      "startedAt": "2026-10-11T09:35:10-04:00",
+      "activeSeconds": 0,
+      "location": {
+        "city": "Richmond",
+        "region": "Virginia",
+        "country": "US"
+      },
+      "playerName": "",
+      "pages": [
+        {
+          "view": "live-analysis",
+          "enteredAt": "2026-10-11T09:35:10-04:00",
+          "durationSeconds": null
+        }
+      ]
+    },
+    {
+      "sessionNumber": 934,
+      "startedAt": "2026-10-11T09:32:56-04:00",
+      "activeSeconds": 0,
+      "location": {
+        "city": "Richmond",
+        "region": "Virginia",
+        "country": "US"
+      },
+      "playerName": "",
+      "pages": [
+        {
+          "view": "live-analysis",
+          "enteredAt": "2026-10-11T09:32:56-04:00",
+          "durationSeconds": null
+        }
+      ]
+    },
+    {
+      "sessionNumber": 933,
+      "startedAt": "2026-10-11T09:14:59-04:00",
+      "activeSeconds": 0,
+      "location": {
+        "city": "Short Pump",
+        "region": "Virginia",
+        "country": "US"
+      },
+      "playerName": "BoJane",
+      "pages": [
+        {
+          "view": "current-week",
+          "enteredAt": "2026-10-11T09:14:59-04:00",
+          "durationSeconds": null
+        }
+      ]
+    },
+    {
+      "sessionNumber": 932,
+      "startedAt": "2026-10-11T08:24:06-04:00",
+      "activeSeconds": 0,
+      "location": {
+        "city": "Richmond",
+        "region": "Virginia",
+        "country": "US"
+      },
+      "playerName": "Jim",
+      "pages": [
+        {
+          "view": "live-analysis",
+          "enteredAt": "2026-10-11T08:24:06-04:00",
+          "durationSeconds": null
+        }
+      ]
+    },
+    {
+      "sessionNumber": 931,
+      "startedAt": "2026-10-11T07:59:18-04:00",
+      "activeSeconds": 9,
+      "location": {
+        "city": "St. Petersburg",
+        "region": "Florida",
+        "country": "US"
+      },
+      "playerName": "",
+      "pages": [
+        {
+          "view": "picks-confirmation",
+          "enteredAt": "2026-10-11T07:59:18-04:00",
+          "durationSeconds": 9
+        }
+      ]
+    },
+    {
+      "sessionNumber": 930,
+      "startedAt": "2026-10-11T07:00:59-04:00",
+      "activeSeconds": 164,
+      "location": {
+        "city": "St. Petersburg",
+        "region": "Florida",
+        "country": "US"
+      },
+      "playerName": "",
+      "pages": [
+        {
+          "view": "current-week",
+          "enteredAt": "2026-10-11T07:00:59-04:00",
+          "durationSeconds": 56
+        },
+        {
+          "view": "enter-picks",
+          "enteredAt": "2026-10-11T07:01:56-04:00",
+          "durationSeconds": 108
+        },
+        {
+          "view": "picks-confirmation",
+          "enteredAt": "2026-10-11T07:03:44-04:00",
+          "durationSeconds": null
+        }
+      ]
+    },
+    {
+      "sessionNumber": 929,
+      "startedAt": "2026-10-11T05:34:23-04:00",
+      "activeSeconds": 0,
+      "location": {
+        "city": "Closter",
+        "region": "New Jersey",
+        "country": "US"
+      },
+      "playerName": "",
+      "pages": [
+        {
+          "view": "picks-confirmation",
+          "enteredAt": "2026-10-11T05:34:23-04:00",
+          "durationSeconds": null
+        },
+        {
+          "view": "enter-picks",
+          "enteredAt": "2026-10-11T05:34:30-04:00",
+          "durationSeconds": null
+        },
+        {
+          "view": "week-one",
+          "enteredAt": "2026-10-11T05:34:36-04:00",
+          "durationSeconds": null
+        }
+      ]
+    },
+    {
+      "sessionNumber": 928,
+      "startedAt": "2026-10-11T01:47:20-04:00",
+      "activeSeconds": 0,
+      "location": {
+        "city": "Richmond",
+        "region": "Virginia",
+        "country": "US"
+      },
+      "playerName": "Travis",
+      "pages": [
+        {
+          "view": "current-week",
+          "enteredAt": "2026-10-11T01:47:20-04:00",
+          "durationSeconds": null
+        }
+      ]
+    },
+    {
+      "sessionNumber": 927,
+      "startedAt": "2026-10-10T10:33:14-04:00",
+      "activeSeconds": 0,
+      "location": {
+        "city": "Richmond",
+        "region": "Virginia",
+        "country": "US"
+      },
+      "playerName": "Travis",
+      "pages": [
+        {
+          "view": "current-week",
+          "enteredAt": "2026-10-10T10:33:14-04:00",
+          "durationSeconds": null
+        }
+      ]
+    },
+    {
+      "sessionNumber": 926,
+      "startedAt": "2026-10-10T07:40:33-04:00",
+      "activeSeconds": 0,
+      "location": {
+        "city": "Closter",
+        "region": "New Jersey",
+        "country": "US"
+      },
+      "playerName": "",
+      "pages": [
+        {
+          "view": "picks-confirmation",
+          "enteredAt": "2026-10-10T07:40:33-04:00",
+          "durationSeconds": null
+        }
+      ]
+    },
+    {
+      "sessionNumber": 925,
+      "startedAt": "2026-10-10T06:38:41-04:00",
+      "activeSeconds": 0,
+      "location": {
+        "city": "Warwick",
+        "region": "Rhode Island",
+        "country": "US"
+      },
+      "playerName": "",
+      "pages": [
+        {
+          "view": "current-week",
+          "enteredAt": "2026-10-10T06:38:41-04:00",
+          "durationSeconds": null
+        }
+      ]
+    },
+    {
+      "sessionNumber": 924,
+      "startedAt": "2026-10-09T22:10:27-04:00",
+      "activeSeconds": 0,
+      "location": {
+        "city": "Richmond",
+        "region": "Virginia",
+        "country": "US"
+      },
+      "playerName": "",
+      "pages": [
+        {
+          "view": "live-analysis",
+          "enteredAt": "2026-10-09T22:10:27-04:00",
+          "durationSeconds": null
+        }
+      ]
+    },
+    {
+      "sessionNumber": 923,
+      "startedAt": "2026-10-09T22:04:24-04:00",
+      "activeSeconds": 16,
+      "location": {
+        "city": "Richmond",
+        "region": "Virginia",
+        "country": "US"
+      },
+      "playerName": "Jim",
+      "pages": [
+        {
+          "view": "live-analysis",
+          "enteredAt": "2026-10-09T22:04:24-04:00",
+          "durationSeconds": 16
+        }
+      ]
+    },
+    {
+      "sessionNumber": 922,
+      "startedAt": "2026-10-09T22:03:27-04:00",
+      "activeSeconds": 38,
+      "location": {
+        "city": "Richmond",
+        "region": "Virginia",
+        "country": "US"
+      },
+      "playerName": "Jim",
+      "pages": [
+        {
+          "view": "live-analysis",
+          "enteredAt": "2026-10-09T22:03:27-04:00",
+          "durationSeconds": 9
+        },
+        {
+          "view": "live-analysis",
+          "enteredAt": "2026-10-09T22:03:43-04:00",
+          "durationSeconds": 29
+        },
+        {
+          "view": "live-analysis",
+          "enteredAt": "2026-10-09T22:04:15-04:00",
+          "durationSeconds": null
+        }
+      ]
+    },
+    {
+      "sessionNumber": 921,
+      "startedAt": "2026-10-09T16:32:02-04:00",
+      "activeSeconds": 8,
+      "location": {
+        "city": "Utica",
+        "region": "New York",
+        "country": "US"
+      },
+      "playerName": "",
+      "pages": [
+        {
+          "view": "picks-confirmation",
+          "enteredAt": "2026-10-09T16:32:02-04:00",
+          "durationSeconds": 8
+        }
+      ]
+    },
+    {
+      "sessionNumber": 920,
+      "startedAt": "2026-10-09T12:41:44-04:00",
+      "activeSeconds": 0,
+      "location": {
+        "city": "Richmond",
+        "region": "Virginia",
+        "country": "US"
+      },
+      "playerName": "",
+      "pages": [
+        {
+          "view": "live-analysis",
+          "enteredAt": "2026-10-09T12:41:44-04:00",
+          "durationSeconds": null
+        }
+      ]
+    },
+    {
+      "sessionNumber": 919,
+      "startedAt": "2026-10-09T12:41:25-04:00",
+      "activeSeconds": 5,
+      "location": {
+        "city": "Richmond",
+        "region": "Virginia",
+        "country": "US"
+      },
+      "playerName": "",
+      "pages": [
+        {
+          "view": "current-week",
+          "enteredAt": "2026-10-09T12:41:25-04:00",
+          "durationSeconds": 5
+        }
+      ]
+    },
+    {
+      "sessionNumber": 918,
+      "startedAt": "2026-10-09T12:38:46-04:00",
+      "activeSeconds": 42,
+      "location": {
+        "city": "Richmond",
+        "region": "Virginia",
+        "country": "US"
+      },
+      "playerName": "Jim",
+      "pages": [
+        {
+          "view": "live-analysis",
+          "enteredAt": "2026-10-09T12:38:46-04:00",
+          "durationSeconds": 42
+        },
+        {
+          "view": "live-analysis",
+          "enteredAt": "2026-10-09T14:50:59-04:00",
+          "durationSeconds": null
+        }
+      ]
+    },
+    {
+      "sessionNumber": 917,
+      "startedAt": "2026-10-09T12:32:55-04:00",
+      "activeSeconds": 58,
+      "location": {
+        "city": "Collinsville",
+        "region": "Virginia",
+        "country": "US"
+      },
+      "playerName": "",
+      "pages": [
+        {
+          "view": "current-week",
+          "enteredAt": "2026-10-09T12:32:55-04:00",
+          "durationSeconds": 53
+        },
+        {
+          "view": "week-one",
+          "enteredAt": "2026-10-09T12:34:13-04:00",
+          "durationSeconds": 5
+        }
+      ]
+    },
+    {
+      "sessionNumber": 916,
+      "startedAt": "2026-10-09T11:48:26-04:00",
+      "activeSeconds": 0,
+      "location": {
+        "city": "Richmond",
+        "region": "Virginia",
+        "country": "US"
+      },
+      "playerName": "Jim",
+      "pages": [
+        {
+          "view": "map",
+          "enteredAt": "2026-10-09T11:48:26-04:00",
+          "durationSeconds": null
+        },
+        {
+          "view": "live-analysis",
+          "enteredAt": "2026-10-09T12:38:14-04:00",
+          "durationSeconds": null
+        }
+      ]
+    },
+    {
+      "sessionNumber": 915,
+      "startedAt": "2026-10-09T11:46:40-04:00",
+      "activeSeconds": 0,
+      "location": {
+        "city": "Holly Ridge",
+        "region": "North Carolina",
+        "country": "US"
+      },
+      "playerName": "Jon Campbell",
+      "pages": [
+        {
+          "view": "enter-picks",
+          "enteredAt": "2026-10-09T11:46:40-04:00",
+          "durationSeconds": null
+        },
+        {
+          "view": "picks-confirmation",
+          "enteredAt": "2026-10-09T11:48:11-04:00",
+          "durationSeconds": null
+        }
+      ]
+    },
+    {
+      "sessionNumber": 914,
+      "startedAt": "2026-10-09T11:43:43-04:00",
+      "activeSeconds": 0,
+      "location": {
+        "city": "Richmond",
+        "region": "Virginia",
+        "country": "US"
+      },
+      "playerName": "",
+      "pages": [
+        {
+          "view": "map",
+          "enteredAt": "2026-10-09T11:43:43-04:00",
+          "durationSeconds": null
+        }
+      ]
+    },
+    {
+      "sessionNumber": 913,
+      "startedAt": "2026-10-09T11:43:09-04:00",
+      "activeSeconds": 0,
+      "location": {
+        "city": "Richmond",
+        "region": "Virginia",
+        "country": "US"
+      },
+      "playerName": "",
+      "pages": [
+        {
+          "view": "map",
+          "enteredAt": "2026-10-09T11:43:09-04:00",
+          "durationSeconds": null
+        }
+      ]
+    },
+    {
+      "sessionNumber": 912,
+      "startedAt": "2026-10-09T11:42:44-04:00",
+      "activeSeconds": 0,
+      "location": {
+        "city": "Richmond",
+        "region": "Virginia",
+        "country": "US"
+      },
+      "playerName": "",
+      "pages": [
+        {
+          "view": "current-week",
+          "enteredAt": "2026-10-09T11:42:44-04:00",
+          "durationSeconds": null
+        }
+      ]
+    },
+    {
+      "sessionNumber": 911,
+      "startedAt": "2026-10-09T11:40:08-04:00",
+      "activeSeconds": 198,
+      "location": {
+        "city": "Richmond",
+        "region": "Virginia",
+        "country": "US"
+      },
+      "playerName": "Jim",
+      "pages": [
+        {
+          "view": "map",
+          "enteredAt": "2026-10-09T11:40:08-04:00",
+          "durationSeconds": 198
+        }
+      ]
+    },
+    {
+      "sessionNumber": 910,
+      "startedAt": "2026-10-09T11:37:32-04:00",
+      "activeSeconds": 0,
+      "location": {
+        "city": "Richmond",
+        "region": "Virginia",
+        "country": "US"
+      },
+      "playerName": "",
+      "pages": [
+        {
+          "view": "map",
+          "enteredAt": "2026-10-09T11:37:32-04:00",
+          "durationSeconds": null
+        }
+      ]
+    },
+    {
+      "sessionNumber": 909,
+      "startedAt": "2026-10-09T11:31:54-04:00",
+      "activeSeconds": 0,
+      "location": {
+        "city": "Richmond",
+        "region": "Virginia",
+        "country": "US"
+      },
+      "playerName": "",
+      "pages": [
+        {
+          "view": "map",
+          "enteredAt": "2026-10-09T11:31:54-04:00",
+          "durationSeconds": null
+        }
+      ]
+    },
     {
       "sessionNumber": 908,
       "startedAt": "2026-10-01T16:30:39-04:00",
