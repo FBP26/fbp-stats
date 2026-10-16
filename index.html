@@ -144,7 +144,7 @@
   #website-picks-form > label { margin-bottom: 7px; }
   .website-game-row { position: relative; margin-bottom: 9px; }
   .website-matchup { display: grid; grid-template-columns: minmax(0, 1fr) minmax(154px, .54fr) minmax(0, 1fr); align-items: stretch; gap: 8px 10px; }
-  .website-side { display: flex; grid-row: 1; min-width: 0; padding: 0; font: 14px Arial, sans-serif; text-transform: none; letter-spacing: 0; cursor: pointer; }
+  .website-side { display: flex; grid-row: 1; min-width: 0; padding: 0; font: 14px Arial, sans-serif; text-transform: none; letter-spacing: 0; cursor: pointer; touch-action: manipulation; }
   .website-side:not(.right) { grid-column: 1; }
   .website-side.right { grid-column: 3; }
   .website-team-choice { display: grid; flex: 1; grid-template-columns: 92px minmax(0, 1fr); grid-template-areas: "logo abbreviation" "logo record" "logo picked"; align-content: center; column-gap: 12px; min-width: 0; min-height: 124px; padding: 10px; border: 1px solid var(--border); border-radius: 8px; background: linear-gradient(135deg, var(--panel-2), var(--panel)); }
@@ -1269,6 +1269,23 @@ function renderWebsiteBestBetPicker(teams, enabled) {
   updateWebsiteBestBetPicker();
 }
 function initializeWebsiteGamePickKeyboard(host) {
+  let touchStart = null;
+  host.onpointerdown = event => {
+    if (event.pointerType === "touch") touchStart = { pointerId: event.pointerId, x: event.clientX, y: event.clientY };
+  };
+  host.onpointercancel = () => { touchStart = null; };
+  host.onpointerup = event => {
+    if (event.pointerType !== "touch" || !touchStart || touchStart.pointerId !== event.pointerId) return;
+    const moved = Math.hypot(event.clientX - touchStart.x, event.clientY - touchStart.y);
+    touchStart = null;
+    if (moved > 12 || !(event.target instanceof Element)) return;
+    const side = event.target.closest(".website-side");
+    const input = side?.querySelector('input[type="radio"]:not(:disabled)');
+    if (!input || input.checked) return;
+    input.checked = true;
+    input.dispatchEvent(new Event("change", { bubbles: true }));
+    input.focus({ preventScroll: true });
+  };
   host.onkeydown = event => {
     const current = event.target.closest('input[type="radio"][name^="game-"]');
     if (!current || !["ArrowLeft", "ArrowRight", "ArrowUp", "ArrowDown"].includes(event.key)) return;
@@ -2869,7 +2886,7 @@ function websiteGameContext(game) {
   const temperature = Number(game.temperature);
   const temperatureClass = Number.isFinite(temperature) ? temperature < 40 ? "temperature-cold" : temperature < 55 ? "temperature-cool" : temperature < 75 ? "temperature-warm" : temperature < 90 ? "temperature-hot" : "temperature-very-hot" : "";
   const venue = String(game.venueName || game.venue || "").replace(/\s+at\s+[^,]+$/i, "").replace(/\s+Stadium$/i, " Stdm.");
-  const weather = game.indoor ? `<span class="website-context-weather"><span class="website-weather-icon" role="img" aria-label="Dome stadium">&#127967;&#65039;</span>Indoor</span>` : hasTemperature ? `<span class="website-context-weather ${temperatureClass}">${weatherGlyph ? `<span class="website-weather-icon" role="img" aria-label="${weatherLabel || "Weather"}">${weatherGlyph}</span>` : ""}${websiteEscapeHtml(game.temperature)}&deg;${gusts ? `<span class="website-context-gust"><span class="website-weather-icon" role="img" aria-label="Wind">${windGlyph}</span>${websiteEscapeHtml(gusts)}</span>` : ""}${precipitation ? `<span class="website-context-precipitation"><span class="website-weather-icon" role="img" aria-label="${/snow|flurr/.test(normalizedCondition) ? "Snow chance" : "Rain chance"}">${precipitationGlyph}</span>${precipitation}</span>` : ""}</span>` : "";
+  const weather = game.indoor ? `<span class="website-context-weather"><span class="website-weather-icon" role="img" aria-label="Dome stadium">&#127967;&#65039;</span>Indoor</span>` : hasTemperature ? `<span class="website-context-weather ${temperatureClass}">${weatherGlyph ? `<span class="website-weather-icon" role="img" aria-label="${weatherLabel || "Weather"}">${weatherGlyph}</span>` : ""}${websiteEscapeHtml(game.temperature)}&deg;${precipitation ? `<span class="website-context-precipitation"><span class="website-weather-icon" role="img" aria-label="${/snow|flurr/.test(normalizedCondition) ? "Snow chance" : "Rain chance"}">${precipitationGlyph}</span>${precipitation}</span>` : ""}${gusts ? `<span class="website-context-gust"><span class="website-weather-icon" role="img" aria-label="Wind">${windGlyph}</span>${websiteEscapeHtml(gusts)}</span>` : ""}</span>` : "";
   const topDetails = [weather, game.broadcast || game.tv ? `<span class="website-context-broadcast">${websiteEscapeHtml(game.broadcast || game.tv)}</span>` : ""].filter(Boolean).join("");
   const bottomDetails = [venue ? `<span class="website-context-venue">${websiteEscapeHtml(venue)}</span>` : "", location ? `<span class="website-context-location">${websiteEscapeHtml(location)}</span>` : ""].filter(Boolean).join("");
   return topDetails || bottomDetails ? `<div class="website-game-context website-game-context-top">${topDetails}</div><div class="website-game-context website-game-context-bottom">${bottomDetails}</div>` : "";
