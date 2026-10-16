@@ -432,7 +432,7 @@ const handleGet = async (request: Request, env: Env): Promise<Response> => {
         "UPDATE notification_subscriptions SET status = 'active', verified_at = CURRENT_TIMESTAMP, updated_at = CURRENT_TIMESTAMP WHERE id = ?",
       ).bind(subscription.id).run();
       const enabledAlerts = notificationEvents.filter((event) => Number(subscription[notificationPreferenceColumns[event]]));
-      const confirmationLabels: Record<NotificationEvent, string> = { picksReady: "When picks are ready", picksDue: "Picks due reminder", firstPlace: "When you move into first place", earlyWindow: "After the early games", lateWindow: "After the late games", beforeSnf: "Before Sunday Night Football", beforeMnf: "Before Monday Night Football", weeklyResult: "Weekly result" };
+      const confirmationLabels: Record<NotificationEvent, string> = { picksReady: "When picks are ready", picksDue: "Picks due reminder", firstPlace: "When you move into first place", topFive: "When you jump into the top 5", topTen: "When you jump into the top 10", leadChange: "When the pool lead changes", earlyWindow: "After the early games", lateWindow: "After the late games", beforeSnf: "Before Sunday Night Football", beforeMnf: "Before Monday Night Football", weeklyResult: "Weekly result" };
       const alertItems = enabledAlerts.map((event) => `<li>${escapeHtml(confirmationLabels[event])}${event === "picksDue" ? ` (${Number(subscription.picks_due_minutes) || 60} minutes before kickoff)` : ""}</li>`).join("");
       const siteUrl = (env.PUBLIC_SITE_URL || "https://fbp26.github.io/fbp-stats/").replace(/\/$/, "");
       const editUrl = `${siteUrl}/?alerts=${encodeURIComponent(String(subscription.manage_token || ""))}#enter-picks`;
@@ -670,11 +670,11 @@ const savePushDevice = async (payload: JsonObject, env: Env): Promise<Response> 
   if (!pushConfigured(env)) return json({ ok: false, error: "Push notifications are not configured yet." }, 503, env.CORS_ORIGIN);
   const subscription = pushSubscriptionFromPayload(payload.subscription), preferences = parseNotificationPreferences(payload.preferences);
   if (!notificationEvents.some((event) => preferences[event])) return json({ ok: false, error: "Choose at least one alert." }, 400, env.CORS_ORIGIN);
-  const existing = await env.DB.prepare("SELECT device_token,status,picks_ready,picks_due,first_place,early_window,late_window,before_snf,before_mnf,weekly_result FROM push_devices WHERE endpoint=?")
+  const existing = await env.DB.prepare("SELECT device_token,status,picks_ready,picks_due,first_place,top_five,top_ten,lead_change,early_window,late_window,before_snf,before_mnf,weekly_result FROM push_devices WHERE endpoint=?")
     .bind(subscription.endpoint).first<Record<string, unknown>>();
   const deviceToken = String(existing?.device_token || randomToken()), values = notificationEvents.map((event) => preferences[event] ? 1 : 0);
   const preferencesChanged = existing?.status === "active" && notificationEvents.some((event, index) => Number(existing[notificationPreferenceColumns[event]]) !== values[index]);
-  await env.DB.prepare(`INSERT INTO push_devices(endpoint,p256dh,auth,device_token,device_token_hash,status,picks_ready,picks_due,picks_due_minutes,first_place,early_window,late_window,before_snf,before_mnf,weekly_result,updated_at) VALUES(?,?,?,?,?,'active',?,?,?,?,?,?,?,?,?,CURRENT_TIMESTAMP) ON CONFLICT(endpoint) DO UPDATE SET p256dh=excluded.p256dh,auth=excluded.auth,status='active',picks_ready=excluded.picks_ready,picks_due=excluded.picks_due,picks_due_minutes=excluded.picks_due_minutes,first_place=excluded.first_place,early_window=excluded.early_window,late_window=excluded.late_window,before_snf=excluded.before_snf,before_mnf=excluded.before_mnf,weekly_result=excluded.weekly_result,unsubscribed_at=NULL,updated_at=CURRENT_TIMESTAMP`)
+  await env.DB.prepare(`INSERT INTO push_devices(endpoint,p256dh,auth,device_token,device_token_hash,status,picks_ready,picks_due,picks_due_minutes,first_place,top_five,top_ten,lead_change,early_window,late_window,before_snf,before_mnf,weekly_result,updated_at) VALUES(?,?,?,?,?,'active',?,?,?,?,?,?,?,?,?,?,?,?,?,CURRENT_TIMESTAMP) ON CONFLICT(endpoint) DO UPDATE SET p256dh=excluded.p256dh,auth=excluded.auth,status='active',picks_ready=excluded.picks_ready,picks_due=excluded.picks_due,picks_due_minutes=excluded.picks_due_minutes,first_place=excluded.first_place,top_five=excluded.top_five,top_ten=excluded.top_ten,lead_change=excluded.lead_change,early_window=excluded.early_window,late_window=excluded.late_window,before_snf=excluded.before_snf,before_mnf=excluded.before_mnf,weekly_result=excluded.weekly_result,unsubscribed_at=NULL,updated_at=CURRENT_TIMESTAMP`)
     .bind(subscription.endpoint, subscription.p256dh, subscription.auth, deviceToken, await sha256(deviceToken), values[0], values[1], Math.max(5, Math.min(300, Math.round(Number(payload.picksDueMinutes) || 60))), ...values.slice(2)).run();
   if (!existing || existing.status !== "active") {
     await sendAdministratorPushOnce(env, "adminPushEnabled", `admin-push-enabled:${deviceToken}`, "Push enabled", "A browser enabled FBP Push notifications.");
@@ -795,7 +795,30 @@ const dispatchWeekPushNotifications = async (env: Env, week: Record<string, unkn
     || String(left.name).localeCompare(String(right.name)),
   );
   const hasStarted = games.some((game) => ["LIVE", "FINAL"].includes(String(game.state)));
-  if (hasStarted && players.length) events.add("firstPlace");
+  const previousObservation = await env.DB.prepare(
+    "SELECT payload_json FROM notification_observations WHERE week_id = ?",
+  ).bind(week.id).first<{ payload_json: string }>();
+  let previousRanks: Record<string, number> = {};
+  let previousLeaders: string[] = [];
+  try {
+    const previous = JSON.parse(previousObservation?.payload_json || "{}") as { ranks?: Record<string, number>; leaders?: string[] };
+    previousRanks = previous.ranks || {};
+    previousLeaders = previous.leaders || [];
+  } catch (error) {
+    console.warn("Saved push notification observation could not be parsed.", error);
+  }
+  const ranks = Object.fromEntries(players.map((player, index) => [
+    String(player.name).toLowerCase(),
+    Number(player.rank) || index + 1,
+  ]));
+  const leaders = players.filter((player, index) => (Number(player.rank) || index + 1) === 1).map((player) => String(player.name).toLowerCase());
+  const leadChanged = previousLeaders.length > 0
+    && (previousLeaders.length !== leaders.length || previousLeaders.some((leader) => !leaders.includes(leader)));
+  if (hasStarted && players.length) events.add("firstPlace").add("topFive").add("topTen");
+  if (leadChanged) events.add("leadChange");
+  await env.DB.prepare(
+    "INSERT INTO notification_observations (week_id, observed_at, payload_json) VALUES (?, ?, ?) ON CONFLICT (week_id) DO UPDATE SET observed_at = excluded.observed_at, payload_json = excluded.payload_json",
+  ).bind(week.id, now.toISOString(), JSON.stringify({ ranks, leaders })).run();
   if (!events.size) return;
   const latestProbabilities = await env.DB.prepare(
     `SELECT player_name, win_probability FROM race_snapshots
@@ -812,7 +835,23 @@ const dispatchWeekPushNotifications = async (env: Env, week: Record<string, unkn
       const followed = linked.results.map((link) => players.find((player) => String(player.name).toLowerCase() === link.player_name.toLowerCase())).filter(Boolean);
       if (event === "picksDue" && followed.length) continue;
       if (event === "firstPlace" && !followed.some((player) => String(player?.name).toLowerCase() === String(players[0]?.name).toLowerCase())) continue;
-      const key = event === "firstPlace" ? `${event}:${week.id}:${String(players[0]?.name || "").toLowerCase()}` : `${event}:${week.id}`;
+      const enteredTopFive = followed.filter((player) => {
+        const name = String(player?.name).toLowerCase();
+        return Number(ranks[name]) <= 5 && Number(previousRanks[name]) > 5;
+      });
+      const enteredTopTen = followed.filter((player) => {
+        const name = String(player?.name).toLowerCase();
+        return Number(ranks[name]) <= 10 && Number(previousRanks[name]) > 10;
+      });
+      if (event === "topFive" && !enteredTopFive.length) continue;
+      if (event === "topTen" && !enteredTopTen.length) continue;
+      if (event === "leadChange" && !leadChanged) continue;
+      const key = event === "firstPlace"
+        ? `${event}:${week.id}:${String(players[0]?.name || "").toLowerCase()}`
+        : event === "topFive" ? `${event}:${week.id}:${enteredTopFive.map((player) => String(player?.name).toLowerCase()).join(",")}`
+        : event === "topTen" ? `${event}:${week.id}:${enteredTopTen.map((player) => String(player?.name).toLowerCase()).join(",")}`
+        : event === "leadChange" ? `${event}:${week.id}:${leaders.join(",")}`
+        : `${event}:${week.id}`;
       const queued = await env.DB.prepare("INSERT INTO push_deliveries(device_id,week_id,event_type,deduplication_key,status) VALUES(?,?,?,?, 'queued') ON CONFLICT(device_id,deduplication_key) DO NOTHING")
         .bind(device.id, week.id, event, key).run();
       if (!queued.meta.changes) continue;
@@ -823,6 +862,12 @@ const dispatchWeekPushNotifications = async (env: Env, week: Record<string, unkn
           players[1] ? { name: String(players[1].name), winProbability: probabilityByPlayer.get(String(players[1].name).toLowerCase()) ?? null } : null,
           scoreChanges.at(-1) || null,
         )
+        : event === "topFive"
+        ? `${enteredTopFive.map((player) => String(player?.name)).join(" and ")} moved into the top 5.`
+        : event === "topTen"
+        ? `${enteredTopTen.map((player) => String(player?.name)).join(" and ")} moved into the top 10.`
+        : event === "leadChange"
+        ? `Pool lead change: ${players.filter((player, index) => (Number(player.rank) || index + 1) === 1).map((player) => String(player.name)).join(" and ")} moved into first place.`
         : event === "weeklyResult" && followedName
         ? weeklyResultSummary(players, followedName, seasonStandings)
         : event === "picksDue" ? "Your picks are not in yet. Open FBP before the first kickoff." : "Open FBP for the latest pool update.";
@@ -1282,7 +1327,7 @@ const updateNotificationPreferences = async (payload: JsonObject, env: Env): Pro
   const values = notificationEvents.map((event) => preferences[event] ? 1 : 0);
   const result = await env.DB.prepare(
     `UPDATE notification_subscriptions SET player_name = ?, picks_ready = ?, picks_due = ?, picks_due_minutes = ?,
-      first_place = ?, early_window = ?, late_window = ?, before_snf = ?, before_mnf = ?, weekly_result = ?, updated_at = CURRENT_TIMESTAMP
+      first_place = ?, top_five = ?, top_ten = ?, lead_change = ?, early_window = ?, late_window = ?, before_snf = ?, before_mnf = ?, weekly_result = ?, updated_at = CURRENT_TIMESTAMP
      WHERE manage_token_hash = ? AND status = 'active'`,
   ).bind(playerName, values[0], values[1], picksDueMinutes, ...values.slice(2), await sha256(manageToken)).run();
   return result.meta.changes
@@ -1294,6 +1339,9 @@ const notificationEventLabels: Record<NotificationEvent, string> = {
   picksReady: "Picks are ready",
   picksDue: "Picks due reminder",
   firstPlace: "First-place update",
+  topFive: "Top-5 update",
+  topTen: "Top-10 update",
+  leadChange: "Lead change",
   earlyWindow: "Early games complete",
   lateWindow: "Late games complete",
   beforeSnf: "Before Sunday Night Football",
@@ -1306,6 +1354,9 @@ const notificationTimingExplanation = (event: NotificationEvent, picksDueMinutes
     picksReady: "all games and point spreads have been posted and locked",
     picksDue: `the first kickoff is about ${picksDueMinutes} minutes away and your picks are not in`,
     firstPlace: "the latest Current Week standings first show you in 1st place",
+    topFive: "your Current Week rank moved into the top 5",
+    topTen: "your Current Week rank moved into the top 10",
+    leadChange: "the pool lead changed",
     earlyWindow: "all Sunday 1 PM games are final",
     lateWindow: "the Sunday afternoon games are final",
     beforeSnf: "the Sunday afternoon games are final and Sunday Night Football starts within 35 minutes",
