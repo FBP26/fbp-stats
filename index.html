@@ -3023,12 +3023,23 @@ async function renderWebsitePicksForm(forceRefresh = false) {
     host.innerHTML = groups.map(group => `<fieldset class="website-game-group"><legend><span>${websiteEscapeHtml(group.time)}</span></legend>${group.games.map(({ game, index }) => { const favorite = game.favorite || game.away; const underdog = game.favorite ? game.underdog : game.home; return `<div class="website-game-row"><div class="website-matchup"><label class="website-side"><input type="radio" name="game-${index + 1}" value="${favorite}" ${linesReady ? "required" : "disabled"}>${websiteTeamChoice(game, favorite)}</label>${websiteGameHub(game, linesReady)}<label class="website-side right">${websiteTeamChoice(game, underdog)}<input type="radio" name="game-${index + 1}" value="${underdog}" ${linesReady ? "required" : "disabled"}></label></div></div>`; }).join("")}</fieldset>`).join("");
     initializeWebsiteGamePickKeyboard(host);
     const bestBet = document.getElementById("website-best-bet");
-    bestBet.innerHTML = '';
-    bestBet.add(new Option(linesReady ? "Choose a best bet" : "Available when lines are posted", ""));
-    const bestBetTeams = linesReady ? websiteActiveGames.flatMap(game => [game.favorite, game.underdog]).sort((a, b) => websiteFormTeamName(a).localeCompare(websiteFormTeamName(b), undefined, { sensitivity: "base" })) : [];
-    bestBetTeams.forEach(team => bestBet.add(new Option(websiteFormTeamName(team), team)));
-    renderWebsiteBestBetPicker(bestBetTeams, linesReady);
-    bestBet.disabled = !linesReady;
+    const refreshBestBetTeams = () => {
+      const pickedTeams = [...host.querySelectorAll('input[type="radio"][name^="game-"]:checked')].map(input => input.value)
+        .sort((left, right) => websiteFormTeamName(left).localeCompare(websiteFormTeamName(right), undefined, { sensitivity: "base" }));
+      const savedBestBet = pickedTeams.includes(bestBet.value) ? bestBet.value : "";
+      bestBet.innerHTML = '';
+      bestBet.add(new Option(linesReady ? pickedTeams.length ? "Choose a best bet" : "Choose game picks first" : "Available when lines are posted", ""));
+      pickedTeams.forEach(team => bestBet.add(new Option(websiteFormTeamName(team), team)));
+      bestBet.value = savedBestBet;
+      bestBet.disabled = !linesReady || !pickedTeams.length;
+      renderWebsiteBestBetPicker(pickedTeams, linesReady && pickedTeams.length > 0);
+    };
+    if (host.bestBetPickHandler) host.removeEventListener("change", host.bestBetPickHandler);
+    host.bestBetPickHandler = event => {
+      if (event.target instanceof HTMLInputElement && event.target.matches('input[type="radio"][name^="game-"]')) refreshBestBetTeams();
+    };
+    host.addEventListener("change", host.bestBetPickHandler);
+    refreshBestBetTeams();
     document.querySelector('#website-picks-form button[type="submit"]').disabled = !linesReady;
     document.getElementById("website-picks-status").textContent = linesReady ? "" : "Yahoo has not posted every spread yet. Matchups are available for review; picks open after the Tuesday refresh fills the lines.";
     queueWebsitePicksWeatherRefresh(selection);
