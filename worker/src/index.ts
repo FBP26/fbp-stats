@@ -462,7 +462,39 @@ const handleGet = async (request: Request, env: Env): Promise<Response> => {
     if (!week) {
       return json({ ok: true, staged: false, season: 2026, week: 1, phase: "REGULAR_SEASON", games: [] }, 200, env.CORS_ORIGIN);
     }
-    const games = await enrichActiveSlateGames(await getWeekConfig(env.DB, Number(week.id)), Number(week.season), Number(week.week));
+    const [configuredGames, pickRows, currentField, priorField] = await Promise.all([
+      getWeekConfig(env.DB, Number(week.id)),
+      env.DB.prepare(
+        `SELECT g.game_index, sp.picked_team, COUNT(*) AS picks
+         FROM submission_picks sp
+         JOIN submissions s ON s.id = sp.submission_id
+         JOIN games g ON g.id = sp.game_id
+         WHERE s.week_id = ? AND s.superseded_at IS NULL
+         GROUP BY g.game_index, sp.picked_team`,
+      ).bind(week.id).all<{ game_index: number; picked_team: string; picks: number }>(),
+      env.DB.prepare("SELECT COUNT(*) AS count FROM submissions WHERE week_id = ? AND superseded_at IS NULL")
+        .bind(week.id).first<{ count: number }>(),
+      env.DB.prepare(
+        `SELECT COUNT(*) AS count FROM submissions
+         WHERE week_id = (
+           SELECT id FROM weeks
+           WHERE season = ? AND phase = ? AND week < ? AND status = 'finalized'
+           ORDER BY week DESC LIMIT 1
+         ) AND superseded_at IS NULL`,
+      ).bind(week.season, week.phase, week.week).first<{ count: number }>(),
+    ]);
+    const pickCountsByGame = new Map<number, Record<string, number>>();
+    for (const row of pickRows.results) {
+      const counts = pickCountsByGame.get(Number(row.game_index)) || {};
+      counts[String(row.picked_team).toUpperCase()] = Number(row.picks);
+      pickCountsByGame.set(Number(row.game_index), counts);
+    }
+    const pickCountTotal = Number(priorField?.count) || Number(currentField?.count);
+    const games = (await enrichActiveSlateGames(configuredGames, Number(week.season), Number(week.week))).map((game) => ({
+      ...game,
+      pickCountTotal,
+      pickCounts: pickCountsByGame.get(Number(game.gameIndex)) || {},
+    }));
     return json({
       ok: true,
       staged: true,
