@@ -40,6 +40,110 @@ const html = (body: string, status = 200): Response => new Response(body, {
 
 const notificationPage = (title: string, body: string, status = 200): Response => html(`<!doctype html><html lang="en"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1"><title>${escapeHtml(title)}</title><style>body{margin:0;background:#0d1117;color:#e8eef5;font:16px/1.55 Arial,sans-serif}main{width:min(560px,calc(100% - 32px));margin:48px auto;padding:28px;border:1px solid #2a3744;border-radius:6px;background:#151c24;box-sizing:border-box}h1{margin:0 0 10px;color:#ffcf40;font-size:26px;letter-spacing:0}p{margin:8px 0 18px}.alert-list{margin:10px 0 24px;padding-left:22px}.alert-list li{margin:5px 0}.actions{display:flex;flex-wrap:wrap;gap:10px;margin-top:24px}.button{display:inline-block;padding:10px 16px;border:1px solid #ffcf40;border-radius:5px;background:#ffcf40;color:#111;text-decoration:none;font-weight:bold}.button.secondary{background:transparent;color:#e8eef5;border-color:#536273}@media(max-width:480px){main{margin:20px auto;padding:22px}.actions{display:grid}.button{text-align:center}}</style></head><body><main>${body}</main></body></html>`, status);
 
+type VisitorEventRow = {
+  browser_id: string;
+  session_id: string;
+  event: string;
+  view_name: string;
+  occurred_at: string;
+  context_json: string;
+  country: string | null;
+  region: string | null;
+  region_code: string | null;
+  continent: string | null;
+  city: string | null;
+  latitude: number | null;
+  longitude: number | null;
+};
+
+const visitorGeographyReport = async (db: D1Database): Promise<JsonObject> => {
+  const result = await db.prepare(
+    `SELECT browser_id, session_id, event, view_name, occurred_at, context_json,
+            country, region, region_code, continent, city, latitude, longitude
+     FROM analytics_events
+     WHERE latitude IS NOT NULL AND longitude IS NOT NULL
+     ORDER BY occurred_at DESC
+     LIMIT 5000`,
+  ).all<VisitorEventRow>();
+  const rows = result.results;
+  const locations = new Map<string, JsonObject>();
+  const sessions = new Map<string, {
+    startedAt: string;
+    location: JsonObject;
+    pages: JsonObject[];
+  }>();
+
+  for (const row of rows) {
+    const latitude = Number(row.latitude), longitude = Number(row.longitude);
+    if (!Number.isFinite(latitude) || !Number.isFinite(longitude)) continue;
+    const country = row.country || "", region = row.region || "", city = row.city || "";
+    const locationKey = [country, row.region_code || "", city, latitude.toFixed(3), longitude.toFixed(3)].join("|");
+    const location = locations.get(locationKey) || {
+      country,
+      region,
+      regionCode: row.region_code || "",
+      continent: row.continent || "",
+      city,
+      latitude,
+      longitude,
+      views: 0,
+      uniqueBrowsers: new Set<string>(),
+      sessions: new Set<string>(),
+      pickStarts: 0,
+      submissions: 0,
+      players: [],
+    };
+    if (row.event === "page_view") location.views = Number(location.views) + 1;
+    if (row.event === "picks_started") location.pickStarts = Number(location.pickStarts) + 1;
+    if (row.event === "submission") location.submissions = Number(location.submissions) + 1;
+    (location.uniqueBrowsers as Set<string>).add(row.browser_id);
+    (location.sessions as Set<string>).add(row.session_id);
+    locations.set(locationKey, location);
+
+    const session = sessions.get(row.session_id) || {
+      startedAt: row.occurred_at,
+      location: { country, region, city },
+      pages: [],
+    };
+    if (row.occurred_at < session.startedAt) session.startedAt = row.occurred_at;
+    if (row.event === "page_view") session.pages.unshift({
+      view: row.view_name,
+      enteredAt: row.occurred_at,
+      durationSeconds: null,
+    });
+    if (row.event === "view_duration") {
+      try {
+        const context = JSON.parse(row.context_json) as { durationSeconds?: unknown };
+        const page = session.pages.find((item) => item.view === row.view_name && item.durationSeconds == null);
+        const duration = Number(context.durationSeconds);
+        if (page && Number.isFinite(duration) && duration >= 0) page.durationSeconds = duration;
+      } catch (error) {
+        console.warn("Visitor duration context could not be parsed.", error);
+      }
+    }
+    sessions.set(row.session_id, session);
+  }
+
+  return {
+    updatedAt: new Date().toISOString(),
+    privacy: "Session timelines contain page names, active time, and approximate Cloudflare network city/region/country. No IP addresses, browser IDs, or session IDs are published.",
+    locations: [...locations.values()].map((location) => ({
+      ...location,
+      uniqueBrowsers: (location.uniqueBrowsers as Set<string>).size,
+      sessions: (location.sessions as Set<string>).size,
+    })),
+    sessions: [...sessions.values()]
+      .sort((left, right) => right.startedAt.localeCompare(left.startedAt))
+      .map((session, index) => ({
+        sessionNumber: index + 1,
+        startedAt: session.startedAt,
+        location: session.location,
+        pages: session.pages,
+        activeSeconds: session.pages.reduce((total, page) => total + (Number(page.durationSeconds) || 0), 0),
+      })),
+  };
+};
+
 const escapeHtml = (value: unknown): string => String(value).replace(/[&<>"']/g, (character) => ({
   "&": "&amp;", "<": "&lt;", ">": "&gt;", '"': "&quot;", "'": "&#39;",
 }[character] || character));
@@ -392,25 +496,10 @@ const handleGet = async (request: Request, env: Env): Promise<Response> => {
   const action = url.searchParams.get("action") || "current-week";
   if (action === "analytics-status") return json({ ok: true, analytics: true }, 200, env.CORS_ORIGIN);
   if (action === "visitor-geography") {
-    const relayUrl = env.EMAIL_RELAY_URL?.trim();
-    if (!relayUrl) return json({ ok: false, error: "Visitor geography is not configured." }, 503, env.CORS_ORIGIN);
-    const reportUrl = new URL(relayUrl);
-    reportUrl.searchParams.set("action", "visitor-geography");
-    let response: Response;
     try {
-      response = await fetch(reportUrl);
+      return json(await visitorGeographyReport(env.DB), 200, env.CORS_ORIGIN);
     } catch (error) {
-      console.error("Visitor geography relay request failed.", error);
-      return json({ ok: false, error: "Visitor geography is temporarily unavailable." }, 502, env.CORS_ORIGIN);
-    }
-    if (!response.ok) {
-      console.error(`Visitor geography relay returned ${response.status}.`);
-      return json({ ok: false, error: "Visitor geography is temporarily unavailable." }, 502, env.CORS_ORIGIN);
-    }
-    try {
-      return json(JSON.parse(await response.text()) as JsonObject, 200, env.CORS_ORIGIN);
-    } catch (error) {
-      console.error("Visitor geography relay returned invalid JSON.", error);
+      console.error("Visitor geography report failed.", error);
       return json({ ok: false, error: "Visitor geography is temporarily unavailable." }, 502, env.CORS_ORIGIN);
     }
   }
@@ -1147,7 +1236,7 @@ const fetchOpenMeteoForecast = async (
 const enrichActiveSlateGames = async (games: JsonObject[], season: number, week: number): Promise<JsonObject[]> => {
   const response = await fetch(`https://site.api.espn.com/apis/site/v2/sports/football/nfl/scoreboard?dates=${season}&seasontype=2&week=${week}&limit=100`, { cf: { cacheTtl: 300 } });
   if (!response.ok) return games;
-  const scoreboard = await response.json() as { events?: { id?: string; competitions?: { competitors?: { homeAway?: string; team?: { abbreviation?: string; displayName?: string } }[]; venue?: { fullName?: string; indoor?: boolean; address?: { city?: string; state?: string } }; broadcasts?: { names?: string[] }[] }[] }[] };
+  const scoreboard = await response.json() as { events?: { id?: string; competitions?: { competitors?: { homeAway?: string; records?: { summary?: string }[]; team?: { abbreviation?: string; displayName?: string } }[]; venue?: { fullName?: string; indoor?: boolean; address?: { city?: string; state?: string } }; broadcasts?: { names?: string[] }[] }[] }[] };
   const events = new Map((scoreboard.events || []).map((event) => [String(event.id || ""), event]));
   const summaries = await Promise.all(games.map(async (game) => {
     const eventId = String(game.gameId || "").replace(/^espn\./, "");
@@ -1188,8 +1277,9 @@ const enrichActiveSlateGames = async (games: JsonObject[], season: number, week:
     const event = events.get(String(game.gameId || "").replace(/^espn\./, ""));
     const competition = event?.competitions?.[0];
     if (!competition) return game;
-    const team = (homeAway: string) => competition.competitors?.find((entry) => entry.homeAway === homeAway)?.team;
-    const away = team("away"), home = team("home"), venue = competition.venue;
+    const competitor = (homeAway: string) => competition.competitors?.find((entry) => entry.homeAway === homeAway);
+    const awayEntry = competitor("away"), homeEntry = competitor("home");
+    const away = awayEntry?.team, home = homeEntry?.team, venue = competition.venue;
     const normalizedFavorite = normalizeNflAbbreviation(game.favorite);
     const normalizedUnderdog = normalizeNflAbbreviation(game.underdog);
     return {
@@ -1198,8 +1288,8 @@ const enrichActiveSlateGames = async (games: JsonObject[], season: number, week:
       underdog: String(game.underdog || "") === String(game.underdog || "").toUpperCase() ? normalizedUnderdog : normalizedUnderdog.toLowerCase(),
       away: normalizeNflAbbreviation(away?.abbreviation).toLowerCase() || game.away,
       home: normalizeNflAbbreviation(home?.abbreviation) || game.home,
-      awayTeam: { abbreviation: normalizeNflAbbreviation(away?.abbreviation), name: away?.displayName || "" },
-      homeTeam: { abbreviation: normalizeNflAbbreviation(home?.abbreviation), name: home?.displayName || "" },
+      awayTeam: { abbreviation: normalizeNflAbbreviation(away?.abbreviation), name: away?.displayName || "", record: awayEntry?.records?.[0]?.summary || "" },
+      homeTeam: { abbreviation: normalizeNflAbbreviation(home?.abbreviation), name: home?.displayName || "", record: homeEntry?.records?.[0]?.summary || "" },
       venueName: venue?.fullName || "",
       venueCity: venue?.address?.city || "",
       venueState: venue?.address?.state || "",
@@ -1626,9 +1716,9 @@ const listNotificationSubscribers = async (payload: JsonObject, env: Env): Promi
   }, 200, env.CORS_ORIGIN);
 };
 
-const handleAnalytics = async (payload: JsonObject, env: Env): Promise<Response> => {
+const handleAnalytics = async (payload: JsonObject, request: Request, env: Env): Promise<Response> => {
   const event = cleanText(payload.event, 30);
-  const allowedEvents = new Set(["page_view", "picks_started", "submission"]);
+  const allowedEvents = new Set(["page_view", "picks_started", "submission", "view_duration"]);
   if (!allowedEvents.has(event)) return json({ ok: false, error: "Unknown analytics event." }, 400, env.CORS_ORIGIN);
   const browserId = cleanText(payload.browserId, 64).replace(/[^a-zA-Z0-9-]/g, "");
   const sessionId = cleanText(payload.sessionId, 64).replace(/[^a-zA-Z0-9-]/g, "");
@@ -1642,12 +1732,21 @@ const handleAnalytics = async (payload: JsonObject, env: Env): Promise<Response>
     viewport: cleanText(payload.viewport, 20),
     language: cleanText(payload.language, 20),
     timeZone: cleanText(payload.timeZone, 60),
+    durationSeconds: Math.max(0, Math.min(86400, Number(payload.durationSeconds) || 0)),
   };
+  const geography = request.cf;
+  const latitude = Number(geography?.latitude), longitude = Number(geography?.longitude);
   await env.DB
     .prepare(
-      "INSERT INTO analytics_events (browser_id, session_id, event, view_name, context_json) VALUES (?, ?, ?, ?, ?)",
+      `INSERT INTO analytics_events
+       (browser_id, session_id, event, view_name, context_json, country, region, region_code, continent, city, latitude, longitude)
+       VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`,
     )
-    .bind(browserId, sessionId, event, view, JSON.stringify(context))
+    .bind(
+      browserId, sessionId, event, view, JSON.stringify(context),
+      geography?.country || "", geography?.region || "", geography?.regionCode || "", geography?.continent || "", geography?.city || "",
+      Number.isFinite(latitude) ? latitude : null, Number.isFinite(longitude) ? longitude : null,
+    )
     .run();
   return json({ ok: true }, 200, env.CORS_ORIGIN);
 };
@@ -1901,7 +2000,7 @@ const handlePost = async (request: Request, env: Env): Promise<Response> => {
   }
   if (action === "notification-subscribers") return listNotificationSubscribers(payload, env);
   if (action === "release-picks-ready") return releasePicksReady(payload, env);
-  if (action === "log-visit") return handleAnalytics(payload, env);
+  if (action === "log-visit") return handleAnalytics(payload, request, env);
   if (action === "subscribe-notifications") return subscribeNotifications(request, payload, env);
   if (action === "update-notifications") return updateNotificationPreferences(payload, env);
   if (action === "correct-submission-name") return correctSubmission(payload, env);

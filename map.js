@@ -111,12 +111,35 @@ let fbpMapVisitorRefreshPending = false;
 async function fbpMapLoadVisitorData() {
   const separator = WEBSITE_NOTIFICATION_ENDPOINT.includes("?") ? "&" : "?";
   const liveUrl = `${WEBSITE_NOTIFICATION_ENDPOINT}${separator}action=visitor-geography&_=${Date.now()}`;
+  const archiveUrl = `./data/visitor_geography.json?v=${Date.now()}`;
+  const mergeLocations = (archive, live) => {
+    const locations = new Map();
+    [...(archive.locations || []), ...(live.locations || [])].forEach(location => {
+      const key = [location.country, location.regionCode, location.city, Number(location.latitude).toFixed(3), Number(location.longitude).toFixed(3)].join("|");
+      const current = locations.get(key) || { ...location, views: 0, uniqueBrowsers: 0, sessions: 0, pickStarts: 0, submissions: 0, players: [] };
+      ["views", "uniqueBrowsers", "sessions", "pickStarts", "submissions"].forEach(metric => { current[metric] += Number(location[metric] || 0); });
+      current.players = [...new Set([...(current.players || []), ...(location.players || [])])].sort((left, right) => left.localeCompare(right));
+      locations.set(key, current);
+    });
+    const sessions = [...(archive.sessions || []), ...(live.sessions || [])].sort((left, right) => String(right.startedAt || "").localeCompare(String(left.startedAt || ""))).map((session, index) => ({ ...session, sessionNumber: index + 1 }));
+    return {
+      ...archive,
+      ...live,
+      updatedAt: live.updatedAt || archive.updatedAt || "",
+      locations: [...locations.values()],
+      sessions,
+    };
+  };
   try {
-    const response = await fetch(liveUrl, { cache: "no-store", signal: AbortSignal.timeout(15000) });
+    const [response, archiveResponse] = await Promise.all([
+      fetch(liveUrl, { cache: "no-store", signal: AbortSignal.timeout(15000) }),
+      fetch(archiveUrl, { cache: "no-store", signal: AbortSignal.timeout(15000) }),
+    ]);
     if (!response.ok) throw new Error(`Visitor report returned ${response.status}`);
-    return await response.json();
+    const [live, archive] = await Promise.all([response.json(), archiveResponse.ok ? archiveResponse.json() : { locations: [], sessions: [] }]);
+    return mergeLocations(archive, live);
   } catch (error) {
-    return fetch(`./data/visitor_geography.json?v=${Date.now()}`).then(response => response.ok ? response.json() : Promise.reject(error));
+    return fetch(archiveUrl).then(response => response.ok ? response.json() : Promise.reject(error));
   }
 }
 

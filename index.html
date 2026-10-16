@@ -143,10 +143,12 @@
   .website-identity-controls, .website-final-controls { grid-template-columns: 1fr; gap: 7px; margin-bottom: 8px; }
   #website-picks-form > label { margin-bottom: 7px; }
   .website-game-row { position: relative; margin-bottom: 9px; }
-  .website-matchup { display: grid; grid-template-columns: minmax(0, 1fr) minmax(142px, .48fr) minmax(0, 1fr); grid-template-rows: auto auto; align-items: stretch; gap: 8px 10px; }
-  .website-side { display: flex; grid-row: 1 / 3; min-width: 0; padding: 0; font: 14px Arial, sans-serif; text-transform: none; letter-spacing: 0; cursor: pointer; }
-  .website-team-choice { display: grid; flex: 1; grid-template-columns: 78px minmax(0, 1fr); grid-template-areas: "logo abbreviation" "logo record" "logo picked"; align-content: center; column-gap: 12px; min-width: 0; min-height: 122px; padding: 12px; border: 1px solid var(--border); border-radius: 8px; background: linear-gradient(135deg, var(--panel-2), var(--panel)); }
-  .website-team-logo { grid-area: logo; width: 78px; height: 78px; object-fit: contain; }
+  .website-matchup { display: grid; grid-template-columns: minmax(0, 1fr) minmax(154px, .54fr) minmax(0, 1fr); align-items: stretch; gap: 8px 10px; }
+  .website-side { display: flex; grid-row: 1; min-width: 0; padding: 0; font: 14px Arial, sans-serif; text-transform: none; letter-spacing: 0; cursor: pointer; }
+  .website-side:not(.right) { grid-column: 1; }
+  .website-side.right { grid-column: 3; }
+  .website-team-choice { display: grid; flex: 1; grid-template-columns: 92px minmax(0, 1fr); grid-template-areas: "logo abbreviation" "logo record" "logo picked"; align-content: center; column-gap: 12px; min-width: 0; min-height: 124px; padding: 10px; border: 1px solid var(--border); border-radius: 8px; background: linear-gradient(135deg, var(--panel-2), var(--panel)); }
+  .website-team-logo { grid-area: logo; width: 92px; height: 92px; object-fit: contain; }
   .website-team-name { display: none; }
   .website-team-abbreviation { display: block; grid-area: abbreviation; font: bold clamp(25px, 3vw, 34px)/1 Arial, sans-serif; letter-spacing: -.8px; }
   .website-team-record { grid-area: record; color: #b9d2ec; font: bold 12px/1.25 Arial, sans-serif; }
@@ -157,29 +159,38 @@
   .website-side:has(input:checked) .website-team-choice { background: #3b3315; border-color: var(--accent); color: var(--accent); }
   .website-side:has(input:checked) :is(.website-team-record, .website-team-picked) { color: #f7e7a0; }
   .website-side.right { justify-content: flex-end; text-align: right; }
-  .website-side.right .website-team-choice { grid-template-columns: minmax(0, 1fr) 78px; grid-template-areas: "abbreviation logo" "record logo" "picked logo"; }
+  .website-side.right .website-team-choice { grid-template-columns: minmax(0, 1fr) 92px; grid-template-areas: "abbreviation logo" "record logo" "picked logo"; }
   .website-side input { position: absolute; width: 1px; height: 1px; margin: 0; opacity: 0; pointer-events: none; }
-  .website-game-hub { display: contents; }
-  .website-spread { display: grid; grid-column: 2; grid-row: 1; place-items: center; align-self: center; min-height: 48px; color: var(--accent); font: bold clamp(25px, 3vw, 34px)/1 Arial, sans-serif; letter-spacing: -.8px; }
-  .website-game-context { display: grid; grid-column: 2; grid-row: 2; gap: 3px; border-inline: 1px solid var(--border); padding: 7px 4px; color: var(--muted); font: 10px/1.2 Arial, sans-serif; text-align: center; }
-  .website-game-context > span { overflow: hidden; max-width: 142px; text-overflow: ellipsis; white-space: nowrap; }
+  .website-game-hub { display: grid; grid-column: 2; grid-row: 1; grid-template-rows: auto auto minmax(46px, 1fr) auto; align-items: center; min-width: 0; padding: 6px 2px; text-align: center; }
+  .website-spread { display: grid; grid-row: 3; place-items: center; min-height: 48px; color: var(--accent); font: bold clamp(25px, 3vw, 34px)/1 Arial, sans-serif; letter-spacing: -.8px; }
+  .website-game-context { display: grid; gap: 2px; min-width: 0; color: var(--muted); font: 10px/1.2 Arial, sans-serif; text-align: center; }
+  .website-game-context-top { grid-row: 1 / 3; }
+  .website-game-context-bottom { grid-row: 4; }
+  .website-game-context > span { overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
   .website-context-venue { color: var(--text); font-weight: bold; white-space: normal !important; }
-  .website-context-weather { color: #92cdfa; }
-  .website-context-precipitation { color: #78bff0; }
+  .website-context-weather { color: #d9efff; font-weight: bold; }
+  .website-context-weather.temperature-cold { color: #78c7ff; }
+  .website-context-weather.temperature-cool { color: #b3dcff; }
+  .website-context-weather.temperature-warm { color: #ffd45d; }
+  .website-context-weather.temperature-hot { color: #ff8b63; }
+  .website-context-weather.temperature-very-hot { color: #ff5c5c; }
+  .website-context-precipitation { color: #78c7ff; }
   .website-context-gust { color: #b5c3ce; }
   .website-context-broadcast { color: var(--accent-2); }
-  .website-weather-icon { display: inline-block; min-width: 15px; margin-right: 2px; font-size: 12px; line-height: 1; vertical-align: -1px; }
+  .website-weather-icon { display: inline-block; margin: 0 2px; font-size: 15px; line-height: 1; vertical-align: -2px; }
   #view-enter-picks .notification-settings:not(#push-notification-settings) { display: none !important; }
   @media (max-width: 560px) {
-    .website-matchup { grid-template-columns: minmax(0, 1fr) 58px minmax(0, 1fr); gap: 6px; }
-    .website-team-choice { grid-template-columns: 62px minmax(0, 1fr); min-height: 100px; padding: 8px; column-gap: 6px; }
-    .website-team-logo { width: 62px; height: 62px; }
-    .website-side.right .website-team-choice { grid-template-columns: minmax(0, 1fr) 62px; }
-    .website-team-abbreviation, .website-spread { font-size: 23px; }
-    .website-team-record, .website-team-picked { font-size: 10px; }
-    .website-game-context { grid-column: 1 / -1; grid-row: 2; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 3px 8px; border-inline: 0; border-top: 1px solid var(--border); padding: 7px 2px 0; font-size: 9px; }
-    .website-game-context > span { max-width: none; }
-    .website-context-venue { grid-column: 1 / -1; }
+    .website-matchup { grid-template-columns: minmax(0, 1fr) 78px minmax(0, 1fr); gap: 4px; }
+    .website-team-choice { grid-template-columns: 74px minmax(0, 1fr); min-height: 116px; padding: 6px; column-gap: 4px; }
+    .website-team-logo { width: 74px; height: 74px; }
+    .website-side.right .website-team-choice { grid-template-columns: minmax(0, 1fr) 74px; }
+    .website-team-abbreviation, .website-spread { font-size: 24px; }
+    .website-team-record { font-size: 11px; }
+    .website-team-picked { font-size: 10px; }
+    .website-game-hub { grid-template-rows: auto auto 1fr auto; padding: 5px 0; }
+    .website-spread { min-height: 32px; font-size: 26px; }
+    .website-game-context { gap: 2px; font-size: 9px; }
+    .website-weather-icon { font-size: 16px; }
   }
   .website-instructions { margin: 0 0 18px; color: var(--muted); font: 13px/1.55 Arial, sans-serif; }
   .website-entry-context { margin: 0 0 14px; color: var(--accent); font: 12px/1.5 Arial, sans-serif; }
@@ -812,19 +823,17 @@
     .website-best-bet-code { display: block; font-size: 12px; }
     .website-game-group legend { padding-top: 3px; }
     .website-game-row { padding: 0 0 1px; }
-    .website-matchup { grid-template-columns: minmax(0, 1fr) 40px minmax(0, 1fr); gap: 3px; }
-    .website-side { min-height: 46px; padding: 4px 0; }
-    .website-team-choice { grid-template-columns: 32px minmax(0, 1fr); grid-template-areas: "logo name" "logo record"; column-gap: 6px; padding: 4px; }
-    .website-side.right .website-team-choice { grid-template-columns: minmax(0, 1fr) 32px; grid-template-areas: "name logo" "record logo"; }
-    .website-team-logo { width: 32px; height: 32px; }
+    .website-matchup { grid-template-columns: minmax(0, 1fr) 78px minmax(0, 1fr); gap: 4px; }
+    .website-side { min-height: 0; padding: 0; }
+    .website-team-choice { grid-template-columns: 74px minmax(0, 1fr); grid-template-areas: "logo abbreviation" "logo record" "logo picked"; min-height: 116px; column-gap: 4px; padding: 6px; }
+    .website-side.right .website-team-choice { grid-template-columns: minmax(0, 1fr) 74px; grid-template-areas: "abbreviation logo" "record logo" "picked logo"; }
+    .website-team-logo { width: 74px; height: 74px; }
     .website-mobile-venue { display: none !important; }
-    .website-game-context { display: flex; flex-wrap: wrap; justify-content: center; gap: 2px 6px; align-items: center; padding: 1px 3px 3px; overflow: visible; font-size: 8px; line-height: 1.1; text-align: center; white-space: normal; }
-    .website-game-context > span::before, .website-context-location { display: none; content: none; }
+    .website-game-hub { grid-template-rows: auto auto 1fr auto; padding: 5px 0; }
+    .website-game-context { display: grid; gap: 2px; padding: 0; overflow: hidden; font-size: 9px; line-height: 1.15; text-align: center; white-space: normal; }
     .website-context-venue { display: block !important; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
-    .website-context-weather { display: block; text-align: center; white-space: nowrap; }
-    .website-context-broadcast { display: block; text-align: center; white-space: nowrap; }
-    .website-game-context-neutral .website-context-location { display: block; flex-basis: 100%; text-align: center; }
-    .website-weather-icon { min-width: 12px; margin-right: 1px; font-size: 9px; }
+    .website-context-weather, .website-context-broadcast { display: block; text-align: center; white-space: nowrap; }
+    .website-weather-icon { font-size: 16px; }
   }
   .analysis-section { margin-top: 34px; padding-top: 28px; border-top: 1px solid var(--line); }
   .analysis-section:first-child { margin-top: 0; padding-top: 0; border-top: 0; }
@@ -2842,17 +2851,18 @@ function websiteGameContext(game) {
   const hasTemperature = game.temperature !== "" && game.temperature != null;
   const weatherLabel = game.indoor ? "" : /thunder|storm/.test(normalizedCondition) ? "Storm" : /snow|flurr/.test(normalizedCondition) ? "Snow" : /rain|shower/.test(normalizedCondition) ? "Rain" : /cloud|overcast/.test(normalizedCondition) ? "Cloudy" : /fog|mist/.test(normalizedCondition) ? "Fog" : /wind/.test(normalizedCondition) ? "Windy" : /sun|clear/.test(normalizedCondition) ? "Sunny" : hasTemperature ? "Weather" : "";
   const precipitationPercent = condition.match(/(\d+)%\s*(?:precip(?:itation)?|rain|snow)/i)?.[1] || "";
-  const precipitation = /snow|flurr/i.test(normalizedCondition)
-    ? `${precipitationPercent ? `${precipitationPercent}% ` : ""}snow`
-    : /rain|shower|storm/i.test(normalizedCondition)
-      ? `${precipitationPercent ? `${precipitationPercent}% ` : ""}rain`
-      : precipitationPercent ? `${precipitationPercent}% precip` : "";
+  const precipitation = precipitationPercent ? `${precipitationPercent}%` : "";
   const gusts = condition.match(/gusts?\s*(\d+\s*mph)/i)?.[1] || "";
-  const weatherGlyph = game.indoor ? "&#8962;" : /thunder|storm/.test(normalizedCondition) ? "&#9889;" : /snow|flurr/.test(normalizedCondition) ? "&#10052;" : /rain|shower/.test(normalizedCondition) ? "&#9730;" : /cloud|overcast/.test(normalizedCondition) ? "&#9729;" : /fog|mist/.test(normalizedCondition) ? "&#8776;" : /wind/.test(normalizedCondition) ? "&#8649;" : /sun|clear/.test(normalizedCondition) ? "&#9728;" : hasTemperature ? "&#9678;" : "";
-  const weatherIcon = game.indoor ? "ðŸŸï¸" : /thunder|storm/.test(normalizedCondition) ? "⛈️" : /snow|flurr/.test(normalizedCondition) ? "❄️" : /rain|shower/.test(normalizedCondition) ? "ðŸŒ§ï¸" : /cloud|overcast/.test(normalizedCondition) ? "☁️" : /fog|mist/.test(normalizedCondition) ? "ðŸŒ«ï¸" : /wind/.test(normalizedCondition) ? "ðŸ’¨" : /sun|clear/.test(normalizedCondition) ? "☀️" : hasTemperature ? "ðŸŒ¡ï¸" : "ðŸŒ¤ï¸";
+  const weatherGlyph = game.indoor ? "&#8962;" : /thunder|storm/.test(normalizedCondition) ? "&#9928;&#65039;" : /snow|flurr/.test(normalizedCondition) ? "&#10052;&#65039;" : /rain|shower/.test(normalizedCondition) ? "&#127783;&#65039;" : /cloud|overcast/.test(normalizedCondition) ? "&#9729;&#65039;" : /fog|mist/.test(normalizedCondition) ? "&#127787;&#65039;" : /wind/.test(normalizedCondition) ? "&#128168;" : /sun|clear/.test(normalizedCondition) ? "&#9728;&#65039;" : hasTemperature ? "&#9729;&#65039;" : "";
+  const precipitationGlyph = /snow|flurr/.test(normalizedCondition) ? "&#10052;&#65039;" : "&#127783;&#65039;";
+  const windGlyph = "&#128168;";
+  const temperature = Number(game.temperature);
+  const temperatureClass = Number.isFinite(temperature) ? temperature < 40 ? "temperature-cold" : temperature < 55 ? "temperature-cool" : temperature < 75 ? "temperature-warm" : temperature < 90 ? "temperature-hot" : "temperature-very-hot" : "";
   const venue = String(game.venueName || game.venue || "").replace(/\s+at\s+[^,]+$/i, "").replace(/\s+Stadium$/i, " Stdm.");
-  const details = [["venue", venue], ["location", location], ["weather", game.indoor ? "Indoor" : hasTemperature ? `${game.temperature}°` : weatherLabel], ["precipitation", precipitation], ["gust", gusts ? `gusts ${gusts}` : ""], ["broadcast", game.broadcast || game.tv]].filter(([, value]) => value);
-  return details.length ? `<div class="website-game-context${websiteIsNeutralSite(game) ? " website-game-context-neutral" : ""}">${details.map(([type, value]) => `<span class="website-context-${type}">${type === "weather" && weatherGlyph ? `<span class="website-weather-icon" role="img" aria-label="${weatherLabel || "Weather"}">${weatherGlyph}</span>` : ""}${websiteEscapeHtml(value)}</span>`).join("")}</div>` : "";
+  const weather = game.indoor ? `<span class="website-context-weather"><span class="website-weather-icon" role="img" aria-label="Indoor">&#8962;</span>Indoor</span>` : hasTemperature ? `<span class="website-context-weather ${temperatureClass}">${websiteEscapeHtml(game.temperature)}&deg;${weatherGlyph ? `<span class="website-weather-icon" role="img" aria-label="${weatherLabel || "Weather"}">${weatherGlyph}</span>` : ""}${precipitation ? `<span class="website-context-precipitation"><span class="website-weather-icon" role="img" aria-label="${/snow|flurr/.test(normalizedCondition) ? "Snow chance" : "Rain chance"}">${precipitationGlyph}</span>${precipitation}</span>` : ""}${gusts ? `<span class="website-context-gust"><span class="website-weather-icon" role="img" aria-label="Wind">${windGlyph}</span>${websiteEscapeHtml(gusts)}</span>` : ""}</span>` : "";
+  const topDetails = [weather, game.broadcast || game.tv ? `<span class="website-context-broadcast">${websiteEscapeHtml(game.broadcast || game.tv)}</span>` : ""].filter(Boolean).join("");
+  const bottomDetails = [venue ? `<span class="website-context-venue">${websiteEscapeHtml(venue)}</span>` : "", location ? `<span class="website-context-location">${websiteEscapeHtml(location)}</span>` : ""].filter(Boolean).join("");
+  return topDetails || bottomDetails ? `<div class="website-game-context website-game-context-top">${topDetails}</div><div class="website-game-context website-game-context-bottom">${bottomDetails}</div>` : "";
 }
 function websiteGameHub(game, linesReady) {
   return `<div class="website-game-hub"><span class="website-spread">${linesReady ? websiteEscapeHtml(game.spread) : "Line pending"}</span>${websiteGameContext(game)}</div>`;
@@ -7644,7 +7654,7 @@ function startHistoricalInitialization() {
 if (requestedStartupRoute !== "week-one") startHistoricalInitialization();
 </script>
 <script src="teams.js?v=20260902-2"></script>
-<script src="map.js?v=20261016-1"></script>
+<script src="map.js?v=20261016-2"></script>
 <script>
 const WEBSITE_PERSISTED_FILTER_IDS = new Set([
   "season-choice", "payout-season", "streak-category", "game-season", "game-week", "game-choice",
