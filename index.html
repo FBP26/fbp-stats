@@ -7256,9 +7256,10 @@ async function renderSubmissionStatus() {
   if (!host || !WEBSITE_SUBMISSIONS_ENDPOINT) return;
   host.innerHTML = `<p class="analysis-note">Loading submission status...</p>`;
   try {
-    const workerResponse = await fetch(`${WEBSITE_NOTIFICATION_ENDPOINT}?action=season-status`, { signal: AbortSignal.timeout(8000) });
+    const cacheBuster = Date.now();
+    const workerResponse = await fetch(`${WEBSITE_NOTIFICATION_ENDPOINT}?action=season-status&_=${cacheBuster}`, { cache: "no-store", signal: AbortSignal.timeout(8000) });
     const response = workerResponse.status === 409
-      ? await fetch(`${WEBSITE_SUBMISSIONS_ENDPOINT}${WEBSITE_SUBMISSIONS_ENDPOINT.includes("?") ? "&" : "?"}action=season-status`, { signal: AbortSignal.timeout(12000) })
+      ? await fetch(`${WEBSITE_SUBMISSIONS_ENDPOINT}${WEBSITE_SUBMISSIONS_ENDPOINT.includes("?") ? "&" : "?"}action=season-status&_=${cacheBuster}`, { cache: "no-store", signal: AbortSignal.timeout(12000) })
       : workerResponse;
     const status = await response.json();
     if (!response.ok || !status.ok) throw new Error(status.error || "Submission status is unavailable.");
