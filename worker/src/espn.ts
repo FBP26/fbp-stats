@@ -1,6 +1,7 @@
 export interface StoredGame {
   id: number;
   externalId: string;
+  kickoffAt?: string;
   favorite: string;
   underdog: string;
   homeTeam: string;
@@ -92,6 +93,8 @@ export const espnEventId = (game: StoredGame): string =>
 
 export const isRefreshWindow = (games: StoredGame[], now = new Date()): boolean => {
   const dates = games.map((game) => {
+    const kickoff = Date.parse(String(game.kickoffAt || ""));
+    if (Number.isFinite(kickoff)) return kickoff;
     const match = game.externalId.match(/(?:^|\D)(20\d{6})/);
     if (!match) return null;
     const value = match[1];

@@ -86,7 +86,7 @@ const refreshActiveGameStates = async (db: D1Database): Promise<{ refreshed: num
   if (!week) return { refreshed: 0, skipped: "no-active-week", scoreChanges: [] };
   const result = await db
     .prepare(
-      `SELECT id, external_id, favorite, underdog, home_team, away_team, metadata_json
+      `SELECT id, external_id, kickoff_at, favorite, underdog, home_team, away_team, metadata_json
        FROM games WHERE week_id = ? ORDER BY game_index`,
     )
     .bind(week.id)
@@ -94,6 +94,7 @@ const refreshActiveGameStates = async (db: D1Database): Promise<{ refreshed: num
   const games: StoredGame[] = result.results.map((row) => ({
     id: Number(row.id),
     externalId: String(row.external_id),
+    kickoffAt: String(row.kickoff_at),
     favorite: String(row.favorite),
     underdog: String(row.underdog),
     homeTeam: String(row.home_team),

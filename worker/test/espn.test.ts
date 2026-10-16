@@ -59,3 +59,13 @@ test("isRefreshWindow bounds scheduled polling around encoded game dates", () =>
   assert.equal(isRefreshWindow([game], new Date("2026-08-20T12:00:00Z")), false);
   assert.equal(isRefreshWindow([game], new Date("2026-08-30T12:00:00Z")), false);
 });
+
+test("isRefreshWindow uses kickoff timestamps for current ESPN event IDs", () => {
+  const currentEventGame = {
+    ...game,
+    externalId: "espn.401872995",
+    kickoffAt: "2026-10-16T00:15:00Z",
+  };
+  assert.equal(isRefreshWindow([currentEventGame], new Date("2026-10-16T11:41:00Z")), true);
+  assert.equal(isRefreshWindow([currentEventGame], new Date("2026-10-18T01:00:00Z")), false);
+});
