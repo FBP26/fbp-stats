@@ -7674,9 +7674,11 @@ if (location.hash.slice(1) !== startupHashRoute) history.replaceState(null, "", 
 const entryForm = document.getElementById("website-picks-form");
 const notificationRow = document.querySelector("#view-enter-picks .website-notification-row");
 const notificationSettings = document.querySelector("#view-enter-picks .notification-settings");
+const pushNotificationSettings = document.getElementById("push-notification-settings");
 if (notificationSettings && new URLSearchParams(location.search).get("notification-preview") === "1") notificationSettings.classList.add("notification-preview");
 if (entryForm && notificationSettings) entryForm.insertAdjacentElement("afterend", notificationSettings);
 if (entryForm && notificationRow) entryForm.insertAdjacentElement("afterend", notificationRow);
+if (entryForm && pushNotificationSettings) entryForm.insertAdjacentElement("afterend", pushNotificationSettings);
 const picksReadyNote = document.querySelector('#notification-preferences-form input[name="picksReady"] + span small');
 if (picksReadyNote) picksReadyNote.textContent = "All point spreads are posted.";
 const picksName = document.getElementById("website-picks-name");
