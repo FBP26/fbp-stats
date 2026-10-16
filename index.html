@@ -4098,6 +4098,11 @@ async function renderWebsiteWeekOne(currentWeekRequest = null, currentRaceReques
     if (!/^\d+(?:\.\d+)?$/.test(String(data.actualTiebreaker || ""))) data.actualTiebreaker = "";
     await new Promise(resolve => requestAnimationFrame(() => requestAnimationFrame(resolve)));
     startWebsiteAnalytics();
+    if (!liveView) {
+      renderWebsiteWeekOneGrid(data, "Week X");
+      decorateWebsiteWeekOneHeaders(data);
+      await new Promise(resolve => setTimeout(resolve, 0));
+    }
     websitePreparePlayers(data);
     websiteWriteCurrentWeekCache(data);
     if (liveView) {
@@ -4192,7 +4197,7 @@ function decorateWebsiteWeekOneHeadersLive(data) {
     const gameStatus = websiteGameStatus(game);
     const started = ["IN", "LIVE", "POST", "IN_PROGRESS", "FINAL", "COMPLETED"].includes(gameStatus);
     const spread = `<small class="pg-header-spread">${data.spreads[index]}</small>`;
-    if (!started) { const kickoff = game?.kickoffGroup || game?.kickoff || game?.statusText || ""; header.innerHTML = `${favorite}${spread}${underdog}${kickoff ? `<small class="pg-header-kickoff">${kickoff}</small>` : ""}`; return; }
+    if (!started) { const kickoff = game?.kickoffGroup || websiteKickoffGroup(game) || game?.statusText || ""; header.innerHTML = `${favorite}${spread}${underdog}${kickoff ? `<small class="pg-header-kickoff">${kickoff}</small>` : ""}`; return; }
     const score = value => `<span class="pg-header-score">${value === "" ? "-" : value}</span>`;
     const final = ["POST", "FINAL", "COMPLETED"].includes(gameStatus);
     const liveState = final ? "" : game?.espnStatusText || game?.statusText || [game?.period ? `Q${game.period}` : "", game?.clock, game?.possession ? `${game.possession} ball` : ""].filter(Boolean).join(" · ");
