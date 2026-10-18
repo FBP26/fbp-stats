@@ -1,7 +1,7 @@
 import assert from "node:assert/strict";
 import test from "node:test";
 
-import { isRefreshWindow, parseEspnGame, type StoredGame } from "../src/espn.ts";
+import { espnEventId, isRefreshWindow, parseEspnGame, type StoredGame } from "../src/espn.ts";
 
 const game: StoredGame = {
   id: 1,
@@ -68,4 +68,8 @@ test("isRefreshWindow uses kickoff timestamps for current ESPN event IDs", () =>
   };
   assert.equal(isRefreshWindow([currentEventGame], new Date("2026-10-16T11:41:00Z")), true);
   assert.equal(isRefreshWindow([currentEventGame], new Date("2026-10-18T01:00:00Z")), false);
+});
+
+test("ESPN event IDs fall back to the persisted external ID", () => {
+  assert.equal(espnEventId({ ...game, externalId: "espn.401872995", metadata: {} }), "401872995");
 });

@@ -268,6 +268,10 @@ const refreshActiveGameStates = async (db: D1Database): Promise<{ refreshed: num
   return { refreshed: games.length, skipped: "", scoreChanges };
 };
 
+const refreshCurrentWeekIfStale = async (db: D1Database): Promise<void> => {
+  await refreshActiveGameStates(db);
+};
+
 const getWeekConfig = async (db: D1Database, weekId: number): Promise<JsonObject[]> => {
   const result = await db
     .prepare(
@@ -645,6 +649,7 @@ const handleGet = async (request: Request, env: Env): Promise<Response> => {
   }
 
   if (action === "current-week" || action === "week-one") {
+    await refreshCurrentWeekIfStale(env.DB);
     const week = await activeWeek(env.DB);
     if (!week) return json({ ok: false, error: "No regular-season week is staged." }, 404, env.CORS_ORIGIN);
     const body = await buildCurrentWeek(env.DB, week);

@@ -1326,6 +1326,7 @@ const WEBSITE_PICKS_WEATHER_CACHE_KEY = "fbpPicksWeatherRefresh";
 const WEBSITE_PATH_DISPLAY_LIMIT = 50;
 const WEBSITE_SIMULATION_LIMIT = 4096;
 const WEBSITE_EXACT_CALCULATION_LIMIT = 250000;
+const WEBSITE_LIVE_CALCULATION_LIMIT = 512;
 const WEBSITE_TIEBREAK_MIN = -100;
 const WEBSITE_TIEBREAK_MAX = 1200;
 const WEBSITE_TIEBREAK_MEAN = 453;
@@ -2227,7 +2228,9 @@ function websiteCachedConditionalProbabilities(data, forced = {}) {
   const key = websiteProbabilitySignature(data, forced);
   if (!websiteProbabilityCache.has(key)) {
     if (websiteProbabilityCache.size > 40) websiteProbabilityCache.clear();
-    websiteProbabilityCache.set(key, websiteConditionalProbabilities(websiteAnalysisData(data), forced));
+    const analysisData = websiteAnalysisData(data);
+    const hasLiveGame = analysisData.games.some(game => ["LIVE", "IN", "IN_PROGRESS"].includes(websiteGameStatus(game)));
+    websiteProbabilityCache.set(key, websiteConditionalProbabilities(analysisData, forced, hasLiveGame ? WEBSITE_LIVE_CALCULATION_LIMIT : WEBSITE_EXACT_CALCULATION_LIMIT));
   }
   return websiteProbabilityCache.get(key);
 }

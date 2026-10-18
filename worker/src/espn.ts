@@ -89,7 +89,9 @@ export const parseEspnGame = (payload: unknown, game: StoredGame): EspnGameUpdat
 };
 
 export const espnEventId = (game: StoredGame): string =>
-  String(game.metadata.espnEventId || "").trim();
+  String(game.metadata.espnEventId || "").trim()
+  || game.externalId.match(/^espn\.(\d+)$/i)?.[1]
+  || "";
 
 export const isRefreshWindow = (games: StoredGame[], now = new Date()): boolean => {
   const dates = games.map((game) => {
