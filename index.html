@@ -569,6 +569,8 @@
   .rooting-table th { color: var(--muted); text-transform: uppercase; }
   .rooting-help { color: var(--positive); }
   .rooting-hurt { color: var(--danger); }
+  .rooting-impact { display: block; font-weight: 700; }
+  .rooting-delta { display: block; margin-top: 2px; font-size: 9px; font-weight: 700; opacity: .78; }
   .tiebreak-strip { position: relative; height: 86px; margin-top: 12px; border-block: 1px solid var(--border); background: linear-gradient(90deg, #18232d, #202c38); }
   .tiebreak-range { position: absolute; top: 14px; height: 20px; border: 1px solid var(--accent-2); background: #54d6b233; }
   .tiebreak-marker { position: absolute; top: 7px; width: 1px; height: 42px; background: var(--accent); }
@@ -3990,11 +3992,11 @@ function websiteRootingCell(analysis, contender, gameIndex, outcome) {
   const contribution = contender.paths.filter(path => path.outcomes[gameIndex] === outcome).reduce((sum, path) => sum + path.probabilityContribution, 0);
   const conditional = contribution / (outcomeWeight / analysis.totalWeight);
   const availableOutcomes = new Set(contender.paths.map(path => path.outcomes[gameIndex]));
-  if (availableOutcomes.size === 1 && availableOutcomes.has(outcome)) return { label: "Needs", className: "rooting-help" };
+  if (availableOutcomes.size === 1 && availableOutcomes.has(outcome)) return { label: '<span class="rooting-impact">Needs</span>', className: "rooting-help" };
   const difference = (conditional - contender.probability) * 100;
-  if (difference >= 1) return { label: `Helps +${difference.toFixed(0)}`, className: "rooting-help" };
-  if (difference <= -1) return { label: `Hurts ${difference.toFixed(0)}`, className: "rooting-hurt" };
-  return { label: "No clear edge", className: "" };
+  if (difference >= 1) return { label: `<span class="rooting-impact">Rises to ${websiteProbabilityText(conditional * 100)}</span><span class="rooting-delta">+${difference.toFixed(0)} pts</span>`, className: "rooting-help" };
+  if (difference <= -1) return { label: `<span class="rooting-impact">Falls to ${websiteProbabilityText(conditional * 100)}</span><span class="rooting-delta">${difference.toFixed(0)} pts</span>`, className: "rooting-hurt" };
+  return { label: '<span class="rooting-impact">Little change</span>', className: "" };
 }
 function websiteClinchedPlayer(data) {
   if (data.players.length < 2 || !data.games.some(game => ["IN", "LIVE", "IN_PROGRESS", "POST", "FINAL", "COMPLETED"].includes(websiteGameStatus(game)))) return null;
@@ -4033,9 +4035,9 @@ function renderWebsiteLiveScenarioTools(data, baseAnalysis = null) {
   const analysis = Object.keys(websiteForcedOutcomes).length ? websiteContenderPaths(data, websiteForcedOutcomes) : baseAnalysis || websiteContenderPaths(data);
   rooting.hidden = analysis.scenarios.variable.length > WEBSITE_EXACT_SCENARIO_GAME_LIMIT;
   if (!analysis.scenarios.variable.length) {
-    rooting.innerHTML = `<h3>Rooting matrix</h3><p>Every remaining game is locked. Projected standings now show this exact finish.</p>`;
+    rooting.innerHTML = `<h3>Outcome impact</h3><p>Every remaining game is locked. Projected standings now show this exact finish.</p>`;
   } else if (analysis.scenarios.variable.length <= WEBSITE_EXACT_SCENARIO_GAME_LIMIT) {
-    rooting.innerHTML = `<h3>Rooting matrix</h3><p>How each available result changes every contender's chance from the current baseline.</p><div class="analysis-table-wrap"><table class="rooting-table"><thead><tr><th>Contender</th>${analysis.scenarios.variable.flatMap(({ game }) => [game.underdog, game.favorite, ...(Number(game.spread) % 1 === 0 ? ["PUSH"] : [])]).map(outcome => `<th>${websiteEscapeHtml(String(outcome).toUpperCase())}</th>`).join("")}</tr></thead><tbody>${analysis.contenders.map(contender => `<tr><td><strong>${websiteEscapeHtml(contender.player.name)}</strong><br>${websiteProbabilityText(contender.probability * 100)}</td>${analysis.scenarios.variable.flatMap(({ game, index }) => [game.underdog, game.favorite, ...(Number(game.spread) % 1 === 0 ? ["PUSH"] : [])].map(outcome => websiteRootingCell(analysis, contender, index, outcome))).map(cell => `<td class="${cell.className}">${cell.label}</td>`).join("")}</tr>`).join("")}</tbody></table></div>`;
+    rooting.innerHTML = `<h3>Outcome impact</h3><p>Each result shows the contender's resulting chance. The number underneath is the percentage-point change from the chance beside their name.</p><div class="analysis-table-wrap"><table class="rooting-table"><thead><tr><th>Contender</th>${analysis.scenarios.variable.flatMap(({ game }) => [game.underdog, game.favorite, ...(Number(game.spread) % 1 === 0 ? ["PUSH"] : [])]).map(outcome => `<th>${websiteEscapeHtml(String(outcome).toUpperCase())}</th>`).join("")}</tr></thead><tbody>${analysis.contenders.map(contender => `<tr><td><strong>${websiteEscapeHtml(contender.player.name)}</strong><br>${websiteProbabilityText(contender.probability * 100)}</td>${analysis.scenarios.variable.flatMap(({ game, index }) => [game.underdog, game.favorite, ...(Number(game.spread) % 1 === 0 ? ["PUSH"] : [])].map(outcome => websiteRootingCell(analysis, contender, index, outcome))).map(cell => `<td class="${cell.className}">${cell.label}</td>`).join("")}</tr>`).join("")}</tbody></table></div>`;
   } else rooting.innerHTML = "";
   return analysis;
 }
