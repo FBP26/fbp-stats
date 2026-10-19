@@ -3998,6 +3998,7 @@ function websiteRootingCell(analysis, contender, gameIndex, outcome) {
   const availableOutcomes = new Set(contender.paths.map(path => path.outcomes[gameIndex]));
   if (availableOutcomes.size === 1 && availableOutcomes.has(outcome)) return { label: '<span class="rooting-impact">Needs</span>', className: "rooting-help" };
   const difference = (conditional - contender.probability) * 100;
+  if (conditional < .00005) return { label: `<span class="rooting-impact">Eliminated</span><span class="rooting-delta">${difference.toFixed(0)} pts</span>`, className: "rooting-hurt" };
   if (difference >= 1) return { label: `<span class="rooting-impact">Rises to ${websiteProbabilityText(conditional * 100)}</span><span class="rooting-delta">+${difference.toFixed(0)} pts</span>`, className: "rooting-help" };
   if (difference <= -1) return { label: `<span class="rooting-impact">Falls to ${websiteProbabilityText(conditional * 100)}</span><span class="rooting-delta">${difference.toFixed(0)} pts</span>`, className: "rooting-hurt" };
   return { label: '<span class="rooting-impact">Little change</span>', className: "" };
