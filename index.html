@@ -4240,7 +4240,7 @@ async function fetchWebsiteRaceReconstruction(data) {
       const summary = await response.json();
       const kickoff = summary.header?.competitions?.[0]?.date;
       const scoringPlays = Array.isArray(summary.scoringPlays) ? summary.scoringPlays : Object.values(summary.scoringPlays || {});
-      if (!kickoff || !scoringPlays.length) throw new Error(`ESPN scoring history is unavailable for ${game.away} at ${game.home}.`);
+      if (!kickoff) throw new Error(`ESPN kickoff time is unavailable for ${game.away} at ${game.home}.`);
       return { game, kickoff, scoringPlays };
     }));
     const state = initialState.map(game => ({ ...game }));
