@@ -1590,7 +1590,7 @@ function websiteRaceLeadershipAnalysis() {
     const leaderNames = ranked.filter(player => Number(player[metric] || 0) === topValue).map(player => player.name);
     const hasNext = Number.isFinite(timestamps[index + 1]);
     const end = hasNext ? timestamps[index + 1] : websiteRaceFrame === websiteRaceSnapshots.length - 1 && websiteRaceLiveNow ? Date.now() : timestamps[index];
-    const duration = hasNext ? end - timestamps[index] : Math.min(10 * 60 * 1000, end - timestamps[index]);
+    const duration = Math.min(10 * 60 * 1000, end - timestamps[index]);
     return leaderNames.length && Number.isFinite(duration) && duration > 0 ? { name: leaderNames.join(" + "), duration, index: sourceIndex, start: timestamps[index], end } : null;
   }).filter(Boolean);
   const totals = new Map(), reigns = [];
@@ -4215,6 +4215,23 @@ async function fetchWebsiteCurrentWeekRace(season, week) {
   if (!response.ok || !data.ok) throw new Error(data.error || "Could not load the current week race.");
   return data.raceSnapshots || [];
 }
+function storeWebsiteRaceSnapshot(data) {
+  if (!WEBSITE_SUBMISSIONS_ENDPOINT || !(data.games || []).some(game => ["IN", "IN_PROGRESS", "LIVE", "POST", "FINAL", "COMPLETED"].includes(websiteGameStatus(game)))) return;
+  fetch(WEBSITE_SUBMISSIONS_ENDPOINT, {
+    method: "POST",
+    headers: { "Content-Type": "application/json" },
+    body: JSON.stringify({
+      action: "race-snapshot",
+      season: data.season,
+      week: data.week,
+      players: (data.players || []).map(player => ({
+        name: player.name,
+        winProbability: parseFloat(player.winProbability || 0) || 0,
+        pathsToVictory: Number(player.pathsToVictory || 0),
+      })),
+    }),
+  }).catch(error => console.warn(`Race snapshot could not be stored: ${error.message}`));
+}
 async function renderWebsiteWeekOne(currentWeekRequest = null, currentRaceRequest = null, refreshGeneration = ++websiteLiveRefreshGeneration) {
   const liveView = document.getElementById("view-live-analysis")?.classList.contains("active");
   const weekTable = document.getElementById("week-one-table");
@@ -4237,6 +4254,7 @@ async function renderWebsiteWeekOne(currentWeekRequest = null, currentRaceReques
       await new Promise(resolve => setTimeout(resolve, 0));
     }
     websitePreparePlayers(data);
+    if (liveView) storeWebsiteRaceSnapshot(data);
     websiteWriteCurrentWeekCache(data);
     if (liveView) {
       renderWebsiteLiveAnalysis(data);

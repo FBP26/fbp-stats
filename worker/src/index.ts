@@ -702,7 +702,7 @@ const handleGet = async (request: Request, env: Env): Promise<Response> => {
     return json({ ok: true, season, week: weekNumber, phase, games: enrichedGames, enrichmentError: "" }, 200, env.CORS_ORIGIN);
   }
 
-  if (action === "race-archive") {
+  if (action === "race-archive" || action === "current-week-race") {
     const result = await env.DB
       .prepare(
         `SELECT captured_at AS timestamp, player_name AS name,
