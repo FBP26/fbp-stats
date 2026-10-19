@@ -4239,8 +4239,9 @@ async function fetchWebsiteRaceReconstruction(data) {
       if (!response.ok) throw new Error(`ESPN could not load ${game.away} at ${game.home}.`);
       const summary = await response.json();
       const kickoff = summary.header?.competitions?.[0]?.date;
-      if (!kickoff || !Array.isArray(summary.scoringPlays)) throw new Error(`ESPN scoring history is unavailable for ${game.away} at ${game.home}.`);
-      return { game, kickoff, scoringPlays: summary.scoringPlays };
+      const scoringPlays = Array.isArray(summary.scoringPlays) ? summary.scoringPlays : Object.values(summary.scoringPlays || {});
+      if (!kickoff || !scoringPlays.length) throw new Error(`ESPN scoring history is unavailable for ${game.away} at ${game.home}.`);
+      return { game, kickoff, scoringPlays };
     }));
     const state = initialState.map(game => ({ ...game }));
     const events = summaries.flatMap(({ game, kickoff, scoringPlays }) => scoringPlays.map(play => ({ game, kickoff, play, timestamp: websiteRaceReconstructionTime(kickoff, play) }))).sort((left, right) => new Date(left.timestamp) - new Date(right.timestamp));
