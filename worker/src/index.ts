@@ -1164,13 +1164,17 @@ const fetchYahooWeekGames = async (season: number, week: number): Promise<YahooW
     const odds = yahooHtml.slice(card.index ?? 0, (card.index ?? 0) + 12000).match(/\b([A-Z]{2,3}) ([+-]\d+(?:\.\d+)?)/);
     if (odds) yahooOdds.push({ gameId: card[1], matchup: card[2], favorite: normalizeNflAbbreviation(odds[1]), spread: Math.abs(Number(odds[2])) });
   }
-  return (scoreboard.events || []).map((event) => {
+  const games = (scoreboard.events || []).map((event) => {
     const competition = event.competitions?.[0] || {};
     const away = normalizeNflAbbreviation(competition.competitors?.find((team) => team.homeAway === "away")?.team?.abbreviation);
     const home = normalizeNflAbbreviation(competition.competitors?.find((team) => team.homeAway === "home")?.team?.abbreviation);
     const awayName = competition.competitors?.find((team) => team.homeAway === "away")?.team?.displayName || "";
     const homeName = competition.competitors?.find((team) => team.homeAway === "home")?.team?.displayName || "";
-    const yahooCity = (name: string) => name.replace(/ (?:49ers|Bears|Bengals|Bills|Broncos|Browns|Buccaneers|Cardinals|Chargers|Chiefs|Colts|Commanders|Cowboys|Dolphins|Eagles|Falcons|Forty Niners|Giants|Jaguars|Jets|Lions|Packers|Panthers|Patriots|Raiders|Rams|Ravens|Saints|Seahawks|Steelers|Texans|Titans|Vikings)$/i, "").replace("Los Angeles", "LA").replace("New York", "NY");
+    const yahooCity = (name: string) => ({
+      "Los Angeles Rams": "LA Rams",
+      "New York Giants": "NY Giants",
+      "New York Jets": "NY Jets",
+    } as Record<string, string>)[name] || name.replace(/ (?:49ers|Bears|Bengals|Bills|Broncos|Browns|Buccaneers|Cardinals|Chargers|Chiefs|Colts|Commanders|Cowboys|Dolphins|Eagles|Falcons|Forty Niners|Giants|Jaguars|Jets|Lions|Packers|Panthers|Patriots|Raiders|Rams|Ravens|Saints|Seahawks|Steelers|Texans|Titans|Vikings)$/i, "").replace("Los Angeles", "LA").replace("New York", "NY");
     const yahooGame = yahooOdds.find((game) => game.matchup === `${yahooCity(awayName)} @ ${yahooCity(homeName)}`);
     const favoriteCode = yahooGame?.favorite || "";
     const underdogCode = favoriteCode === away ? home : away;
@@ -1184,7 +1188,11 @@ const fetchYahooWeekGames = async (season: number, week: number): Promise<YahooW
       underdog: underdogCode === home ? home.toUpperCase() : underdogCode.toLowerCase(),
       url: yahooUrl,
     };
-  }).filter((game) => game.gameId !== "espn." && game.kickoff && game.away && game.home && game.favorite && game.underdog && Number.isFinite(game.spread))
+  }).filter((game) => game.gameId !== "espn." && game.kickoff && game.away && game.home && game.favorite && game.underdog && Number.isFinite(game.spread));
+  if (games.length !== (scoreboard.events || []).length) {
+    throw new Error(`Yahoo lines matched ${games.length} of ${(scoreboard.events || []).length} scheduled games.`);
+  }
+  return games
     .sort((left, right) => Date.parse(left.kickoff) - Date.parse(right.kickoff));
 };
 
