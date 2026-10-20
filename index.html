@@ -2899,7 +2899,8 @@ function websiteGameContext(game) {
   const venue = String(game.venueName || game.venue || "").replace(/\s+at\s+[^,]+$/i, "").replace(/\s+Stadium$/i, " Stdm.");
   const weather = game.indoor ? `<span class="website-context-weather"><span class="website-weather-icon" role="img" aria-label="Dome stadium">&#127967;&#65039;</span>Indoor</span>` : hasTemperature ? `<span class="website-context-weather ${temperatureClass}">${weatherGlyph ? `<span class="website-weather-icon" role="img" aria-label="${weatherLabel || "Weather"}">${weatherGlyph}</span>` : ""}${websiteEscapeHtml(game.temperature)}&deg;${precipitation ? `<span class="website-context-precipitation"><span class="website-weather-icon" role="img" aria-label="${/snow|flurr/.test(normalizedCondition) ? "Snow chance" : "Rain chance"}">${precipitationGlyph}</span>${precipitation}</span>` : ""}${gusts ? `<span class="website-context-gust"><span class="website-weather-icon" role="img" aria-label="Wind">${windGlyph}</span>${websiteEscapeHtml(gusts)}</span>` : ""}</span>` : "";
   const topDetails = [weather, game.broadcast || game.tv ? `<span class="website-context-broadcast">${websiteEscapeHtml(game.broadcast || game.tv)}</span>` : ""].filter(Boolean).join("");
-  const bottomDetails = [venue ? `<span class="website-context-venue">${websiteEscapeHtml(venue)}</span>` : "", location ? `<span class="website-context-location">${websiteEscapeHtml(location)}</span>` : ""].filter(Boolean).join("");
+  const venueDetails = [venue, location].filter(Boolean).join(" · ");
+  const bottomDetails = venueDetails ? `<span class="website-context-venue">${websiteEscapeHtml(venueDetails)}</span>` : "";
   return topDetails || bottomDetails ? `<div class="website-game-context website-game-context-top">${topDetails}</div><div class="website-game-context website-game-context-bottom">${bottomDetails}</div>` : "";
 }
 function websiteGameHub(game, linesReady) {
