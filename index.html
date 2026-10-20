@@ -2635,7 +2635,7 @@ function renderWebsitePersonalizedSankey(data, analysis = null) {
   Object.keys(labels).forEach(node => {
     if (node !== "start" && !node.startsWith("winner:") && (nodeFlows[node] || 0) < .015) labels[node] = "";
   });
-  const terminalFlow = scenarios.variable.length === 0 && chartEdges.length === 1;
+  const terminalFlow = indexes.length === 1;
   host.innerHTML = `<h3 class="compact-live-title">Remaining-game and tiebreak flow</h3><p class="analysis-note">Follow each possible result from left to right to see who would win the week. Orange endings are outright wins. Blue endings mean the tiebreaker decides it. Wider paths are more likely. Click or tap a path for details.</p><div class="sankey-wrap${terminalFlow ? " sankey-terminal-flow" : ""}"><canvas id="week-one-sankey-chart"></canvas></div>`;
   if (websiteSankeyChart) websiteSankeyChart.destroy();
   websiteSankeyChart = new Chart(document.getElementById("week-one-sankey-chart"), { type: "sankey", data: { datasets: [{ data: chartEdges, labels, colorFrom: context => context.dataset.data[context.dataIndex].from === "start" ? "#54d6b2" : context.dataset.data[context.dataIndex].tiebreakShare == null ? "#ffb454" : "#8ca7ff", colorTo: context => context.dataset.data[context.dataIndex].to.startsWith("winner:") ? "#54d6b2" : "#ffb454", colorMode: "gradient", borderWidth: 0 }] }, options: { responsive: true, maintainAspectRatio: false, color: "#e8eef5", layout: { padding: { right: 180 } }, plugins: { legend: { display: false }, tooltip: { callbacks: { label: context => {
