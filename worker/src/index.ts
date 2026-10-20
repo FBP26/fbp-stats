@@ -1188,6 +1188,20 @@ const syncFinalizedPayouts = async (env: Env): Promise<boolean> => {
   }
 };
 
+const syncPriorWeekPayoutsAfterSetup = async (env: Env, stagedWeek: Record<string, unknown>): Promise<boolean> => {
+  const prior = await latestFinalizedRegularSeasonWeek(env.DB);
+  if (!prior || Number(prior.season) !== Number(stagedWeek.season) || Number(prior.week) + 1 !== Number(stagedWeek.week)) return true;
+  const synchronized = await env.DB.prepare(
+    "SELECT 1 AS synchronized FROM payout_syncs WHERE season = ? AND week = ?",
+  ).bind(prior.season, prior.week).first<{ synchronized: number }>();
+  if (synchronized) return true;
+  if (!await syncFinalizedPayouts(env)) return false;
+  await env.DB.prepare(
+    "INSERT INTO payout_syncs (season, week, synchronized_at) VALUES (?, ?, CURRENT_TIMESTAMP) ON CONFLICT (season, week) DO NOTHING",
+  ).bind(prior.season, prior.week).run();
+  return true;
+};
+
 type YahooWeekGame = {
   gameId: string;
   kickoff: string;
@@ -1459,8 +1473,10 @@ const approveWeekSetupCandidate = async (payload: JsonObject, env: Env): Promise
   if (!claimed.meta.changes) return json({ ok: false, error: "This approval was already completed." }, 409, env.CORS_ORIGIN);
   const notifications = await dispatchWeekNotifications(env, week, new Set<NotificationEvent>(["picksReady"]));
   const push = await dispatchPicksReadyPush(env, week);
+  const payoutsSynchronized = await syncPriorWeekPayoutsAfterSetup(env, week);
+  if (!payoutsSynchronized) console.warn(`Payout reconciliation could not be completed after Week ${candidate.week} was staged.`);
   const failed = notifications.failed + push.failed;
-  return json({ ok: failed === 0, staged: true, week: candidate.week, ...notifications, push }, failed ? 502 : 200, env.CORS_ORIGIN);
+  return json({ ok: failed === 0, staged: true, payoutsSynchronized, week: candidate.week, ...notifications, push }, failed ? 502 : 200, env.CORS_ORIGIN);
 };
 
 const subscribeNotifications = async (request: Request, payload: JsonObject, env: Env): Promise<Response> => {
@@ -1782,7 +1798,9 @@ const releasePicksReady = async (payload: JsonObject, env: Env): Promise<Respons
   }
   const week = await syncApprovedStagedWeek(payload, env);
   const result = await dispatchWeekNotifications(env, week, new Set<NotificationEvent>(["picksReady"]));
-  return json({ ok: result.failed === 0, ...result }, result.failed ? 502 : 200, env.CORS_ORIGIN);
+  const payoutsSynchronized = await syncPriorWeekPayoutsAfterSetup(env, week);
+  if (!payoutsSynchronized) console.warn(`Payout reconciliation could not be completed after Week ${Number(week.week)} was staged.`);
+  return json({ ok: result.failed === 0, payoutsSynchronized, ...result }, result.failed ? 502 : 200, env.CORS_ORIGIN);
 };
 
 const listNotificationSubscribers = async (payload: JsonObject, env: Env): Promise<Response> => {
@@ -2161,6 +2179,9 @@ export default {
     if (refreshedWeek) {
       await dispatchWeekNotifications(env, refreshedWeek);
       await dispatchWeekPushNotifications(env, refreshedWeek, refresh.scoreChanges);
+      if (!(await syncPriorWeekPayoutsAfterSetup(env, refreshedWeek))) {
+        console.warn(`Payout reconciliation could not be completed while Week ${Number(refreshedWeek.week)} is active.`);
+      }
     }
     await createWeekSetupCandidate(env);
   },

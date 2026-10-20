@@ -4,7 +4,7 @@ import { readFile } from "node:fs/promises";
 const readJson = file => readFile(new URL(file, import.meta.url), "utf8").then(JSON.parse);
 const index = await readJson("./data/winner-recaps/index.json");
 
-assert.equal(index.weeks.length, 5, "The current season should publish five completed winner pages.");
+assert.equal(index.weeks.length, 6, "The current season should publish six completed winner pages.");
 
 for (const week of index.weeks) {
   const data = await readJson(`./data/winner-recaps/${week.file}`);
@@ -12,7 +12,8 @@ for (const week of index.weeks) {
   assert.equal(data.week, week.week);
   assert.ok(data.winners.length, `Week ${week.week} must have a winner.`);
   assert.ok(data.players.length >= data.winners.length, `Week ${week.week} must include the field.`);
-  assert.ok(data.games.length >= 15, `Week ${week.week} must include the finalized slate.`);
+  assert.ok(data.games.length, `Week ${week.week} must include the finalized slate.`);
+  assert.equal(data.games.length, data.players[0].picks.length, `Week ${week.week} games must match the finalized pick count.`);
   assert.ok(data.raceSnapshots.length, `Week ${week.week} must preserve race frames.`);
   const winner = data.winners[0];
   const helped = winner.highlights.helped;

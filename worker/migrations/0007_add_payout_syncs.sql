@@ -1,0 +1,6 @@
+CREATE TABLE IF NOT EXISTS payout_syncs (
+  season INTEGER NOT NULL,
+  week INTEGER NOT NULL,
+  synchronized_at TEXT NOT NULL DEFAULT CURRENT_TIMESTAMP,
+  PRIMARY KEY (season, week)
+);
