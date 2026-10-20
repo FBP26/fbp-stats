@@ -1106,17 +1106,35 @@ const relayPickConfirmationEmail = async (env: Env, payload: JsonObject): Promis
   }
 };
 
-const sendOwnerOperationalEmail = async (env: Env, subject: string, body: string): Promise<boolean> => {
-  if (directEmailConfigured(env)) return sendEmail(env, "fbpool07@gmail.com", subject, body);
+const sendOwnerOperationalEmail = async (env: Env, subject: string, body: string, htmlBody = ""): Promise<boolean> => {
+  if (directEmailConfigured(env)) return sendEmail(env, "fbpool07@gmail.com", subject, body, htmlBody);
   const relayUrl = env.EMAIL_RELAY_URL?.trim();
   if (!relayUrl || !env.EMAIL_RELAY_SECRET?.trim()) return false;
   const response = await fetch(relayUrl, {
     method: "POST",
     headers: { "Content-Type": "text/plain;charset=UTF-8" },
-    body: JSON.stringify({ action: "send-owner-operational-email", secret: env.EMAIL_RELAY_SECRET, subject, body }),
+    body: JSON.stringify({ action: "send-owner-operational-email", secret: env.EMAIL_RELAY_SECRET, subject, body, htmlBody }),
   });
   const result = await response.json().catch(() => null) as { ok?: boolean } | null;
   return response.ok && result?.ok === true;
+};
+
+const formatEasternDateTime = (iso: string): string => new Intl.DateTimeFormat("en-US", {
+  timeZone: "America/New_York",
+  month: "short",
+  day: "numeric",
+  hour: "numeric",
+  minute: "2-digit",
+  timeZoneName: "short",
+}).format(new Date(iso));
+
+const weekSetupEmail = (week: number, games: YahooWeekGame[], reviewUrl: string, expiresAt: string, intro: string): { body: string; html: string } => {
+  const lines = games.map((game, index) => `${index + 1}. ${game.favorite} ${game.spread} ${game.underdog}`).join("\n");
+  const expiration = formatEasternDateTime(expiresAt);
+  return {
+    body: [intro, "", lines, "", "Review and approve the slate:", reviewUrl, "", `This approval link expires ${expiration}.`].join("\n"),
+    html: `<main style="max-width:620px;margin:0 auto;font-family:Arial,sans-serif;color:#17212b"><h2 style="margin:0 0 12px">FBP Week ${week} setup is ready</h2><p>${escapeHtml(intro)}</p><ol>${games.map(game => `<li>${escapeHtml(game.favorite)} ${game.spread} ${escapeHtml(game.underdog)}</li>`).join("")}</ol><p style="margin:24px 0"><a href="${escapeHtml(reviewUrl)}" style="display:inline-block;padding:12px 18px;border-radius:6px;background:#1677ff;color:#fff;text-decoration:none;font-weight:bold">Review and approve Week ${week}</a></p><p style="color:#52606d">This approval link expires ${escapeHtml(expiration)}.</p></main>`,
+  };
 };
 
 const syncFinalizedPayouts = async (env: Env): Promise<boolean> => {
@@ -1353,11 +1371,15 @@ const createWeekSetupCandidate = async (env: Env): Promise<void> => {
     "INSERT INTO week_setup_candidates(season,week,phase,slate_hash,slate_json,approval_token_hash,expires_at) VALUES (?,?,'REGULAR_SEASON',?,?,?,?)",
   ).bind(season, week, slateHash, slateJson, await sha256(token), expiresAt).run();
   const reviewUrl = `${env.PUBLIC_API_URL || "https://fbp-api.fbp-api-worker.workers.dev"}/?action=review-week-setup&token=${token}`;
-  const lines = games.map((game, index) => `${index + 1}. ${game.favorite} ${game.spread} ${game.underdog}`).join("\n");
-  await sendOwnerOperationalEmail(env, `FBP Week ${week} lines are ready for setup approval`, [
-    `Yahoo has a valid favorite, point spread, and underdog for all ${games.length} games.`, "", lines, "",
-    "Review the slate and explicitly confirm staging in D1:", reviewUrl, "", `This link expires ${expiresAt}.`,
-  ].join("\n"));
+  const email = weekSetupEmail(week, games, reviewUrl, expiresAt, `Yahoo has a valid favorite, point spread, and underdog for all ${games.length} games.`);
+  await sendOwnerOperationalEmail(env, `FBP Week ${week} lines are ready for setup approval`, email.body, email.html);
+  await sendAdministratorPushOnce(
+    env,
+    "adminWeekSetupReady",
+    `admin-week-setup-ready:${season}:${week}:${slateHash}`,
+    `FBP Week ${week} lines are ready`,
+    "Review and approve the complete Yahoo slate to open picks.",
+  );
 };
 
 const reviewWeekSetupCandidate = async (token: string, env: Env): Promise<Response> => {
@@ -1380,11 +1402,8 @@ const resendWeekSetupReview = async (payload: JsonObject, env: Env): Promise<Res
   if (!candidate) return json({ ok: false, error: "This review link is unavailable." }, 404, env.CORS_ORIGIN);
   const games = JSON.parse(candidate.slate_json) as { games: YahooWeekGame[] };
   const reviewUrl = `${env.PUBLIC_API_URL || "https://fbp-api.fbp-api-worker.workers.dev"}/?action=review-week-setup&token=${token}`;
-  const lines = games.games.map((game, index) => `${index + 1}. ${game.favorite} ${game.spread} ${game.underdog}`).join("\n");
-  const sent = await sendOwnerOperationalEmail(env, `FBP Week ${candidate.week} lines are ready for setup approval`, [
-    `Review all ${games.games.length} verified Week ${candidate.week} spreads before staging the pool.`, "", lines, "",
-    "Approve the pool only after review:", reviewUrl, "", `This link expires ${candidate.expires_at}.`,
-  ].join("\n"));
+  const email = weekSetupEmail(candidate.week, games.games, reviewUrl, candidate.expires_at, `Review all ${games.games.length} verified Week ${candidate.week} spreads before staging the pool.`);
+  const sent = await sendOwnerOperationalEmail(env, `FBP Week ${candidate.week} lines are ready for setup approval`, email.body, email.html);
   return json({ ok: sent, week: candidate.week, expiresAt: candidate.expires_at }, sent ? 200 : 502, env.CORS_ORIGIN);
 };
 

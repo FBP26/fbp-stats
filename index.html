@@ -525,6 +525,10 @@
   .path-controls { display: grid; grid-template-columns: repeat(2, minmax(180px, 280px)); gap: 8px; margin-bottom: 10px; }
   #week-one-sankey { max-width: none; overflow-x: auto; }
   .sankey-wrap { position: relative; width: 100%; min-width: 1000px; height: 650px; }
+  .sankey-wrap.sankey-terminal-flow { height: 220px; }
+  .page-refresh-status { margin: 7px 0 0; color: var(--muted); font: 12px Arial, sans-serif; text-align: center; }
+  .page-refresh-status[data-state="loading"] { color: #8ca7ff; }
+  .page-refresh-status[data-state="stale"] { color: #ffb454; }
   .analysis-table-wrap { overflow-x: auto; }
   .analysis-table { width: 100%; border-collapse: collapse; font: 11px Arial, sans-serif; }
   .analysis-table th, .analysis-table td { padding: 7px 8px; border: 1px solid var(--border); text-align: left; }
@@ -876,7 +880,7 @@
 </head>
 <body>
 <div id="website-pull-refresh" class="pull-refresh" role="status" aria-live="polite"><span class="pull-refresh-icon" aria-hidden="true">v</span><span class="pull-refresh-label">Pull to refresh</span></div>
-<header><label class="theme-switch"><input id="theme-toggle" type="checkbox" role="switch" checked>Dark mode</label><div class="app-zoom-controls" aria-label="App zoom"><button id="app-zoom-out" type="button" title="Zoom out" aria-label="Zoom out">-</button><button id="app-zoom-in" type="button" title="Zoom in" aria-label="Zoom in">+</button><output id="app-zoom-status" class="app-zoom-status" aria-live="polite"></output></div><nav id="nav"><button data-view="enter-picks">Enter Picks</button><button data-view="week-one">Week 2</button><button data-view="live-analysis">Live</button><button data-view="players">Players</button><button data-view="alltime">All Time</button><button data-view="season">Seasons</button><button data-view="weeks">Weeks</button><button data-view="games">Games</button><button data-view="streaks">Streaks</button><button data-view="teams">Teams</button><button data-view="names">Names</button><button data-view="payout">Payout</button><button data-view="faq">FAQ</button></nav></header>
+<header><label class="theme-switch"><input id="theme-toggle" type="checkbox" role="switch" checked>Dark mode</label><div class="app-zoom-controls" aria-label="App zoom"><button id="app-zoom-out" type="button" title="Zoom out" aria-label="Zoom out">-</button><button id="app-zoom-in" type="button" title="Zoom in" aria-label="Zoom in">+</button><output id="app-zoom-status" class="app-zoom-status" aria-live="polite"></output></div><nav id="nav"><button data-view="enter-picks">Enter Picks</button><button data-view="week-one">Week 2</button><button data-view="live-analysis">Live</button><button data-view="players">Players</button><button data-view="alltime">All Time</button><button data-view="season">Seasons</button><button data-view="weeks">Weeks</button><button data-view="games">Games</button><button data-view="streaks">Streaks</button><button data-view="teams">Teams</button><button data-view="names">Names</button><button data-view="payout">Payout</button><button data-view="faq">FAQ</button></nav><p id="page-refresh-status" class="page-refresh-status" data-state="loading" role="status" aria-live="polite">Loading...</p></header>
 <aside id="website-install-help" class="install-help" hidden><div><strong>Add FBP to your Home Screen</strong><span id="website-install-copy"></span></div><button id="website-install-action" type="button" hidden>Install</button><button id="website-install-close" class="install-help-close" type="button" aria-label="Dismiss home-screen instructions">×</button></aside>
 <main>
   <section id="view-enter-picks" class="view">
@@ -2631,7 +2635,8 @@ function renderWebsitePersonalizedSankey(data, analysis = null) {
   Object.keys(labels).forEach(node => {
     if (node !== "start" && !node.startsWith("winner:") && (nodeFlows[node] || 0) < .015) labels[node] = "";
   });
-  host.innerHTML = `<h3 class="compact-live-title">Remaining-game and tiebreak flow</h3><p class="analysis-note">Follow each possible result from left to right to see who would win the week. Orange endings are outright wins. Blue endings mean the tiebreaker decides it. Wider paths are more likely. Click or tap a path for details.</p><div class="sankey-wrap"><canvas id="week-one-sankey-chart"></canvas></div>`;
+  const terminalFlow = scenarios.variable.length === 0 && chartEdges.length === 1;
+  host.innerHTML = `<h3 class="compact-live-title">Remaining-game and tiebreak flow</h3><p class="analysis-note">Follow each possible result from left to right to see who would win the week. Orange endings are outright wins. Blue endings mean the tiebreaker decides it. Wider paths are more likely. Click or tap a path for details.</p><div class="sankey-wrap${terminalFlow ? " sankey-terminal-flow" : ""}"><canvas id="week-one-sankey-chart"></canvas></div>`;
   if (websiteSankeyChart) websiteSankeyChart.destroy();
   websiteSankeyChart = new Chart(document.getElementById("week-one-sankey-chart"), { type: "sankey", data: { datasets: [{ data: chartEdges, labels, colorFrom: context => context.dataset.data[context.dataIndex].from === "start" ? "#54d6b2" : context.dataset.data[context.dataIndex].tiebreakShare == null ? "#ffb454" : "#8ca7ff", colorTo: context => context.dataset.data[context.dataIndex].to.startsWith("winner:") ? "#54d6b2" : "#ffb454", colorMode: "gradient", borderWidth: 0 }] }, options: { responsive: true, maintainAspectRatio: false, color: "#e8eef5", layout: { padding: { right: 180 } }, plugins: { legend: { display: false }, tooltip: { callbacks: { label: context => {
     const raw = context.raw;
@@ -4198,6 +4203,7 @@ function renderWebsiteTiebreakSnapshot(data, analysis) {
 }
 function renderWebsiteLiveAnalysis(data) {
   renderWebsiteRace(data);
+  if (document.getElementById("view-live-analysis")?.classList.contains("active")) websiteSetPageRefreshStatus("fresh");
   const analysis = websiteScenarioOutcomes(websiteAnalysisData(data)).variable.length ? websiteContenderPaths(data) : null;
   renderWebsiteLiveScenarioTools(data, analysis);
   renderWebsiteTiebreakSnapshot(data, analysis);
@@ -4218,7 +4224,7 @@ function websiteRenderCachedLive() {
 }
 async function fetchWebsiteCurrentWeek() {
   const separator = WEBSITE_SUBMISSIONS_ENDPOINT.includes("?") ? "&" : "?";
-  const response = await fetch(`${WEBSITE_SUBMISSIONS_ENDPOINT}${separator}action=current-week&fast=1`, { signal: AbortSignal.timeout(60000) });
+  const response = await fetch(`${WEBSITE_SUBMISSIONS_ENDPOINT}${separator}action=current-week&fast=1&_=${Date.now()}`, { cache: "no-store", signal: AbortSignal.timeout(60000) });
   const data = await response.json();
   if (response.ok && data.ok) return data;
   if (data.error === "No regular-season week is staged.") {
@@ -4232,7 +4238,7 @@ async function fetchWebsiteCurrentWeek() {
 }
 async function fetchWebsiteCurrentWeekRace(season, week) {
   const separator = WEBSITE_SUBMISSIONS_ENDPOINT.includes("?") ? "&" : "?";
-  const response = await fetch(`${WEBSITE_SUBMISSIONS_ENDPOINT}${separator}action=current-week-race&season=${season}&week=${week}`, { signal: AbortSignal.timeout(20000) });
+  const response = await fetch(`${WEBSITE_SUBMISSIONS_ENDPOINT}${separator}action=current-week-race&season=${season}&week=${week}&_=${Date.now()}`, { cache: "no-store", signal: AbortSignal.timeout(20000) });
   const data = await response.json();
   if (!response.ok || !data.ok) throw new Error(data.error || "Could not load the current week race.");
   return data.raceSnapshots || [];
@@ -4339,6 +4345,7 @@ async function renderWebsiteWeekOne(currentWeekRequest = null, currentRaceReques
     if (!data.completedWeekArchive) websiteWriteCurrentWeekCache(data);
     if (liveView) {
       renderWebsiteLiveAnalysis(data);
+      websiteSetPageRefreshStatus("fresh");
       const status = document.getElementById("live-analysis-refresh-status");
       status.hidden = !raceRequest;
       status.textContent = "Latest standings loaded. Loading race history...";
@@ -4385,6 +4392,7 @@ async function renderWebsiteWeekOne(currentWeekRequest = null, currentRaceReques
       const status = document.getElementById("live-analysis-refresh-status");
       status.hidden = false;
       status.textContent = websiteReadCurrentWeekCache() ? "The latest refresh did not finish. Showing the last loaded view." : `Live could not load: ${error.message}`;
+      websiteSetPageRefreshStatus("stale", "Showing cached data; the latest refresh failed.");
     }
     if (document.querySelector("#view-week-one.active, #view-live-analysis.active")) websiteLiveRefreshTimer = setTimeout(() => renderSelectedWebsiteWeek(true), 60000);
   }
@@ -4677,7 +4685,14 @@ function percentFormatter(cell) { const v = cell.getValue(); if (v === "" || v =
 function isMoneyColumn(name) { return /money|won\s*\$|streak.*money/i.test(name) && !/won during|weeks during/i.test(name); }
 function isPercentColumn(name) { return /^%$|win\s*%|%\s*won/i.test(name); }
 function buildColumns(columns, rows) { return columns.map(col => { const sample = rows.find(r => r[col] !== "" && r[col] != null); const value = sample && sample[col]; const numeric = value !== undefined && value !== "" && !isNaN(parseFloat(String(value).replace(/[$,%]/g, ""))); const def = { title: col, field: col, headerFilter: true, headerFilterPlaceholder: "filter...", sorter: numeric ? "number" : "string" }; if (isMoneyColumn(col)) def.formatter = moneyFormatter; else if (isPercentColumn(col)) def.formatter = percentFormatter; return def; }); }
-function showView(view) { if (view === "alltime" && startupRoutePending) return; if (view !== "season") stopSeasonLiveRace(); if (view !== "weeks") stopWeekLiveRace(); document.querySelectorAll(".view").forEach(section => section.classList.toggle("active", section.id === `view-${view}`)); document.querySelectorAll("#nav button[data-view]").forEach(btn => btn.classList.toggle("active", btn.dataset.view === view)); history.replaceState(null, "", `#${view === "week-one" ? "current-week" : view}`); if (websiteRoutes.includes(view) && view !== "picks-confirmation") localStorage.setItem("fbpLastView", view); websiteRefreshInstallHelp(view); websiteTrackEvent("page_view", view); }
+function websiteSetPageRefreshStatus(state, message = "") {
+  const status = document.getElementById("page-refresh-status");
+  if (!status) return;
+  status.dataset.state = state;
+  if (message) { status.textContent = message; return; }
+  status.textContent = `Last refreshed ${new Date().toLocaleString([], { month: "short", day: "numeric", year: "numeric", hour: "numeric", minute: "2-digit", second: "2-digit" })}`;
+}
+function showView(view) { if (view === "alltime" && startupRoutePending) return; if (view !== "season") stopSeasonLiveRace(); if (view !== "weeks") stopWeekLiveRace(); document.querySelectorAll(".view").forEach(section => section.classList.toggle("active", section.id === `view-${view}`)); document.querySelectorAll("#nav button[data-view]").forEach(btn => btn.classList.toggle("active", btn.dataset.view === view)); history.replaceState(null, "", `#${view === "week-one" ? "current-week" : view}`); if (websiteRoutes.includes(view) && view !== "picks-confirmation") localStorage.setItem("fbpLastView", view); websiteSetPageRefreshStatus("loading", view === "live-analysis" ? "Loading live analysis; this can take up to about a minute." : "Loading..."); requestAnimationFrame(() => requestAnimationFrame(() => { if (document.getElementById(`view-${view}`)?.classList.contains("active") && view !== "live-analysis") websiteSetPageRefreshStatus("fresh"); })); websiteRefreshInstallHelp(view); websiteTrackEvent("page_view", view); }
 function renderProfile(name) { const overall = (tableData.overall || []).find(row => row.Name === name); const money = (tableData.money_won || []).find(row => row.Name === name); const weekly = dashboard.filter(row => row.Name === name); document.getElementById("profile-name").textContent = name || "Choose a player"; if (!overall) { document.getElementById("profile-stats").innerHTML = ""; return; } const stats = [["Wins", overall.Wins], ["Losses", overall.Losses], ["Win percentage", (Number(overall["%"] || 0) * 100).toFixed(2) + "%"], ["Plus/minus", overall["Plus/Minus"]], ["Total money won", "$" + Number(money?.["Total Money Won"] || 0).toLocaleString()], ["Weeks won", money?.["Weeks Won"] || 0]]; document.getElementById("profile-stats").innerHTML = stats.map(([label, value]) => `<div><span>${label}</span><strong>${value}</strong></div>`).join(""); const seasons = [...new Set(weekly.map(row => row.Season))].sort(); if (profileChart) profileChart.destroy(); profileChart = new Chart(document.getElementById("profile-history-chart"), { type: "line", data: { labels: seasons, datasets: [{ label: "Wins", data: seasons.map(season => weekly.filter(row => row.Season === season).reduce((sum, row) => sum + Number(row.Wins || 0), 0)), borderColor: colors[0], backgroundColor: colors[0] + "55", tension: .25 }, { label: "Average rank", data: seasons.map(season => { const rows = weekly.filter(row => row.Season === season); return rows.reduce((sum, row) => sum + Number(row.Rank || 0), 0) / rows.length; }), borderColor: colors[1], backgroundColor: colors[1] + "55", tension: .25, yAxisID: "rank" }] }, options: { responsive: true, maintainAspectRatio: false, scales: { x: { ticks: { color: "#91a0ae" }, grid: { color: "#2a3744" } }, y: { beginAtZero: true, ticks: { color: "#91a0ae" }, grid: { color: "#2a3744" } }, rank: { position: "right", reverse: true, ticks: { color: "#91a0ae" }, grid: { drawOnChartArea: false } } }, plugins: { legend: { labels: { color: "#e8eef5" } } } } }); }
 function renderProfileLegacy(name) {
   const overall = (tableData.overall || []).find(row => row.Name === name);
@@ -7931,12 +7946,17 @@ if (["week-one", "live-analysis"].includes(startupRoute) && !WEBSITE_SUBMISSIONS
       .then(registration => registration.update())
       .catch(error => console.warn(`App install support failed: ${error.message}`)));
   }
+  let websiteForegroundRefreshAt = 0;
   const refreshVisiblePicks = () => {
-    if (!document.hidden && document.getElementById("view-enter-picks")?.classList.contains("active")) renderWebsitePicksForm(true);
+    if (document.hidden || Date.now() - websiteForegroundRefreshAt < 10_000) return;
+    websiteForegroundRefreshAt = Date.now();
+    if (document.getElementById("view-enter-picks")?.classList.contains("active")) renderWebsitePicksForm(true);
+    if (document.querySelector("#view-week-one.active, #view-live-analysis.active")) renderSelectedWebsiteWeek(true);
   };
   window.addEventListener("pageshow", event => { if (event.persisted) refreshVisiblePicks(); });
+  window.addEventListener("focus", refreshVisiblePicks);
   window.addEventListener("online", refreshVisiblePicks);
-  document.addEventListener("visibilitychange", refreshVisiblePicks);
+  document.addEventListener("visibilitychange", () => { if (!document.hidden) refreshVisiblePicks(); });
   {
     const installHelp = document.getElementById("website-install-help"), installCopy = document.getElementById("website-install-copy"), installAction = document.getElementById("website-install-action");
     const standalone = matchMedia("(display-mode: standalone)").matches || navigator.standalone === true;
