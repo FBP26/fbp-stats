@@ -1911,8 +1911,7 @@ function renderWebsiteRace(data) {
   const storedSnapshots = websiteStoredRaceSnapshots(context);
   const calculatedByTimestamp = new Map([...storedSnapshots, ...currentSnapshots].filter(snapshot => snapshot.probabilityModel === "website").map(snapshot => [snapshot.timestamp, snapshot]));
   const calculatedServerSnapshots = distinctServerSnapshots.map(snapshot => calculatedByTimestamp.get(snapshot.timestamp) || websiteRaceProbabilitySnapshot(data, snapshot));
-  const hasCanonicalServerHistory = !data.testMode && calculatedServerSnapshots.length > 0;
-  let snapshots = hasCanonicalServerHistory ? calculatedServerSnapshots : websiteMergeRaceSnapshots(storedSnapshots, currentSnapshots, calculatedServerSnapshots);
+  let snapshots = websiteMergeRaceSnapshots(storedSnapshots, currentSnapshots, calculatedServerSnapshots);
   snapshots = websiteReconcileRaceSnapshots(snapshots, data.players || []);
   const current = { timestamp: data.updatedAt || new Date().toISOString(), probabilityModel: "website", gameState: (data.games || []).map(game => ({ gameId: game.gameId || "", away: game.away || "", home: game.home || "", status: websiteGameStatus(game), period: game.period || "", clock: game.clock || "", possession: game.possession || "", awayScore: game.awayScore ?? game.favoriteScore ?? "", homeScore: game.homeScore ?? game.underdogScore ?? "" })), players: (data.players || []).map(player => ({ name: player.name, winProbability: parseFloat(player.winProbability || 0) || 0, pathsToVictory: Number(player.pathsToVictory || 0), winPercent: parseFloat(player.winPercent || 0) || 0 })) };
   const latestStored = snapshots[snapshots.length - 1];
@@ -2847,7 +2846,7 @@ async function loadActiveRegularWeek(forceRefresh = false) {
   })().finally(() => { websiteActiveRegularWeekPromise = null; });
   return websiteActiveRegularWeekPromise;
 }
-async function selectStagedPreseasonWeek() { if (!WEBSITE_SUBMISSIONS_ENDPOINT) return false; const regular = await loadActiveRegularWeek(); if (regular.staged) return false; const separator = WEBSITE_SUBMISSIONS_ENDPOINT.includes("?") ? "&" : "?"; for (const week of [4, 3, 2, 1]) { try { const response = await fetch(`${WEBSITE_SUBMISSIONS_ENDPOINT}${separator}action=preseason-test&season=2026&week=${week}`, { signal: AbortSignal.timeout(20000) }); const data = await response.json(); if (!response.ok || !data.ok || !(data.games || []).length) continue; websiteDiscoveredPreseasonData = data; websiteEntrySelection = { testMode: true, season: 2026, week, phase: "PRESEASON" }; updateWebsiteWeekLabels(websiteEntrySelection); document.getElementById("website-game-picks").dataset.ready = ""; return true; } catch (error) { console.warn(`Preseason Week ${week} discovery failed: ${error.message}`); } } return false; }
+async function selectStagedPreseasonWeek() { if (!WEBSITE_SUBMISSIONS_ENDPOINT || new URLSearchParams(location.search).get("preseason") !== "1") return false; const regular = await loadActiveRegularWeek(); if (regular.staged) return false; const separator = WEBSITE_SUBMISSIONS_ENDPOINT.includes("?") ? "&" : "?"; for (const week of [4, 3, 2, 1]) { try { const response = await fetch(`${WEBSITE_SUBMISSIONS_ENDPOINT}${separator}action=preseason-test&season=2026&week=${week}`, { signal: AbortSignal.timeout(20000) }); const data = await response.json(); if (!response.ok || !data.ok || !(data.games || []).length) continue; websiteDiscoveredPreseasonData = data; websiteEntrySelection = { testMode: true, season: 2026, week, phase: "PRESEASON" }; updateWebsiteWeekLabels(websiteEntrySelection); document.getElementById("website-game-picks").dataset.ready = ""; return true; } catch (error) { console.warn(`Preseason Week ${week} discovery failed: ${error.message}`); } } return false; }
 function websiteKickoffGroup(game) {
   const kickoff = String(game?.kickoff || game?.startTime || "");
   const date = new Date(kickoff);
@@ -4325,6 +4324,7 @@ function storeWebsiteRaceSnapshot(data) {
   if (!WEBSITE_SUBMISSIONS_ENDPOINT || !(data.games || []).some(game => ["IN", "IN_PROGRESS", "LIVE", "POST", "FINAL", "COMPLETED"].includes(websiteGameStatus(game)))) return;
   fetch(WEBSITE_SUBMISSIONS_ENDPOINT, {
     method: "POST",
+    keepalive: true,
     headers: { "Content-Type": "application/json" },
     body: JSON.stringify({
       action: "race-snapshot",
@@ -4364,7 +4364,7 @@ async function renderWebsiteWeekOne(currentWeekRequest = null, currentRaceReques
       await new Promise(resolve => setTimeout(resolve, 0));
     }
     websitePreparePlayers(data);
-    if (liveView && !data.completedWeekArchive) storeWebsiteRaceSnapshot(data);
+    if (!data.completedWeekArchive) storeWebsiteRaceSnapshot(data);
     if (!data.completedWeekArchive) websiteWriteCurrentWeekCache(data);
     if (liveView) {
       renderWebsiteLiveAnalysis(data);
