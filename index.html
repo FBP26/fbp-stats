@@ -2032,7 +2032,7 @@ function websiteRaceProbabilitySnapshot(data, snapshot, simulationLimit = WEBSIT
     underdogScores.push(favoriteIsAway ? homeScore : awayScore);
     return { ...game, ...state, favorite: data.favorites[index], underdog: data.underdogs[index], espnStatus: websiteGameStatus(state) || websiteGameStatus(game), espnAwayScore: awayScore, espnHomeScore: homeScore };
   });
-  const probabilities = websiteConditionalProbabilities({ ...data, games, favoriteScores, underdogScores }, {}, simulationLimit);
+  const probabilities = websiteConditionalProbabilities({ ...data, games, favoriteScores, underdogScores, actualTiebreaker: snapshot.actualTiebreaker ?? "" }, {}, simulationLimit);
   const priorPlayers = new Map((snapshot.players || []).map(player => [String(player.name || "").trim().toLowerCase(), player]));
   return { ...snapshot, probabilityModel: "website", players: data.players.map((player, index) => ({ ...priorPlayers.get(String(player.name || "").trim().toLowerCase()), name: player.name, winProbability: probabilities[index] || 0 })) };
 }
@@ -4244,7 +4244,7 @@ async function fetchWebsiteCurrentWeekRace(season, week) {
   return data.raceSnapshots || [];
 }
 function websiteRaceReconstructionKey(data) {
-  return `fbpRaceReconstruction-v1-${data.season}-${data.week}`;
+  return `fbpRaceReconstruction-v2-${data.season}-${data.week}`;
 }
 function websiteRaceReconstructionTime(kickoff, play) {
   const period = Number(play.period?.number) || 1;
@@ -4264,6 +4264,7 @@ async function fetchWebsiteRaceReconstruction(data) {
   if (!Array.isArray(checkpoints) || checkpoints.length < 100 || !hasEveryGameFinal) {
     const games = data.games || [];
     const initialState = games.map(game => ({ gameId: game.gameId || "", away: game.away || "", home: game.home || "", status: "PREGAME", period: "", clock: "", possession: "", awayScore: 0, homeScore: 0 }));
+    const finalGameId = String(games.at(-1)?.gameId || "");
     const summaries = await Promise.all(games.map(async game => {
       const eventId = String(game.gameId || "").replace(/^espn\./, "");
       if (!/^\d+$/.test(eventId)) throw new Error(`Missing ESPN event ID for ${game.away} at ${game.home}.`);
@@ -4271,20 +4272,30 @@ async function fetchWebsiteRaceReconstruction(data) {
       if (!response.ok) throw new Error(`ESPN could not load ${game.away} at ${game.home}.`);
       const summary = await response.json();
       const kickoff = summary.header?.competitions?.[0]?.date;
-      const scoringPlays = Array.isArray(summary.scoringPlays) ? summary.scoringPlays : Object.values(summary.scoringPlays || {});
+      const plays = (summary.drives?.previous || []).flatMap(drive => drive.plays || []).sort((left, right) => new Date(left.wallclock || 0) - new Date(right.wallclock || 0));
       if (!kickoff) throw new Error(`ESPN kickoff time is unavailable for ${game.away} at ${game.home}.`);
-      return { game, kickoff, scoringPlays };
+      return { game, kickoff, plays };
     }));
     const state = initialState.map(game => ({ ...game }));
-    const events = summaries.flatMap(({ game, kickoff, scoringPlays }) => scoringPlays.map(play => ({ game, kickoff, play, timestamp: websiteRaceReconstructionTime(kickoff, play) }))).sort((left, right) => new Date(left.timestamp) - new Date(right.timestamp));
-    checkpoints = events.map(({ game, play, timestamp }) => {
+    const events = summaries.flatMap(({ game, kickoff, plays }) => {
+      let netPassing = 0;
+      return plays.filter(play => {
+        const type = String(play.type?.text || "");
+        if (/sack/i.test(type) && !/no play/i.test(String(play.text || ""))) netPassing += Math.min(0, Number(play.statYardage) || 0);
+        else if (/(pass reception|passing touchdown|pass completion)/i.test(type)) netPassing += Number(play.statYardage) || 0;
+        return String(game.gameId) === finalGameId || Boolean(play.scoringPlay);
+      }).map(play => ({ game, kickoff, play, netPassing, timestamp: play.wallclock || websiteRaceReconstructionTime(kickoff, play) }));
+    }).sort((left, right) => new Date(left.timestamp) - new Date(right.timestamp));
+    let liveTiebreaker = "";
+    checkpoints = events.map(({ game, play, netPassing, timestamp }) => {
       const gameState = state.find(entry => entry.gameId === game.gameId);
       gameState.status = "IN";
       gameState.period = Number(play.period?.number) || "";
       gameState.clock = play.clock?.displayValue || play.clock?.value || "";
       gameState.awayScore = Number(play.awayScore) || 0;
       gameState.homeScore = Number(play.homeScore) || 0;
-      return { timestamp, reconstructed: true, probabilityModel: "website", gameState: state.map(entry => ({ ...entry })), players: [] };
+      if (String(game.gameId) === finalGameId) liveTiebreaker = netPassing;
+      return { timestamp, reconstructed: true, probabilityModel: "website", actualTiebreaker: liveTiebreaker, gameState: state.map(entry => ({ ...entry })), players: [] };
     });
     summaries.forEach(({ game, kickoff }) => {
       const gameState = state.find(entry => entry.gameId === game.gameId);
@@ -4294,7 +4305,7 @@ async function fetchWebsiteRaceReconstruction(data) {
       gameState.status = "FINAL";
       gameState.period = "";
       gameState.clock = "Final";
-      checkpoints.push({ timestamp: new Date(Math.max(new Date(kickoff).getTime() + 3.5 * 60 * 60 * 1000, new Date(lastCheckpoint.timestamp).getTime() + 1000)).toISOString(), reconstructed: true, probabilityModel: "website", gameState: state.map(entry => ({ ...entry })), players: [] });
+      checkpoints.push({ timestamp: new Date(Math.max(new Date(kickoff).getTime() + 3.5 * 60 * 60 * 1000, new Date(lastCheckpoint.timestamp).getTime() + 1000)).toISOString(), reconstructed: true, probabilityModel: "website", actualTiebreaker: String(game.gameId) === finalGameId ? data.actualTiebreaker : liveTiebreaker, gameState: state.map(entry => ({ ...entry })), players: [] });
     });
     checkpoints.sort((left, right) => new Date(left.timestamp) - new Date(right.timestamp));
     try { localStorage.setItem(cacheKey, JSON.stringify(checkpoints)); }
