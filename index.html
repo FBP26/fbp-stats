@@ -4281,8 +4281,12 @@ async function fetchWebsiteRaceReconstruction(data) {
       let netPassing = 0;
       return plays.filter(play => {
         const type = String(play.type?.text || "");
-        if (/sack/i.test(type) && !/no play/i.test(String(play.text || ""))) netPassing += Math.min(0, Number(play.statYardage) || 0);
-        else if (/(pass reception|passing touchdown|pass completion)/i.test(type)) netPassing += Number(play.statYardage) || 0;
+        const text = String(play.text || "");
+        if (/sack/i.test(type) && !/no play/i.test(text)) netPassing += Math.min(0, Number(play.statYardage) || 0);
+        else if (!/no play/i.test(text) && (/(pass reception|passing touchdown|pass completion)/i.test(type) || /\bpass\b.*\bfor -?\d+ yards\b/i.test(text))) {
+          const recoveredPass = /fumble recovery/i.test(type) ? Number(text.match(/\bfor (-?\d+) yards\b/i)?.[1]) || 0 : Number(play.statYardage) || 0;
+          netPassing += recoveredPass;
+        }
         return String(game.gameId) === finalGameId || Boolean(play.scoringPlay);
       }).map(play => ({ game, kickoff, play, netPassing, timestamp: play.wallclock || websiteRaceReconstructionTime(kickoff, play) }));
     }).sort((left, right) => new Date(left.timestamp) - new Date(right.timestamp));
