@@ -575,10 +575,11 @@
   .tiebreak-range { position: absolute; top: 14px; height: 20px; border: 1px solid var(--accent-2); background: #54d6b233; }
   .tiebreak-marker { position: absolute; top: 7px; width: 1px; height: 42px; background: var(--accent); }
   .tiebreak-marker span { position: absolute; top: 44px; left: 50%; color: var(--muted); font: 9px Arial, sans-serif; white-space: nowrap; transform: translateX(-50%); }
-  .tiebreak-marker.current { top: 21px; height: 28px; background: var(--accent-2); }
-  .tiebreak-marker.current span { top: -18px; color: var(--accent-2); }
+  .tiebreak-marker.current { top: 13px; height: 36px; background: #8eb8ff; }
+  .tiebreak-marker.current span { top: 54px; color: #8eb8ff; }
   .tiebreak-marker.guess { top: 13px; height: 36px; background: #8eb8ff; }
   .tiebreak-marker.guess span { top: 54px; color: #8eb8ff; }
+  .pg-tiebreak-actual { color: var(--text); font: 11px Arial, sans-serif; font-weight: 400; }
   .tiebreak-clinched { margin-top: 10px; color: var(--text); }
   .tiebreak-guesses { display: flex; flex-wrap: wrap; gap: 5px 12px; margin-top: 9px; color: var(--muted); font: 10px Arial, sans-serif; }
   .tiebreak-ranges { margin-top: 14px; }
@@ -4084,7 +4085,7 @@ function renderWebsiteTiebreakSnapshot(data, analysis) {
   const isLive = ["IN", "LIVE", "IN_PROGRESS"].includes(finalStatus), isFinal = ["POST", "FINAL", "COMPLETED"].includes(finalStatus), gameLabel = [finalGame.away, finalGame.home].filter(Boolean).map(team => String(team).toUpperCase()).join("–");
   const guaranteedPlayer = isFinal ? analysisData.players.find(player => parseFloat(player.winProbability || 0) >= 99.999) : websiteClinchedPlayer(analysisData);
   const liveContext = isFinal && currentYards != null ? `Final-game net passing: <strong>${currentYards}</strong>.` : isLive && currentYards != null ? `${gameLabel ? `${gameLabel} · ` : ""}${finalGame.statusText || "Live"} · Current net passing: <strong>${currentYards}</strong>.` : `${gameLabel ? `${gameLabel} · ` : ""}Final-game net passing will break a tie.`;
-  const currentMarker = (isLive || isFinal) && currentYards != null ? `<span class="tiebreak-marker current" style="left:${scale(currentYards)}%"><span>${isFinal ? "Final" : "Current"} · ${currentYards}</span></span>` : "";
+  const currentMarker = (isLive || isFinal) && currentYards != null ? `<span class="tiebreak-marker current" style="left:${scale(currentYards)}%"><span>Actual · ${currentYards}</span></span>` : "";
   const guessMarker = guaranteedPlayer ? `<span class="tiebreak-marker guess" style="left:${scale(guaranteedPlayer.tiebreaker)}%"><span>${websiteEscapeHtml(guaranteedPlayer.name)} · ${websiteEscapeHtml(guaranteedPlayer.tiebreaker)}</span></span>` : "";
   const clinched = guaranteedPlayer ? `<p class="tiebreak-clinched"><strong>${websiteEscapeHtml(guaranteedPlayer.name)} ${isFinal ? "won" : "has clinched"} the week</strong>${isFinal ? "." : " regardless of the final yardage."} The ${websiteEscapeHtml(guaranteedPlayer.tiebreaker)} guess is shown for reference.</p>` : "";
   const markerCopy = currentMarker && guessMarker ? ` The markers show the ${isFinal ? "final" : "current"} total and ${websiteEscapeHtml(guaranteedPlayer.name)}'s guess.` : guessMarker ? ` The marker shows ${websiteEscapeHtml(guaranteedPlayer.name)}'s guess.` : currentMarker ? ` The marker shows the ${isFinal ? "final" : "current"} total.` : "";
@@ -4377,7 +4378,7 @@ function renderWebsiteWeekOneGridClean(data) {
   const table = document.getElementById("week-one-table");
   if (data.loading) { table.innerHTML = '<p class="website-instructions">Loading this week\'s submissions...</p>'; return; }
   if (!rows.length) { table.innerHTML = '<p style="color:var(--muted)">No submissions yet.</p>'; return; }
-  const tiebreakDetail = data.actualTiebreaker !== "" && data.actualTiebreaker != null ? `<br><small>${data.actualTiebreaker}</small>` : "";
+  const tiebreakDetail = data.actualTiebreaker !== "" && data.actualTiebreaker != null ? `<br><span class="pg-tiebreak-actual">${data.actualTiebreaker}</span>` : "";
   let html = `<table class="picks-grid"><thead><tr><th class="pg-player">Player</th><th class="pg-game pg-week-name">Week ${data.week ?? websiteRegularSelection.week} name</th><th class="pg-sum-hdr pg-w">W</th><th class="pg-sum-hdr pg-l">L</th><th class="pg-sum-hdr">Win%</th><th class="pg-sum-hdr">Prob</th><th class="pg-sum-hdr">Paths</th>`;
   data.favorites.forEach((favorite, index) => { html += `<th class="pg-game">${favorite}<br><small>${data.spreads[index]}</small><br>${data.underdogs[index]}</th>`; });
   html += `<th class="pg-bb-hdr">BB</th><th class="pg-sum-hdr">TB${tiebreakDetail}</th></tr></thead><tbody>`;
