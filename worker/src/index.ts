@@ -1625,12 +1625,15 @@ interface NotificationDispatchResult {
   failed: number;
 }
 
+const PLAYER_EMAIL_NOTIFICATIONS_ENABLED = false;
+
 const dispatchWeekNotifications = async (
   env: Env,
   week: Record<string, unknown>,
   onlyEvents?: Set<NotificationEvent>,
 ): Promise<NotificationDispatchResult> => {
   const result = { sent: 0, skipped: 0, failed: 0 };
+  if (!PLAYER_EMAIL_NOTIFICATIONS_ENABLED) return result;
   if (!directEmailConfigured(env) && !relayEmailConfigured(env)) return result;
   const games = await getWeekConfig(env.DB, Number(week.id));
   const eventSet = onlyEvents || new Set(scheduledNotificationEvents(new Date(), games, String(week.status)));
