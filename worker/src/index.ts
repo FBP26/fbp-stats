@@ -1360,8 +1360,8 @@ const createWeekSetupCandidate = async (env: Env): Promise<void> => {
   const slateJson = JSON.stringify({ season, week, games });
   const slateHash = await sha256(slateJson);
   const existing = await env.DB.prepare(
-    "SELECT id FROM week_setup_candidates WHERE season=? AND week=? AND phase='REGULAR_SEASON' AND slate_hash=? AND status='pending' AND expires_at > CURRENT_TIMESTAMP",
-  ).bind(season, week, slateHash).first();
+    "SELECT id FROM week_setup_candidates WHERE season=? AND week=? AND phase='REGULAR_SEASON' AND status='pending' AND expires_at > CURRENT_TIMESTAMP",
+  ).bind(season, week).first();
   if (existing) return;
   await env.DB.prepare("UPDATE week_setup_candidates SET status='superseded' WHERE season=? AND week=? AND phase='REGULAR_SEASON' AND status='pending'")
     .bind(season, week).run();
