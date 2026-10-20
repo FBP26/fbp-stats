@@ -4244,7 +4244,7 @@ async function fetchWebsiteCurrentWeekRace(season, week) {
   return data.raceSnapshots || [];
 }
 function websiteRaceReconstructionKey(data) {
-  return `fbpRaceReconstruction-v4-${data.season}-${data.week}`;
+  return `fbpRaceReconstruction-v5-${data.season}-${data.week}`;
 }
 function websiteRaceReconstructionTime(kickoff, play) {
   const period = Number(play.period?.number) || 1;
@@ -4290,7 +4290,7 @@ async function fetchWebsiteRaceReconstruction(data) {
           const recoveredPass = /fumble recovery/i.test(type) ? Number(text.match(/\bfor (-?\d+) yards\b/i)?.[1]) || 0 : Number(play.statYardage) || 0;
           netPassing += recoveredPass;
         }
-        return String(game.gameId) === finalGameId || Boolean(play.scoringPlay);
+        return Boolean(play.scoringPlay);
       }).map(play => ({ game, kickoff, play, netPassing, timestamp: play.wallclock || websiteRaceReconstructionTime(kickoff, play) }));
       const finalPlay = plays.at(-1);
       if (finalPlay) gameEvents.push({ game, kickoff, final: true, netPassing, timestamp: new Date(new Date(finalPlay.wallclock || websiteRaceReconstructionTime(kickoff, finalPlay)).getTime() + 1000).toISOString() });
