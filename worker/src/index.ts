@@ -1168,11 +1168,10 @@ const fetchYahooWeekGames = async (season: number, week: number): Promise<YahooW
     const competition = event.competitions?.[0] || {};
     const away = normalizeNflAbbreviation(competition.competitors?.find((team) => team.homeAway === "away")?.team?.abbreviation);
     const home = normalizeNflAbbreviation(competition.competitors?.find((team) => team.homeAway === "home")?.team?.abbreviation);
-    const date = String(event.date || "").slice(0, 10).replaceAll("-", "");
     const awayName = competition.competitors?.find((team) => team.homeAway === "away")?.team?.displayName || "";
     const homeName = competition.competitors?.find((team) => team.homeAway === "home")?.team?.displayName || "";
     const yahooCity = (name: string) => name.replace(/ (?:49ers|Bears|Bengals|Bills|Broncos|Browns|Buccaneers|Cardinals|Chargers|Chiefs|Colts|Commanders|Cowboys|Dolphins|Eagles|Falcons|Forty Niners|Giants|Jaguars|Jets|Lions|Packers|Panthers|Patriots|Raiders|Rams|Ravens|Saints|Seahawks|Steelers|Texans|Titans|Vikings)$/i, "").replace("Los Angeles", "LA").replace("New York", "NY");
-    const yahooGame = yahooOdds.find((game) => game.gameId.startsWith(date) && game.matchup === `${yahooCity(awayName)} @ ${yahooCity(homeName)}`);
+    const yahooGame = yahooOdds.find((game) => game.matchup === `${yahooCity(awayName)} @ ${yahooCity(homeName)}`);
     const favoriteCode = yahooGame?.favorite || "";
     const underdogCode = favoriteCode === away ? home : away;
     return {
