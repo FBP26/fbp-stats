@@ -4257,7 +4257,11 @@ async function fetchWebsiteRaceReconstruction(data) {
   let checkpoints;
   try { checkpoints = JSON.parse(localStorage.getItem(cacheKey) || ""); }
   catch (error) { checkpoints = null; }
-  if (!Array.isArray(checkpoints) || checkpoints.length < 100) {
+  const hasEveryGameFinal = Array.isArray(checkpoints) && (data.games || []).every(game => checkpoints.some(checkpoint =>
+    checkpoint.gameState?.some(state => state.gameId === game.gameId && ["FINAL", "POST", "COMPLETED"].includes(websiteGameStatus(state)),
+    ),
+  ));
+  if (!Array.isArray(checkpoints) || checkpoints.length < 100 || !hasEveryGameFinal) {
     const games = data.games || [];
     const initialState = games.map(game => ({ gameId: game.gameId || "", away: game.away || "", home: game.home || "", status: "PREGAME", period: "", clock: "", possession: "", awayScore: 0, homeScore: 0 }));
     const summaries = await Promise.all(games.map(async game => {
