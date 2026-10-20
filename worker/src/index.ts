@@ -1403,6 +1403,8 @@ const createWeekSetupCandidate = async (env: Env): Promise<void> => {
   const active = await latestFinalizedRegularSeasonWeek(env.DB);
   if (!active || Number(active.week) >= 18) return;
   const season = Number(active.season), week = Number(active.week) + 1;
+  const existingWeek = await findWeek(env.DB, season, week, "REGULAR_SEASON");
+  if (existingWeek && String(existingWeek.status) !== "finalized") return;
   const games = await fetchYahooWeekGames(season, week);
   if (games.length < 10 || games.length > 16) return;
   const slateJson = JSON.stringify({ season, week, games });
