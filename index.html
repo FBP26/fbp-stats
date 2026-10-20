@@ -1535,8 +1535,9 @@ function assignWebsiteRaceColors(frames, metric) {
   websiteRaceColorAssignments = new Map([...priority, ...remaining].map((name, index) => [name, index % WEBSITE_RACE_TOP_COLORS.length]));
 }
 function websiteRaceMetric() { return document.getElementById("website-race-metric")?.value || "winProbability"; }
+function websiteRaceStorageKey(context) { return `fbpRaceSnapshots-v2-${context}`; }
 function websiteStoredRaceSnapshots(context) {
-  try { return JSON.parse(localStorage.getItem(`fbpRaceSnapshots-${context}`) || "[]"); }
+  try { return JSON.parse(localStorage.getItem(websiteRaceStorageKey(context)) || "[]"); }
   catch (error) { return []; }
 }
 function websiteMergeRaceSnapshots(...groups) {
@@ -1921,7 +1922,7 @@ function renderWebsiteRace(data) {
   websiteRaceContext = context;
   websiteRaceLiveNow = (data.games || []).some(game => ["IN", "IN_PROGRESS", "LIVE"].includes(websiteGameStatus(game)));
   websiteRaceSnapshots = snapshots.filter(snapshot => snapshot?.timestamp && Array.isArray(snapshot.players) && snapshot.players.length).slice(-360);
-  try { localStorage.setItem(`fbpRaceSnapshots-${context}`, JSON.stringify(websiteRaceSnapshots)); }
+  try { localStorage.setItem(websiteRaceStorageKey(context), JSON.stringify(websiteRaceSnapshots)); }
   catch (error) { console.warn(`Race history could not be saved: ${error.message}`); }
   if (!websiteRaceSnapshots.length) { host.innerHTML = '<div class="live-race-head"><div><h3>Live Weekly Race</h3><p>Win probability and paths will build here every five minutes once the live refresh starts.</p></div></div><div class="live-race-empty">No race snapshots yet. The first production refresh will create the opening frame.</div>'; return; }
   const names = [...new Set(websiteRaceSnapshots.flatMap(snapshot => snapshot.players.map(player => player.name)))];
