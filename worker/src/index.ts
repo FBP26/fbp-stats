@@ -1148,16 +1148,32 @@ type YahooWeekGame = {
 };
 
 const fetchYahooWeekGames = async (season: number, week: number): Promise<YahooWeekGame[]> => {
-  const url = `https://site.api.espn.com/apis/site/v2/sports/football/nfl/scoreboard?dates=${season}&seasontype=2&week=${week}&limit=100`;
-  const response = await fetch(url, { cf: { cacheTtl: 300 } });
-  if (!response.ok) throw new Error(`ESPN schedule request returned HTTP ${response.status}.`);
-  const scoreboard = await response.json() as { events?: { id?: string; date?: string; competitions?: { competitors?: { homeAway?: string; team?: { abbreviation?: string } }[]; odds?: { details?: string }[] }[] }[] };
+  const scheduleUrl = `https://site.api.espn.com/apis/site/v2/sports/football/nfl/scoreboard?dates=${season}&seasontype=2&week=${week}&limit=100`;
+  const yahooUrl = `https://sports.yahoo.com/nfl/scoreboard/?week=${week}&seasonPhase=REGULAR_SEASON`;
+  const [scheduleResponse, yahooResponse] = await Promise.all([
+    fetch(scheduleUrl, { cf: { cacheTtl: 300 } }),
+    fetch(yahooUrl, { headers: { Accept: "text/html" }, cf: { cacheTtl: 300 } }),
+  ]);
+  if (!scheduleResponse.ok) throw new Error(`ESPN schedule request returned HTTP ${scheduleResponse.status}.`);
+  if (!yahooResponse.ok) throw new Error(`Yahoo scoreboard request returned HTTP ${yahooResponse.status}.`);
+  const scoreboard = await scheduleResponse.json() as { events?: { id?: string; date?: string; competitions?: { competitors?: { homeAway?: string; team?: { abbreviation?: string; displayName?: string } }[] }[] }[] };
+  const yahooHtml = await yahooResponse.text();
+  const yahooOdds: { gameId: string; matchup: string; favorite: string; spread: number }[] = [];
+  const cardPattern = /gameId:nfl\.g\.(\d+);itc:0;slk:([^;]+);/g;
+  for (const card of yahooHtml.matchAll(cardPattern)) {
+    const odds = yahooHtml.slice(card.index ?? 0, (card.index ?? 0) + 12000).match(/\b([A-Z]{2,3}) ([+-]\d+(?:\.\d+)?)/);
+    if (odds) yahooOdds.push({ gameId: card[1], matchup: card[2], favorite: normalizeNflAbbreviation(odds[1]), spread: Math.abs(Number(odds[2])) });
+  }
   return (scoreboard.events || []).map((event) => {
     const competition = event.competitions?.[0] || {};
-    const away = competition.competitors?.find((team) => team.homeAway === "away")?.team?.abbreviation || "";
-    const home = competition.competitors?.find((team) => team.homeAway === "home")?.team?.abbreviation || "";
-    const odds = String(competition.odds?.[0]?.details || "").match(/^([A-Z]+)\s+-?(\d+(?:\.\d+)?)$/);
-    const favoriteCode = odds?.[1] || "";
+    const away = normalizeNflAbbreviation(competition.competitors?.find((team) => team.homeAway === "away")?.team?.abbreviation);
+    const home = normalizeNflAbbreviation(competition.competitors?.find((team) => team.homeAway === "home")?.team?.abbreviation);
+    const date = String(event.date || "").slice(0, 10).replaceAll("-", "");
+    const awayName = competition.competitors?.find((team) => team.homeAway === "away")?.team?.displayName || "";
+    const homeName = competition.competitors?.find((team) => team.homeAway === "home")?.team?.displayName || "";
+    const yahooCity = (name: string) => name.replace(/ (?:49ers|Bears|Bengals|Bills|Broncos|Browns|Buccaneers|Cardinals|Chargers|Chiefs|Colts|Commanders|Cowboys|Dolphins|Eagles|Falcons|Forty Niners|Giants|Jaguars|Jets|Lions|Packers|Panthers|Patriots|Raiders|Rams|Ravens|Saints|Seahawks|Steelers|Texans|Titans|Vikings)$/i, "").replace("Los Angeles", "LA").replace("New York", "NY");
+    const yahooGame = yahooOdds.find((game) => game.gameId.startsWith(date) && game.matchup === `${yahooCity(awayName)} @ ${yahooCity(homeName)}`);
+    const favoriteCode = yahooGame?.favorite || "";
     const underdogCode = favoriteCode === away ? home : away;
     return {
       gameId: `espn.${event.id || ""}`,
@@ -1165,9 +1181,9 @@ const fetchYahooWeekGames = async (season: number, week: number): Promise<YahooW
       away: away.toLowerCase(),
       home: home.toUpperCase(),
       favorite: favoriteCode === home ? home.toUpperCase() : favoriteCode.toLowerCase(),
-      spread: Number(odds?.[2]),
+      spread: yahooGame?.spread ?? Number.NaN,
       underdog: underdogCode === home ? home.toUpperCase() : underdogCode.toLowerCase(),
-      url,
+      url: yahooUrl,
     };
   }).filter((game) => game.gameId !== "espn." && game.kickoff && game.away && game.home && game.favorite && game.underdog && Number.isFinite(game.spread))
     .sort((left, right) => Date.parse(left.kickoff) - Date.parse(right.kickoff));
