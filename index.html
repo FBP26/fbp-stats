@@ -4244,7 +4244,7 @@ async function fetchWebsiteCurrentWeekRace(season, week) {
   return data.raceSnapshots || [];
 }
 function websiteRaceReconstructionKey(data) {
-  return `fbpRaceReconstruction-v2-${data.season}-${data.week}`;
+  return `fbpRaceReconstruction-v3-${data.season}-${data.week}`;
 }
 function websiteRaceReconstructionTime(kickoff, play) {
   const period = Number(play.period?.number) || 1;
@@ -4277,7 +4277,10 @@ async function fetchWebsiteRaceReconstruction(data) {
       return { game, kickoff, plays };
     }));
     const state = initialState.map(game => ({ ...game }));
-    const events = summaries.flatMap(({ game, kickoff, plays }) => {
+    const finalGame = summaries.find(({ game }) => String(game.gameId) === finalGameId);
+    const events = [
+      ...(finalGame ? [{ game: finalGame.game, kickoff: finalGame.kickoff, play: { awayScore: 0, homeScore: 0, period: { number: 1 }, clock: { displayValue: "15:00" } }, netPassing: "", timestamp: finalGame.kickoff }] : []),
+      ...summaries.flatMap(({ game, kickoff, plays }) => {
       let netPassing = 0;
       return plays.filter(play => {
         const type = String(play.type?.text || "");
@@ -4289,7 +4292,8 @@ async function fetchWebsiteRaceReconstruction(data) {
         }
         return String(game.gameId) === finalGameId || Boolean(play.scoringPlay);
       }).map(play => ({ game, kickoff, play, netPassing, timestamp: play.wallclock || websiteRaceReconstructionTime(kickoff, play) }));
-    }).sort((left, right) => new Date(left.timestamp) - new Date(right.timestamp));
+      }),
+    ].sort((left, right) => new Date(left.timestamp) - new Date(right.timestamp));
     let liveTiebreaker = "";
     checkpoints = events.map(({ game, play, netPassing, timestamp }) => {
       const gameState = state.find(entry => entry.gameId === game.gameId);
@@ -4315,7 +4319,7 @@ async function fetchWebsiteRaceReconstruction(data) {
     try { localStorage.setItem(cacheKey, JSON.stringify(checkpoints)); }
     catch (error) { console.warn(`Race reconstruction could not be cached: ${error.message}`); }
   }
-  return checkpoints.map(checkpoint => websiteRaceProbabilitySnapshot(data, checkpoint, 64));
+  return checkpoints.map(checkpoint => websiteRaceProbabilitySnapshot(data, checkpoint));
 }
 function storeWebsiteRaceSnapshot(data) {
   if (!WEBSITE_SUBMISSIONS_ENDPOINT || !(data.games || []).some(game => ["IN", "IN_PROGRESS", "LIVE", "POST", "FINAL", "COMPLETED"].includes(websiteGameStatus(game)))) return;
