@@ -3816,9 +3816,12 @@ function renderWebsiteWeekRecap(data) {
   });
   const lateStart = Math.max(0, gameWinners.length - 4);
   const lateWins = gameWinners.slice(lateStart).reduce((total, gameWinner, offset) => total + (winner.picks[lateStart + offset] === gameWinner ? 1 + (winner.bestBet === gameWinner ? 1 : 0) : 0), 0);
+  const lateCorrectPicks = gameWinners.slice(lateStart).filter((gameWinner, offset) => winner.picks[lateStart + offset] === gameWinner).length;
   const bestBetIndex = winner.picks.findIndex(pick => pick === winner.bestBet);
   const bestBetHit = bestBetIndex >= 0 && gameWinners[bestBetIndex] === winner.bestBet;
+  const lateBestBetHit = bestBetHit && bestBetIndex >= lateStart;
   const underdogWins = winner.picks.filter((pick, index) => pick === data.underdogs[index] && gameWinners[index] === pick).length;
+  const underdogShare = gameWinners.length ? underdogWins / gameWinners.length * 100 : 0;
   const historicalWinningScores = (websiteWeeks || []).filter(row => row.competition === "regular" && Number(row.rank) === 1).map(row => Number(row.displayWins || 0)).filter(Number.isFinite);
   const historicalPercentile = historicalWinningScores.length ? Math.round(100 * historicalWinningScores.filter(value => value < score(winner)).length / historicalWinningScores.length) : null;
   const tiebreakZ = Number.isFinite(actual) ? Math.abs(actual - WEBSITE_TIEBREAK_MEAN) / WEBSITE_TIEBREAK_DEVIATION : null;
@@ -3832,11 +3835,11 @@ function renderWebsiteWeekRecap(data) {
     ? `${leadInterrupted.leaders.join(" and ")} moved ${leadInterrupted.deficit} win${leadInterrupted.deficit === 1 ? "" : "s"} ahead after Game ${leadInterrupted.game}`
     : `${interruptionLeaders} pulled even after Game ${leadInterrupted?.game}`;
   const journey = lastTrailing && firstSoleLead
-    ? `${winner.name} trailed ${trailingLeaders} by ${lastTrailing.deficit} win${lastTrailing.deficit === 1 ? "" : "s"} after Game ${lastTrailing.game}, then took sole possession of first after Game ${firstSoleLead.game}.${leadInterrupted && reclaimedLead ? ` ${interruptionStory}, but ${winner.name} reclaimed sole first after Game ${reclaimedLead.game} and held it through the finish.` : " The lead held through the finish."}`
-    : `${winner.name} never fell more than one win off the pace and held the lead through the finish.`;
+    ? `${winner.name} trailed ${trailingLeaders} by ${lastTrailing.deficit} win${lastTrailing.deficit === 1 ? "" : "s"} after Game ${lastTrailing.game}, then took sole possession of first after Game ${firstSoleLead.game}.${leadInterrupted && reclaimedLead ? ` ${interruptionStory}, but ${winner.name} reclaimed sole first after Game ${reclaimedLead.game}.` : ""}`
+    : `${winner.name} never fell more than one win off the pace.`;
   const tiebreakRange = tiedWinners.length === 1 ? websiteWinningTiebreakRange(winner, tiedOnWins, actual) : null;
   const tiebreakStory = Number.isFinite(actual) ? tiedOnWins.length > 1 && tiebreakRange
-    ? `${winner.name} needed the final passing total to land from ${tiebreakRange.low} through ${tiebreakRange.high}. It finished at ${actual}, ${difference(winner)} yards from the ${winner.tiebreaker} guess${tiebreakerMargin != null ? `, winning by ${tiebreakerMargin} yard${tiebreakerMargin === 1 ? "" : "s"} over ${closestTiebreakerRunner.name}` : ""}.`
+    ? `${winner.name} needed the final passing total to land ${tiebreakRange.high >= WEBSITE_TIEBREAK_MAX ? `${tiebreakRange.low} or more` : tiebreakRange.low <= WEBSITE_TIEBREAK_MIN ? `${tiebreakRange.high} or fewer` : `between ${tiebreakRange.low} and ${tiebreakRange.high}`} net passing yards. It finished at ${actual}, ${difference(winner)} yards from the ${winner.tiebreaker} guess${tiebreakerMargin != null ? `, winning by ${tiebreakerMargin} yard${tiebreakerMargin === 1 ? "" : "s"} over ${closestTiebreakerRunner.name}` : ""}.`
     : `${winner.name} guessed ${winner.tiebreaker}; the actual final-game total was ${actual}, a difference of ${difference(winner)} yards.` : "The final tiebreak total was unavailable.";
   const closeCall = runnerUp ? score(winner) === score(runnerUp)
     ? `${runnerUp.name} also finished with ${score(runnerUp)} wins. ${tiebreakStory}`
@@ -3867,15 +3870,14 @@ function renderWebsiteWeekRecap(data) {
     `This is weekly win number ${careerWins} for ${winner.name}, ranking #${careerWinRank} all time.`,
     lastWin ? `${winner.name}'s last weekly win was ${lastWin.season} Week ${lastWin.week}, ${weeksSinceLastWin} completed pool week${weeksSinceLastWin === 1 ? "" : "s"} ago.` : `This is ${winner.name}'s first archived weekly win.`,
     careerMoney ? `${winner.name}'s career winnings rise to $${careerMoney.toLocaleString()}.` : "Career winnings were unavailable.",
-    lateWins ? `${lateWins} of the winner's wins came from the final four games.` : "The winner survived the final four games without adding another win.",
-    `${bestBetHit ? "The best bet hit" : "The best bet missed"}: ${String(winner.bestBet || "none").toUpperCase()}.`,
-    underdogWins ? `${winner.name} picked ${underdogWins} winning underdog${underdogWins === 1 ? "" : "s"}.` : `${winner.name} won without a successful underdog pick.`,
+    lateCorrectPicks ? `${winner.name} picked ${lateCorrectPicks} of the final four games correctly${lateBestBetHit ? `, with the ${String(winner.bestBet).toUpperCase()} Best Bet making it ${lateWins} wins in that stretch` : ""}.` : "The winner survived the final four games without adding another win.",
+    underdogWins ? `${winner.name} picked ${underdogWins} winning underdog${underdogWins === 1 ? "" : "s"} in ${gameWinners.length} games (${underdogShare.toFixed(1)}% of the slate).` : `${winner.name} won without a successful underdog pick.`,
     tiebreakStory,
     rarity
   ];
   const winnerNames = tiedWinners.map(player => player.name).join(" and ");
   const greeting = tiedWinners.length > 1 ? `Congratulations to ${winnerNames} on sharing Week ${websiteRegularSelection.week}!` : `Congratulations, ${winner.name}, on winning Week ${websiteRegularSelection.week}!`;
-  const draft = [greeting, "", journey, closeCall, `${winner.name} finished with ${score(winner)} wins, ${lateWins ? `including ${lateWins} from the last four games` : "and had already done enough before the closing stretch"}. ${bestBetHit ? `The ${String(winner.bestBet).toUpperCase()} Best Bet delivered the extra win.` : `The win held up even without help from the ${String(winner.bestBet || "").toUpperCase()} Best Bet.`}`, underdogWins ? `${winner.name} also picked ${underdogWins} winning underdog${underdogWins === 1 ? "" : "s"}.` : "", runnerUp && score(winner) !== score(runnerUp) ? tiebreakStory : "", "", historicalPercentile != null ? `${winner.wins}-${winner.losses} is better than ${historicalPercentile}% of weekly winners all time.` : "", `This is weekly win number ${careerWins} for ${winner.name}, ranking #${careerWinRank} all time.${lastWin ? ` The last one came in ${lastWin.season} Week ${lastWin.week}, ${weeksSinceLastWin} completed pool weeks ago.` : ""}`, careerMoney ? `Career winnings now stand at $${careerMoney.toLocaleString()}.` : "", "", "Great week and a well-earned win."].filter(line => line !== "").join("\n");
+  const draft = [greeting, "", journey, closeCall, `${winner.name} finished with ${score(winner)} wins. ${lateCorrectPicks ? `They picked ${lateCorrectPicks} of the final four games correctly${lateBestBetHit ? `, and the ${String(winner.bestBet).toUpperCase()} Best Bet made it ${lateWins} wins in that stretch` : ""}.` : "They had already done enough before the closing stretch."}`, underdogWins ? `${winner.name} also picked ${underdogWins} winning underdog${underdogWins === 1 ? "" : "s"} in ${gameWinners.length} games (${underdogShare.toFixed(1)}% of the slate).` : "", runnerUp && score(winner) !== score(runnerUp) ? tiebreakStory : "", "", historicalPercentile != null ? `${winner.wins}-${winner.losses} is better than ${historicalPercentile}% of weekly winners all time.` : "", `This is weekly win number ${careerWins} for ${winner.name}, ranking #${careerWinRank} all time.${lastWin ? ` The last one came in ${lastWin.season} Week ${lastWin.week}, ${weeksSinceLastWin} completed pool weeks ago.` : ""}`, careerMoney ? `Career winnings now stand at $${careerMoney.toLocaleString()}.` : "", "", "Great week and a well-earned win."].filter(line => line !== "").join("\n");
   host.innerHTML = `<section class="week-recap"><h3 class="compact-live-title">Week ${websiteRegularSelection.week} story</h3><div class="week-recap-grid"><div class="week-recap-item"><span>Winner</span><strong>${websiteEscapeHtml(winnerNames)} · ${score(winner)} wins</strong></div><div class="week-recap-item"><span>Decisive result</span><strong>${websiteEscapeHtml(decisiveResult)}</strong></div><div class="week-recap-item"><span>Journey</span><strong>${websiteEscapeHtml(journey)}</strong></div><div class="week-recap-item"><span>Came up just short</span><strong>${websiteEscapeHtml(closeCall)}</strong></div></div><h3 class="compact-live-title">Winner message draft</h3><div class="winner-draft">${websiteEscapeHtml(draft)}</div></section>`;
 }
 function decorateWebsiteWeekOneHeaders(data) { const headers = [...document.querySelectorAll("#week-one-table th.pg-game")].slice(1, 17); headers.forEach((header, index) => { const favorite = data.favorites[index]; const underdog = data.underdogs[index]; const favoriteScore = data.favoriteScores[index]; const underdogScore = data.underdogScores[index]; const game = (data.games || []).find(item => item.favorite?.toLowerCase() === favorite.toLowerCase() && item.underdog?.toLowerCase() === underdog.toLowerCase()); const gameStatus = String(game?.status || "").toUpperCase(); const started = ["IN_PROGRESS", "FINAL", "COMPLETED"].includes(gameStatus); const status = gameStatus === "IN_PROGRESS" ? game.statusText : ["FINAL", "COMPLETED"].includes(gameStatus) ? "Final" : ""; const spread = `<small class="pg-header-spread">${data.spreads[index]}</small>`; if (!started && game) { const kickoff = game.kickoffGroup || game.kickoff || game.statusText || ""; header.innerHTML = `${favorite}${spread}${underdog}${kickoff ? `<small class="pg-header-kickoff">${kickoff}</small>` : ""}`; return; } const score = value => `<span class="pg-header-score">${value === "" ? "-" : value}</span>`; header.innerHTML = `${favorite}${score(favoriteScore)}${spread}${score(underdogScore)}${underdog}${status ? `<small class="pg-header-kickoff">${status}</small>` : ""}`; }); }
@@ -3982,14 +3984,18 @@ function renderWebsiteRaceStories() {
       if (!biggestSwing || Math.abs(swing) > Math.abs(biggestSwing.value)) biggestSwing = { name: player.name, value: swing, from: previousValues.get(player.name) || 0, to: Number(player[metric] || 0), snapshotIndex };
     });
   });
-  const topTime = [...leadership.totals.values()].sort((left, right) => right.duration - left.duration)[0];
-  const topReigns = leadership.reigns.filter(reign => reign.name === topTime?.name), topCause = topReigns.find(reign => reign.index);
+  const clinch = websiteRaceSnapshots.slice(1, websiteRaceFrame + 1).map((snapshot, offset) => ({ snapshot, index: offset + 1 })).find(({ snapshot, index }) => {
+    const current = websiteRaceRankState(snapshot, metric).ordered[0];
+    const previous = websiteRaceRankState(websiteRaceSnapshots[index - 1], metric).ordered[0];
+    return Number(current?.[metric] || 0) >= 99.95 && Number(previous?.[metric] || 0) < 99.95;
+  });
+  const clinchLeader = clinch ? websiteRaceRankState(clinch.snapshot, metric).ordered[0] : null;
   const cards = [
     { label: "Biggest climb", name: biggestJump?.value > 0 ? biggestJump.name : "No climb yet", detail: biggestJump?.value > 0 ? `${websiteRaceStoryEvent(biggestJump.snapshotIndex)} sent ${biggestJump.name} from #${biggestJump.from} to #${biggestJump.to}.` : "Ranks have held steady." },
     { label: "Wildest swing", name: biggestSwing?.name || "No swing yet", detail: biggestSwing ? `${websiteRaceStoryEvent(biggestSwing.snapshotIndex)} moved ${biggestSwing.name} from ${websiteProbabilityText(biggestSwing.from)} to ${websiteProbabilityText(biggestSwing.to)}.` : "Probabilities have held steady." },
-    { label: "Most time on top", name: topTime?.name || "Not measured yet", detail: topTime ? `${topCause ? `${websiteRaceStoryEvent(topCause.index)} started a lead stint. ` : ""}${websiteRaceDuration(topTime.duration)} total across ${topReigns.length} stint${topReigns.length === 1 ? "" : "s"}.` : "Starts with live play." }
+    { label: "Winning moment", name: clinchLeader?.name || "Still open", detail: clinch ? `${websiteRaceStoryEvent(clinch.index)} made the result unreachable.` : "No player has locked up the result yet." }
   ];
-  superlativeHost.innerHTML = `<h3>Race leaders</h3><p>The biggest moves and longest lead across the week so far.</p><div class="live-superlatives">${cards.map(card => `<div class="live-superlative"><span>${card.label}</span><strong>${websiteEscapeHtml(card.name)}</strong><span>${websiteEscapeHtml(card.detail)}</span></div>`).join("")}</div>`;
+  superlativeHost.innerHTML = `<h3>Race moments</h3><p>The moves that changed the outcome.</p><div class="live-superlatives">${cards.map(card => `<div class="live-superlative"><span>${card.label}</span><strong>${websiteEscapeHtml(card.name)}</strong><span>${websiteEscapeHtml(card.detail)}</span></div>`).join("")}</div>`;
 }
 function websiteRootingCell(analysis, contender, gameIndex, outcome) {
   const outcomeWeight = analysis.outcomeWeights.get(`${gameIndex}|${outcome}`) || 0;
@@ -4312,6 +4318,10 @@ async function renderWebsiteWeekOne(currentWeekRequest = null, currentRaceReques
   try {
     const data = await (currentWeekRequest || fetchWebsiteCurrentWeek());
     if (refreshGeneration !== websiteLiveRefreshGeneration) return;
+    const cached = websiteReadCurrentWeekCache();
+    if (data.completedWeekArchive && cached?.completedWeekArchive && Number(cached.season) === Number(data.season) && Number(cached.week) === Number(data.week) && Array.isArray(cached.raceSnapshots) && cached.raceSnapshots.length >= 100) {
+      data.raceSnapshots = cached.raceSnapshots;
+    }
     websiteRegularSelection = { season: Number(data.season) || 2026, week: Number(data.week) || 1, phase: "REGULAR_SEASON", staged: Boolean((data.games || []).length) };
     updateWebsiteWeekLabels(websiteRegularSelection);
     const raceRequest = liveView ? (currentRaceRequest || fetchWebsiteCurrentWeekRace(websiteRegularSelection.season, websiteRegularSelection.week)).catch(error => { console.warn(error.message); return null; }) : null;
@@ -4325,7 +4335,7 @@ async function renderWebsiteWeekOne(currentWeekRequest = null, currentRaceReques
     }
     websitePreparePlayers(data);
     if (liveView && !data.completedWeekArchive) storeWebsiteRaceSnapshot(data);
-    websiteWriteCurrentWeekCache(data);
+    if (!data.completedWeekArchive) websiteWriteCurrentWeekCache(data);
     if (liveView) {
       renderWebsiteLiveAnalysis(data);
       const status = document.getElementById("live-analysis-refresh-status");
@@ -4350,6 +4360,7 @@ async function renderWebsiteWeekOne(currentWeekRequest = null, currentRaceReques
         status.textContent = "Rebuilding the Week 6 race from ESPN scoring events...";
         try {
           data.raceSnapshots = await fetchWebsiteRaceReconstruction(data);
+          websiteWriteCurrentWeekCache(data);
           status.hidden = true;
         } catch (error) {
           status.hidden = false;
@@ -4360,6 +4371,7 @@ async function renderWebsiteWeekOne(currentWeekRequest = null, currentRaceReques
       } else {
         status.hidden = true;
         data.raceSnapshots = raceSnapshots;
+        websiteWriteCurrentWeekCache(data);
       }
       renderWebsiteRace(data);
     });
