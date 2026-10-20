@@ -1535,7 +1535,7 @@ function assignWebsiteRaceColors(frames, metric) {
   websiteRaceColorAssignments = new Map([...priority, ...remaining].map((name, index) => [name, index % WEBSITE_RACE_TOP_COLORS.length]));
 }
 function websiteRaceMetric() { return document.getElementById("website-race-metric")?.value || "winProbability"; }
-function websiteRaceStorageKey(context) { return `fbpRaceSnapshots-v2-${context}`; }
+function websiteRaceStorageKey(context) { return `fbpRaceSnapshots-v3-${context}`; }
 function websiteStoredRaceSnapshots(context) {
   try { return JSON.parse(localStorage.getItem(websiteRaceStorageKey(context)) || "[]"); }
   catch (error) { return []; }
@@ -1921,7 +1921,7 @@ function renderWebsiteRace(data) {
   if (current.players.length && currentSignature !== latestSignature) snapshots.push(current);
   websiteRaceContext = context;
   websiteRaceLiveNow = (data.games || []).some(game => ["IN", "IN_PROGRESS", "LIVE"].includes(websiteGameStatus(game)));
-  websiteRaceSnapshots = snapshots.filter(snapshot => snapshot?.timestamp && Array.isArray(snapshot.players) && snapshot.players.length).slice(-360);
+  websiteRaceSnapshots = snapshots.filter(snapshot => snapshot?.timestamp && Array.isArray(snapshot.players) && snapshot.players.length).slice(-720);
   try { localStorage.setItem(websiteRaceStorageKey(context), JSON.stringify(websiteRaceSnapshots)); }
   catch (error) { console.warn(`Race history could not be saved: ${error.message}`); }
   if (!websiteRaceSnapshots.length) { host.innerHTML = '<div class="live-race-head"><div><h3>Live Weekly Race</h3><p>Win probability and paths will build here every five minutes once the live refresh starts.</p></div></div><div class="live-race-empty">No race snapshots yet. The first production refresh will create the opening frame.</div>'; return; }
@@ -4244,7 +4244,7 @@ async function fetchWebsiteCurrentWeekRace(season, week) {
   return data.raceSnapshots || [];
 }
 function websiteRaceReconstructionKey(data) {
-  return `fbpRaceReconstruction-v5-${data.season}-${data.week}`;
+  return `fbpRaceReconstruction-v6-${data.season}-${data.week}`;
 }
 function websiteRaceReconstructionTime(kickoff, play) {
   const period = Number(play.period?.number) || 1;
@@ -4279,7 +4279,7 @@ async function fetchWebsiteRaceReconstruction(data) {
     const state = initialState.map(game => ({ ...game }));
     const finalGame = summaries.find(({ game }) => String(game.gameId) === finalGameId);
     const events = [
-      ...(finalGame ? [{ game: finalGame.game, kickoff: finalGame.kickoff, play: { awayScore: 0, homeScore: 0, period: { number: 1 }, clock: { displayValue: "15:00" } }, netPassing: "", timestamp: finalGame.kickoff }] : []),
+      ...(finalGame ? [{ game: finalGame.game, kickoff: finalGame.kickoff, play: { awayScore: 0, homeScore: 0, period: { number: 1 }, clock: { displayValue: "15:00" } }, netPassing: "", carryForward: true, timestamp: finalGame.kickoff }] : []),
       ...summaries.flatMap(({ game, kickoff, plays }) => {
       let netPassing = 0;
       const gameEvents = plays.filter(play => {
@@ -4318,7 +4318,14 @@ async function fetchWebsiteRaceReconstruction(data) {
     try { localStorage.setItem(cacheKey, JSON.stringify(checkpoints)); }
     catch (error) { console.warn(`Race reconstruction could not be cached: ${error.message}`); }
   }
-  return checkpoints.map(checkpoint => websiteRaceProbabilitySnapshot(data, checkpoint));
+  let priorSnapshot = null;
+  return checkpoints.map(checkpoint => {
+    const calculated = checkpoint.carryForward && priorSnapshot
+      ? { ...checkpoint, probabilityModel: "website", players: priorSnapshot.players.map(player => ({ ...player })) }
+      : websiteRaceProbabilitySnapshot(data, checkpoint);
+    priorSnapshot = calculated;
+    return calculated;
+  });
 }
 function storeWebsiteRaceSnapshot(data) {
   if (!WEBSITE_SUBMISSIONS_ENDPOINT || !(data.games || []).some(game => ["IN", "IN_PROGRESS", "LIVE", "POST", "FINAL", "COMPLETED"].includes(websiteGameStatus(game)))) return;
