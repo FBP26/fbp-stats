@@ -4243,7 +4243,7 @@ async function fetchWebsiteCurrentWeekRace(season, week) {
   return data.raceSnapshots || [];
 }
 function websiteRaceReconstructionKey(data) {
-  return `fbpRaceReconstruction-v3-${data.season}-${data.week}`;
+  return `fbpRaceReconstruction-v4-${data.season}-${data.week}`;
 }
 function websiteRaceReconstructionTime(kickoff, play) {
   const period = Number(play.period?.number) || 1;
@@ -4281,7 +4281,7 @@ async function fetchWebsiteRaceReconstruction(data) {
       ...(finalGame ? [{ game: finalGame.game, kickoff: finalGame.kickoff, play: { awayScore: 0, homeScore: 0, period: { number: 1 }, clock: { displayValue: "15:00" } }, netPassing: "", timestamp: finalGame.kickoff }] : []),
       ...summaries.flatMap(({ game, kickoff, plays }) => {
       let netPassing = 0;
-      return plays.filter(play => {
+      const gameEvents = plays.filter(play => {
         const type = String(play.type?.text || "");
         const text = String(play.text || "");
         if (/sack/i.test(type) && !/no play/i.test(text)) netPassing += Math.min(0, Number(play.statYardage) || 0);
@@ -4291,28 +4291,27 @@ async function fetchWebsiteRaceReconstruction(data) {
         }
         return String(game.gameId) === finalGameId || Boolean(play.scoringPlay);
       }).map(play => ({ game, kickoff, play, netPassing, timestamp: play.wallclock || websiteRaceReconstructionTime(kickoff, play) }));
+      const finalPlay = plays.at(-1);
+      if (finalPlay) gameEvents.push({ game, kickoff, final: true, netPassing, timestamp: new Date(new Date(finalPlay.wallclock || websiteRaceReconstructionTime(kickoff, finalPlay)).getTime() + 1000).toISOString() });
+      return gameEvents;
       }),
     ].sort((left, right) => new Date(left.timestamp) - new Date(right.timestamp));
     let liveTiebreaker = "";
-    checkpoints = events.map(({ game, play, netPassing, timestamp }) => {
+    checkpoints = events.map(({ game, play, final, netPassing, timestamp }) => {
       const gameState = state.find(entry => entry.gameId === game.gameId);
-      gameState.status = "IN";
-      gameState.period = Number(play.period?.number) || "";
-      gameState.clock = play.clock?.displayValue || play.clock?.value || "";
-      gameState.awayScore = Number(play.awayScore) || 0;
-      gameState.homeScore = Number(play.homeScore) || 0;
+      if (final) {
+        gameState.status = "FINAL";
+        gameState.period = "";
+        gameState.clock = "Final";
+      } else {
+        gameState.status = "IN";
+        gameState.period = Number(play.period?.number) || "";
+        gameState.clock = play.clock?.displayValue || play.clock?.value || "";
+        gameState.awayScore = Number(play.awayScore) || 0;
+        gameState.homeScore = Number(play.homeScore) || 0;
+      }
       if (String(game.gameId) === finalGameId) liveTiebreaker = netPassing;
       return { timestamp, reconstructed: true, probabilityModel: "website", actualTiebreaker: liveTiebreaker, gameState: state.map(entry => ({ ...entry })), players: [] };
-    });
-    summaries.forEach(({ game, kickoff }) => {
-      const gameState = state.find(entry => entry.gameId === game.gameId);
-      const lastCheckpoint = checkpoints.filter(checkpoint => checkpoint.gameState.some(entry => entry.gameId === game.gameId && entry.status === "IN")).at(-1);
-      const lastGameState = lastCheckpoint?.gameState.find(entry => entry.gameId === game.gameId);
-      if (!lastGameState) return;
-      gameState.status = "FINAL";
-      gameState.period = "";
-      gameState.clock = "Final";
-      checkpoints.push({ timestamp: new Date(Math.max(new Date(kickoff).getTime() + 3.5 * 60 * 60 * 1000, new Date(lastCheckpoint.timestamp).getTime() + 1000)).toISOString(), reconstructed: true, probabilityModel: "website", actualTiebreaker: String(game.gameId) === finalGameId ? data.actualTiebreaker : liveTiebreaker, gameState: state.map(entry => ({ ...entry })), players: [] });
     });
     checkpoints.sort((left, right) => new Date(left.timestamp) - new Date(right.timestamp));
     try { localStorage.setItem(cacheKey, JSON.stringify(checkpoints)); }
