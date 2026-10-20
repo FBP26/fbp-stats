@@ -1119,6 +1119,40 @@ const sendOwnerOperationalEmail = async (env: Env, subject: string, body: string
   return response.ok && result?.ok === true;
 };
 
+const pickSubmissionOwnerEmail = (
+  playerName: string,
+  weekNumber: number,
+  submittedAt: string,
+  games: Array<{ favorite: string; spread: number; underdog: string }>,
+  picks: string[],
+  bestBet: string,
+  tiebreaker: number,
+  replaced: boolean,
+): { subject: string; body: string; html: string } => {
+  const heading = replaced ? "Picks replaced" : "Picks submitted";
+  const rows = games.map((game, index) => {
+    const pick = picks[index] || "";
+    const line = `${index + 1}. ${game.favorite} ${game.spread} ${game.underdog} — ${pick}${pick === bestBet ? " (Best Bet)" : ""}`;
+    return { line, game, pick };
+  });
+  const submitted = formatEasternDateTime(submittedAt);
+  const body = [
+    `${heading}: ${playerName}`,
+    `Week ${weekNumber} · ${submitted}`,
+    "",
+    ...rows.map((row) => row.line),
+    "",
+    `Tiebreaker: ${tiebreaker}`,
+  ].join("\n");
+  const html = `<main style="max-width:620px;margin:0 auto;font-family:Arial,sans-serif;color:#17212b">
+<h2 style="margin:0 0 12px">FBP Week ${weekNumber}: ${escapeHtml(heading)}</h2>
+<p><strong>${escapeHtml(playerName)}</strong> ${replaced ? "updated" : "submitted"} picks on ${escapeHtml(submitted)}.</p>
+<ol>${rows.map(({ game, pick }) => `<li><strong>${escapeHtml(game.favorite)} ${escapeHtml(game.spread)} ${escapeHtml(game.underdog)}</strong> — ${escapeHtml(pick)}${pick === bestBet ? ` <span style="color:#8a6400;font-weight:bold">(Best Bet)</span>` : ""}</li>`).join("")}</ol>
+<p><strong>Tiebreaker:</strong> ${escapeHtml(tiebreaker)}</p>
+</main>`;
+  return { subject: `FBP Week ${weekNumber}: ${heading} — ${playerName}`, body, html };
+};
+
 const formatEasternDateTime = (iso: string): string => new Intl.DateTimeFormat("en-US", {
   timeZone: "America/New_York",
   month: "short",
@@ -1874,24 +1908,33 @@ const submitCard = async (payload: JsonObject, env: Env): Promise<Response> => {
   await sendAdministratorPushOnce(env, priorSubmission ? "adminPickReplaced" : "adminPickSubmitted", submissionKey,
     priorSubmission ? `Picks replaced - Week ${weekNumber}` : `Picks submitted - Week ${weekNumber}`,
     `${player.canonical_name} ${priorSubmission ? "replaced" : "submitted"} their picks.`, Number(week.id));
+  if (payload.mode !== "test") {
+    const email = pickSubmissionOwnerEmail(
+      player.canonical_name,
+      weekNumber,
+      submittedAt,
+      gameRows.results.map((game) => ({
+        favorite: cleanText(game.favorite, 20),
+        spread: Number(game.spread),
+        underdog: cleanText(game.underdog, 20),
+      })),
+      picks,
+      bestBet,
+      tiebreaker,
+      Boolean(priorSubmission),
+    );
+    if (!await sendOwnerOperationalEmail(env, email.subject, email.body, email.html)) {
+      console.warn(`Pick submission receipt email failed for Week ${weekNumber}, ${player.canonical_name}.`);
+    }
+  }
   if (!priorPlayer) await sendAdministratorPushOnce(env, "adminNewPlayer", `admin-new-player:${player.id}`, "New player joined", `${player.canonical_name} submitted their first FBP picks.`, Number(week.id));
   const firstKickoff = Math.min(...gameRows.results.map((game) => Date.parse(String(game.kickoff_at))));
   if (Number.isFinite(firstKickoff) && Date.parse(submittedAt) > firstKickoff) await sendAdministratorPushOnce(env, "adminLateSubmission", `admin-late-submission:${week.id}:${player.id}:${submittedAt}`, `Late picks - Week ${weekNumber}`, `${player.canonical_name} submitted picks after the first kickoff.`, Number(week.id));
-  const confirmationEmailToken = payload.mode === "test" ? "" : await preparePickSubmissionConfirmation(env, {
-    name,
-    weekName,
-    picks,
-    stagedGames: gameRows.results.map((game) => ({ favorite: game.favorite, spread: game.spread, underdog: game.underdog })),
-    bestBet,
-    tiebreaker,
-    week: weekNumber,
-    submittedAt,
-  });
   return json({
     ok: true,
     testMode: payload.mode === "test",
     submittedAt,
-    confirmationEmailToken,
+    confirmationEmailToken: "",
     identity: {
       status: rawName === player.canonical_name ? "known" : "suggestion",
       submittedName: player.canonical_name,
