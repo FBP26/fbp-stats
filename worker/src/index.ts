@@ -1350,7 +1350,7 @@ const createWeekSetupCandidate = async (env: Env): Promise<void> => {
   const token = randomToken();
   const expiresAt = new Date(Date.now() + 72 * 60 * 60 * 1000).toISOString();
   await env.DB.prepare(
-    "INSERT INTO week_setup_candidates(season,week,phase,slate_hash,slate_json,approval_token_hash,expires_at) VALUES (?,?,'REGULAR_SEASON',?,?,?,?,?)",
+    "INSERT INTO week_setup_candidates(season,week,phase,slate_hash,slate_json,approval_token_hash,expires_at) VALUES (?,?,'REGULAR_SEASON',?,?,?,?)",
   ).bind(season, week, slateHash, slateJson, await sha256(token), expiresAt).run();
   const reviewUrl = `${env.PUBLIC_API_URL || "https://fbp-api.fbp-api-worker.workers.dev"}/?action=review-week-setup&token=${token}`;
   const lines = games.map((game, index) => `${index + 1}. ${game.favorite} ${game.spread} ${game.underdog}`).join("\n");
