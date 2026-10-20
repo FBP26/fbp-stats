@@ -475,6 +475,11 @@ const buildCurrentWeek = async (
   }));
   const actualTiebreaker = week.tiebreak_actual === null ? null : Number(week.tiebreak_actual);
   const players = scoreWeekWithoutProbabilities(cards, scoringGames, actualTiebreaker);
+  const liveTiebreaker = actualTiebreaker ?? (
+    games.length && games.at(-1)?.netPassingYards !== null && games.at(-1)?.netPassingYards !== undefined
+      ? Number(games.at(-1)?.netPassingYards)
+      : null
+  );
   return {
     ok: true,
     season: Number(week.season),
@@ -486,7 +491,7 @@ const buildCurrentWeek = async (
     spreads: games.map((game) => game.spread),
     underdogScores: games.map((game) => game.underdogScore),
     underdogs: games.map((game) => game.underdog),
-    actualTiebreaker: actualTiebreaker ?? "",
+    actualTiebreaker: liveTiebreaker ?? "",
     tiebreakStatus: actualTiebreaker === null ? "live" : "final",
     probabilitySource: "client",
     games,
