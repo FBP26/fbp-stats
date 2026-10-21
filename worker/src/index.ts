@@ -1928,33 +1928,28 @@ const submitCard = async (payload: JsonObject, env: Env): Promise<Response> => {
   await sendAdministratorPushOnce(env, priorSubmission ? "adminPickReplaced" : "adminPickSubmitted", submissionKey,
     priorSubmission ? `Picks replaced - Week ${weekNumber}` : `Picks submitted - Week ${weekNumber}`,
     `${player.canonical_name} ${priorSubmission ? "replaced" : "submitted"} their picks.`, Number(week.id));
-  if (payload.mode !== "test") {
-    const email = pickSubmissionOwnerEmail(
-      player.canonical_name,
-      weekNumber,
-      submittedAt,
-      gameRows.results.map((game) => ({
-        favorite: cleanText(game.favorite, 20),
-        spread: Number(game.spread),
-        underdog: cleanText(game.underdog, 20),
-      })),
-      picks,
-      bestBet,
-      tiebreaker,
-      Boolean(priorSubmission),
-    );
-    if (!await sendOwnerOperationalEmail(env, email.subject, email.body, email.html)) {
-      console.warn(`Pick submission receipt email failed for Week ${weekNumber}, ${player.canonical_name}.`);
-    }
-  }
   if (!priorPlayer) await sendAdministratorPushOnce(env, "adminNewPlayer", `admin-new-player:${player.id}`, "New player joined", `${player.canonical_name} submitted their first FBP picks.`, Number(week.id));
   const firstKickoff = Math.min(...gameRows.results.map((game) => Date.parse(String(game.kickoff_at))));
   if (Number.isFinite(firstKickoff) && Date.parse(submittedAt) > firstKickoff) await sendAdministratorPushOnce(env, "adminLateSubmission", `admin-late-submission:${week.id}:${player.id}:${submittedAt}`, `Late picks - Week ${weekNumber}`, `${player.canonical_name} submitted picks after the first kickoff.`, Number(week.id));
+  const confirmationEmailToken = payload.mode === "test" ? "" : await preparePickSubmissionConfirmation(env, {
+    name,
+    weekName,
+    picks,
+    stagedGames: gameRows.results.map((game) => ({
+      favorite: cleanText(game.favorite, 20),
+      spread: Number(game.spread),
+      underdog: cleanText(game.underdog, 20),
+    })),
+    bestBet,
+    tiebreaker,
+    week: weekNumber,
+    submittedAt,
+  });
   return json({
     ok: true,
     testMode: payload.mode === "test",
     submittedAt,
-    confirmationEmailToken: "",
+    confirmationEmailToken,
     identity: {
       status: rawName === player.canonical_name ? "known" : "suggestion",
       submittedName: player.canonical_name,
