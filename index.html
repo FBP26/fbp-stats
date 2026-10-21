@@ -7933,6 +7933,7 @@ if (tiebreaker) {
   tiebreaker.addEventListener("change", validateTiebreaker);
 }
 showView(startupRoute);
+loadActiveRegularWeek().catch(error => console.warn(`Active week label could not be refreshed: ${error.message}`));
 if (startupRoute === "week-one") websiteRenderCachedCurrentWeek();
 if (["week-one", "live-analysis"].includes(startupRoute) && !WEBSITE_SUBMISSIONS_ENDPOINT) {
   const fallback = websiteWeekOneFallback();
