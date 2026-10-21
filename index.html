@@ -1311,8 +1311,7 @@ function websiteTeamChoice(game, abbreviation) {
   const isAway = game.away ? String(game.away).toUpperCase() === String(abbreviation).toUpperCase() : abbreviation !== abbreviation.toUpperCase();
   const isHome = !isAway;
   const metadata = isAway ? game.awayTeam : game.homeTeam;
-  const name = metadata?.name || websiteFormTeamName(abbreviation);
-  const displayName = String(name);
+  const displayName = isAway ? String(abbreviation).toLowerCase() : String(abbreviation).toUpperCase();
   const logo = websiteTeamLogoUrl(abbreviation);
   const homeMarker = isHome ? '<span class="website-home-marker">at </span>' : "";
   const record = String(metadata?.record || "").trim();
