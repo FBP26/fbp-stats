@@ -2982,10 +2982,10 @@ async function refreshWebsitePicksWeather() {
       const choices = rows[index]?.querySelectorAll(".website-team-choice");
       if (choices?.[0]) choices[0].outerHTML = websiteTeamChoice(updated, updated.favorite || updated.away);
       if (choices?.[1]) choices[1].outerHTML = websiteTeamChoice(updated, updated.underdog || updated.home);
-      const context = rows[index]?.querySelector(".website-game-context");
+      const hub = rows[index]?.querySelector(".website-game-hub");
       const contextHtml = websiteGameContext(updated);
-      if (context) context.outerHTML = contextHtml;
-      else if (contextHtml) rows[index]?.insertAdjacentHTML("beforeend", contextHtml);
+      hub?.querySelectorAll(".website-game-context").forEach(context => context.remove());
+      if (contextHtml) hub?.insertAdjacentHTML("beforeend", contextHtml);
       return updated;
     });
     const storedAt = Date.now(), cacheKey = `${selection.phase}-${selection.season}-${selection.week}`;
@@ -4605,7 +4605,7 @@ async function refreshWebsiteApp() {
   const label = indicator?.querySelector(".pull-refresh-label");
   let tracking = false, startX = 0, startY = 0, distance = 0;
   document.addEventListener("touchstart", event => {
-    if (!indicator || !label || websiteAppRefreshing || scrollY > 0 || document.getElementById("view-enter-picks")?.classList.contains("active") || event.touches.length !== 1) return;
+    if (!indicator || !label || websiteAppRefreshing || scrollY > 0 || event.touches.length !== 1) return;
     tracking = true;
     distance = 0;
     startX = event.touches[0].clientX;
