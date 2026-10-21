@@ -4482,17 +4482,19 @@ function decorateWebsiteWeekOneHeadersLive(data) {
     const favorite = data.favorites[index], underdog = data.underdogs[index];
     const teams = [favorite, underdog].map(team => String(team || "").toLowerCase());
     const game = (data.games || []).find(item => teams.includes(String(item.away || "").toLowerCase()) && teams.includes(String(item.home || "").toLowerCase()));
+    const displayTeam = team => String(team || "").toUpperCase() === String(game?.home || "").toUpperCase() ? String(team).toUpperCase() : String(team).toLowerCase();
+    const favoriteLabel = displayTeam(favorite), underdogLabel = displayTeam(underdog);
     const favoriteScore = data.favoriteScores[index];
     const underdogScore = data.underdogScores[index];
     const gameStatus = websiteGameStatus(game);
     const started = ["IN", "LIVE", "POST", "IN_PROGRESS", "FINAL", "COMPLETED"].includes(gameStatus);
     const spread = `<small class="pg-header-spread">${data.spreads[index]}</small>`;
-    if (!started) { const formattedKickoff = websiteKickoffGroup(game); const kickoff = formattedKickoff ? formattedKickoff.replace(/\s*[^A-Za-z0-9:]+\s*/, " ").replace(/\s(?:AM|PM) ET$/, "") : game?.kickoffGroup || game?.statusText || ""; header.innerHTML = `${favorite}${spread}${underdog}${kickoff ? `<small class="pg-header-kickoff">${kickoff}</small>` : ""}`; return; }
+    if (!started) { const formattedKickoff = websiteKickoffGroup(game); const kickoff = formattedKickoff ? formattedKickoff.replace(/\s*[^A-Za-z0-9:]+\s*/, " ").replace(/\s(?:AM|PM) ET$/, "") : game?.kickoffGroup || game?.statusText || ""; header.innerHTML = `${favoriteLabel}${spread}${underdogLabel}${kickoff ? `<small class="pg-header-kickoff">${kickoff}</small>` : ""}`; return; }
     const score = value => `<span class="pg-header-score">${value === "" ? "-" : value}</span>`;
     const final = ["POST", "FINAL", "COMPLETED"].includes(gameStatus);
     const liveState = final ? "" : game?.espnStatusText || game?.statusText || [game?.period ? `Q${game.period}` : "", game?.clock, game?.possession ? `${game.possession} ball` : ""].filter(Boolean).join(" · ");
     const stateClass = ["IN", "LIVE", "IN_PROGRESS"].includes(gameStatus) ? " live" : "";
-    header.innerHTML = `${favorite}${score(favoriteScore)}${spread}${score(underdogScore)}${underdog}${liveState ? `<small class="pg-header-kickoff${stateClass}">${liveState}</small>` : ""}`;
+    header.innerHTML = `${favoriteLabel}${score(favoriteScore)}${spread}${score(underdogScore)}${underdogLabel}${liveState ? `<small class="pg-header-kickoff${stateClass}">${liveState}</small>` : ""}`;
     header.classList.add("pg-cover-trigger");
     header.tabIndex = 0;
     header.setAttribute("role", "button");
