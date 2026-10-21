@@ -181,9 +181,9 @@
   #view-enter-picks .notification-settings:not(#push-notification-settings) { display: none !important; }
   @media (max-width: 560px) {
     .website-matchup { grid-template-columns: minmax(0, 1fr) 112px minmax(0, 1fr); gap: 5px; }
-    .website-team-choice { grid-template-columns: 76px minmax(0, 1fr); grid-template-rows: 76px auto; grid-template-areas: "logo record" "abbreviation picked"; min-height: 116px; padding: 6px; column-gap: 4px; }
+    .website-team-choice { grid-template-columns: 76px minmax(0, 1fr); grid-template-rows: 76px auto; grid-template-areas: "logo picked" "abbreviation record"; min-height: 116px; padding: 6px; column-gap: 4px; }
     .website-team-logo { width: 76px; height: 76px; }
-    .website-side.right .website-team-choice { grid-template-columns: minmax(0, 1fr) 76px; grid-template-areas: "record logo" "picked abbreviation"; }
+    .website-side.right .website-team-choice { grid-template-columns: minmax(0, 1fr) 76px; grid-template-areas: "picked logo" "record abbreviation"; }
     .website-team-abbreviation { align-self: start; font-size: 20px; white-space: nowrap; }
     .website-team-record { align-self: center; width: 100%; font-size: 18px; font-weight: bold; line-height: 1; }
     .website-team-picked { align-self: center; font-size: 11px; }
