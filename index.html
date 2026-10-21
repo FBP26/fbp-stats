@@ -4438,15 +4438,19 @@ function renderWebsiteWeekOneGridClean(data) {
   if (!rows.length) { table.innerHTML = '<p style="color:var(--muted)">No submissions yet.</p>'; return; }
   const tiebreakDetail = data.actualTiebreaker !== "" && data.actualTiebreaker != null ? `<br><span class="pg-tiebreak-actual">${data.actualTiebreaker}</span>` : "";
   let html = `<table class="picks-grid"><thead><tr><th class="pg-player">Player</th><th class="pg-game pg-week-name">Week ${data.week ?? websiteRegularSelection.week} name</th><th class="pg-sum-hdr pg-w">W</th><th class="pg-sum-hdr pg-l">L</th><th class="pg-sum-hdr">Win%</th><th class="pg-sum-hdr">Prob</th><th class="pg-sum-hdr">Paths</th>`;
-  data.favorites.forEach((favorite, index) => { html += `<th class="pg-game">${favorite}<br><small>${data.spreads[index]}</small><br>${data.underdogs[index]}</th>`; });
+  const displayTeam = (team, index) => {
+    const game = data.games?.[index];
+    return String(team || "").toUpperCase() === String(game?.home || "").toUpperCase() ? String(team).toUpperCase() : String(team).toLowerCase();
+  };
+  data.favorites.forEach((favorite, index) => { html += `<th class="pg-game">${displayTeam(favorite, index)}<br><small>${data.spreads[index]}</small><br>${displayTeam(data.underdogs[index], index)}</th>`; });
   html += `<th class="pg-bb-hdr">BB</th><th class="pg-sum-hdr">TB${tiebreakDetail}</th></tr></thead><tbody>`;
   rows.forEach(row => {
     const selected = row.name === websiteSelectedWeekPlayer;
     html += `<tr tabindex="0" aria-selected="${selected}" data-week-player="${websiteEscapeHtml(row.name)}"${selected ? ' class="website-row-selected"' : ""}><td class="pg-player">${row.name}</td><td class="pg-sum-cell pg-week-name">${row.weekName || ""}</td><td class="pg-sum-cell pg-w">${row.wins ?? ""}</td><td class="pg-sum-cell pg-l">${row.losses ?? ""}</td><td class="pg-sum-cell">${websiteWinPercentText(row.winPercent)}</td><td class="pg-sum-cell">${row.winProbability || ""}</td><td class="pg-sum-cell">${row.pathsToVictory ?? ""}</td>`;
-    row.picks.forEach((pick, index) => { html += `<td class="${websiteWeekOnePickClass(data, index, pick)}">${pick}</td>`; });
+    row.picks.forEach((pick, index) => { html += `<td class="${websiteWeekOnePickClass(data, index, pick)}">${displayTeam(pick, index)}</td>`; });
     const bestBetIndex = row.picks.findIndex(pick => pick === row.bestBet);
     const bestBetClass = bestBetIndex < 0 ? "pg-bb-none" : websiteWeekOnePickClass(data, bestBetIndex, row.bestBet).replace("pg-pick", "pg-bb");
-    html += `<td class="${bestBetClass}">${row.bestBet || ""}</td><td class="pg-sum-cell">${row.tiebreaker || ""}</td></tr>`;
+    html += `<td class="${bestBetClass}">${bestBetIndex < 0 ? row.bestBet || "" : displayTeam(row.bestBet, bestBetIndex)}</td><td class="pg-sum-cell">${row.tiebreaker || ""}</td></tr>`;
   });
   table.innerHTML = `${html}</tbody></table>`;
   const selectRow = row => {
