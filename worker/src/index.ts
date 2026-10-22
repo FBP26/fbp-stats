@@ -1075,12 +1075,45 @@ const createPickSubmissionConfirmationToken = async (db: D1Database, submissionI
   return token;
 };
 
-const pickConfirmationEmailHtml = (body: string): string =>
-  `<main style="max-width:640px;margin:0 auto;padding:20px;font-family:Arial,sans-serif;color:#17212b;background:#f4f6f8"><article style="padding:20px;background:#fff;border-top:4px solid #e2b93b"><h1 style="margin:0 0 16px;font-size:20px">FBP pick confirmation</h1><div style="font-size:13px;line-height:1.55;white-space:pre-wrap">${escapeHtml(body)}</div></article></main>`;
+type PickConfirmationSection = { heading: string; paragraphs: string[]; rows: string[][] };
+
+const normalizePickConfirmationSections = (value: unknown): PickConfirmationSection[] => {
+  if (!Array.isArray(value)) return [];
+  return value.slice(0, 4).map((section) => {
+    const source = section && typeof section === "object" ? section as JsonObject : {};
+    const paragraphs = Array.isArray(source.paragraphs) ? source.paragraphs.map((paragraph) => cleanText(paragraph, 1_200)).filter(Boolean).slice(0, 12) : [];
+    const rows = Array.isArray(source.rows)
+      ? source.rows.map((row) => Array.isArray(row) ? row.map((cell) => cleanText(cell, 1_000)).filter(Boolean).slice(0, 8) : []).filter((row) => row.length).slice(0, 12)
+      : [];
+    return { heading: cleanText(source.heading, 100), paragraphs, rows };
+  }).filter((section) => section.heading || section.paragraphs.length || section.rows.length);
+};
+
+const pickConfirmationEmailHtml = (
+  receipt: { canonical_name: string; week: number; week_name: string; best_bet_game_index: number; tiebreaker: number },
+  picks: Array<{ game_index: number; favorite: string; spread: number; underdog: string; picked_team: string }>,
+  sections: PickConfirmationSection[],
+  fallbackText: string,
+): string => {
+  const pickRows = picks.map((pick) => `<tr><td style="padding:9px 10px;border-top:1px solid #36404f;color:#9caec1;text-align:center">${pick.game_index + 1}</td><td style="padding:9px 10px;border-top:1px solid #36404f;color:#f7c84b;font-weight:700">${escapeHtml(pick.picked_team)}${pick.game_index === receipt.best_bet_game_index ? ` <span style="font-size:10px;color:#f7c84b">BEST BET</span>` : ""}</td><td style="padding:9px 10px;border-top:1px solid #36404f;color:#c8d2df">${escapeHtml(`${pick.favorite} ${pick.spread} ${pick.underdog}`)}</td></tr>`).join("");
+  const statisticCards = sections.length
+    ? sections.map((section) => {
+      const paragraphs = section.paragraphs.map((paragraph) => `<p style="margin:0 0 8px;color:#c8d2df;font-size:12px;line-height:1.5">${escapeHtml(paragraph)}</p>`).join("");
+      const rows = section.rows.map((row) => {
+        const [label, ...values] = row;
+        return `<tr><td style="width:43%;padding:8px 10px;border-top:1px solid #36404f;color:#9caec1;font-size:11px">${escapeHtml(label)}</td><td style="padding:8px 10px;border-top:1px solid #36404f;color:#f3f6fa;font-size:12px;font-weight:700;line-height:1.35">${escapeHtml(values.join(" "))}</td></tr>`;
+      }).join("");
+      return `<section style="margin:14px 0 0;padding:14px;background:#202734;border:1px solid #36404f;border-radius:7px"><h2 style="margin:0 0 10px;color:#f7c84b;font-size:14px">${escapeHtml(section.heading)}</h2>${paragraphs}${rows ? `<table role="presentation" style="width:100%;border-collapse:collapse;background:#171d27"><tbody>${rows}</tbody></table>` : ""}</section>`;
+    }).join("")
+    : `<section style="margin:14px 0 0;padding:14px;background:#202734;border:1px solid #36404f;border-radius:7px"><h2 style="margin:0 0 10px;color:#f7c84b;font-size:14px">Confirmation statistics</h2><div style="color:#c8d2df;font-size:12px;line-height:1.55;white-space:pre-wrap">${escapeHtml(fallbackText)}</div></section>`;
+  const bestBet = picks.find((pick) => pick.game_index === receipt.best_bet_game_index)?.picked_team || "—";
+  return `<main style="max-width:640px;margin:0 auto;padding:18px;background:#10151d;font-family:Arial,sans-serif;color:#f3f6fa"><article style="overflow:hidden;border:1px solid #36404f;border-radius:8px;background:#171d27"><header style="padding:18px 20px;background:#202734;border-top:4px solid #f7c84b"><p style="margin:0 0 5px;color:#9caec1;font-size:11px;letter-spacing:1px;text-transform:uppercase">FBP · Week ${receipt.week}</p><h1 style="margin:0;color:#f7c84b;font-size:22px">Picks submitted</h1><p style="margin:7px 0 0;color:#f3f6fa;font-size:14px"><strong>${escapeHtml(receipt.canonical_name)}</strong> · ${escapeHtml(receipt.week_name)}</p></header><div style="padding:16px 20px"><h2 style="margin:0 0 9px;color:#f7c84b;font-size:14px">Your picks</h2><table role="presentation" style="width:100%;border-collapse:collapse;background:#202734"><thead><tr><th style="padding:8px 10px;color:#9caec1;font-size:10px;text-align:center">#</th><th style="padding:8px 10px;color:#9caec1;font-size:10px;text-align:left">PICK</th><th style="padding:8px 10px;color:#9caec1;font-size:10px;text-align:left">MATCHUP</th></tr></thead><tbody>${pickRows}</tbody></table><table role="presentation" style="width:100%;margin-top:14px;border-collapse:collapse;background:#202734"><tbody><tr><td style="padding:8px 10px;color:#9caec1;font-size:11px">Best Bet</td><td style="padding:8px 10px;color:#f7c84b;font-size:12px;font-weight:700;text-align:right">${escapeHtml(bestBet)}</td></tr><tr><td style="padding:8px 10px;border-top:1px solid #36404f;color:#9caec1;font-size:11px">Tiebreaker</td><td style="padding:8px 10px;border-top:1px solid #36404f;color:#f3f6fa;font-size:12px;font-weight:700;text-align:right">${escapeHtml(receipt.tiebreaker)}</td></tr></tbody></table><h2 style="margin:20px 0 0;color:#f7c84b;font-size:14px">Confirmation</h2>${statisticCards}</div></article></main>`;
+};
 
 const relayPickConfirmationEmail = async (env: Env, payload: JsonObject): Promise<Response> => {
   const token = cleanText(payload.confirmationEmailToken, 100);
   const confirmationText = String(payload.confirmationText ?? "").replace(/\r\n?/g, "\n").trim().slice(0, 15_000);
+  const confirmationSections = normalizePickConfirmationSections(payload.confirmationSections);
   if (!/^[a-f\d-]{36}$/i.test(token) || !confirmationText) {
     return json({ ok: false, error: "The confirmation email receipt is invalid." }, 400, env.CORS_ORIGIN);
   }
@@ -1127,7 +1160,7 @@ const relayPickConfirmationEmail = async (env: Env, payload: JsonObject): Promis
     "fbpool07@gmail.com",
     `${receipt.canonical_name} - ${receipt.week_name}`,
     body,
-    pickConfirmationEmailHtml(body),
+    pickConfirmationEmailHtml(receipt, picks.results, confirmationSections, confirmationText),
   );
   if (!sent) {
     await env.DB.prepare("UPDATE pick_confirmation_email_tokens SET delivery_started_at=NULL WHERE id=? AND sent_at IS NULL").bind(receipt.id).run();
@@ -1957,7 +1990,7 @@ const submitCard = async (payload: JsonObject, env: Env): Promise<Response> => {
   await env.DB.batch(statements);
   const submissionKey = `admin-submission:${week.id}:${player.id}:${submittedAt}`;
   await sendAdministratorPushOnce(env, priorSubmission ? "adminPickReplaced" : "adminPickSubmitted", submissionKey,
-    priorSubmission ? `Picks replaced - Week ${weekNumber}` : `Picks submitted - Week ${weekNumber}`,
+    `${player.canonical_name} - ${priorSubmission ? "Picks Replaced" : "Picks Submitted"}`,
     `${player.canonical_name} ${priorSubmission ? "replaced" : "submitted"} their picks.`, Number(week.id));
   if (!priorPlayer) await sendAdministratorPushOnce(env, "adminNewPlayer", `admin-new-player:${player.id}`, "New player joined", `${player.canonical_name} submitted their first FBP picks.`, Number(week.id));
   const firstKickoff = Math.min(...gameRows.results.map((game) => Date.parse(String(game.kickoff_at))));
