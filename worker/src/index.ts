@@ -1067,43 +1067,51 @@ const sendEmail = async (env: Env, to: string, subject: string, body: string, ht
   }
 };
 
-const preparePickSubmissionConfirmation = async (env: Env, details: JsonObject): Promise<string> => {
-  if (!env.EMAIL_RELAY_URL?.trim() || !env.EMAIL_RELAY_SECRET?.trim()) return "";
-  const response = await fetch(env.EMAIL_RELAY_URL.trim(), {
-    method: "POST",
-    headers: { "Content-Type": "text/plain;charset=UTF-8" },
-    body: JSON.stringify({ action: "prepare-d1-pick-confirmation-email", secret: env.EMAIL_RELAY_SECRET, ...details }),
-  });
-  const result = await response.json().catch(() => null) as { ok?: boolean; confirmationEmailToken?: unknown } | null;
-  return response.ok && result?.ok === true ? cleanText(result.confirmationEmailToken, 100) : "";
+const createPickSubmissionConfirmationToken = async (db: D1Database, submissionId: number): Promise<string> => {
+  const token = crypto.randomUUID();
+  await db.prepare(
+    "INSERT INTO pick_confirmation_email_tokens (submission_id, token_hash, expires_at) VALUES (?, ?, datetime('now', '+15 minutes'))",
+  ).bind(submissionId, await sha256(token)).run();
+  return token;
 };
 
+const pickConfirmationEmailHtml = (body: string): string =>
+  `<main style="max-width:640px;margin:0 auto;padding:20px;font-family:Arial,sans-serif;color:#17212b;background:#f4f6f8"><article style="padding:20px;background:#fff;border-top:4px solid #e2b93b"><h1 style="margin:0 0 16px;font-size:20px">FBP pick confirmation</h1><div style="font-size:13px;line-height:1.55;white-space:pre-wrap">${escapeHtml(body)}</div></article></main>`;
+
 const relayPickConfirmationEmail = async (env: Env, payload: JsonObject): Promise<Response> => {
-  if (!env.EMAIL_RELAY_URL?.trim()) {
-    return json({ ok: false, error: "Pick confirmation email delivery is unavailable." }, 503, env.CORS_ORIGIN);
+  const token = cleanText(payload.confirmationEmailToken, 100);
+  const confirmationText = cleanText(payload.confirmationText, 15_000);
+  if (!/^[a-f\d-]{36}$/i.test(token) || !confirmationText) {
+    return json({ ok: false, error: "The confirmation email receipt is invalid." }, 400, env.CORS_ORIGIN);
   }
-  try {
-    const response = await fetch(env.EMAIL_RELAY_URL.trim(), {
-      method: "POST",
-      headers: { "Content-Type": "text/plain;charset=UTF-8" },
-      body: JSON.stringify({
-        action: "send-pick-confirmation-email",
-        confirmationEmailToken: cleanText(payload.confirmationEmailToken, 100),
-        confirmationText: cleanText(payload.confirmationText, 15_000),
-        confirmationSections: payload.confirmationSections,
-      }),
-    });
-    return new Response(await response.text(), {
-      status: response.status,
-      headers: {
-        "Content-Type": response.headers.get("Content-Type") || "application/json; charset=UTF-8",
-        "Access-Control-Allow-Origin": env.CORS_ORIGIN,
-      },
-    });
-  } catch (error) {
-    console.warn("Pick confirmation email relay failed", error);
-    return json({ ok: false, error: "Pick confirmation email delivery failed." }, 502, env.CORS_ORIGIN);
+  const tokenHash = await sha256(token);
+  const receipt = await env.DB.prepare(
+    `SELECT t.id, t.sent_at, s.week_name, p.canonical_name, w.week
+     FROM pick_confirmation_email_tokens t
+     JOIN submissions s ON s.id = t.submission_id
+     JOIN players p ON p.id = s.player_id
+     JOIN weeks w ON w.id = s.week_id
+     WHERE t.token_hash = ? AND t.expires_at > CURRENT_TIMESTAMP`,
+  ).bind(tokenHash).first<{ id: number; sent_at: string | null; week_name: string; canonical_name: string; week: number }>();
+  if (!receipt) return json({ ok: false, error: "The confirmation email receipt expired." }, 404, env.CORS_ORIGIN);
+  if (receipt.sent_at) return json({ ok: true }, 200, env.CORS_ORIGIN);
+  const reserved = await env.DB.prepare(
+    "UPDATE pick_confirmation_email_tokens SET delivery_started_at=CURRENT_TIMESTAMP WHERE id=? AND sent_at IS NULL AND delivery_started_at IS NULL",
+  ).bind(receipt.id).run();
+  if (!reserved.meta.changes) return json({ ok: false, error: "The confirmation email is already being delivered." }, 409, env.CORS_ORIGIN);
+  const sent = await sendResendEmail(
+    env,
+    "fbpool07@gmail.com",
+    `${receipt.canonical_name} - ${receipt.week_name}`,
+    confirmationText,
+    pickConfirmationEmailHtml(confirmationText),
+  );
+  if (!sent) {
+    await env.DB.prepare("UPDATE pick_confirmation_email_tokens SET delivery_started_at=NULL WHERE id=? AND sent_at IS NULL").bind(receipt.id).run();
+    return json({ ok: false, error: "The confirmation email could not be sent." }, 502, env.CORS_ORIGIN);
   }
+  await env.DB.prepare("UPDATE pick_confirmation_email_tokens SET sent_at=CURRENT_TIMESTAMP WHERE id=?").bind(receipt.id).run();
+  return json({ ok: true }, 200, env.CORS_ORIGIN);
 };
 
 const sendOwnerOperationalEmail = async (env: Env, subject: string, body: string, htmlBody = ""): Promise<boolean> => {
@@ -1931,20 +1939,11 @@ const submitCard = async (payload: JsonObject, env: Env): Promise<Response> => {
   if (!priorPlayer) await sendAdministratorPushOnce(env, "adminNewPlayer", `admin-new-player:${player.id}`, "New player joined", `${player.canonical_name} submitted their first FBP picks.`, Number(week.id));
   const firstKickoff = Math.min(...gameRows.results.map((game) => Date.parse(String(game.kickoff_at))));
   if (Number.isFinite(firstKickoff) && Date.parse(submittedAt) > firstKickoff) await sendAdministratorPushOnce(env, "adminLateSubmission", `admin-late-submission:${week.id}:${player.id}:${submittedAt}`, `Late picks - Week ${weekNumber}`, `${player.canonical_name} submitted picks after the first kickoff.`, Number(week.id));
-  const confirmationEmailToken = payload.mode === "test" ? "" : await preparePickSubmissionConfirmation(env, {
-    name,
-    weekName,
-    picks,
-    stagedGames: gameRows.results.map((game) => ({
-      favorite: cleanText(game.favorite, 20),
-      spread: Number(game.spread),
-      underdog: cleanText(game.underdog, 20),
-    })),
-    bestBet,
-    tiebreaker,
-    week: weekNumber,
-    submittedAt,
-  });
+  const savedSubmission = await env.DB.prepare(
+    "SELECT id FROM submissions WHERE week_id=? AND player_id=? AND submitted_at=?",
+  ).bind(week.id, player.id, submittedAt).first<{ id: number }>();
+  if (!savedSubmission) throw new Error("Pick submission could not be confirmed.");
+  const confirmationEmailToken = payload.mode === "test" ? "" : await createPickSubmissionConfirmationToken(env.DB, savedSubmission.id);
   return json({
     ok: true,
     testMode: payload.mode === "test",
