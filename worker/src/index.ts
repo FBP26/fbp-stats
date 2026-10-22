@@ -1080,31 +1080,54 @@ const pickConfirmationEmailHtml = (body: string): string =>
 
 const relayPickConfirmationEmail = async (env: Env, payload: JsonObject): Promise<Response> => {
   const token = cleanText(payload.confirmationEmailToken, 100);
-  const confirmationText = cleanText(payload.confirmationText, 15_000);
+  const confirmationText = String(payload.confirmationText ?? "").replace(/\r\n?/g, "\n").trim().slice(0, 15_000);
   if (!/^[a-f\d-]{36}$/i.test(token) || !confirmationText) {
     return json({ ok: false, error: "The confirmation email receipt is invalid." }, 400, env.CORS_ORIGIN);
   }
   const tokenHash = await sha256(token);
   const receipt = await env.DB.prepare(
-    `SELECT t.id, t.sent_at, s.week_name, p.canonical_name, w.week
+    `SELECT t.id, t.submission_id, t.sent_at, s.week_name, s.best_bet_game_index, s.tiebreaker, p.canonical_name, w.week
      FROM pick_confirmation_email_tokens t
      JOIN submissions s ON s.id = t.submission_id
      JOIN players p ON p.id = s.player_id
      JOIN weeks w ON w.id = s.week_id
      WHERE t.token_hash = ? AND t.expires_at > CURRENT_TIMESTAMP`,
-  ).bind(tokenHash).first<{ id: number; sent_at: string | null; week_name: string; canonical_name: string; week: number }>();
+  ).bind(tokenHash).first<{ id: number; submission_id: number; sent_at: string | null; week_name: string; best_bet_game_index: number; tiebreaker: number; canonical_name: string; week: number }>();
   if (!receipt) return json({ ok: false, error: "The confirmation email receipt expired." }, 404, env.CORS_ORIGIN);
   if (receipt.sent_at) return json({ ok: true }, 200, env.CORS_ORIGIN);
   const reserved = await env.DB.prepare(
     "UPDATE pick_confirmation_email_tokens SET delivery_started_at=CURRENT_TIMESTAMP WHERE id=? AND sent_at IS NULL AND delivery_started_at IS NULL",
   ).bind(receipt.id).run();
   if (!reserved.meta.changes) return json({ ok: false, error: "The confirmation email is already being delivered." }, 409, env.CORS_ORIGIN);
+  const picks = await env.DB.prepare(
+    `SELECT g.game_index, g.favorite, g.spread, g.underdog, sp.picked_team
+     FROM submission_picks sp
+     JOIN games g ON g.id = sp.game_id
+     WHERE sp.submission_id = ?
+     ORDER BY g.game_index`,
+  ).bind(receipt.submission_id).all<{ game_index: number; favorite: string; spread: number; underdog: string; picked_team: string }>();
+  const pickLines = picks.results.map((pick) =>
+    `${pick.game_index + 1}. ${pick.picked_team} (${pick.favorite} ${pick.spread} ${pick.underdog})${pick.game_index === receipt.best_bet_game_index ? " — Best Bet" : ""}`,
+  );
+  const body = [
+    `Picks submitted: ${receipt.canonical_name}`,
+    `Week ${receipt.week} · ${receipt.week_name}`,
+    "",
+    "Picks:",
+    ...pickLines,
+    "",
+    `Best Bet: ${picks.results.find((pick) => pick.game_index === receipt.best_bet_game_index)?.picked_team || "—"}`,
+    `Tiebreaker: ${receipt.tiebreaker}`,
+    "",
+    "Confirmation statistics:",
+    confirmationText,
+  ].join("\n");
   const sent = await sendResendEmail(
     env,
     "fbpool07@gmail.com",
     `${receipt.canonical_name} - ${receipt.week_name}`,
-    confirmationText,
-    pickConfirmationEmailHtml(confirmationText),
+    body,
+    pickConfirmationEmailHtml(body),
   );
   if (!sent) {
     await env.DB.prepare("UPDATE pick_confirmation_email_tokens SET delivery_started_at=NULL WHERE id=? AND sent_at IS NULL").bind(receipt.id).run();
