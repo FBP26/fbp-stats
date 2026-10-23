@@ -1,4 +1,4 @@
-const CACHE_NAME = "fbp-shell-v125";
+const CACHE_NAME = "fbp-shell-v126";
 const APP_SHELL = ["./", "./index.html", "./live-client.js", "./historical-ui.js", "./teams.js", "./map.js", "./map.css", "./manifest.webmanifest", "./icons/fbp-192.png", "./icons/fbp-512.png"];
 
 self.addEventListener("install", event => {
@@ -7,8 +7,19 @@ self.addEventListener("install", event => {
 });
 
 self.addEventListener("activate", event => {
-  event.waitUntil(caches.keys().then(keys => Promise.all(keys.filter(key => key !== CACHE_NAME).map(key => caches.delete(key)))));
-  self.clients.claim();
+  event.waitUntil((async () => {
+    const keys = await caches.keys();
+    await Promise.all(keys.filter(key => key !== CACHE_NAME).map(key => caches.delete(key)));
+    await self.clients.claim();
+    const clients = await self.clients.matchAll({ type: "window", includeUncontrolled: true });
+    await Promise.all(clients.map(async client => {
+      try {
+        await client.navigate(client.url);
+      } catch (error) {
+        console.warn("Could not reload client after service-worker update.", error);
+      }
+    }));
+  })());
 });
 
 self.addEventListener("fetch", event => {
