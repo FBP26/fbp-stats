@@ -3372,8 +3372,6 @@ async function renderConfirmationHistory(submission) {
     const fadeRepeat = currentOpponents.map(team => currentChoiceRun(team, true)).sort((left, right) => right.length - left.length || websiteNaturalTeamName(left.team).localeCompare(websiteNaturalTeamName(right.team)))[0] || { team: "", length: 0 };
     const longestPickGap = currentTeams.map(team => regularOpportunityGap(team)).sort((left, right) => right.missed - left.missed || websiteNaturalTeamName(left.team).localeCompare(websiteNaturalTeamName(right.team)))[0] || { team: "", missed: 0 };
     const longestFadeGap = currentOpponents.map(team => regularOpportunityGap(team, true)).sort((left, right) => right.missed - left.missed || websiteNaturalTeamName(left.team).localeCompare(websiteNaturalTeamName(right.team)))[0] || { team: "", missed: 0 };
-    const longestLeaguePickGap = WEBSITE_CURRENT_NFL_TEAMS.map(team => regularOpportunityGap(team)).sort((left, right) => right.missed - left.missed || websiteNaturalTeamName(left.team).localeCompare(websiteNaturalTeamName(right.team)))[0] || { team: "", missed: 0 };
-    const longestLeagueFadeGap = WEBSITE_CURRENT_NFL_TEAMS.map(team => regularOpportunityGap(team, true)).sort((left, right) => right.missed - left.missed || websiteNaturalTeamName(left.team).localeCompare(websiteNaturalTeamName(right.team)))[0] || { team: "", missed: 0 };
     const metricValue = (team, count, empty = "No completed history") => team && count ? `${teamLabel(team)} · ${count}` : empty;
     const recordValue = (record, empty) => record ? `${teamLabel(record.team)} · ${record.wins}-${record.losses}${record.pushes ? `-${record.pushes}` : ""}` : empty;
     const currentBestBetRecordValue = (record, empty) => record ? `${teamLabel(record.team)} - ${record.wins}-${record.losses}${record.pushes ? `-${record.pushes}` : ""}` : empty;
@@ -3383,8 +3381,6 @@ async function renderConfirmationHistory(submission) {
       { label: "Most picked against", value: metricValue(mostFadedTeam, mostFadedCount, "No completed fades") },
       { label: "Current pick run", value: metricValue(pickRepeat.team, pickRepeat.length) },
       { label: "Current picked-against run", value: metricValue(fadeRepeat.team, fadeRepeat.length) },
-      { label: "Longest since picked", value: gapValue(longestLeaguePickGap.team, longestLeaguePickGap.missed, longestLeaguePickGap.found, "No completed picks") },
-      { label: "Longest since picked against", value: gapValue(longestLeagueFadeGap.team, longestLeagueFadeGap.missed, longestLeagueFadeGap.found, "No completed fades") },
       { label: "Finally picked", value: gapValue(longestPickGap.team, longestPickGap.missed, longestPickGap.found, "No current picks") },
       { label: "Finally picked against", value: gapValue(longestFadeGap.team, longestFadeGap.missed, longestFadeGap.found, "No current picked-against teams") },
       { label: "Best record when picked", value: recordValue(bestTeamRecord(false), "No qualified pick record") },
