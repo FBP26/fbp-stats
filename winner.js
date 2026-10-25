@@ -33,7 +33,9 @@ const playerColor = (name, alpha = 1) => {
 
 function params() {
   const query = new URLSearchParams(location.search);
-  return { season: Number(query.get("season") || 2026), week: Number(query.get("week") || 5) };
+  const season = Number(query.get("season"));
+  const week = Number(query.get("week"));
+  return Number.isInteger(season) && Number.isInteger(week) && week > 0 ? { season, week } : null;
 }
 
 function dataFile(season, week) {
@@ -644,8 +646,7 @@ function helpedHtml(data, winner) {
   </section>`;
 }
 
-async function archiveHtml(current) {
-  const archive = await loadJson("data/winner-recaps/index.json");
+async function archiveHtml(current, archive) {
   const cards = [...archive.weeks].reverse().map(item => `<a class="archive-card ${item.season === current.season && item.week === current.week ? "current" : ""}" href="winner.html?season=${item.season}&week=${item.week}"><small>${escapeHtml(item.seasonLabel)} - Week ${item.week}</small><strong>${escapeHtml(item.winners.join(" / "))}</strong><span>${escapeHtml(item.record)}</span>${item.weekName ? `<small class="archive-week-name">${escapeHtml(item.weekName)}</small>` : ""}</a>`).join("");
   return `<section id="winner-archive" class="section"><div class="section-heading"><div><h2>Weekly winner archive</h2><p>Every finalized winner gets a permanent page at its own season and week URL.</p></div></div><div class="archive-grid">${cards}</div></section>`;
 }
@@ -800,7 +801,13 @@ function bindSharing(data, winner) {
 
 async function render() {
   try {
-    const selected = params();
+    const archive = await loadJson("data/winner-recaps/index.json");
+    const latest = [...archive.weeks].sort((left, right) => right.season - left.season || right.week - left.week)[0];
+    if (!latest) throw new Error("No completed weekly winner recaps are available yet.");
+    const requested = params();
+    const selected = requested && archive.weeks.some(item => item.season === requested.season && item.week === requested.week)
+      ? requested
+      : { season: latest.season, week: latest.week };
     recapData = await loadJson(dataFile(selected.season, selected.week));
     venueData = await loadJson("data/winner-recaps/venues.json").catch(() => null);
     const winner = recapData.winners[0];
@@ -817,7 +824,7 @@ async function render() {
       routeHtml(recapData, winner),
       helpedHtml(recapData, winner),
       mapHtml(recapData, winner),
-      await archiveHtml(selected),
+      await archiveHtml(selected, archive),
       shareHtml(recapData, winner),
     ].join("");
     createRaceCharts(recapData, winner);
