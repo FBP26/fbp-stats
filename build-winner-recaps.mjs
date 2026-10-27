@@ -166,7 +166,20 @@ async function loadRaceArchive(season, week, winnerNames) {
       return { source: source.name, snapshots: [] };
     }
   }));
-  return candidates.sort((left, right) => raceCandidateScore(right.snapshots, winnerNames) - raceCandidateScore(left.snapshots, winnerNames))[0];
+  const selected = candidates.sort((left, right) => raceCandidateScore(right.snapshots, winnerNames) - raceCandidateScore(left.snapshots, winnerNames))[0];
+  if (selected.snapshots.length) return selected;
+  const outputFile = path.join(outputDirectory, `${season}-${season + 1}_week_${String(week).padStart(2, "0")}.json`);
+  try {
+    const existing = JSON.parse(await readFile(outputFile, "utf8"));
+    if (Array.isArray(existing.raceSnapshots) && existing.raceSnapshots.length) {
+      return { source: existing.raceSource || "preserved recap", snapshots: existing.raceSnapshots };
+    }
+  } catch (error) {
+    if (!(error && typeof error === "object" && "code" in error && error.code === "ENOENT")) {
+      throw error;
+    }
+  }
+  return selected;
 }
 
 // Mirrors getHistoricalWinnerContext in fbp_dashboard_appscript.js so the page and

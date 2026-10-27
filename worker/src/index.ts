@@ -460,6 +460,7 @@ const finalizeWeek = async (env: Env, week: Record<string, unknown>): Promise<bo
   await sendOwnerOperationalEmail(env, `FBP Week ${weekNumber} finalized`, [
     `${season}-${season + 1} Week ${weekNumber} is finalized in D1.`, "", winnerSummary, "",
     `${submissions.length} active submission${submissions.length === 1 ? "" : "s"} were archived.`, "",
+    `Winner recap: ${(env.PUBLIC_SITE_URL || "https://fbp26.github.io/fbp-stats/").replace(/\/$/, "")}/winner.html?season=${season}&week=${weekNumber}`, "",
     "Payout reconciliation remains manual; this deployment did not change financial balances.", "",
     `Open FBP: ${env.PUBLIC_SITE_URL || "https://fbp26.github.io/fbp-stats/"}`,
   ].join("\n"));
