@@ -6,6 +6,7 @@ let raceFrames = [];
 let raceFrame = 0;
 let raceTimer = null;
 const RACE_DURATION_MS = 60000;
+const WINNER_DATA_REVISION = "20261027-1";
 let playbackSpeed = 1;
 let frameDelays = [];
 
@@ -43,7 +44,7 @@ function dataFile(season, week) {
 }
 
 async function loadJson(url) {
-  const response = await fetch(url);
+  const response = await fetch(`${url}${url.includes("?") ? "&" : "?"}v=${WINNER_DATA_REVISION}`);
   if (!response.ok) throw new Error(`${url} returned HTTP ${response.status}`);
   return response.json();
 }
