@@ -1756,7 +1756,7 @@ interface NotificationDispatchResult {
   failed: number;
 }
 
-const PLAYER_EMAIL_NOTIFICATIONS_ENABLED = false;
+const PLAYER_EMAIL_NOTIFICATIONS_ENABLED = true;
 
 const dispatchWeekNotifications = async (
   env: Env,
@@ -2232,7 +2232,22 @@ export default {
     const weekBeforeRefresh = await activeWeek(env.DB);
     const refresh = await refreshActiveGameStates(env.DB);
     if (!weekBeforeRefresh) {
-      await createWeekSetupCandidate(env);
+      try {
+        await createWeekSetupCandidate(env);
+      } catch (error) {
+        const latest = await latestFinalizedRegularSeasonWeek(env.DB);
+        const season = Number(latest?.season) || new Date().getUTCFullYear();
+        const week = (Number(latest?.week) || 0) + 1;
+        const detail = error instanceof Error ? error.message : "The automatic setup encountered an unexpected error.";
+        console.error(`Week ${week} setup candidate failed: ${detail}`);
+        await sendAdministratorPushOnce(
+          env,
+          "adminWeekSetupFailed",
+          `admin-week-setup-failed:${season}:${week}:${new Date().toISOString().slice(0, 10)}`,
+          `FBP Week ${week} setup needs attention`,
+          detail.slice(0, 180),
+        );
+      }
       return;
     }
     let refreshedWeek = await findWeek(env.DB, Number(weekBeforeRefresh.season), Number(weekBeforeRefresh.week), "REGULAR_SEASON");
@@ -2244,6 +2259,10 @@ export default {
     }
     refreshedWeek = await findWeek(env.DB, Number(weekBeforeRefresh.season), Number(weekBeforeRefresh.week), "REGULAR_SEASON");
     if (refreshedWeek) {
+      if (String(refreshedWeek.status) === "staged") {
+        await dispatchWeekNotifications(env, refreshedWeek, new Set<NotificationEvent>(["picksReady"]));
+        await dispatchPicksReadyPush(env, refreshedWeek);
+      }
       await dispatchWeekNotifications(env, refreshedWeek);
       await dispatchWeekPushNotifications(env, refreshedWeek, refresh.scoreChanges);
       if (!(await syncPriorWeekPayoutsAfterSetup(env, refreshedWeek))) {
