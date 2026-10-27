@@ -218,7 +218,11 @@ const refreshActiveGameStates = async (db: D1Database): Promise<{ refreshed: num
   const payloads = await Promise.all(eventIds.map(fetchEspnGame));
   const updatedAt = new Date().toISOString();
   const updates = games.map((game, index) => parseEspnGame(payloads[index], game));
-  const lastGameIndex = games.reduce((latest, game, index) => game.externalId > games[latest].externalId ? index : latest, 0);
+  const lastGameIndex = games.reduce((latest, game, index) => {
+    const kickoff = Date.parse(game.kickoffAt || "");
+    const latestKickoff = Date.parse(games[latest].kickoffAt || "");
+    return Number.isFinite(kickoff) && (!Number.isFinite(latestKickoff) || kickoff > latestKickoff) ? index : latest;
+  }, 0);
   const statements: D1PreparedStatement[] = [];
   const scoreChanges: LeaderPushScoreChange[] = [];
   games.forEach((game, index) => {
