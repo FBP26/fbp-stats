@@ -4,7 +4,7 @@ import { readFile } from "node:fs/promises";
 const readJson = file => readFile(new URL(file, import.meta.url), "utf8").then(JSON.parse);
 const index = await readJson("./data/winner-recaps/index.json");
 
-assert.equal(index.weeks.length, 6, "The current season should publish six completed winner pages.");
+assert.equal(index.weeks.length, 7, "The current season should publish seven completed winner pages.");
 
 for (const week of index.weeks) {
   const data = await readJson(`./data/winner-recaps/${week.file}`);
@@ -31,5 +31,11 @@ assert.equal(barb.winners[0].career.playoffWins, 1);
 assert.equal(barb.winners[0].career.seasonChampionships, 0);
 assert.equal(barb.winners[0].highlights.correctPicks, 11);
 assert.equal(barb.raceSnapshots.length, 255);
+
+const buster = await readJson("./data/winner-recaps/2026-2027_week_07.json");
+assert.equal(buster.winners[0].name, "Buster");
+assert.equal(buster.winners[0].actualTiebreaker, 412);
+assert.equal(buster.winners[0].wins, 10);
+assert.equal(buster.raceSnapshots.length, 147);
 
 console.log(`Validated ${index.weeks.length} winner pages and ${index.weeks.reduce((total, week) => total + week.raceFrames, 0)} preserved race frames.`);
