@@ -185,6 +185,9 @@ const latestFinalizedRegularSeasonWeek = async (db: D1Database): Promise<Record<
     .prepare("SELECT * FROM weeks WHERE phase = 'REGULAR_SEASON' AND status = 'finalized' ORDER BY season DESC, week DESC LIMIT 1")
     .first();
 
+const currentDisplayWeek = async (db: D1Database): Promise<Record<string, unknown> | null> =>
+  await activeWeek(db) || await latestFinalizedRegularSeasonWeek(db);
+
 const refreshActiveGameStates = async (db: D1Database): Promise<{ refreshed: number; skipped: string; scoreChanges: LeaderPushScoreChange[] }> => {
   const week = await activeWeek(db);
   if (!week) return { refreshed: 0, skipped: "no-active-week", scoreChanges: [] };
@@ -581,7 +584,15 @@ const handleGet = async (request: Request, env: Env): Promise<Response> => {
   if (action === "active-week") {
     const week = await activeWeek(env.DB);
     if (!week) {
-      return json({ ok: true, staged: false, season: 2026, week: 1, phase: "REGULAR_SEASON", games: [] }, 200, env.CORS_ORIGIN);
+      const latest = await latestFinalizedRegularSeasonWeek(env.DB);
+      return json({
+        ok: true,
+        staged: false,
+        season: Number(latest?.season) || 2026,
+        week: Number(latest?.week) || 1,
+        phase: String(latest?.phase || "REGULAR_SEASON"),
+        games: [],
+      }, 200, env.CORS_ORIGIN);
     }
     const [configuredGames, pickRows, currentField] = await Promise.all([
       getWeekConfig(env.DB, Number(week.id)),
@@ -655,7 +666,7 @@ const handleGet = async (request: Request, env: Env): Promise<Response> => {
 
   if (action === "current-week" || action === "week-one") {
     await refreshCurrentWeekIfStale(env.DB);
-    const week = await activeWeek(env.DB);
+    const week = await currentDisplayWeek(env.DB);
     if (!week) return json({ ok: false, error: "No regular-season week is staged." }, 404, env.CORS_ORIGIN);
     const body = await buildCurrentWeek(env.DB, week);
     body.games = await enrichActiveSlateGames(
