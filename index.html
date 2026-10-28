@@ -144,7 +144,7 @@
   #website-picks-form > label { margin-bottom: 7px; }
   .website-game-row { position: relative; margin-bottom: 9px; }
   .website-matchup { display: grid; grid-template-columns: minmax(0, 1fr) minmax(154px, .54fr) minmax(0, 1fr); align-items: stretch; gap: 8px 10px; }
-  .website-side { display: flex; grid-row: 1; min-width: 0; padding: 0; font: 14px Arial, sans-serif; text-transform: none; letter-spacing: 0; cursor: pointer; touch-action: pan-y; }
+  .website-side { display: flex; grid-row: 1; min-width: 0; padding: 0; font: 14px Arial, sans-serif; text-transform: none; letter-spacing: 0; cursor: pointer; touch-action: manipulation; }
   .website-side:not(.right) { grid-column: 1; }
   .website-side.right { grid-column: 3; }
   .website-team-choice { display: grid; flex: 1; grid-template-columns: 92px minmax(0, 1fr); grid-template-areas: "logo abbreviation" "logo record" "logo picked"; align-content: center; column-gap: 12px; min-width: 0; min-height: 124px; padding: 10px; border: 1px solid var(--border); border-radius: 8px; background: linear-gradient(135deg, var(--panel-2), var(--panel)); }
@@ -1189,7 +1189,7 @@ function initializeWebsiteNameAutocomplete() {
       if (choose(items[activeIndex >= 0 ? activeIndex : 0]) && event.key !== "Tab") event.preventDefault();
     } else if (event.key === "Escape") close();
   });
-  input.addEventListener("blur", () => setTimeout(close, 0));
+  input.addEventListener("blur", close);
 }
 function websiteConvertNativeTooltips(root = document) {
   const elements = [...(root.matches?.("[title]") ? [root] : []), ...(root.querySelectorAll?.("[title]") || [])];
