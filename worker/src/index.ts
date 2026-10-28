@@ -1260,8 +1260,19 @@ const syncFinalizedPayouts = async (env: Env): Promise<boolean> => {
       headers: { "Content-Type": "text/plain;charset=UTF-8" },
       body: JSON.stringify({ action: "sync-finalized-payouts", secret: env.EMAIL_RELAY_SECRET }),
     });
-    const result = await response.json().catch(() => null) as { ok?: boolean } | null;
-    return response.ok && result?.ok === true;
+    const text = await response.text();
+    let result: { ok?: boolean; error?: string } | null = null;
+    try {
+      result = JSON.parse(text) as { ok?: boolean; error?: string };
+    } catch (error) {
+      console.warn(`Finalized payout sync relay returned invalid JSON (HTTP ${response.status}): ${error instanceof Error ? error.message : "unknown parse error"}`);
+      return false;
+    }
+    if (!response.ok || result?.ok !== true) {
+      console.warn(`Finalized payout sync relay failed (HTTP ${response.status}): ${result?.error || "no error detail returned"}`);
+      return false;
+    }
+    return true;
   } catch (error) {
     console.warn("Finalized payout sync relay failed", error);
     return false;
