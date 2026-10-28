@@ -157,6 +157,13 @@ function raceCandidateScore(snapshots, winnerNames) {
   return winnerFrames * 1000 + maxPlayers * 100 + snapshots.length;
 }
 
+function chronologicalSnapshots(snapshots) {
+  return snapshots
+    .map((snapshot, index) => ({ snapshot, index }))
+    .sort((left, right) => Date.parse(left.snapshot.timestamp) - Date.parse(right.snapshot.timestamp) || left.index - right.index)
+    .map(({ snapshot }) => snapshot);
+}
+
 async function loadRaceArchive(season, week, winnerNames) {
   const urls = [
     { name: "Apps Script race archive", url: `${appsScriptUrl}?action=race-archive&season=${season}&week=${week}` },
@@ -172,12 +179,12 @@ async function loadRaceArchive(season, week, winnerNames) {
     }
   }));
   const selected = candidates.sort((left, right) => raceCandidateScore(right.snapshots, winnerNames) - raceCandidateScore(left.snapshots, winnerNames))[0];
-  if (selected.snapshots.length) return selected;
+  if (selected.snapshots.length) return { ...selected, snapshots: chronologicalSnapshots(selected.snapshots) };
   const outputFile = path.join(outputDirectory, `${season}-${season + 1}_week_${String(week).padStart(2, "0")}.json`);
   try {
     const existing = JSON.parse(await readFile(outputFile, "utf8"));
     if (Array.isArray(existing.raceSnapshots) && existing.raceSnapshots.length) {
-      return { source: existing.raceSource || "preserved recap", snapshots: existing.raceSnapshots };
+      return { source: existing.raceSource || "preserved recap", snapshots: chronologicalSnapshots(existing.raceSnapshots) };
     }
   } catch (error) {
     if (!(error && typeof error === "object" && "code" in error && error.code === "ENOENT")) {
