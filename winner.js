@@ -406,7 +406,12 @@ function frameDelay() {
 
 function frameLeader(frame) {
   if (!startedGameCount(frame)) return null;
-  return [...frame.players].sort((left, right) => right.wins - left.wins || left.tiebreakerDiff - right.tiebreakerDiff || String(left.name).localeCompare(String(right.name)))[0] || null;
+  return [...frame.players].sort((left, right) =>
+    Number(right.winProbability || 0) - Number(left.winProbability || 0)
+    || Number(right.wins || 0) - Number(left.wins || 0)
+    || Number(left.tiebreakerDiff || 0) - Number(right.tiebreakerDiff || 0)
+    || String(left.name).localeCompare(String(right.name))
+  )[0] || null;
 }
 
 function leadershipAnalysis(winnerName) {

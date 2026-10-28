@@ -37,5 +37,23 @@ assert.equal(buster.winners[0].name, "Buster");
 assert.equal(buster.winners[0].actualTiebreaker, 412);
 assert.equal(buster.winners[0].wins, 10);
 assert.equal(buster.raceSnapshots.length, 147);
+let priorTimestamp = -Infinity;
+for (const frame of buster.raceSnapshots) {
+  const timestamp = Date.parse(frame.timestamp);
+  assert.ok(Number.isFinite(timestamp) && timestamp >= priorTimestamp, "Week 7 race frames must be chronological.");
+  priorTimestamp = timestamp;
+  assert.equal(new Set(frame.players.map(player => player.name)).size, frame.players.length, "Week 7 race frames cannot duplicate players.");
+  assert.ok(frame.players.every(player => Number.isFinite(Number(player.winProbability)) && Number(player.winProbability) >= 0), "Week 7 race probabilities must be non-negative numbers.");
+  const probabilityTotal = frame.players.reduce((total, player) => total + Number(player.winProbability), 0);
+  assert.ok(probabilityTotal > 0 && probabilityTotal <= 100.01, "Week 7 race probability totals must be bounded.");
+}
+const dallasCoverFrame = buster.raceSnapshots.find(frame => {
+  const dallas = frame.gameState.find(game => game.away === "DAL" && game.home === "PHI");
+  const busterPlayer = frame.players.find(player => player.name === "Buster");
+  return dallas && Number(dallas.awayScore) > Number(dallas.homeScore) && Number(busterPlayer?.winProbability) > 50;
+});
+assert.ok(dallasCoverFrame, "Week 7 must preserve Buster's Dallas-cover probability lead.");
+const probabilityLeader = [...dallasCoverFrame.players].sort((left, right) => Number(right.winProbability) - Number(left.winProbability) || String(left.name).localeCompare(String(right.name)))[0];
+assert.equal(probabilityLeader.name, "Buster", "Buster must lead the Dallas-cover frame by win probability.");
 
 console.log(`Validated ${index.weeks.length} winner pages and ${index.weeks.reduce((total, week) => total + week.raceFrames, 0)} preserved race frames.`);
