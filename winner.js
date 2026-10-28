@@ -405,7 +405,7 @@ function frameDelay() {
 }
 
 function frameLeader(frame) {
-  if (!startedGameCount(frame)) return null;
+  if (!liveGameCount(frame)) return null;
   return [...frame.players].sort((left, right) =>
     Number(right.winProbability || 0) - Number(left.winProbability || 0)
     || Number(right.wins || 0) - Number(left.wins || 0)

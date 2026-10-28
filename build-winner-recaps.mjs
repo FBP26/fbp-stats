@@ -147,6 +147,11 @@ async function fetchJson(url) {
 }
 
 function raceCandidateScore(snapshots, winnerNames) {
+  const finalFrames = snapshots.filter(frame => (frame.gameState || []).length && (frame.gameState || []).every(game => ["FINAL", "STATUS_FINAL", "COMPLETED"].includes(String(game.status || game.state || "").toUpperCase())));
+  if (finalFrames.some(frame => {
+    const highestProbability = Math.max(...frame.players.map(player => Number(player.winProbability || 0)));
+    return !winnerNames.some(name => frame.players.some(player => normalizeName(player.name) === normalizeName(name) && Number(player.winProbability || 0) === highestProbability));
+  })) return Number.NEGATIVE_INFINITY;
   const maxPlayers = snapshots.reduce((maximum, frame) => Math.max(maximum, frame.players?.length || 0), 0);
   const winnerFrames = snapshots.filter(frame => winnerNames.some(name => frame.players?.some(player => normalizeName(player.name) === normalizeName(name)))).length;
   return winnerFrames * 1000 + maxPlayers * 100 + snapshots.length;
