@@ -1,5 +1,5 @@
 {
-  "updatedAt": "2026-10-20T22:07:13+00:00",
+  "updatedAt": "2026-10-28T00:28:00+00:00",
   "source": {
     "spreadsheetId": "19LkATudJU7W7bsnBBNy7iCI68P3Nhbt10XIJ5Q7HRCA",
     "sheet": "payout",
@@ -40,12 +40,12 @@
             "paid",
             "paid",
             "paid",
+            "paid",
+            "paid",
+            "paid",
+            "paid",
+            "paid",
             "win",
-            "paid",
-            "paid",
-            "paid",
-            "paid",
-            "paid",
             "paid",
             "paid",
             "paid",
@@ -241,7 +241,7 @@
             "paid",
             "paid",
             "paid",
-            "paid",
+            "win",
             "paid",
             "paid",
             "paid",
@@ -255,7 +255,7 @@
             "paid",
             "paid"
           ],
-          "balance": "+210"
+          "balance": "+470"
         },
         {
           "name": "JLew",

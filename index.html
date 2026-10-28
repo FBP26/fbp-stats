@@ -1019,6 +1019,7 @@
 document.getElementById("profile-best-bet-chart")?.closest(".profile-chart")?.before(document.getElementById("profile-team-chart")?.closest(".profile-chart"));
 const DATA_DIR = "./data";
 const WEBSITE_WEEK_HISTORY_VERSION = "20260903-literal-none";
+const WEBSITE_PAYOUT_VERSION = "20261028-week7";
 const websiteRoutes = ["enter-picks", "week-one", "live-analysis", "picks-confirmation", "alltime", "season", "payout", "streaks", "weeks", "weekly-rank", "games", "players", "names", "teams", "map", "faq", "submission-status"];
 const standaloneAppLaunch = matchMedia("(display-mode: standalone)").matches || navigator.standalone === true;
 const savedStartupRoute = localStorage.getItem("fbpLastView");
@@ -7612,7 +7613,7 @@ async function init() {
   [websitePlayers, websiteSeasons, websiteWeeks, websitePlayoffRoundNames, websiteAwards, websiteRecords, websiteStreaks] = await Promise.all(["players.json", "seasons.json", "player_weeks.json", "playoff_round_names.json", "awards.json", "records.json", "streaks.json"].map(async file => await (await fetch(`${DATA_DIR}/${file}${file === "player_weeks.json" || file === "playoff_round_names.json" ? `?v=${WEBSITE_WEEK_HISTORY_VERSION}` : ""}`)).json()));
   renderNamesArchiveSummary();
   dashboard = await (await fetch(`${DATA_DIR}/dashboard.json`)).json();
-  websitePayouts = (await (await fetch(`${DATA_DIR}/payouts.json`)).json()).seasons || [];
+  websitePayouts = (await (await fetch(`${DATA_DIR}/payouts.json?v=${WEBSITE_PAYOUT_VERSION}`)).json()).seasons || [];
   const players = [...new Set(dashboard.map(row => row.Name))].sort(), profileSelect = document.getElementById("profile-player"), namesSelect = document.getElementById("names-player");
   const notificationPlayers = document.getElementById("notification-player-options");
   players.forEach(name => { profileSelect.add(new Option(name, name)); namesSelect.add(new Option(name, name)); notificationPlayers.append(new Option(name)); });
