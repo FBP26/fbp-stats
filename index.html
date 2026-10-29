@@ -899,7 +899,7 @@
   </section>
   <section id="view-live-analysis" class="view">
     <section class="intro"><div><h2>Live</h2></div><p>Weekly standings, what-if outcomes, and paths to victory. A full refresh can take up to a minute.</p></section>
-    <div id="live-analysis-host" class="panel"><p id="live-analysis-refresh-status" class="analysis-note">Loading the latest live standings and scenarios...</p><section id="week-one-live-race" class="live-race"><div class="live-race-head"><div><h3>Loading Live</h3><p>Building the latest race and scenarios. This can take up to a minute.</p></div></div></section><div id="live-what-if" class="live-feature-grid"><section id="live-outcome-switchboard" class="live-feature"></section><section id="live-projected-standings" class="live-feature"></section><section id="live-rooting-matrix" class="live-feature wide"></section></div><section id="live-tiebreak-target" class="live-feature wide"></section><div id="week-one-scenarios" class="weekly-subview"></div><div id="week-one-sankey" class="weekly-subview"></div><div id="live-race-stories" class="live-feature-grid"><section id="live-turning-points" class="live-feature"></section><section id="live-lead-changes" class="live-feature"></section><section id="live-superlatives" class="live-feature wide"></section></div><div id="week-one-recap"></div></div>
+    <div id="live-analysis-host" class="panel"><section id="week-one-live-race" class="live-race"><div class="live-race-head"><div><h3>Live</h3></div></div></section><div id="live-what-if" class="live-feature-grid"><section id="live-outcome-switchboard" class="live-feature"></section><section id="live-projected-standings" class="live-feature"></section><section id="live-rooting-matrix" class="live-feature wide"></section></div><section id="live-tiebreak-target" class="live-feature wide"></section><div id="week-one-scenarios" class="weekly-subview"></div><div id="week-one-sankey" class="weekly-subview"></div><div id="live-race-stories" class="live-feature-grid"><section id="live-turning-points" class="live-feature"></section><section id="live-lead-changes" class="live-feature"></section><section id="live-superlatives" class="live-feature wide"></section></div><div id="week-one-recap"></div></div>
   </section>
   <section id="view-alltime" class="view">
     <section class="intro"><div><h2>All Time</h2></div><p>Seventeen seasons of results in one place: the career leaders, every champion, and how the long-timers built their records.</p></section>
@@ -4219,9 +4219,7 @@ function websiteRenderCachedLive() {
   websiteRegularSelection = { season: Number(cached.season) || 2026, week: Number(cached.week) || 1, phase: "REGULAR_SEASON", staged: Boolean(cached.games.length) };
   updateWebsiteWeekLabels(websiteRegularSelection);
   renderWebsiteLiveAnalysis(cached);
-  const status = document.getElementById("live-analysis-refresh-status");
-  status.hidden = false;
-  status.textContent = "Showing the last loaded view while the latest data refreshes.";
+  websiteSetPageRefreshStatus("loading", "Showing the last loaded view while Live refreshes.");
   return true;
 }
 async function fetchWebsiteCurrentWeek() {
@@ -4378,9 +4376,7 @@ async function renderWebsiteWeekOne(currentWeekRequest = null, currentRaceReques
     if (liveView) {
       renderWebsiteLiveAnalysis(data);
       websiteSetPageRefreshStatus("fresh");
-      const status = document.getElementById("live-analysis-refresh-status");
-      status.hidden = !raceRequest;
-      status.textContent = "Latest standings loaded. Loading race history...";
+      if (raceRequest) websiteSetPageRefreshStatus("loading", "Live standings loaded. Loading race history...");
     } else {
       renderWebsiteWeekOneGrid(data, "Week X");
       decorateWebsiteWeekOneHeaders(data);
@@ -4388,28 +4384,24 @@ async function renderWebsiteWeekOne(currentWeekRequest = null, currentRaceReques
     startHistoricalInitialization();
     raceRequest?.then(async raceSnapshots => {
       if (refreshGeneration !== websiteLiveRefreshGeneration) return;
-      const status = document.getElementById("live-analysis-refresh-status");
       if (raceSnapshots === null) {
-        status.hidden = false;
-        status.textContent = "Latest standings loaded, but race history did not refresh. Showing the last loaded checkpoints.";
+        websiteSetPageRefreshStatus("stale", "Live standings loaded; race history is showing the last available checkpoints.");
         return;
       }
       if (websiteRegularSelection.season !== Number(data.season) || websiteRegularSelection.week !== Number(data.week)) return;
       if (Number(data.season) === 2026 && Number(data.week) === 6 && raceSnapshots.length < 100) {
-        status.hidden = false;
-        status.textContent = "Rebuilding the Week 6 race from ESPN scoring events...";
+        websiteSetPageRefreshStatus("loading", "Rebuilding the live race...");
         try {
           data.raceSnapshots = await fetchWebsiteRaceReconstruction(data);
           websiteWriteCurrentWeekCache(data);
-          status.hidden = true;
+          websiteSetPageRefreshStatus("fresh");
         } catch (error) {
-          status.hidden = false;
-          status.textContent = `Race replay could not be rebuilt: ${error.message}`;
+          websiteSetPageRefreshStatus("stale", `Live race replay could not be rebuilt: ${error.message}`);
           console.warn(error.message);
           data.raceSnapshots = raceSnapshots;
         }
       } else {
-        status.hidden = true;
+        websiteSetPageRefreshStatus("fresh");
         data.raceSnapshots = raceSnapshots;
         websiteWriteCurrentWeekCache(data);
       }
@@ -4421,9 +4413,7 @@ async function renderWebsiteWeekOne(currentWeekRequest = null, currentRaceReques
     const table = document.getElementById("week-one-table"), hasCachedContent = table?.dataset.instantWeek === "true";
     if (!liveView && !hasExistingBoard && !hasCachedContent) document.getElementById("week-one-status").insertAdjacentHTML("afterend", `<p class="website-instructions website-current-week-error">The current week could not load: ${error.message}</p>`);
     if (liveView) {
-      const status = document.getElementById("live-analysis-refresh-status");
-      status.hidden = false;
-      status.textContent = websiteReadCurrentWeekCache() ? "The latest refresh did not finish. Showing the last loaded view." : `Live could not load: ${error.message}`;
+      websiteSetPageRefreshStatus("stale", websiteReadCurrentWeekCache() ? "Live refresh did not finish. Showing the last loaded view." : `Live could not load: ${error.message}`);
       websiteSetPageRefreshStatus("stale", "Showing cached data; the latest refresh failed.");
     }
     if (document.querySelector("#view-week-one.active, #view-live-analysis.active")) websiteLiveRefreshTimer = setTimeout(() => renderSelectedWebsiteWeek(true), 60000);
@@ -4728,6 +4718,10 @@ function websiteSetPageRefreshStatus(state, message = "") {
   if (!status) return;
   status.dataset.state = state;
   if (message) { status.textContent = message; return; }
+  if (document.getElementById("view-live-analysis")?.classList.contains("active")) {
+    status.textContent = "Live updated.";
+    return;
+  }
   status.textContent = `Last refreshed ${new Date().toLocaleString([], { month: "short", day: "numeric", year: "numeric", hour: "numeric", minute: "2-digit", second: "2-digit" })}`;
 }
 function showView(view) { if (view === "alltime" && startupRoutePending) return; if (view !== "season") stopSeasonLiveRace(); if (view !== "weeks") stopWeekLiveRace(); document.querySelectorAll(".view").forEach(section => section.classList.toggle("active", section.id === `view-${view}`)); document.querySelectorAll("#nav button[data-view]").forEach(btn => btn.classList.toggle("active", btn.dataset.view === view)); history.replaceState(null, "", `#${view === "week-one" ? "current-week" : view}`); if (websiteRoutes.includes(view) && view !== "picks-confirmation") localStorage.setItem("fbpLastView", view); websiteSetPageRefreshStatus("loading", view === "live-analysis" ? "Loading live analysis; this can take up to about a minute." : "Loading..."); requestAnimationFrame(() => requestAnimationFrame(() => { if (document.getElementById(`view-${view}`)?.classList.contains("active") && view !== "live-analysis") websiteSetPageRefreshStatus("fresh"); })); websiteRefreshInstallHelp(view); websiteTrackEvent("page_view", view); }
