@@ -67,7 +67,7 @@ if (lookup.owner !== "D1" || lookup.writesEnabled !== true || lookup.exists !== 
   fail("The active week is visible but new-pick lookup is not enabled.");
 }
 
-console.log(JSON.stringify({ ok: true, season: active.season, week: active.week, games: active.games.length, players: current.players?.length || 0 }));
+console.log(JSON.stringify({ ok: true, season: active.season, week: active.week, games: active.games.length }));
 }
 
 await main().catch(error => {
