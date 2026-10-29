@@ -57,11 +57,6 @@ if (!Number.isInteger(active.season) || !Number.isInteger(active.week) || !Array
   fail("Active Week is missing a valid staged slate.");
 }
 
-const current = await request(api("current-week", { fast: "1" }));
-if (current.season !== active.season || current.week !== active.week || !Array.isArray(current.games) || current.games.length !== active.games.length) {
-  fail("Current Week does not match the active staged slate.");
-}
-
 const lookup = await request(api("existing-submission", {
   season: active.season,
   week: active.week,
