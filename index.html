@@ -3574,7 +3574,7 @@ function websiteConfirmationEmailSections() {
         if (paragraph) section.paragraphs.push(paragraph);
       } else if (section && element.matches("table")) {
         section.headers = [...element.querySelectorAll("thead th")].map(cleanCellText).filter(Boolean).slice(0, 8);
-        section.rows = [...element.querySelectorAll("tbody tr")].map(row => [...row.querySelectorAll("th, td")].map(cell => cleanCellText(cell).slice(0, 1000)).slice(0, section.headers.length || 8)).filter(row => row.some(Boolean)).slice(0, 8);
+        section.rows = [...element.querySelectorAll("tbody tr")].map(row => [...row.querySelectorAll("th, td")].map(cell => cleanCellText(cell).slice(0, 1000)).slice(0, section.headers.length || 8)).filter(row => row.some(Boolean)).slice(0, 12);
       }
     });
     return sections;
