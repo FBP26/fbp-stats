@@ -4717,12 +4717,11 @@ function buildColumns(columns, rows) { return columns.map(col => { const sample 
 function websiteSetPageRefreshStatus(state, message = "") {
   const status = document.getElementById("page-refresh-status");
   if (!status) return;
+  const liveView = document.getElementById("view-live-analysis")?.classList.contains("active");
+  status.hidden = liveView;
+  if (liveView) return;
   status.dataset.state = state;
   if (message) { status.textContent = message; return; }
-  if (document.getElementById("view-live-analysis")?.classList.contains("active")) {
-    status.textContent = "Live updated.";
-    return;
-  }
   status.textContent = `Last refreshed ${new Date().toLocaleString([], { month: "short", day: "numeric", year: "numeric", hour: "numeric", minute: "2-digit", second: "2-digit" })}`;
 }
 function showView(view) { if (view === "alltime" && startupRoutePending) return; if (view !== "season") stopSeasonLiveRace(); if (view !== "weeks") stopWeekLiveRace(); document.querySelectorAll(".view").forEach(section => section.classList.toggle("active", section.id === `view-${view}`)); document.querySelectorAll("#nav button[data-view]").forEach(btn => btn.classList.toggle("active", btn.dataset.view === view)); history.replaceState(null, "", `#${view === "week-one" ? "current-week" : view}`); if (websiteRoutes.includes(view) && view !== "picks-confirmation") localStorage.setItem("fbpLastView", view); websiteSetPageRefreshStatus("loading", view === "live-analysis" ? "Loading live analysis; this can take up to about a minute." : "Loading..."); requestAnimationFrame(() => requestAnimationFrame(() => { if (document.getElementById(`view-${view}`)?.classList.contains("active") && view !== "live-analysis") websiteSetPageRefreshStatus("fresh"); })); websiteRefreshInstallHelp(view); websiteTrackEvent("page_view", view); }
