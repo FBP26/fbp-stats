@@ -1603,8 +1603,9 @@ function websiteRaceLeadershipAnalysis() {
     const leaderNames = ranked.filter(player => Number(player[metric] || 0) === topValue).map(player => player.name);
     const hasNext = Number.isFinite(timestamps[index + 1]);
     const end = hasNext ? timestamps[index + 1] : websiteRaceFrame === websiteRaceSnapshots.length - 1 && websiteRaceLiveNow ? Date.now() : timestamps[index];
-    const duration = Math.min(10 * 60 * 1000, end - timestamps[index]);
-    return leaderNames.length && Number.isFinite(duration) && duration > 0 ? { name: leaderNames.join(" + "), duration, index: sourceIndex, start: timestamps[index], end } : null;
+    const rawDuration = end - timestamps[index];
+    const duration = Math.min(10 * 60 * 1000, rawDuration);
+    return leaderNames.length && Number.isFinite(duration) && duration > 0 ? { name: leaderNames.join(" + "), duration, capped: rawDuration > duration, index: sourceIndex, start: timestamps[index], end } : null;
   }).filter(Boolean);
   const totals = new Map(), reigns = [];
   intervals.forEach(interval => {
@@ -1612,7 +1613,7 @@ function websiteRaceLeadershipAnalysis() {
     total.duration += interval.duration;
     totals.set(interval.name, total);
     const latest = reigns[reigns.length - 1];
-    if (latest?.name === interval.name) { latest.duration += interval.duration; latest.lastIndex = interval.index; latest.end = interval.end; }
+    if (latest?.name === interval.name) { latest.duration += interval.duration; latest.capped ||= interval.capped; latest.lastIndex = interval.index; latest.end = interval.end; }
     else reigns.push({ ...interval, lastIndex: interval.index });
   });
   return { intervals, reigns, totals, totalDuration: reigns.reduce((sum, reign) => sum + reign.duration, 0) || reigns.length };
@@ -3973,10 +3974,10 @@ function renderWebsiteRaceStories() {
   const timelineSummary = !leadership.reigns.length ? "Timeline begins when live-game snapshots arrive." : leadership.reigns.length > 1 ? `${leadership.reigns.length - 1} changes through this checkpoint.` : "One leader through this checkpoint.";
   const currentRace = websiteRaceRankState(websiteRaceSnapshots[websiteRaceFrame], metric);
   const currentLeader = currentRace.leaders.join(" + "), currentLeaderProbability = Number(currentRace.ordered[0]?.[metric] || 0);
-  const completedRace = !websiteRaceHasLiveGame(websiteRaceSnapshots.at(-1));
+  const completedRace = !websiteLiveNow;
   const currentLeaderInLiveTimeline = leadership.reigns.some(reign => reign.name === currentLeader);
   const currentLeaderRow = currentLeader && (completedRace || !currentLeaderInLiveTimeline) ? `<div class="lead-change current-leader" style="--runner-color:${websiteRaceColor(currentLeader)}"><div><strong>${websiteEscapeHtml(currentLeader)}</strong><span>${completedRace ? "Final result" : `Current leader · ${websiteProbabilityText(currentLeaderProbability)}`}</span></div><span>${completedRace ? "Finished first after the final game." : "Leads the current standings; live-game timing has ended."}</span></div>` : "";
-  timelineHost.innerHTML = `<h3>Lead-change timeline</h3><p>${timelineSummary} This timeline measures only live-game lead stints.</p>${currentLeaderRow || leadership.reigns.length ? `<div class="lead-change-timeline">${currentLeaderRow}${leadership.reigns.map((reign, index) => { const cause = reign.index ? websiteRaceStoryEvent(reign.index) : "Opened the live race in first"; return `<div class="lead-change" style="--runner-color:${websiteRaceColor(reign.name)}"><div><strong>${websiteEscapeHtml(reign.name)}</strong><span>${new Date(reign.start).toLocaleString([], { weekday: "short", hour: "numeric", minute: "2-digit" })} · ${websiteRaceDuration(reign.duration)}</span></div><span>${websiteEscapeHtml(index ? `Took first when ${cause}.` : cause)}</span></div>`; }).join("")}</div>` : ""}`;
+  timelineHost.innerHTML = `<h3>Lead-change timeline</h3><p>${timelineSummary} This timeline measures only live-game lead stints.</p>${currentLeaderRow || leadership.reigns.length ? `<div class="lead-change-timeline">${currentLeaderRow}${leadership.reigns.map((reign, index) => { const cause = reign.index ? websiteRaceStoryEvent(reign.index) : "Opened the live race in first"; const duration = `${websiteRaceDuration(reign.duration)}${reign.capped ? " cap" : ""}`; return `<div class="lead-change" style="--runner-color:${websiteRaceColor(reign.name)}"><div><strong>${websiteEscapeHtml(reign.name)}</strong><span>${new Date(reign.start).toLocaleString([], { weekday: "short", hour: "numeric", minute: "2-digit" })} · ${duration}</span></div><span>${websiteEscapeHtml(index ? `Took first when ${cause}.` : cause)}</span></div>`; }).join("")}</div>` : ""}`;
   let biggestJump = null, biggestSwing = null;
   const firstScoringCheckpoint = websiteRaceSnapshots.findIndex((snapshot, index) => index > 0 && websiteRaceCheckpointEvents(index).some(event => event.type === "score"));
   websiteRaceSnapshots.slice(1, websiteRaceFrame + 1).forEach((snapshot, offset) => {
