@@ -18,7 +18,7 @@
     if (zoomSteps.includes(savedZoom)) appZoom = savedZoom;
   } catch {}
   document.documentElement.style.setProperty("--app-zoom", String(appZoom));
-  document.documentElement.style.setProperty("--mobile-input-font-size", `${16 / Math.min(1, appZoom)}px`);
+  document.documentElement.style.setProperty("--mobile-input-font-size", `${17 / Math.min(1, appZoom)}px`);
   document.addEventListener("DOMContentLoaded", () => {
     const toggle = document.getElementById("theme-toggle");
     toggle.checked = document.documentElement.dataset.theme !== "light";
@@ -31,7 +31,7 @@
     const setAppZoom = nextZoom => {
       appZoom = Math.min(zoomSteps.at(-1), Math.max(zoomSteps[0], nextZoom));
       document.documentElement.style.setProperty("--app-zoom", String(appZoom));
-      document.documentElement.style.setProperty("--mobile-input-font-size", `${16 / Math.min(1, appZoom)}px`);
+      document.documentElement.style.setProperty("--mobile-input-font-size", `${17 / Math.min(1, appZoom)}px`);
       zoomOut.disabled = appZoom === zoomSteps[0];
       zoomIn.disabled = appZoom === zoomSteps.at(-1);
       zoomStatus.value = `App zoom ${Math.round(appZoom * 100)}%`;
@@ -2948,7 +2948,8 @@ function websitePicksWeatherIsComplete() {
 }
 function queueWebsitePicksWeatherRefresh(selection) {
   const missingRecords = websiteActiveGames.some(game => !game.awayTeam?.record || !game.homeTeam?.record);
-  if (missingRecords) { refreshWebsitePicksWeather(); return; }
+  const missingOutdoorWeather = websiteActiveGames.some(game => !game.indoor && (game.temperature === "" || game.temperature == null));
+  if (missingRecords || missingOutdoorWeather) { refreshWebsitePicksWeather(); return; }
   if (websitePicksWeatherIsComplete()) {
     clearTimeout(websitePicksWeatherRefreshTimer);
     websitePicksWeatherRefreshTimer = null;
@@ -2963,7 +2964,8 @@ async function refreshWebsitePicksWeather() {
   clearTimeout(websitePicksWeatherRefreshTimer);
   websitePicksWeatherRefreshTimer = null;
   const host = document.getElementById("website-game-picks");
-  if (!host || !document.getElementById("view-enter-picks")?.classList.contains("active") || !websiteActiveGames.length || websitePicksWeatherRefreshPending || websitePicksWeatherIsComplete()) return;
+  const missingOutdoorWeather = websiteActiveGames.some(game => !game.indoor && (game.temperature === "" || game.temperature == null));
+  if (!host || !document.getElementById("view-enter-picks")?.classList.contains("active") || !websiteActiveGames.length || websitePicksWeatherRefreshPending || (websitePicksWeatherIsComplete() && !missingOutdoorWeather)) return;
   const selection = websitePickSelection();
   if (!selection.testMode && !selection.staged) {
     websiteActiveGames = [];

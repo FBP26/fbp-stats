@@ -1366,7 +1366,7 @@ const openMeteoWeatherLabel = (code: number): string => {
   return "";
 };
 
-const fetchOpenMeteoForecast = async (
+const fetchOpenMeteoWeather = async (
   city: string,
   country: string,
   kickoff: string,
@@ -1388,16 +1388,22 @@ const fetchOpenMeteoForecast = async (
   const latitude = Number(location?.latitude);
   const longitude = Number(location?.longitude);
   if (!Number.isFinite(latitude) || !Number.isFinite(longitude)) return null;
+  const kickoffTime = Date.parse(kickoff);
+  if (!Number.isFinite(kickoffTime)) return null;
+  const kickoffDate = new Date(kickoffTime).toISOString().slice(0, 10);
+  const useArchive = kickoffTime < Date.now() - 3 * 60 * 60 * 1000;
+  const weatherApi = useArchive
+    ? `https://archive-api.open-meteo.com/v1/archive?latitude=${latitude}&longitude=${longitude}&hourly=temperature_2m,precipitation_probability,wind_gusts_10m,weather_code&timezone=UTC&start_date=${kickoffDate}&end_date=${kickoffDate}`
+    : `https://api.open-meteo.com/v1/forecast?latitude=${latitude}&longitude=${longitude}&hourly=temperature_2m,precipitation_probability,wind_gusts_10m,weather_code&timezone=UTC&forecast_days=7`;
   const forecast = await fetch(
-    `https://api.open-meteo.com/v1/forecast?latitude=${latitude}&longitude=${longitude}&hourly=temperature_2m,precipitation_probability,wind_gusts_10m,weather_code&timezone=UTC&forecast_days=7`,
+    weatherApi,
     { cf: { cacheTtl: 900 } },
   );
   if (!forecast.ok) return null;
   const hourly = (await forecast.json()) as {
     hourly?: { time?: string[]; temperature_2m?: number[]; precipitation_probability?: number[]; wind_gusts_10m?: number[]; weather_code?: number[] };
   };
-  const kickoffTime = Date.parse(kickoff);
-  if (!Number.isFinite(kickoffTime) || !hourly.hourly?.time?.length) return null;
+  if (!hourly.hourly?.time?.length) return null;
   let closestIndex = -1;
   let closestDifference = Number.POSITIVE_INFINITY;
   for (const [index, time] of hourly.hourly.time.entries()) {
@@ -1443,7 +1449,7 @@ const enrichActiveSlateGames = async (games: JsonObject[], season: number, week:
       };
       const weather = summary.gameInfo?.weather;
       if (!weather) {
-        return [eventId, await fetchOpenMeteoForecast(
+        return [eventId, await fetchOpenMeteoWeather(
           String(summary.gameInfo?.venue?.address?.city || ""),
           String(summary.gameInfo?.venue?.address?.country || ""),
           String(game.kickoff || ""),
