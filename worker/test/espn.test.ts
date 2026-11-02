@@ -49,6 +49,11 @@ test("parseEspnGame maps live scores, possession, and net passing yards", () => 
   });
 });
 
+test("parseEspnGame accepts the ESPN summary fallback shape", () => {
+  const summary = payload("in", false, "24", "20").gamepackageJSON;
+  assert.equal(parseEspnGame(summary, game).state, "LIVE");
+});
+
 test("parseEspnGame maps final state and rejects mismatched teams", () => {
   assert.equal(parseEspnGame(payload("post", true, "27", "20"), game).state, "FINAL");
   assert.throws(() => parseEspnGame(payload("post", true, "27", "20"), { ...game, homeTeam: "MIA" }), /do not match/);

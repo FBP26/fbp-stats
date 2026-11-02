@@ -47,7 +47,9 @@ const teamStatistic = (team: JsonRecord, name: string): number | null => {
 };
 
 export const parseEspnGame = (payload: unknown, game: StoredGame): EspnGameUpdate => {
-  const packageJson = record(record(payload).gamepackageJSON);
+  const root = record(payload);
+  const gamePackage = record(root.gamepackageJSON);
+  const packageJson = Object.keys(gamePackage).length ? gamePackage : root;
   const competition = record(array(record(packageJson.header).competitions)[0]);
   const status = record(competition.status);
   const statusType = record(status.type);
@@ -108,12 +110,24 @@ export const isRefreshWindow = (games: StoredGame[], now = new Date()): boolean 
 };
 
 export const fetchEspnGame = async (eventId: string): Promise<unknown> => {
-  const response = await fetch(`https://cdn.espn.com/core/nfl/game?xhr=1&gameId=${encodeURIComponent(eventId)}`, {
-    headers: {
-      Accept: "application/json, text/plain, */*",
-      "User-Agent": "FBP-Worker/1.0",
-    },
-  });
-  if (!response.ok) throw new Error(`ESPN event ${eventId} returned HTTP ${response.status}.`);
-  return response.json();
+  const endpoints = [
+    `https://cdn.espn.com/core/nfl/game?xhr=1&gameId=${encodeURIComponent(eventId)}`,
+    `https://site.api.espn.com/apis/site/v2/sports/football/nfl/summary?event=${encodeURIComponent(eventId)}`,
+  ];
+  const failures: string[] = [];
+  for (const endpoint of endpoints) {
+    try {
+      const response = await fetch(endpoint, {
+        headers: {
+          Accept: "application/json, text/plain, */*",
+          "User-Agent": "FBP-Worker/1.0",
+        },
+      });
+      if (response.ok) return response.json();
+      failures.push(`${new URL(endpoint).hostname} HTTP ${response.status}`);
+    } catch (error) {
+      failures.push(`${new URL(endpoint).hostname} ${error instanceof Error ? error.message : "request failed"}`);
+    }
+  }
+  throw new Error(`ESPN event ${eventId} could not be refreshed: ${failures.join("; ")}.`);
 };
