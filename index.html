@@ -1856,8 +1856,25 @@ function renderWebsiteRaceLineChart(animate = true) {
   options.onClick = event => {
     const chart = websiteRaceLineChart;
     if (!chart?.chartArea) return;
-    const pointer = Chart.helpers?.getRelativePosition?.(event.native || event, chart) || event;
-    if (!Number.isFinite(pointer.x) || !Number.isFinite(pointer.y) || pointer.x < chart.chartArea.left || pointer.x > chart.chartArea.right || pointer.y < chart.chartArea.top || pointer.y > chart.chartArea.bottom) return;
+    const pointer = Number.isFinite(event.x) && Number.isFinite(event.y) ? event : Chart.helpers?.getRelativePosition?.(event.native || event, chart);
+    if (!pointer || !Number.isFinite(pointer.x) || !Number.isFinite(pointer.y)) return;
+    const selectRunner = name => {
+      stopWebsiteRace();
+      websiteRaceSelectedPlayer = websiteRaceSelectedPlayer === name ? "" : name;
+      setTimeout(() => renderWebsiteRaceLineChart(false), 0);
+    };
+    const endpoint = chart.data.datasets.map((dataset, datasetIndex) => {
+      const points = chart.getDatasetMeta(datasetIndex).data;
+      const point = points[points.length - 1]?.getCenterPoint?.() || points[points.length - 1];
+      return point && pointer.x >= point.x && pointer.x <= chart.width && Math.abs(point.y - pointer.y) <= 9
+        ? { name: dataset.label, distance: Math.abs(point.y - pointer.y) }
+        : null;
+    }).filter(Boolean).sort((left, right) => left.distance - right.distance)[0];
+    if (endpoint) {
+      selectRunner(endpoint.name);
+      return;
+    }
+    if (pointer.x < chart.chartArea.left || pointer.x > chart.chartArea.right || pointer.y < chart.chartArea.top || pointer.y > chart.chartArea.bottom) return;
     const frame = frameAtPosition(chart.scales.x.getValueForPixel(pointer.x));
     const nearest = chart.data.datasets.map((dataset, datasetIndex) => {
       const pointIndex = dataset.data.findIndex(point => point.snapshotIndex === frame);
@@ -1865,13 +1882,9 @@ function renderWebsiteRaceLineChart(animate = true) {
       const center = point?.getCenterPoint?.() || point;
       return center ? { name: dataset.label, distance: Math.hypot(center.x - pointer.x, center.y - pointer.y) } : null;
     }).filter(Boolean).sort((left, right) => left.distance - right.distance)[0];
-    stopWebsiteRace();
     if (nearest?.distance <= 12) {
-      websiteRaceSelectedPlayer = websiteRaceSelectedPlayer === nearest.name ? "" : nearest.name;
-      setTimeout(() => renderWebsiteRaceLineChart(false), 0);
-      return;
+      selectRunner(nearest.name);
     }
-    setTimeout(() => showWebsiteRaceFrame(frame, false), 0);
   };
   if (websiteRaceLineChart) websiteRaceLineChart.destroy();
   websiteRaceLineChart = new Chart(canvas, { type: "line", data, options, plugins: [endpointLabels] });
