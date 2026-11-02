@@ -1218,7 +1218,7 @@ function updateWebsiteBestBetPicker() {
   if (!bestBet || !picker) return;
   const selected = bestBet.value ? websiteBestBetTeam(bestBet.value) : null;
   picker.classList.toggle("selected", Boolean(selected));
-  picker.querySelector("summary").innerHTML = selected ? `<img class="website-best-bet-logo" src="${websiteEscapeHtml(selected.logo)}" alt=""><span class="website-best-bet-name">${websiteEscapeHtml(selected.name)}</span><span class="website-best-bet-code">${websiteEscapeHtml(selected.team)}</span>` : "Choose a best bet";
+  picker.querySelector("summary").innerHTML = selected ? `<img class="website-best-bet-logo" src="${websiteEscapeHtml(selected.logo)}" alt=""><span class="website-best-bet-name">${websiteEscapeHtml(selected.name)}</span><span class="website-best-bet-code">${websiteEscapeHtml(selected.team)}</span>` : bestBet.disabled ? "Choose game picks first" : "Choose a best bet";
   picker.querySelectorAll("[role=option]").forEach(option => option.setAttribute("aria-selected", String(option.dataset.team === bestBet.value)));
 }
 function renderWebsiteBestBetPicker(teams, enabled) {
