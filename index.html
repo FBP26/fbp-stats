@@ -1967,7 +1967,7 @@ document.addEventListener("visibilitychange", () => {
     websiteLiveRefreshTimer = null;
   } else {
     startWebsiteRace();
-    if (document.getElementById("view-week-one")?.classList.contains("active")) renderSelectedWebsiteWeek(true);
+    if (document.querySelector("#view-week-one.active, #view-live-analysis.active")) renderSelectedWebsiteWeek(true);
   }
 });
 function websiteGameWinner(data, index) {
@@ -4242,7 +4242,15 @@ async function fetchWebsiteCurrentWeekRace(season, week) {
   return data.raceSnapshots || [];
 }
 function websiteRaceReconstructionKey(data) {
-  return `fbpRaceReconstruction-v6-${data.season}-${data.week}`;
+  return `fbpRaceReconstruction-v7-${data.season}-${data.week}`;
+}
+function websiteRaceHasLongGap(snapshots, maximumGap = 10 * 60 * 1000) {
+  return snapshots.some((snapshot, index) => {
+    if (!index) return false;
+    const previous = Date.parse(snapshots[index - 1]?.timestamp || "");
+    const current = Date.parse(snapshot?.timestamp || "");
+    return Number.isFinite(previous) && Number.isFinite(current) && current - previous > maximumGap;
+  });
 }
 function websiteRaceReconstructionTime(kickoff, play) {
   const period = Number(play.period?.number) || 1;
@@ -4270,17 +4278,18 @@ async function fetchWebsiteRaceReconstruction(data) {
       if (!response.ok) throw new Error(`ESPN could not load ${game.away} at ${game.home}.`);
       const summary = await response.json();
       const kickoff = summary.header?.competitions?.[0]?.date;
+      const teamsById = new Map((summary.header?.competitions?.[0]?.competitors || []).map(team => [String(team?.team?.id || ""), String(team?.team?.abbreviation || "")]));
       const plays = (summary.drives?.previous || []).flatMap(drive => drive.plays || []).sort((left, right) => new Date(left.wallclock || 0) - new Date(right.wallclock || 0));
       if (!kickoff) throw new Error(`ESPN kickoff time is unavailable for ${game.away} at ${game.home}.`);
-      return { game, kickoff, plays };
+      return { game, kickoff, plays, teamsById };
     }));
     const state = initialState.map(game => ({ ...game }));
     const finalGame = summaries.find(({ game }) => String(game.gameId) === finalGameId);
     const events = [
       ...(finalGame ? [{ game: finalGame.game, kickoff: finalGame.kickoff, play: { awayScore: 0, homeScore: 0, period: { number: 1 }, clock: { displayValue: "15:00" } }, netPassing: "", carryForward: true, timestamp: finalGame.kickoff }] : []),
-      ...summaries.flatMap(({ game, kickoff, plays }) => {
+      ...summaries.flatMap(({ game, kickoff, plays, teamsById }) => {
       let netPassing = 0;
-      const gameEvents = plays.filter(play => {
+      const gameEvents = plays.map(play => {
         const type = String(play.type?.text || "");
         const text = String(play.text || "");
         if (/sack/i.test(type) && !/no play/i.test(text)) netPassing += Math.min(0, Number(play.statYardage) || 0);
@@ -4288,15 +4297,31 @@ async function fetchWebsiteRaceReconstruction(data) {
           const recoveredPass = /fumble recovery/i.test(type) ? Number(text.match(/\bfor (-?\d+) yards\b/i)?.[1]) || 0 : Number(play.statYardage) || 0;
           netPassing += recoveredPass;
         }
-        return Boolean(play.scoringPlay);
-      }).map(play => ({ game, kickoff, play, netPassing, timestamp: play.wallclock || websiteRaceReconstructionTime(kickoff, play) }));
+        return {
+          game,
+          kickoff,
+          play,
+          netPassing,
+          scoring: Boolean(play.scoringPlay),
+          possession: teamsById.get(String(play.end?.team?.id || "")) || "",
+          timestamp: play.wallclock || websiteRaceReconstructionTime(kickoff, play),
+        };
+      });
       const finalPlay = plays.at(-1);
       if (finalPlay) gameEvents.push({ game, kickoff, final: true, netPassing, timestamp: new Date(new Date(finalPlay.wallclock || websiteRaceReconstructionTime(kickoff, finalPlay)).getTime() + 1000).toISOString() });
       return gameEvents;
       }),
     ].sort((left, right) => new Date(left.timestamp) - new Date(right.timestamp));
+    let lastCheckpointAt = 0;
+    const checkpointEvents = events.filter(event => {
+      const timestamp = new Date(event.timestamp).getTime();
+      const forceCheckpoint = event.carryForward || event.final || event.scoring;
+      if (!Number.isFinite(timestamp) || (!forceCheckpoint && timestamp - lastCheckpointAt < 5 * 60 * 1000)) return false;
+      lastCheckpointAt = timestamp;
+      return true;
+    });
     let liveTiebreaker = "";
-    checkpoints = events.map(({ game, play, final, netPassing, timestamp }) => {
+    checkpoints = checkpointEvents.map(({ game, play, final, netPassing, possession, timestamp }) => {
       const gameState = state.find(entry => entry.gameId === game.gameId);
       if (final) {
         gameState.status = "FINAL";
@@ -4308,6 +4333,7 @@ async function fetchWebsiteRaceReconstruction(data) {
         gameState.clock = play.clock?.displayValue || play.clock?.value || "";
         gameState.awayScore = Number(play.awayScore) || 0;
         gameState.homeScore = Number(play.homeScore) || 0;
+        gameState.possession = possession;
       }
       if (String(game.gameId) === finalGameId) liveTiebreaker = netPassing;
       return { timestamp, reconstructed: true, probabilityModel: "website", actualTiebreaker: liveTiebreaker, gameState: state.map(entry => ({ ...entry })), players: [] };
@@ -4385,7 +4411,10 @@ async function renderWebsiteWeekOne(currentWeekRequest = null, currentRaceReques
         return;
       }
       if (websiteRegularSelection.season !== Number(data.season) || websiteRegularSelection.week !== Number(data.week)) return;
-      if (Number(data.season) === 2026 && Number(data.week) === 6 && raceSnapshots.length < 100) {
+      const completedWeekWithLongGap = (data.games || []).length > 0
+        && (data.games || []).every(game => ["POST", "FINAL", "COMPLETED"].includes(websiteGameStatus(game)))
+        && websiteRaceHasLongGap(raceSnapshots);
+      if (completedWeekWithLongGap || (Number(data.season) === 2026 && Number(data.week) === 6 && raceSnapshots.length < 100)) {
         websiteSetPageRefreshStatus("loading", "Rebuilding the live race...");
         try {
           data.raceSnapshots = await fetchWebsiteRaceReconstruction(data);
