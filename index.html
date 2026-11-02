@@ -4204,7 +4204,6 @@ function renderWebsiteTiebreakSnapshot(data, analysis) {
 }
 function renderWebsiteLiveAnalysis(data) {
   renderWebsiteRace(data);
-  if (document.getElementById("view-live-analysis")?.classList.contains("active")) websiteSetPageRefreshStatus("fresh");
   const analysis = websiteScenarioOutcomes(websiteAnalysisData(data)).variable.length ? websiteContenderPaths(data) : null;
   renderWebsiteLiveScenarioTools(data, analysis);
   renderWebsiteTiebreakSnapshot(data, analysis);
@@ -4218,7 +4217,7 @@ function websiteRenderCachedLive() {
   websiteRegularSelection = { season: Number(cached.season) || 2026, week: Number(cached.week) || 1, phase: "REGULAR_SEASON", staged: Boolean(cached.games.length) };
   updateWebsiteWeekLabels(websiteRegularSelection);
   renderWebsiteLiveAnalysis(cached);
-  websiteSetPageRefreshStatus("loading", "Showing the last loaded view while Live refreshes.");
+  websiteSetPageRefreshStatus("loading", "Loading live analysis; this can take up to about a minute.");
   return true;
 }
 async function fetchWebsiteCurrentWeek() {
@@ -4374,8 +4373,6 @@ async function renderWebsiteWeekOne(currentWeekRequest = null, currentRaceReques
     if (!data.completedWeekArchive) websiteWriteCurrentWeekCache(data);
     if (liveView) {
       renderWebsiteLiveAnalysis(data);
-      websiteSetPageRefreshStatus("fresh");
-      if (raceRequest) websiteSetPageRefreshStatus("fresh", "Live standings updated. Race history is updating in the background.");
     } else {
       renderWebsiteWeekOneGrid(data, "Week X");
       decorateWebsiteWeekOneHeaders(data);
@@ -4715,9 +4712,7 @@ function buildColumns(columns, rows) { return columns.map(col => { const sample 
 function websiteSetPageRefreshStatus(state, message = "") {
   const status = document.getElementById("page-refresh-status");
   if (!status) return;
-  const liveView = document.getElementById("view-live-analysis")?.classList.contains("active");
-  status.hidden = liveView;
-  if (liveView) return;
+  status.hidden = false;
   status.dataset.state = state;
   if (message) { status.textContent = message; return; }
   status.textContent = `Last refreshed ${new Date().toLocaleString([], { month: "short", day: "numeric", year: "numeric", hour: "numeric", minute: "2-digit", second: "2-digit" })}`;
