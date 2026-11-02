@@ -1547,6 +1547,18 @@ function assignWebsiteRaceColors(frames, metric) {
   websiteRaceColorAssignments = new Map([...priority, ...remaining].map((name, index) => [name, index % WEBSITE_RACE_TOP_COLORS.length]));
 }
 function websiteRaceMetric() { return document.getElementById("website-race-metric")?.value || "winProbability"; }
+function websiteRaceTiebreakerDifference(player) {
+  const raw = player.tiebreakerDifference ?? player.tiebreakerDiff;
+  const value = raw === "" || raw == null ? Number.NaN : Number(raw);
+  return Number.isFinite(value) ? value : Number.POSITIVE_INFINITY;
+}
+function websiteRacePlayerOrder(players, metric) {
+  return [...players].sort((left, right) => Number(right[metric] || 0) - Number(left[metric] || 0)
+    || Number(right.wins || 0) - Number(left.wins || 0)
+    || websiteRaceTiebreakerDifference(left) - websiteRaceTiebreakerDifference(right)
+    || Number(left.losses || 0) - Number(right.losses || 0)
+    || left.name.localeCompare(right.name));
+}
 function websiteRaceStorageKey(context) { return `fbpRaceSnapshots-v3-${context}`; }
 function websiteStoredRaceSnapshots(context) {
   try { return JSON.parse(localStorage.getItem(websiteRaceStorageKey(context)) || "[]"); }
@@ -1795,14 +1807,14 @@ function renderWebsiteRaceLineChart(animate = true) {
   }
   const metric = websiteRaceMetric(), shownSnapshots = websiteRaceSnapshots.slice(0, websiteRaceFrame + 1), timelinePositions = websiteRaceTimelinePositions(websiteRaceSnapshots);
   let names = [...new Set(websiteRaceSnapshots.flatMap(snapshot => snapshot.players.map(player => player.name)))];
-  if ((document.getElementById("website-race-field")?.value || "top10") === "top10") names = [...websiteRaceSnapshots[websiteRaceFrame].players].sort((left, right) => Number(right[metric] || 0) - Number(left[metric] || 0) || left.name.localeCompare(right.name)).slice(0, 10).map(player => player.name);
+  if ((document.getElementById("website-race-field")?.value || "top10") === "top10") names = websiteRacePlayerOrder(websiteRaceSnapshots[websiteRaceFrame].players, metric).slice(0, 10).map(player => player.name);
   if (websiteRaceSelectedPlayer && !names.includes(websiteRaceSelectedPlayer)) websiteRaceSelectedPlayer = "";
   const compactLandscape = matchMedia("(orientation: landscape) and (max-height: 600px)").matches;
   document.querySelector(".live-race-line-wrap").style.height = compactLandscape ? "300px" : `${Math.max(430, Math.min(650, names.length * 19 + 70))}px`;
   const datasets = names.map((name, paletteIndex) => {
     const selected = !websiteRaceSelectedPlayer || websiteRaceSelectedPlayer === name, color = websiteRaceColor(name, 1, paletteIndex), displayColor = selected ? color : websiteRaceColor(name, .18, paletteIndex);
     const data = shownSnapshots.map((snapshot, index) => {
-      const ranked = [...snapshot.players].sort((left, right) => Number(right[metric] || 0) - Number(left[metric] || 0) || left.name.localeCompare(right.name));
+      const ranked = websiteRacePlayerOrder(snapshot.players, metric);
       const rank = ranked.findIndex(player => player.name === name), player = ranked[rank];
       const value = Number(player?.[metric] || 0);
       return rank < 0 ? null : { x: timelinePositions[index], y: rank + 1, snapshotIndex: index, metricValue: value };
@@ -1843,12 +1855,15 @@ function renderWebsiteRaceLineChart(animate = true) {
   };
   options.onClick = event => {
     const chart = websiteRaceLineChart;
-    if (!chart?.chartArea || event.x < chart.chartArea.left || event.x > chart.chartArea.right || event.y < chart.chartArea.top || event.y > chart.chartArea.bottom) return;
-    const frame = frameAtPosition(chart.scales.x.getValueForPixel(event.x));
+    if (!chart?.chartArea) return;
+    const pointer = Chart.helpers?.getRelativePosition?.(event.native || event, chart) || event;
+    if (!Number.isFinite(pointer.x) || !Number.isFinite(pointer.y) || pointer.x < chart.chartArea.left || pointer.x > chart.chartArea.right || pointer.y < chart.chartArea.top || pointer.y > chart.chartArea.bottom) return;
+    const frame = frameAtPosition(chart.scales.x.getValueForPixel(pointer.x));
     const nearest = chart.data.datasets.map((dataset, datasetIndex) => {
       const pointIndex = dataset.data.findIndex(point => point.snapshotIndex === frame);
       const point = pointIndex >= 0 ? chart.getDatasetMeta(datasetIndex).data[pointIndex] : null;
-      return point ? { name: dataset.label, distance: Math.abs(point.y - event.y) } : null;
+      const center = point?.getCenterPoint?.() || point;
+      return center ? { name: dataset.label, distance: Math.hypot(center.x - pointer.x, center.y - pointer.y) } : null;
     }).filter(Boolean).sort((left, right) => left.distance - right.distance)[0];
     stopWebsiteRace();
     if (nearest?.distance <= 12) {
@@ -1866,8 +1881,8 @@ function showWebsiteRaceFrame(frame, animate = true) {
   websiteRaceFrame = (frame % websiteRaceSnapshots.length + websiteRaceSnapshots.length) % websiteRaceSnapshots.length;
   const snapshot = websiteRaceSnapshots[websiteRaceFrame], metric = websiteRaceMetric();
   const fieldLimit = (document.getElementById("website-race-field")?.value || "top10") === "all" ? snapshot.players.length : 10;
-  const ranked = [...snapshot.players].sort((left, right) => Number(right[metric] || 0) - Number(left[metric] || 0) || left.name.localeCompare(right.name)).slice(0, fieldLimit);
-  const previousRanked = websiteRaceFrame ? [...websiteRaceSnapshots[websiteRaceFrame - 1].players].sort((left, right) => Number(right[metric] || 0) - Number(left[metric] || 0) || left.name.localeCompare(right.name)) : [];
+  const ranked = websiteRacePlayerOrder(snapshot.players, metric).slice(0, fieldLimit);
+  const previousRanked = websiteRaceFrame ? websiteRacePlayerOrder(websiteRaceSnapshots[websiteRaceFrame - 1].players, metric) : [];
   const raceRank = (players, index) => players.findIndex(player => Number(player[metric] || 0) === Number(players[index]?.[metric] || 0));
   const previousRanks = new Map(previousRanked.map((player, index) => [player.name, raceRank(previousRanked, index)]));
   const leaderNames = ranked.filter(player => Number(player[metric] || 0) === Number(ranked[0]?.[metric] || 0)).map(player => player.name);
@@ -1927,11 +1942,15 @@ function renderWebsiteRace(data) {
   const calculatedServerSnapshots = distinctServerSnapshots.map(snapshot => calculatedByTimestamp.get(snapshot.timestamp) || websiteRaceProbabilitySnapshot(data, snapshot));
   let snapshots = websiteMergeRaceSnapshots(storedSnapshots, currentSnapshots, calculatedServerSnapshots);
   snapshots = websiteReconcileRaceSnapshots(snapshots, data.players || []);
-  const current = { timestamp: data.updatedAt || new Date().toISOString(), probabilityModel: "website", gameState: (data.games || []).map(game => ({ gameId: game.gameId || "", away: game.away || "", home: game.home || "", status: websiteGameStatus(game), period: game.period || "", clock: game.clock || "", possession: game.possession || "", awayScore: game.awayScore ?? game.favoriteScore ?? "", homeScore: game.homeScore ?? game.underdogScore ?? "" })), players: (data.players || []).map(player => ({ name: player.name, winProbability: parseFloat(player.winProbability || 0) || 0, pathsToVictory: Number(player.pathsToVictory || 0), winPercent: parseFloat(player.winPercent || 0) || 0 })) };
+  const current = { timestamp: data.updatedAt || new Date().toISOString(), probabilityModel: "website", gameState: (data.games || []).map(game => ({ gameId: game.gameId || "", away: game.away || "", home: game.home || "", status: websiteGameStatus(game), period: game.period || "", clock: game.clock || "", possession: game.possession || "", awayScore: game.awayScore ?? game.favoriteScore ?? "", homeScore: game.homeScore ?? game.underdogScore ?? "" })), players: (data.players || []).map(player => ({ name: player.name, wins: Number(player.wins || 0), losses: Number(player.losses || 0), tiebreakerDifference: player.tiebreakerDifference ?? player.tiebreakerDiff ?? null, winProbability: parseFloat(player.winProbability || 0) || 0, pathsToVictory: Number(player.pathsToVictory || 0), winPercent: parseFloat(player.winPercent || 0) || 0 })) };
   const latestStored = snapshots[snapshots.length - 1];
   const currentSignature = websiteRaceSnapshotSignature(current);
   const latestSignature = websiteRaceSnapshotSignature(latestStored);
   if (current.players.length && currentSignature !== latestSignature) snapshots.push(current);
+  else if (current.players.length && latestStored) {
+    const currentPlayers = new Map(current.players.map(player => [String(player.name).toLowerCase(), player]));
+    snapshots[snapshots.length - 1] = { ...latestStored, players: latestStored.players.map(player => ({ ...player, ...currentPlayers.get(String(player.name).toLowerCase()) })) };
+  }
   websiteRaceContext = context;
   websiteRaceLiveNow = (data.games || []).some(game => ["IN", "IN_PROGRESS", "LIVE"].includes(websiteGameStatus(game)));
   websiteRaceSnapshots = snapshots.filter(snapshot => snapshot?.timestamp && Array.isArray(snapshot.players) && snapshot.players.length).slice(-720);
@@ -6125,6 +6144,25 @@ function clearWeekLiveRaceInteraction() {
   weekLiveRaceChart.tooltip.setActiveElements([], { x: 0, y: 0 });
   weekLiveRaceChart.update("none");
 }
+function weekLiveRaceTiebreakerDifference(player) {
+  const raw = player.tiebreakerDifference ?? player.tiebreakerDiff;
+  const value = raw === "" || raw == null ? Number.NaN : Number(raw);
+  return Number.isFinite(value) ? value : Number.POSITIVE_INFINITY;
+}
+function weekLiveRaceStandingOrder(players, metric) {
+  return [...players].sort((left, right) => Number(right[metric] || 0) - Number(left[metric] || 0)
+    || Number(right.wins || 0) - Number(left.wins || 0)
+    || weekLiveRaceTiebreakerDifference(left) - weekLiveRaceTiebreakerDifference(right)
+    || Number(left.losses || 0) - Number(right.losses || 0)
+    || left.name.localeCompare(right.name));
+}
+function weekLiveRaceChartHit(event) {
+  if (!weekLiveRaceChart || !Number.isFinite(event.x) || !Number.isFinite(event.y)) return null;
+  return weekLiveRaceChart.data.datasets.flatMap((dataset, datasetIndex) => weekLiveRaceChart.getDatasetMeta(datasetIndex).data.map((point, index) => {
+    if (dataset.data[index] == null || !Number.isFinite(point.x) || !Number.isFinite(point.y)) return null;
+    return { datasetIndex, index, distance: Math.hypot(point.x - event.x, point.y - event.y) };
+  })).filter(Boolean).sort((left, right) => left.distance - right.distance)[0] || null;
+}
 function renderWeekLiveTimeOnTop(frame) {
   const host = document.getElementById("week-live-race-leadership"), leaderBackdrop = document.getElementById("week-live-race-leader");
   if (!host) return;
@@ -6140,7 +6178,7 @@ function configureWeekLiveRaceMetrics() {
   select.value = options.some(([value]) => value === previous) ? previous : live ? "winProbability" : "wins";
 }
 function weekLiveFirstPlaceHeadline(frames, frameIndex, metric) {
-  const order = frame => [...(frame?.players || [])].sort((left, right) => Number(right[metric]) - Number(left[metric]) || Number(right.wins || 0) - Number(left.wins || 0) || Number(left.tiebreakerDiff || 0) - Number(right.tiebreakerDiff || 0) || left.name.localeCompare(right.name));
+  const order = frame => weekLiveRaceStandingOrder(frame?.players || [], metric);
   const current = order(frames[frameIndex]), previous = order(frames[frameIndex - 1]);
   if (!current.length) return "";
   const leader = current[0], leaderValue = Number(leader[metric] || 0), tied = current.filter(player => Number(player[metric] || 0) === leaderValue);
@@ -6184,7 +6222,7 @@ function showWeekLiveRaceFrame(index) {
   weekLiveRaceFrame = (index % weekLiveRaceFrames.length + weekLiveRaceFrames.length) % weekLiveRaceFrames.length;
   const frame = weekLiveRaceFrames[weekLiveRaceFrame], metric = document.getElementById("week-live-race-metric")?.value || "winPct", visibleFrames = weekLiveRaceFrames.slice(0, weekLiveRaceFrame + 1);
   const fieldLimit = document.getElementById("week-live-race-field")?.value === "all" ? frame.players.length : 10;
-  const players = [...frame.players].sort((left, right) => Number(right[metric]) - Number(left[metric]) || right.wins - left.wins || left.name.localeCompare(right.name)).slice(0, fieldLimit);
+  const players = weekLiveRaceStandingOrder(frame.players, metric).slice(0, fieldLimit);
   if (weekLiveRaceSelectedPlayer && !players.some(player => player.name === weekLiveRaceSelectedPlayer)) weekLiveRaceSelectedPlayer = "";
   weekLiveRaceChart.data.labels = visibleFrames.map(item => item.label);
   const rankView = historicalRaceUsesRank("week-live-race");
@@ -6227,7 +6265,7 @@ async function renderWeekLiveRace() {
     catch (error) { if (renderToken === weekLiveRaceRenderToken) document.getElementById("week-live-race-time").textContent = "Archived live race could not load."; return; }
     if (renderToken !== weekLiveRaceRenderToken) return;
     const timeOnTop = new Map();
-    weekLiveRaceFrames = snapshots.map((snapshot, index) => { const previous = snapshots[index - 1]; if (previous && websiteRaceHasLiveGame(previous)) { const elapsed = new Date(snapshot.timestamp).getTime() - new Date(previous.timestamp).getTime(), duration = Math.min(10 * 60 * 1000, elapsed); const leader = [...previous.players].sort((left, right) => Number(right.winProbability || 0) - Number(left.winProbability || 0) || Number(right.wins || 0) - Number(left.wins || 0) || Number(left.tiebreakerDiff || 0) - Number(right.tiebreakerDiff || 0) || String(left.name).localeCompare(String(right.name)))[0]; if (leader && Number.isFinite(duration) && duration > 0) timeOnTop.set(leader.name, (timeOnTop.get(leader.name) || 0) + duration); } const players = snapshot.players.map(player => ({ name: player.name, wins: Number(player.wins || 0), tiebreakerDiff: Number(player.tiebreakerDiff || 0), winProbability: Number(player.winProbability || 0), winPct: Number(player.winPercent || 0), pathsToVictory: Number(player.pathsToVictory || 0), timeOnTop: timeOnTop.get(player.name) || 0 })), leader = Math.max(0, ...players.map(player => player.winProbability)); return { label: new Date(snapshot.timestamp).toLocaleString([], { weekday: "short", hour: "numeric", minute: "2-digit" }), timestamp: snapshot.timestamp, gameState: snapshot.gameState || [], players: players.map(player => ({ ...player, gap: player.winProbability - leader })) }; });
+    weekLiveRaceFrames = snapshots.map((snapshot, index) => { const previous = snapshots[index - 1]; if (previous && websiteRaceHasLiveGame(previous)) { const elapsed = new Date(snapshot.timestamp).getTime() - new Date(previous.timestamp).getTime(), duration = Math.min(10 * 60 * 1000, elapsed); const leader = weekLiveRaceStandingOrder(previous.players, "winProbability")[0]; if (leader && Number.isFinite(duration) && duration > 0) timeOnTop.set(leader.name, (timeOnTop.get(leader.name) || 0) + duration); } const players = snapshot.players.map(player => ({ name: player.name, wins: Number(player.wins || 0), losses: Number(player.losses || 0), tiebreakerDifference: player.tiebreakerDifference ?? player.tiebreakerDiff ?? null, winProbability: Number(player.winProbability || 0), winPct: Number(player.winPercent || 0), pathsToVictory: Number(player.pathsToVictory || 0), timeOnTop: timeOnTop.get(player.name) || 0 })), leader = Math.max(0, ...players.map(player => player.winProbability)); return { label: new Date(snapshot.timestamp).toLocaleString([], { weekday: "short", hour: "numeric", minute: "2-digit" }), timestamp: snapshot.timestamp, gameState: snapshot.gameState || [], players: players.map(player => ({ ...player, gap: player.winProbability - leader })) }; });
   } else {
     const playoffWeeks = new Set(["round 1", "round 2", "round 3", "super bowl"]), games = websiteGames.filter(game => game.season === season && (game.week === week || (week === "playoffs" && playoffWeeks.has(String(game.week).toLowerCase())))).sort((left, right) => Number(left.weekOrder || 0) - Number(right.weekOrder || 0) || Number(left.playoffGameNum || left.gameNum || 0) - Number(right.playoffGameNum || right.gameNum || 0));
     const rows = websiteWeeks.filter(row => row.season === season && row.week === week).sort((left, right) => Number(left.rank || 0) - Number(right.rank || 0)), picksByGame = websitePicksByGame(), totals = new Map(rows.map(row => [row.playerId, { playerId: row.playerId, name: row.name, wins: 0, losses: 0, decisions: 0, winPct: 0 }]));
@@ -6256,14 +6294,14 @@ async function renderWeekLiveRace() {
       layout: { padding: { top: 42 } },
       interaction: { mode: "nearest", intersect: true },
       onClick: event => {
-        const hits = event.native ? weekLiveRaceChart.getElementsAtEventForMode(event.native, "nearest", { intersect: true }, true) : [];
-        if (!hits.length) {
+        const hit = weekLiveRaceChartHit(event);
+        if (!hit || hit.distance > 12) {
           clearWeekLiveRaceInteraction();
           showWeekLiveRaceFrame(weekLiveRaceFrame);
           return;
         }
-        const name = weekLiveRaceChart.data.datasets[hits[0].datasetIndex].label;
-        const dataIndex = hits[0].index;
+        const name = weekLiveRaceChart.data.datasets[hit.datasetIndex].label;
+        const dataIndex = hit.index;
         if (weekLiveRaceSelectedPlayer === name) {
           clearWeekLiveRaceInteraction();
           showWeekLiveRaceFrame(weekLiveRaceFrame);
