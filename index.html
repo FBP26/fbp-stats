@@ -4377,7 +4377,7 @@ async function renderWebsiteWeekOne(currentWeekRequest = null, currentRaceReques
     if (liveView) {
       renderWebsiteLiveAnalysis(data);
       websiteSetPageRefreshStatus("fresh");
-      if (raceRequest) websiteSetPageRefreshStatus("loading", "Live standings loaded. Loading race history...");
+      if (raceRequest) websiteSetPageRefreshStatus("fresh", "Live standings updated. Race history is updating in the background.");
     } else {
       renderWebsiteWeekOneGrid(data, "Week X");
       decorateWebsiteWeekOneHeaders(data);
