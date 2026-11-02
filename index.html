@@ -890,7 +890,7 @@
 </head>
 <body>
 <div id="website-pull-refresh" class="pull-refresh" role="status" aria-live="polite"><span class="pull-refresh-icon" aria-hidden="true">v</span><span class="pull-refresh-label">Pull to refresh</span></div>
-<header><label class="theme-switch"><input id="theme-toggle" type="checkbox" role="switch" checked>Dark mode</label><div class="app-zoom-controls" aria-label="App zoom"><button id="app-zoom-out" type="button" title="Zoom out" aria-label="Zoom out">-</button><button id="app-zoom-in" type="button" title="Zoom in" aria-label="Zoom in">+</button><output id="app-zoom-status" class="app-zoom-status" aria-live="polite"></output></div><nav id="nav"><button data-view="enter-picks">Enter Picks</button><button data-view="week-one">Current Week</button><button data-view="live-analysis">Live</button><button data-view="players">Players</button><button data-view="alltime">All Time</button><button data-view="season">Seasons</button><button data-view="weeks">Weeks</button><button data-view="games">Games</button><button data-view="streaks">Streaks</button><button data-view="teams">Teams</button><button data-view="names">Names</button><button data-view="payout">Payout</button><button data-view="faq">FAQ</button></nav><p id="page-refresh-status" class="page-refresh-status" data-state="loading" role="status" aria-live="polite">Loading...</p></header>
+<header><label class="theme-switch"><input id="theme-toggle" type="checkbox" role="switch" checked>Dark mode</label><div class="app-zoom-controls" aria-label="App zoom"><button id="app-zoom-out" type="button" title="Zoom out" aria-label="Zoom out">-</button><button id="app-zoom-in" type="button" title="Zoom in" aria-label="Zoom in">+</button><output id="app-zoom-status" class="app-zoom-status" aria-live="polite"></output></div><nav id="nav"><button data-view="enter-picks">Picks</button><button data-view="week-one">Current Week</button><button data-view="live-analysis">Live</button><button data-view="players">Players</button><button data-view="alltime">All Time</button><button data-view="season">Seasons</button><button data-view="weeks">Weeks</button><button data-view="games">Games</button><button data-view="streaks">Streaks</button><button data-view="teams">Teams</button><button data-view="names">Names</button><button data-view="payout">Payout</button><button data-view="faq">FAQ</button></nav><p id="page-refresh-status" class="page-refresh-status" data-state="loading" role="status" aria-live="polite">Loading...</p></header>
 <aside id="website-install-help" class="install-help" hidden><div><strong>Add FBP to your Home Screen</strong><span id="website-install-copy"></span></div><button id="website-install-action" type="button" hidden>Install</button><button id="website-install-close" class="install-help-close" type="button" aria-label="Dismiss home-screen instructions">×</button></aside>
 <main>
   <section id="view-enter-picks" class="view">
@@ -1135,8 +1135,8 @@ if (requestedStartupRoute !== "week-one") startWebsiteAnalytics();
 initializeWebsiteNameAutocomplete();
 function showWebsiteConfirmation() { showView("picks-confirmation"); window.scrollTo({ top: 0, behavior: "auto" }); }
 function resetWebsiteBestBet() { const bestBet = document.getElementById("website-best-bet"); if (!bestBet) return; if (!bestBet.options.length || bestBet.options[0].value !== "") bestBet.insertBefore(new Option("Choose a best bet", ""), bestBet.options[0] || null); bestBet.value = ""; updateWebsiteBestBetPicker(); }
-const WEBSITE_TEAM_NAMES = { ari:"arizona",atl:"atlanta",bal:"baltimore",buf:"buffalo",car:"carolina",chi:"chicago",cin:"cincinnati",cle:"cleveland",dal:"dallas",den:"denver",det:"detroit",gb:"green bay",hou:"houston",ind:"indianapolis",jax:"jacksonville",kc:"kansas city",lar:"la rams",lac:"la chargers",lv:"las vegas",mia:"miami",min:"minnesota",ne:"new england",no:"new orleans",nyg:"ny giants",nyj:"ny jets",phi:"philadelphia",pit:"pittsburgh",sea:"seattle",sf:"san francisco",tb:"tampa bay",ten:"tennessee",was:"washington" };
-const WEBSITE_FORM_TEAM_NAMES = { ari:"cardinals",atl:"falcons",bal:"ravens",buf:"bills",car:"panthers",chi:"bears",cin:"bengals",cle:"browns",dal:"cowboys",den:"broncos",det:"lions",gb:"packers",hou:"texans",ind:"colts",jax:"jaguars",kc:"chiefs",lar:"rams",lac:"chargers",lv:"raiders",mia:"dolphins",min:"vikings",ne:"patriots",no:"saints",nyg:"giants",nyj:"jets",phi:"eagles",pit:"steelers",sea:"seahawks",sf:"49ers",tb:"buccaneers",ten:"titans",was:"commanders" };
+const WEBSITE_TEAM_NAMES = { ari:"arizona",atl:"atlanta",bal:"baltimore",buf:"buffalo",car:"carolina",chi:"chicago",cin:"cincinnati",cle:"cleveland",dal:"dallas",den:"denver",det:"detroit",gb:"green bay",hou:"houston",ind:"indianapolis",jac:"jacksonville",jax:"jacksonville",kc:"kansas city",la:"la rams",lar:"la rams",lac:"la chargers",lv:"las vegas",mia:"miami",min:"minnesota",ne:"new england",no:"new orleans",nyg:"ny giants",nyj:"ny jets",oak:"las vegas",phi:"philadelphia",pit:"pittsburgh",sd:"la chargers",sea:"seattle",sf:"san francisco",stl:"la rams",tb:"tampa bay",ten:"tennessee",was:"washington",wsh:"washington" };
+const WEBSITE_FORM_TEAM_NAMES = { ari:"cardinals",atl:"falcons",bal:"ravens",buf:"bills",car:"panthers",chi:"bears",cin:"bengals",cle:"browns",dal:"cowboys",den:"broncos",det:"lions",gb:"packers",hou:"texans",ind:"colts",jac:"jaguars",jax:"jaguars",kc:"chiefs",la:"rams",lar:"rams",lac:"chargers",lv:"raiders",mia:"dolphins",min:"vikings",ne:"patriots",no:"saints",nyg:"giants",nyj:"jets",oak:"raiders",phi:"eagles",pit:"steelers",sd:"chargers",sea:"seahawks",sf:"49ers",stl:"rams",tb:"buccaneers",ten:"titans",was:"commanders",wsh:"commanders" };
 const WEBSITE_TEAM_DIVISIONS = { ari:"NFC West",atl:"NFC South",bal:"AFC North",buf:"AFC East",car:"NFC South",chi:"NFC North",cin:"AFC North",cle:"AFC North",dal:"NFC East",den:"AFC West",det:"NFC North",gb:"NFC North",hou:"AFC South",ind:"AFC South",jax:"AFC South",kc:"AFC West",lar:"NFC West",lac:"AFC West",lv:"AFC West",mia:"AFC East",min:"NFC North",ne:"AFC East",no:"NFC South",nyg:"NFC East",nyj:"AFC East",phi:"NFC East",pit:"AFC North",sea:"NFC West",sf:"NFC West",tb:"NFC South",ten:"AFC South",was:"NFC East" };
 const WEBSITE_TEAM_TIME_ZONES = { ari:"Mountain",atl:"Eastern",bal:"Eastern",buf:"Eastern",car:"Eastern",chi:"Central",cin:"Eastern",cle:"Eastern",dal:"Central",den:"Mountain",det:"Eastern",gb:"Central",hou:"Central",ind:"Eastern",jax:"Eastern",kc:"Central",lar:"Pacific",lac:"Pacific",lv:"Pacific",mia:"Eastern",min:"Central",ne:"Eastern",no:"Central",nyg:"Eastern",nyj:"Eastern",phi:"Eastern",pit:"Eastern",sea:"Pacific",sf:"Pacific",tb:"Eastern",ten:"Central",was:"Eastern" };
 const WEBSITE_TEAM_LOGO_CODES = { was:"wsh" };
@@ -3189,7 +3189,7 @@ function interpretWebsiteWeekName(weekName, playerName) {
 const WEBSITE_CURRENT_NFL_TEAMS = ["ARI", "ATL", "BAL", "BUF", "CAR", "CHI", "CIN", "CLE", "DAL", "DEN", "DET", "GB", "HOU", "IND", "JAX", "KC", "LAC", "LA", "LV", "MIA", "MIN", "NE", "NO", "NYG", "NYJ", "PHI", "PIT", "SEA", "SF", "TB", "TEN", "WAS"];
 function websiteCanonicalTeam(value) {
   const code = String(value || "").trim().toUpperCase();
-  return { LAR: "LA", OAK: "LV", SD: "LAC", STL: "LA" }[code] || code;
+  return { JAC: "JAX", LA: "LAR", OAK: "LV", SD: "LAC", STL: "LAR", WSH: "WAS" }[code] || code;
 }
 function confirmationMetricTable(rows) {
   return `<table class="confirmation-metric-table"><tbody>${rows.map(row => `<tr><th scope="row">${websiteEscapeHtml(row.label)}</th><td>${row.value}${row.detail ? `<small>${row.detail}</small>` : ""}</td></tr>`).join("")}</tbody></table>`;
@@ -3254,7 +3254,7 @@ async function loadConfirmationProbability(submission) {
       { label: "Paths to victory", value: websiteEscapeHtml(Math.round(pathCount).toLocaleString()) },
       { label: "Most separation", value: separation, detail: separationDetail }
     ]);
-  } catch (error) { host.innerHTML = confirmationMetricTable([{ label: "Live outlook", value: "Unavailable" }]); }
+  } catch (error) { host.innerHTML = confirmationMetricTable([{ label: "Status", value: "Unavailable" }]); }
 }
 async function renderConfirmationHistory(submission) {
   const host = document.getElementById("confirmation-history");
@@ -3385,6 +3385,16 @@ async function renderConfirmationHistory(submission) {
     const recordValue = (record, empty) => record ? `${teamLabel(record.team)} · ${record.wins}-${record.losses}${record.pushes ? `-${record.pushes}` : ""}` : empty;
     const currentBestBetRecordValue = (record, empty) => record ? `${teamLabel(record.team)} - ${record.wins}-${record.losses}${record.pushes ? `-${record.pushes}` : ""}` : empty;
     const gapValue = (team, missed, found, empty) => team ? `${teamLabel(team)} · ${found ? (missed || "first chance") : "never"}` : empty;
+    const bestBetPatternRows = [
+      { label: "Most Best Bet", value: metricValue(mostBestBetTeam, mostBestBetCount, "No Best Bets") },
+      { label: "Most Best Bet against", value: metricValue(mostBestBetAgainstTeam, mostBestBetAgainstCount, "No Best Bets against") },
+      { label: "Current Best Bet record", value: currentBestBetRecordValue(currentBestBetRecord, "No current Best Bet") },
+      { label: "Current Best Bet against record", value: currentBestBetRecordValue(currentBestBetAgainstRecord, "No current Best Bet against") },
+      ...(bestBestBetRecord ? [{ label: "Best record as Best Bet", value: recordValue(bestBestBetRecord) }] : []),
+      ...(worstBestBetRecord ? [{ label: "Worst record as Best Bet", value: recordValue(worstBestBetRecord) }] : []),
+      ...(bestBestBetAgainstRecord ? [{ label: "Best record against Best Bet", value: recordValue(bestBestBetAgainstRecord) }] : []),
+      ...(worstBestBetAgainstRecord ? [{ label: "Worst record against Best Bet", value: recordValue(worstBestBetAgainstRecord) }] : [])
+    ];
     host.innerHTML = `<h3>Your pick patterns - ${websiteEscapeHtml(submission.name)}</h3>${confirmationMetricTable([
       { label: "Most picked team", value: metricValue(mostPickedTeam, mostPickedCount, "No completed picks") },
       { label: "Most picked against", value: metricValue(mostFadedTeam, mostFadedCount, "No completed fades") },
@@ -3396,16 +3406,7 @@ async function renderConfirmationHistory(submission) {
       { label: "Worst record when picked", value: recordValue(worstTeamRecord(false), "No qualified pick record") },
       { label: "Best record picking against", value: recordValue(bestTeamRecord(true), "No qualified picked-against record") },
       { label: "Worst record picking against", value: recordValue(worstTeamRecord(true), "No qualified picked-against record") }
-    ])}<h3>Best Bet patterns</h3>${confirmationMetricTable([
-      { label: "Most Best Bet", value: metricValue(mostBestBetTeam, mostBestBetCount, "No Best Bets") },
-      { label: "Most Best Bet against", value: metricValue(mostBestBetAgainstTeam, mostBestBetAgainstCount, "No Best Bets against") },
-      { label: "Current Best Bet record", value: currentBestBetRecordValue(currentBestBetRecord, "No current Best Bet") },
-      { label: "Current Best Bet against record", value: currentBestBetRecordValue(currentBestBetAgainstRecord, "No current Best Bet against") },
-      { label: "Best record as Best Bet", value: recordValue(bestBestBetRecord, "No qualified Best Bet record") },
-      { label: "Worst record as Best Bet", value: recordValue(worstBestBetRecord, "No qualified Best Bet record") },
-      { label: "Best record against Best Bet", value: recordValue(bestBestBetAgainstRecord, "No qualified Best Bet against record") },
-      { label: "Worst record against Best Bet", value: recordValue(worstBestBetAgainstRecord, "No qualified Best Bet against record") }
-    ])}`;
+    ])}<h3>Best Bet patterns</h3>${confirmationMetricTable(bestBetPatternRows)}`;
     return;
     const activeWinningRun = rows => {
       let length = 0;
