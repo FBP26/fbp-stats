@@ -791,6 +791,9 @@
   .live-race-headline:empty { display: none; }
   .live-race-line-wrap { position: relative; height: 430px; border-block: 1px solid var(--border); background: #0f171e99; padding: 12px 8px 8px; }
   .live-race-line-wrap canvas { cursor: pointer; }
+  .website-race-endpoint-targets { position: absolute; z-index: 3; inset: 0; pointer-events: none; }
+  .website-race-endpoint-target { position: absolute; border: 0; background: transparent; cursor: pointer; pointer-events: auto; }
+  .website-race-endpoint-target:focus-visible { outline: 2px solid var(--accent); outline-offset: 1px; }
   .week-one-landscape-hint { margin: 8px 0; font: bold 11px/1.35 Arial, sans-serif; }
   .week-one-landscape-hint { display: none; color: var(--accent-2); }
   .live-race-track { display: none; position: relative; height: 340px; overflow: hidden; border-block: 1px solid var(--border); background: linear-gradient(90deg, #0f171e 0 54px, transparent 54px); }
@@ -1559,6 +1562,46 @@ function websiteRacePlayerOrder(players, metric) {
     || Number(left.losses || 0) - Number(right.losses || 0)
     || left.name.localeCompare(right.name));
 }
+function websiteRaceSegmentDistance(point, start, end) {
+  const deltaX = end.x - start.x, deltaY = end.y - start.y;
+  const lengthSquared = deltaX * deltaX + deltaY * deltaY;
+  if (!lengthSquared) return Math.hypot(point.x - start.x, point.y - start.y);
+  const position = Math.max(0, Math.min(1, ((point.x - start.x) * deltaX + (point.y - start.y) * deltaY) / lengthSquared));
+  return Math.hypot(point.x - (start.x + position * deltaX), point.y - (start.y + position * deltaY));
+}
+function renderWebsiteRaceEndpointTargets(chart, selectRunner) {
+  const wrap = chart.canvas.closest(".live-race-line-wrap");
+  if (!wrap) return;
+  wrap.querySelector(".website-race-endpoint-targets")?.remove();
+  const canvasRect = chart.canvas.getBoundingClientRect(), wrapRect = wrap.getBoundingClientRect();
+  if (!canvasRect.width || !canvasRect.height) return;
+  const scaleX = canvasRect.width / chart.width, scaleY = canvasRect.height / chart.height;
+  const context = chart.ctx;
+  context.save();
+  context.font = "bold 10px Arial";
+  const targets = document.createElement("div");
+  targets.className = "website-race-endpoint-targets";
+  chart.data.datasets.forEach((dataset, datasetIndex) => {
+    const points = chart.getDatasetMeta(datasetIndex).data;
+    const point = points[points.length - 1]?.getCenterPoint?.() || points[points.length - 1];
+    const value = dataset.data[dataset.data.length - 1];
+    if (!point || !value) return;
+    const label = `${dataset.label} #${value.y}`;
+    const target = document.createElement("button");
+    target.type = "button";
+    target.className = "website-race-endpoint-target";
+    target.setAttribute("aria-label", `Highlight ${dataset.label}`);
+    target.title = `Highlight ${dataset.label}`;
+    target.style.left = `${canvasRect.left - wrapRect.left + (point.x + 5) * scaleX}px`;
+    target.style.top = `${canvasRect.top - wrapRect.top + (point.y - 8) * scaleY}px`;
+    target.style.width = `${Math.ceil(context.measureText(label).width * scaleX) + 8}px`;
+    target.style.height = `${Math.max(16, 16 * scaleY)}px`;
+    target.addEventListener("click", event => { event.stopPropagation(); selectRunner(dataset.label); });
+    targets.appendChild(target);
+  });
+  context.restore();
+  wrap.appendChild(targets);
+}
 function websiteRaceStorageKey(context) { return `fbpRaceSnapshots-v3-${context}`; }
 function websiteStoredRaceSnapshots(context) {
   try { return JSON.parse(localStorage.getItem(websiteRaceStorageKey(context)) || "[]"); }
@@ -1856,38 +1899,37 @@ function renderWebsiteRaceLineChart(animate = true) {
   options.onClick = event => {
     const chart = websiteRaceLineChart;
     if (!chart?.chartArea) return;
-    const pointer = Number.isFinite(event.x) && Number.isFinite(event.y) ? event : Chart.helpers?.getRelativePosition?.(event.native || event, chart);
-    if (!pointer || !Number.isFinite(pointer.x) || !Number.isFinite(pointer.y)) return;
     const selectRunner = name => {
       stopWebsiteRace();
       websiteRaceSelectedPlayer = websiteRaceSelectedPlayer === name ? "" : name;
       setTimeout(() => renderWebsiteRaceLineChart(false), 0);
     };
-    const endpoint = chart.data.datasets.map((dataset, datasetIndex) => {
+    const nativeEvent = event.native || event;
+    const canvasRect = chart.canvas.getBoundingClientRect();
+    const pointer = { x: nativeEvent.clientX, y: nativeEvent.clientY };
+    if (!Number.isFinite(pointer.x) || !Number.isFinite(pointer.y) || pointer.x < canvasRect.left || pointer.x > canvasRect.right || pointer.y < canvasRect.top || pointer.y > canvasRect.bottom) return;
+    const scaleX = canvasRect.width / chart.width, scaleY = canvasRect.height / chart.height;
+    const nearest = chart.data.datasets.flatMap((dataset, datasetIndex) => {
       const points = chart.getDatasetMeta(datasetIndex).data;
-      const point = points[points.length - 1]?.getCenterPoint?.() || points[points.length - 1];
-      return point && pointer.x >= point.x && pointer.x <= chart.width && Math.abs(point.y - pointer.y) <= 9
-        ? { name: dataset.label, distance: Math.abs(point.y - pointer.y) }
-        : null;
+      return points.slice(1).map((point, index) => {
+        const start = points[index]?.getCenterPoint?.() || points[index], end = point?.getCenterPoint?.() || point;
+        if (!start || !end || dataset.data[index] == null || dataset.data[index + 1] == null) return null;
+        const startScreen = { x: canvasRect.left + start.x * scaleX, y: canvasRect.top + start.y * scaleY };
+        const endScreen = { x: canvasRect.left + end.x * scaleX, y: canvasRect.top + end.y * scaleY };
+        return { name: dataset.label, distance: websiteRaceSegmentDistance(pointer, startScreen, endScreen) };
+      });
     }).filter(Boolean).sort((left, right) => left.distance - right.distance)[0];
-    if (endpoint) {
-      selectRunner(endpoint.name);
-      return;
-    }
-    if (pointer.x < chart.chartArea.left || pointer.x > chart.chartArea.right || pointer.y < chart.chartArea.top || pointer.y > chart.chartArea.bottom) return;
-    const frame = frameAtPosition(chart.scales.x.getValueForPixel(pointer.x));
-    const nearest = chart.data.datasets.map((dataset, datasetIndex) => {
-      const pointIndex = dataset.data.findIndex(point => point.snapshotIndex === frame);
-      const point = pointIndex >= 0 ? chart.getDatasetMeta(datasetIndex).data[pointIndex] : null;
-      const center = point?.getCenterPoint?.() || point;
-      return center ? { name: dataset.label, distance: Math.hypot(center.x - pointer.x, center.y - pointer.y) } : null;
-    }).filter(Boolean).sort((left, right) => left.distance - right.distance)[0];
-    if (nearest?.distance <= 12) {
+    if (nearest?.distance <= 9) {
       selectRunner(nearest.name);
     }
   };
   if (websiteRaceLineChart) websiteRaceLineChart.destroy();
   websiteRaceLineChart = new Chart(canvas, { type: "line", data, options, plugins: [endpointLabels] });
+  renderWebsiteRaceEndpointTargets(websiteRaceLineChart, name => {
+    stopWebsiteRace();
+    websiteRaceSelectedPlayer = websiteRaceSelectedPlayer === name ? "" : name;
+    renderWebsiteRaceLineChart(false);
+  });
 }
 function showWebsiteRaceFrame(frame, animate = true) {
   if (!websiteRaceSnapshots.length) return;
