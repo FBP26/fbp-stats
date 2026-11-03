@@ -2250,6 +2250,9 @@ export default {
     const weekBeforeRefresh = await activeWeek(env.DB);
     const refresh = await refreshActiveGameStates(env.DB);
     if (!weekBeforeRefresh) {
+      if (!(await syncFinalizedPayouts(env))) {
+        console.warn("Finalized payout sync was not acknowledged by the Apps Script relay; it will retry on the next scheduled refresh.");
+      }
       try {
         await createWeekSetupCandidate(env);
       } catch (error) {
