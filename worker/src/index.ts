@@ -2270,13 +2270,13 @@ export default {
     }
     let refreshedWeek = await findWeek(env.DB, Number(weekBeforeRefresh.season), Number(weekBeforeRefresh.week), "REGULAR_SEASON");
     if (refreshedWeek?.status === "finalizing") {
-      const finalized = await finalizeWeek(env, refreshedWeek);
-      if (finalized && !(await syncFinalizedPayouts(env))) {
-        console.warn("Finalized payout sync was not acknowledged by the Apps Script relay.");
-      }
+      await finalizeWeek(env, refreshedWeek);
     }
     refreshedWeek = await findWeek(env.DB, Number(weekBeforeRefresh.season), Number(weekBeforeRefresh.week), "REGULAR_SEASON");
     if (refreshedWeek) {
+      if (String(refreshedWeek.status) === "finalized" && !(await syncFinalizedPayouts(env))) {
+        console.warn(`Finalized Week ${Number(refreshedWeek.week)} payout sync was not acknowledged by the Apps Script relay; it will retry on the next scheduled refresh.`);
+      }
       if (String(refreshedWeek.status) === "staged") {
         await dispatchWeekNotifications(env, refreshedWeek, new Set<NotificationEvent>(["picksReady"]));
         await dispatchPicksReadyPush(env, refreshedWeek);
