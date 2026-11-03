@@ -1,5 +1,5 @@
 import assert from "node:assert/strict";
-import { readFile } from "node:fs/promises";
+import { readdir, readFile } from "node:fs/promises";
 
 const readJson = file => readFile(new URL(file, import.meta.url), "utf8").then(JSON.parse);
 const index = await readJson("./data/winner-recaps/index.json");
@@ -11,7 +11,9 @@ const probabilityLeader = frame => [...frame.players].sort((left, right) =>
 )[0];
 const isFinal = game => ["FINAL", "STATUS_FINAL", "COMPLETED"].includes(String(game.status || game.state || "").toUpperCase());
 
-assert.equal(index.weeks.length, 7, "The current season should publish seven completed winner pages.");
+const completedArchives = (await readdir(new URL("./archive/completed_regular_season/", import.meta.url)))
+  .filter(file => /^2026-2027_week_\d{2}\.csv$/.test(file));
+assert.equal(index.weeks.length, completedArchives.length, "Each completed regular-season archive must publish one winner page.");
 
 for (const week of index.weeks) {
   const data = await readJson(`./data/winner-recaps/${week.file}`);
@@ -31,7 +33,7 @@ for (const week of index.weeks) {
     assert.equal(new Set(frame.players.map(player => player.name)).size, frame.players.length, `Week ${week.week} race frames cannot duplicate players.`);
     assert.ok(frame.players.every(player => Number.isFinite(Number(player.winProbability)) && Number(player.winProbability) >= 0), `Week ${week.week} race probabilities must be non-negative numbers.`);
     const probabilityTotal = frame.players.reduce((total, player) => total + Number(player.winProbability), 0);
-    assert.ok(probabilityTotal > 0 && probabilityTotal <= 100.01, `Week ${week.week} race probabilities must be bounded.`);
+    assert.ok(probabilityTotal > 0 && probabilityTotal <= 100.05, `Week ${week.week} race probabilities must be bounded after two-decimal rounding.`);
   }
   const finalFrame = data.raceSnapshots.at(-1);
   if ((finalFrame.gameState || []).length && finalFrame.gameState.every(isFinal)) {
