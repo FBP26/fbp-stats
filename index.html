@@ -3474,8 +3474,8 @@ async function renderConfirmationHistory(submission) {
     host.innerHTML = `<h3>Your pick patterns - ${websiteEscapeHtml(submission.name)}</h3>${confirmationMetricTable([
       { label: "Most picked team", value: metricValue(mostPickedTeam, mostPickedCount, "No completed picks") },
       { label: "Most picked against", value: metricValue(mostFadedTeam, mostFadedCount, "No completed fades") },
-      { label: "Current pick run", value: metricValue(pickRepeat.team, pickRepeat.length) },
-      { label: "Current picked-against run", value: metricValue(fadeRepeat.team, fadeRepeat.length) },
+      { label: "Active pick streak", value: metricValue(pickRepeat.team, pickRepeat.length) },
+      { label: "Active picked-against streak", value: metricValue(fadeRepeat.team, fadeRepeat.length) },
       { label: "Finally picked", value: gapValue(longestPickGap.team, longestPickGap.missed, longestPickGap.found, "No current picks") },
       { label: "Finally picked against", value: gapValue(longestFadeGap.team, longestFadeGap.missed, longestFadeGap.found, "No current picked-against teams") },
       { label: "Best record when picked", value: recordValue(bestTeamRecord(false), "No qualified pick record") },
