@@ -1434,13 +1434,30 @@ const enrichActiveSlateGames = async (games: JsonObject[], season: number, week:
   if (!response.ok) return games;
   const scoreboard = await response.json() as { events?: { id?: string; competitions?: { competitors?: { homeAway?: string; records?: { summary?: string }[]; team?: { abbreviation?: string; displayName?: string } }[]; venue?: { fullName?: string; indoor?: boolean; address?: { city?: string; state?: string } }; broadcasts?: { names?: string[] }[] }[] }[] };
   const events = new Map((scoreboard.events || []).map((event) => [String(event.id || ""), event]));
+  const competitionForGame = (game: JsonObject) => {
+    const stagedEventId = String(game.gameId || "").replace(/^espn\./, "");
+    const exact = events.get(stagedEventId)?.competitions?.[0];
+    if (exact) return { eventId: stagedEventId, competition: exact };
+    const away = normalizeNflAbbreviation(game.away || game.awayTeam);
+    const home = normalizeNflAbbreviation(game.home || game.homeTeam);
+    for (const [eventId, event] of events) {
+      const competition = event.competitions?.[0];
+      const competitor = (homeAway: string) => competition?.competitors?.find((entry) => entry.homeAway === homeAway);
+      if (normalizeNflAbbreviation(competitor("away")?.team?.abbreviation) === away
+        && normalizeNflAbbreviation(competitor("home")?.team?.abbreviation) === home) {
+        return { eventId, competition };
+      }
+    }
+    return null;
+  };
+  const resolvedGames = new Map(games.map((game) => [String(game.gameId || ""), competitionForGame(game)]));
   const summaries = await Promise.all(games.map(async (game) => {
-    const eventId = String(game.gameId || "").replace(/^espn\./, "");
-    const competition = events.get(eventId)?.competitions?.[0];
-    if (!eventId || competition?.venue?.indoor) return [eventId, null] as const;
+    const gameId = String(game.gameId || "");
+    const resolved = resolvedGames.get(gameId);
+    if (!resolved?.competition || resolved.competition.venue?.indoor) return [gameId, null] as const;
     try {
-      const summaryResponse = await fetch(`https://site.api.espn.com/apis/site/v2/sports/football/nfl/summary?event=${encodeURIComponent(eventId)}`, { cf: { cacheTtl: 900 } });
-      if (!summaryResponse.ok) return [eventId, null] as const;
+      const summaryResponse = await fetch(`https://site.api.espn.com/apis/site/v2/sports/football/nfl/summary?event=${encodeURIComponent(resolved.eventId)}`, { cf: { cacheTtl: 900 } });
+      if (!summaryResponse.ok) return [gameId, null] as const;
       const summary = await summaryResponse.json() as {
         gameInfo?: {
           weather?: { temperature?: number; gust?: number; precipitation?: number };
@@ -1449,7 +1466,7 @@ const enrichActiveSlateGames = async (games: JsonObject[], season: number, week:
       };
       const weather = summary.gameInfo?.weather;
       if (!weather) {
-        return [eventId, await fetchOpenMeteoWeather(
+        return [gameId, await fetchOpenMeteoWeather(
           String(summary.gameInfo?.venue?.address?.city || ""),
           String(summary.gameInfo?.venue?.address?.country || ""),
           String(game.kickoff || ""),
@@ -1459,19 +1476,19 @@ const enrichActiveSlateGames = async (games: JsonObject[], season: number, week:
         Number.isFinite(Number(weather.precipitation)) ? `${Number(weather.precipitation)}% precip` : "",
         Number.isFinite(Number(weather.gust)) ? `gusts ${Number(weather.gust)} mph` : "",
       ].filter(Boolean).join("; ");
-      return [eventId, {
+      return [gameId, {
         temperature: Number.isFinite(Number(weather.temperature)) ? Number(weather.temperature) : null,
         weather: details,
       }] as const;
     } catch (error) {
-      console.warn("ESPN forecast enrichment failed", eventId, error);
-      return [eventId, null] as const;
+      console.warn("ESPN forecast enrichment failed", resolved.eventId, error);
+      return [gameId, null] as const;
     }
   }));
   const forecastByEventId = new Map(summaries);
   return games.map((game) => {
-    const event = events.get(String(game.gameId || "").replace(/^espn\./, ""));
-    const competition = event?.competitions?.[0];
+    const gameId = String(game.gameId || "");
+    const competition = resolvedGames.get(gameId)?.competition;
     if (!competition) return game;
     const competitor = (homeAway: string) => competition.competitors?.find((entry) => entry.homeAway === homeAway);
     const awayEntry = competitor("away"), homeEntry = competitor("home");
@@ -1490,7 +1507,7 @@ const enrichActiveSlateGames = async (games: JsonObject[], season: number, week:
       venueCity: venue?.address?.city || "",
       venueState: venue?.address?.state || "",
       indoor: Boolean(venue?.indoor),
-      ...(forecastByEventId.get(String(game.gameId || "").replace(/^espn\./, "")) || {}),
+      ...(forecastByEventId.get(gameId) || {}),
       broadcast: competition.broadcasts?.flatMap((entry) => entry.names || []).join(", ") || "",
     };
   });
