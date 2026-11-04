@@ -3412,6 +3412,13 @@ async function renderConfirmationHistory(submission) {
     const completedBestBetHistory = completedHistory.filter(row => bestBetFor(row) === websiteCanonicalTeam(row.pick));
     const completedBestBetAgainstHistory = completedBestBetHistory.filter(row => opponentFor(row));
     const currentBestBet = websiteCanonicalTeam(submission.bestBet);
+    const overallBestBetRecord = completedBestBetHistory.reduce((record, row) => {
+      const result = String(row.result).toLowerCase();
+      if (result === "win") record.wins += 1;
+      else if (result === "loss") record.losses += 1;
+      else if (result === "push") record.pushes += 1;
+      return record;
+    }, { wins: 0, losses: 0, pushes: 0 });
     const [mostBestBetTeam, mostBestBetCount] = countTeams(bestBetHistory.map(bestBetFor).concat(currentBestBet).filter(Boolean));
     const [mostBestBetAgainstTeam, mostBestBetAgainstCount] = countTeams(completedBestBetAgainstHistory.map(opponentFor));
     const bestBetRecord = [...completedBestBetHistory.reduce((records, row) => {
@@ -3460,8 +3467,10 @@ async function renderConfirmationHistory(submission) {
     const metricValue = (team, count, empty = "No completed history") => team && count ? `${teamLabel(team)} · ${count}` : empty;
     const recordValue = (record, empty) => record ? `${teamLabel(record.team)} · ${record.wins}-${record.losses}${record.pushes ? `-${record.pushes}` : ""}` : empty;
     const currentBestBetRecordValue = (record, empty) => record ? `${teamLabel(record.team)} - ${record.wins}-${record.losses}${record.pushes ? `-${record.pushes}` : ""}` : empty;
+    const bestBetRecordValue = record => record.wins + record.losses + record.pushes ? `${record.wins}-${record.losses}${record.pushes ? `-${record.pushes}` : ""}` : "No completed Best Bets";
     const gapValue = (team, missed, found, empty) => team ? `${teamLabel(team)} · ${found ? (missed || "first chance") : "never"}` : empty;
     const bestBetPatternRows = [
+      { label: "Best Bet record", value: bestBetRecordValue(overallBestBetRecord) },
       { label: "Most Best Bet", value: metricValue(mostBestBetTeam, mostBestBetCount, "No Best Bets") },
       { label: "Most Best Bet against", value: metricValue(mostBestBetAgainstTeam, mostBestBetAgainstCount, "No Best Bets against") },
       { label: "Current Best Bet record", value: currentBestBetRecordValue(currentBestBetRecord, "No current Best Bet") },
