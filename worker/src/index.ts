@@ -56,7 +56,32 @@ type VisitorEventRow = {
   longitude: number | null;
 };
 
-const visitorGeographyReport = async (db: D1Database): Promise<JsonObject> => {
+const relayBrowserPlayerNames = async (env: Env): Promise<Map<string, string>> => {
+  if (!env.EMAIL_RELAY_URL?.trim() || !env.EMAIL_RELAY_SECRET?.trim()) return new Map();
+  try {
+    const response = await fetch(env.EMAIL_RELAY_URL, {
+      method: "POST",
+      headers: { "Content-Type": "text/plain;charset=UTF-8" },
+      body: JSON.stringify({ action: "list-browser-player-names", secret: env.EMAIL_RELAY_SECRET }),
+    });
+    const payload = await response.json().catch(() => null) as { ok?: boolean; browserPlayers?: unknown } | null;
+    if (!response.ok || !payload?.ok || !Array.isArray(payload.browserPlayers)) {
+      console.warn("Browser-player relay returned an invalid response.", response.status);
+      return new Map();
+    }
+    return new Map(payload.browserPlayers.flatMap((entry): [string, string][] => {
+      if (!Array.isArray(entry) || entry.length !== 2) return [];
+      const browserId = cleanText(entry[0], 64).replace(/[^a-zA-Z0-9-]/g, "");
+      const playerName = cleanText(entry[1], 100).replace(/\s+/g, " ");
+      return browserId && playerName ? [[browserId, playerName]] : [];
+    }));
+  } catch (error) {
+    console.warn("Browser-player relay request failed.", error);
+    return new Map();
+  }
+};
+
+const visitorGeographyReport = async (db: D1Database, env: Env): Promise<JsonObject> => {
   const linkedPlayers = await db.prepare(
     `SELECT visitor_player_links.browser_id, players.canonical_name
      FROM visitor_player_links
@@ -77,7 +102,8 @@ const visitorGeographyReport = async (db: D1Database): Promise<JsonObject> => {
   ).all<VisitorEventRow>();
   const rows = result.results;
   const locations = new Map<string, JsonObject>();
-  const playerNames = new Map(linkedPlayers.results.map((player) => [player.browser_id, player.canonical_name]));
+  const playerNames = await relayBrowserPlayerNames(env);
+  linkedPlayers.results.forEach((player) => playerNames.set(player.browser_id, player.canonical_name));
   const sessions = new Map<string, {
     startedAt: string;
     location: JsonObject;
@@ -537,7 +563,7 @@ const handleGet = async (request: Request, env: Env): Promise<Response> => {
   if (action === "analytics-status") return json({ ok: true, analytics: true }, 200, env.CORS_ORIGIN);
   if (action === "visitor-geography") {
     try {
-      return json(await visitorGeographyReport(env.DB), 200, env.CORS_ORIGIN);
+      return json(await visitorGeographyReport(env.DB, env), 200, env.CORS_ORIGIN);
     } catch (error) {
       console.error("Visitor geography report failed.", error);
       return json({ ok: false, error: "Visitor geography is temporarily unavailable." }, 502, env.CORS_ORIGIN);
