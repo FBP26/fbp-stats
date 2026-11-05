@@ -60,23 +60,38 @@ const visitorGeographyReport = async (db: D1Database): Promise<JsonObject> => {
   const result = await db.prepare(
     `SELECT browser_id, session_id, event, view_name, occurred_at, context_json,
             country, region, region_code, continent, city, latitude, longitude
-     FROM analytics_events
-     WHERE latitude IS NOT NULL AND longitude IS NOT NULL
-     ORDER BY occurred_at DESC
-     LIMIT 5000`,
+     FROM (
+       SELECT browser_id, session_id, event, view_name, occurred_at, context_json,
+              country, region, region_code, continent, city, latitude, longitude
+       FROM analytics_events
+       WHERE latitude IS NOT NULL AND longitude IS NOT NULL
+       ORDER BY occurred_at DESC
+       LIMIT 5000
+     )
+     ORDER BY occurred_at ASC`,
   ).all<VisitorEventRow>();
   const rows = result.results;
   const locations = new Map<string, JsonObject>();
+  const playerNames = new Map<string, string>();
   const sessions = new Map<string, {
     startedAt: string;
     location: JsonObject;
     pages: JsonObject[];
+    browserId: string;
   }>();
 
   for (const row of rows) {
     const latitude = Number(row.latitude), longitude = Number(row.longitude);
     if (!Number.isFinite(latitude) || !Number.isFinite(longitude)) continue;
     const country = row.country || "", region = row.region || "", city = row.city || "";
+    if (row.event === "submission") {
+      try {
+        const playerName = cleanText((JSON.parse(row.context_json) as { playerName?: unknown }).playerName, 100).replace(/\s+/g, " ");
+        if (playerName) playerNames.set(row.browser_id, playerName);
+      } catch (error) {
+        console.warn("Visitor submission context could not be parsed.", error);
+      }
+    }
     const locationKey = [country, row.region_code || "", city, latitude.toFixed(3), longitude.toFixed(3)].join("|");
     const location = locations.get(locationKey) || {
       country,
@@ -104,6 +119,7 @@ const visitorGeographyReport = async (db: D1Database): Promise<JsonObject> => {
       startedAt: row.occurred_at,
       location: { country, region, city },
       pages: [],
+      browserId: row.browser_id,
     };
     if (row.occurred_at < session.startedAt) session.startedAt = row.occurred_at;
     if (row.event === "page_view") session.pages.unshift({
@@ -131,6 +147,7 @@ const visitorGeographyReport = async (db: D1Database): Promise<JsonObject> => {
       ...location,
       uniqueBrowsers: (location.uniqueBrowsers as Set<string>).size,
       sessions: (location.sessions as Set<string>).size,
+      players: [...new Set([...location.uniqueBrowsers as Set<string>].map((browserId) => playerNames.get(browserId)).filter(Boolean))].sort(),
     })),
     sessions: [...sessions.values()]
       .sort((left, right) => right.startedAt.localeCompare(left.startedAt))
@@ -140,6 +157,7 @@ const visitorGeographyReport = async (db: D1Database): Promise<JsonObject> => {
         location: session.location,
         pages: session.pages,
         activeSeconds: session.pages.reduce((total, page) => total + (Number(page.durationSeconds) || 0), 0),
+        playerName: playerNames.get(session.browserId) || "",
       })),
   };
 };
@@ -1956,6 +1974,7 @@ const handleAnalytics = async (payload: JsonObject, request: Request, env: Env):
     language: cleanText(payload.language, 20),
     timeZone: cleanText(payload.timeZone, 60),
     durationSeconds: Math.max(0, Math.min(86400, Number(payload.durationSeconds) || 0)),
+    playerName: event === "submission" ? cleanText(payload.playerName, 100).replace(/\s+/g, " ") : "",
   };
   const geography = request.cf;
   const latitude = Number(geography?.latitude), longitude = Number(geography?.longitude);

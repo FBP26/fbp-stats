@@ -345,24 +345,24 @@ function fbpMapDuration(seconds) {
 }
 
 function fbpMapSessionRows() {
-  return (fbpMapVisitorData.sessions || []).map(session => {
+  const groups = new Map();
+  (fbpMapVisitorData.sessions || []).forEach(session => {
     const started = new Date(session.startedAt);
+    const day = Number.isNaN(started.getTime()) ? "Unknown date" : started.toLocaleDateString([], { weekday: "long", month: "short", day: "numeric" });
     const location = [session.location?.city, session.location?.region, session.location?.country].filter(Boolean).join(", ") || "Location unavailable";
-    const recordedSeconds = (session.pages || []).reduce((sum, page) => sum + (page.durationSeconds == null ? 0 : Math.max(0, Number(page.durationSeconds) || 0)), 0);
     const pages = (session.pages || []).map(page => {
       const entered = new Date(page.enteredAt);
       const time = Number.isNaN(entered.getTime()) ? "Time unavailable" : entered.toLocaleTimeString([], { hour: "numeric", minute: "2-digit" });
       const duration = page.durationSeconds == null ? null : Math.max(0, Number(page.durationSeconds) || 0);
-      const width = !recordedSeconds ? "1 1 0" : duration == null ? "0 0 22px" : `${Math.max(duration / recordedSeconds * 100, 1.5)} 1 0`;
-      const label = fbpMapViewLabel(page.view), detail = `${label} · ${time} · ${fbpMapDuration(duration)}`;
-      const color = [...String(page.view || "")].reduce((total, character) => total + character.charCodeAt(0), 0) % 8;
-      return `<span class="fbp-map-session-segment${duration == null ? " is-untimed" : ""}" style="--session-page:${color};flex:${width}" title="${websiteEscapeHtml(detail)}"><strong>${websiteEscapeHtml(label)}</strong><small>${websiteEscapeHtml(fbpMapDuration(duration))}</small></span>`;
+      return `<div><strong>${websiteEscapeHtml(fbpMapViewLabel(page.view))}</strong><small>${websiteEscapeHtml(`${time} · ${fbpMapDuration(duration)}`)}</small></div>`;
     }).join("");
     const startText = Number.isNaN(started.getTime()) ? "Unknown" : started.toLocaleString([], { month: "short", day: "numeric", hour: "numeric", minute: "2-digit" });
-    const activeTime = (session.pages || []).some(page => page.durationSeconds != null) ? fbpMapDuration(session.activeSeconds) : "Time not recorded";
     const sessionLabel = session.playerName ? websiteEscapeHtml(session.playerName) : `Session #${Number(session.sessionNumber || 0).toLocaleString()}`;
-    return `<tr><th scope="row"><span class="fbp-map-session-number">${sessionLabel}</span><small class="fbp-map-session-location">${websiteEscapeHtml(location)}</small></th><td>${websiteEscapeHtml(startText)}</td><td>${websiteEscapeHtml(activeTime)}</td><td><div class="fbp-map-session-bar" aria-label="Session page timeline">${pages}</div></td></tr>`;
-  }).join("");
+    const rows = groups.get(day) || [];
+    rows.push(`<tr><th scope="row"><span class="fbp-map-session-number">${sessionLabel}</span></th><td>${websiteEscapeHtml(location)}</td><td>${websiteEscapeHtml(startText)}</td><td class="fbp-map-visit-pages">${pages}</td></tr>`);
+    groups.set(day, rows);
+  });
+  return [...groups.entries()].map(([day, rows]) => `<tr><th class="fbp-map-visit-day" colspan="4">${websiteEscapeHtml(day)}</th></tr>${rows.join("")}`).join("");
 }
 
 function fbpMapRenderVisitorReport(rows) {
@@ -387,8 +387,7 @@ function fbpMapRenderVisitorReport(rows) {
   }).join("");
   const updated = fbpMapVisitorData.updatedAt ? new Date(fbpMapVisitorData.updatedAt).toLocaleString() : "Not available";
   const sessionRows = fbpMapSessionRows();
-  host.innerHTML = `<div class="fbp-map-report-head"><div><span>Aggregate visitor analytics</span><h3>Website activity report</h3></div><p>Updated ${websiteEscapeHtml(updated)}</p></div><div class="fbp-map-report-metrics"><div><span>Page views</span><strong>${totals.views.toLocaleString()}</strong></div><div><span>Browser-location counts</span><strong>${totals.browsers.toLocaleString()}</strong></div><div><span>Sessions</span><strong>${totals.sessions.toLocaleString()}</strong></div><div><span>Views / session</span><strong>${viewsPerSession}</strong></div><div><span>Pick starts</span><strong>${totals.starts.toLocaleString()}</strong></div><div><span>Submissions</span><strong>${totals.submissions.toLocaleString()}</strong></div><div><span>View → start</span><strong>${rate(totals.starts, totals.views)}</strong></div><div><span>Start → submit</span><strong>${rate(totals.submissions, totals.starts)}</strong></div></div><div class="fbp-map-report-table-wrap"><table class="fbp-map-report-table"><thead><tr><th>Location</th><th>Views</th><th>Share</th><th>Browsers</th><th>Sessions</th><th>Starts</th><th>Submits</th><th>Completion</th></tr></thead><tbody>${locationRows || `<tr><td colspan="8">No visitor activity is available for this selection.</td></tr>`}</tbody></table></div><p class="fbp-map-caption">Browser counts are unique within each approximate location and may include the same browser again if its network location changed.</p><details class="fbp-map-sessions" open><summary><span>Session timelines</span><strong>${Number(fbpMapVisitorData.sessions?.length || 0).toLocaleString()} sessions · newest first</strong></summary><p class="fbp-map-caption">Each row shows the pages visited in order and active time recorded on each page. A session is labeled with a player's name only when that browser has submitted picks; otherwise it shows a session number. Older visits without a duration event say “Time not recorded.” Raw browser IDs and session IDs are not published.</p><div class="fbp-map-report-table-wrap"><table class="fbp-map-report-table fbp-map-session-table"><thead><tr><th>Session</th><th>Started</th><th>Recorded active</th><th>Page timeline</th></tr></thead><tbody>${sessionRows || `<tr><td colspan="4">No session timelines are available yet.</td></tr>`}</tbody></table></div></details>`;
-  host.querySelector(".fbp-map-sessions .fbp-map-caption").textContent = "Each bar runs in visit order. Segment width represents recorded active time. If an entire session lacks timing, patterned page pieces share the bar equally; in mixed sessions, an untimed page is a narrow patterned piece. Hover or tap for page, clock time, and duration. A session shows a player's name only when that browser has submitted picks. Raw browser IDs, session IDs, and IP addresses are not published.";
+  host.innerHTML = `<div class="fbp-map-report-head"><div><span>Aggregate visitor analytics</span><h3>Website activity report</h3></div><p>Updated ${websiteEscapeHtml(updated)}</p></div><div class="fbp-map-report-metrics"><div><span>Page views</span><strong>${totals.views.toLocaleString()}</strong></div><div><span>Browser-location counts</span><strong>${totals.browsers.toLocaleString()}</strong></div><div><span>Sessions</span><strong>${totals.sessions.toLocaleString()}</strong></div><div><span>Views / session</span><strong>${viewsPerSession}</strong></div><div><span>Pick starts</span><strong>${totals.starts.toLocaleString()}</strong></div><div><span>Submissions</span><strong>${totals.submissions.toLocaleString()}</strong></div><div><span>View → start</span><strong>${rate(totals.starts, totals.views)}</strong></div><div><span>Start → submit</span><strong>${rate(totals.submissions, totals.starts)}</strong></div></div><div class="fbp-map-report-table-wrap"><table class="fbp-map-report-table"><thead><tr><th>Location</th><th>Views</th><th>Share</th><th>Browsers</th><th>Sessions</th><th>Starts</th><th>Submits</th><th>Completion</th></tr></thead><tbody>${locationRows || `<tr><td colspan="8">No visitor activity is available for this selection.</td></tr>`}</tbody></table></div><p class="fbp-map-caption">Browser counts are unique within each approximate location and may include the same browser again if its network location changed.</p><details class="fbp-map-sessions" open><summary><span>Visit log</span><strong>${Number(fbpMapVisitorData.sessions?.length || 0).toLocaleString()} sessions · grouped by day</strong></summary><p class="fbp-map-caption">Each entry lists its opening time, approximate location, and pages opened. A browser is named only after it submits picks; otherwise it stays anonymous. Raw browser IDs, session IDs, and IP addresses are never published.</p><div class="fbp-map-report-table-wrap"><table class="fbp-map-report-table fbp-map-session-table"><thead><tr><th>Player or visitor</th><th>Location</th><th>Opened</th><th>Pages viewed</th></tr></thead><tbody>${sessionRows || `<tr><td colspan="4">No visits are available yet.</td></tr>`}</tbody></table></div></details>`;
 }
 
 function fbpMapRender() {

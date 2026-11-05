@@ -120,7 +120,7 @@ CREATE TABLE analytics_events (
   occurred_at TEXT NOT NULL DEFAULT CURRENT_TIMESTAMP,
   browser_id TEXT NOT NULL,
   session_id TEXT NOT NULL,
-  event TEXT NOT NULL CHECK (event IN ('page_view', 'picks_started', 'submission')),
+  event TEXT NOT NULL CHECK (event IN ('page_view', 'picks_started', 'submission', 'view_duration')),
   view_name TEXT NOT NULL,
   context_json TEXT NOT NULL DEFAULT '{}'
 );
