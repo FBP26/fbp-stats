@@ -108,6 +108,7 @@ let fbpMapBaseLayers = [];
 let fbpMapVisitorRefreshTimer = null;
 let fbpMapVisitorRefreshPending = false;
 let fbpMapVisitorPanel = "visits";
+const FBP_MAP_TIME_ZONE = "America/New_York";
 
 async function fbpMapLoadVisitorData() {
   const separator = WEBSITE_NOTIFICATION_ENDPOINT.includes("?") ? "&" : "?";
@@ -349,16 +350,16 @@ function fbpMapSessionRows() {
   const groups = new Map();
   (fbpMapVisitorData.sessions || []).forEach(session => {
     const started = new Date(session.startedAt);
-    const day = Number.isNaN(started.getTime()) ? "Unknown date" : started.toLocaleDateString([], { weekday: "long", month: "short", day: "numeric" });
+    const day = Number.isNaN(started.getTime()) ? "Unknown date" : started.toLocaleDateString([], { timeZone: FBP_MAP_TIME_ZONE, weekday: "long", month: "short", day: "numeric" });
     const location = [session.location?.city, session.location?.region, session.location?.country].filter(Boolean).join(", ") || "Location unavailable";
     const pages = (session.pages || []).map(page => {
       const entered = new Date(page.enteredAt);
-      const time = Number.isNaN(entered.getTime()) ? "Time unavailable" : entered.toLocaleTimeString([], { hour: "numeric", minute: "2-digit" });
+      const time = Number.isNaN(entered.getTime()) ? "Time unavailable" : entered.toLocaleTimeString([], { timeZone: FBP_MAP_TIME_ZONE, hour: "numeric", minute: "2-digit", timeZoneName: "short" });
       const duration = page.durationSeconds == null ? null : Math.max(0, Number(page.durationSeconds) || 0);
       const detail = [time, duration == null ? "" : fbpMapDuration(duration)].filter(Boolean).join(" · ");
       return `<div><strong>${websiteEscapeHtml(fbpMapViewLabel(page.view))}</strong><small>${websiteEscapeHtml(detail)}</small></div>`;
     }).join("");
-    const startText = Number.isNaN(started.getTime()) ? "Unknown" : started.toLocaleString([], { month: "short", day: "numeric", hour: "numeric", minute: "2-digit" });
+    const startText = Number.isNaN(started.getTime()) ? "Unknown" : started.toLocaleString([], { timeZone: FBP_MAP_TIME_ZONE, month: "short", day: "numeric", hour: "numeric", minute: "2-digit", timeZoneName: "short" });
     const sessionLabel = session.playerName ? websiteEscapeHtml(session.playerName) : `Session #${Number(session.sessionNumber || 0).toLocaleString()}`;
     const rows = groups.get(day) || [];
     rows.push(`<tr><th scope="row"><span class="fbp-map-session-number">${sessionLabel}</span></th><td>${websiteEscapeHtml(location)}</td><td>${websiteEscapeHtml(startText)}</td><td class="fbp-map-visit-pages">${pages}</td></tr>`);
