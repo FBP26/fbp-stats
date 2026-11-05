@@ -3274,8 +3274,8 @@ function renderConfirmationIdentity(submission, identity) {
   const host = document.getElementById("confirmation-identity");
   const effective = identity || { status: "new", submittedName: submission.name.trim(), suggestedName: "" };
   const approvedNewPlayer = websiteApprovedNewPlayerName === String(effective.submittedName || submission.name).trim().toLowerCase();
-  const isNewPlayer = approvedNewPlayer || ["new", "suggestion", "reversed"].includes(effective.status);
-  const participation = isNewPlayer ? null : websiteParticipationSummary(effective.submittedName);
+  const participation = websiteParticipationSummary(effective.submittedName);
+  const isNewPlayer = approvedNewPlayer || !participation;
   const rows = participation ? [
     { label: "Pool weeks", value: websiteEscapeHtml(String(participation.weeks)), detail: `${websiteOrdinal(participation.weekRank)} of ${participation.playerCount} all time` },
     { label: "Current attendance streak", value: websiteEscapeHtml(`${participation.streak} in a row`), detail: `Current-streak rank: ${websiteOrdinal(participation.streakRank)} of ${participation.playerCount}` }
