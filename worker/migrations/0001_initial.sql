@@ -69,6 +69,12 @@ CREATE UNIQUE INDEX one_current_submission_per_player_week
 ON submissions (week_id, player_id)
 WHERE superseded_at IS NULL;
 
+CREATE TABLE visitor_player_links (
+  browser_id TEXT PRIMARY KEY,
+  player_id INTEGER NOT NULL REFERENCES players(id),
+  linked_at TEXT NOT NULL DEFAULT CURRENT_TIMESTAMP
+);
+
 CREATE TABLE submission_picks (
   submission_id INTEGER NOT NULL REFERENCES submissions(id) ON DELETE CASCADE,
   game_id INTEGER NOT NULL REFERENCES games(id),

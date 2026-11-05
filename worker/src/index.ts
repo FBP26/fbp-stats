@@ -57,6 +57,11 @@ type VisitorEventRow = {
 };
 
 const visitorGeographyReport = async (db: D1Database): Promise<JsonObject> => {
+  const linkedPlayers = await db.prepare(
+    `SELECT visitor_player_links.browser_id, players.canonical_name
+     FROM visitor_player_links
+     JOIN players ON players.id = visitor_player_links.player_id`,
+  ).all<{ browser_id: string; canonical_name: string }>();
   const result = await db.prepare(
     `SELECT browser_id, session_id, event, view_name, occurred_at, context_json,
             country, region, region_code, continent, city, latitude, longitude
@@ -72,7 +77,7 @@ const visitorGeographyReport = async (db: D1Database): Promise<JsonObject> => {
   ).all<VisitorEventRow>();
   const rows = result.results;
   const locations = new Map<string, JsonObject>();
-  const playerNames = new Map<string, string>();
+  const playerNames = new Map(linkedPlayers.results.map((player) => [player.browser_id, player.canonical_name]));
   const sessions = new Map<string, {
     startedAt: string;
     location: JsonObject;
@@ -87,7 +92,7 @@ const visitorGeographyReport = async (db: D1Database): Promise<JsonObject> => {
     if (row.event === "submission") {
       try {
         const playerName = cleanText((JSON.parse(row.context_json) as { playerName?: unknown }).playerName, 100).replace(/\s+/g, " ");
-        if (playerName) playerNames.set(row.browser_id, playerName);
+        if (playerName && !playerNames.has(row.browser_id)) playerNames.set(row.browser_id, playerName);
       } catch (error) {
         console.warn("Visitor submission context could not be parsed.", error);
       }
@@ -1996,6 +2001,7 @@ const handleAnalytics = async (payload: JsonObject, request: Request, env: Env):
 const submitCard = async (payload: JsonObject, env: Env): Promise<Response> => {
   const rawName = cleanText(payload.name, 100);
   const name = rawName.replace(/\s+/g, " ");
+  const browserId = cleanText(payload.browserId, 64).replace(/[^a-zA-Z0-9-]/g, "");
   const weekName = cleanText(payload.weekName, 200);
   const picks = Array.isArray(payload.picks) ? payload.picks.map((pick) => cleanText(pick, 20)) : [];
   const bestBet = cleanText(payload.bestBet, 20);
@@ -2050,6 +2056,13 @@ const submitCard = async (payload: JsonObject, env: Env): Promise<Response> => {
        (week_id, player_id, submitted_name, week_name, best_bet_game_index, tiebreaker, source, submitted_at)
        VALUES (?, ?, ?, ?, ?, ?, ?, ?)`,
     ).bind(week.id, player.id, rawName, weekName, bestBetGameIndex, tiebreaker, payload.mode === "test" ? "website-test" : "website", submittedAt),
+    ...(payload.mode === "test" || !browserId ? [] : [
+      env.DB.prepare(
+        `INSERT INTO visitor_player_links (browser_id, player_id, linked_at)
+         VALUES (?, ?, ?)
+         ON CONFLICT(browser_id) DO UPDATE SET player_id = excluded.player_id, linked_at = excluded.linked_at`,
+      ).bind(browserId, player.id, submittedAt),
+    ]),
     ...gameRows.results.map((game, index) => env.DB.prepare(
       `INSERT INTO submission_picks (submission_id, game_id, picked_team)
        SELECT id, ?, ? FROM submissions

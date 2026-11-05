@@ -354,20 +354,20 @@
 
 .fbp-map-session-table {
   width: 100%;
-  min-width: 900px;
+  min-width: 700px;
   table-layout: fixed;
 }
 
 .fbp-map-session-table th:first-child {
-  width: 120px;
+  width: 18%;
 }
 
 .fbp-map-session-table th:nth-child(2) {
-  width: 112px;
+  width: 25%;
 }
 
 .fbp-map-session-table th:nth-child(3) {
-  width: 150px;
+  width: 18%;
 }
 
 .fbp-map-session-table th,
@@ -391,6 +391,36 @@
 .fbp-map-session-table td:last-child {
   text-align: left;
   white-space: normal;
+}
+
+.fbp-map-session-table td {
+  white-space: normal;
+}
+
+.fbp-map-report-tabs {
+  display: flex;
+  gap: 8px;
+  margin: 14px 0;
+}
+
+.fbp-map-report-tabs button {
+  border: 1px solid var(--border);
+  border-radius: 4px;
+  background: transparent;
+  color: var(--muted);
+  cursor: pointer;
+  font: 700 11px Arial, sans-serif;
+  padding: 8px 10px;
+}
+
+.fbp-map-report-tabs button.active {
+  border-color: var(--accent);
+  background: var(--accent);
+  color: #17202a;
+}
+
+.fbp-map-report-panel[hidden] {
+  display: none;
 }
 
 .fbp-map-visit-day {
