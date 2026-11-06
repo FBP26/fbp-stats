@@ -1006,7 +1006,7 @@ const dispatchWeekPushNotifications = async (env: Env, week: Record<string, unkn
   await env.DB.prepare(
     "INSERT INTO notification_observations (week_id, observed_at, payload_json) VALUES (?, ?, ?) ON CONFLICT (week_id) DO UPDATE SET observed_at = excluded.observed_at, payload_json = excluded.payload_json",
   ).bind(week.id, now.toISOString(), JSON.stringify({ ranks, leaders })).run();
-  if (!events.size) return;
+  if (!events.size && !picksDueCheckpoints.length) return;
   const latestProbabilities = await env.DB.prepare(
     `SELECT player_name, win_probability FROM race_snapshots
      WHERE week_id = ? AND captured_at = (SELECT MAX(captured_at) FROM race_snapshots WHERE week_id = ?)`,
@@ -2323,7 +2323,16 @@ export default {
   },
   async scheduled(_controller: ScheduledController, env: Env): Promise<void> {
     const weekBeforeRefresh = await activeWeek(env.DB);
-    const refresh = await refreshActiveGameStates(env.DB);
+    let refresh: { refreshed: number; skipped: string; scoreChanges: LeaderPushScoreChange[] } = {
+      refreshed: 0,
+      skipped: "refresh-failed",
+      scoreChanges: [],
+    };
+    try {
+      refresh = await refreshActiveGameStates(env.DB);
+    } catch (error) {
+      console.error("Scheduled game refresh failed; continuing with notifications.", error);
+    }
     if (!weekBeforeRefresh) {
       if (!(await syncFinalizedPayouts(env))) {
         console.warn("Finalized payout sync was not acknowledged by the Apps Script relay; it will retry on the next scheduled refresh.");
