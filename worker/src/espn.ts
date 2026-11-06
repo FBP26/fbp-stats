@@ -95,6 +95,44 @@ export const espnEventId = (game: StoredGame): string =>
   || game.externalId.match(/^espn\.(\d+)$/i)?.[1]
   || "";
 
+export const resolveEspnEventIds = async (games: StoredGame[]): Promise<Map<number, string>> => {
+  const unresolvedGames = games.filter((game) => !espnEventId(game) && Number.isFinite(Date.parse(String(game.kickoffAt || ""))));
+  const eventIds = new Map<number, string>();
+  const gamesByDate = new Map<string, StoredGame[]>();
+  unresolvedGames.forEach((game) => {
+    const dateParts = new Intl.DateTimeFormat("en-US", {
+      timeZone: "America/New_York",
+      year: "numeric",
+      month: "2-digit",
+      day: "2-digit",
+    }).formatToParts(new Date(String(game.kickoffAt)));
+    const part = (type: Intl.DateTimeFormatPartTypes): string => dateParts.find((item) => item.type === type)?.value || "";
+    const date = `${part("year")}${part("month")}${part("day")}`;
+    const dateGames = gamesByDate.get(date) || [];
+    dateGames.push(game);
+    gamesByDate.set(date, dateGames);
+  });
+  await Promise.all([...gamesByDate.entries()].map(async ([date, dateGames]) => {
+    const response = await fetch(`https://site.api.espn.com/apis/site/v2/sports/football/nfl/scoreboard?dates=${date}`);
+    if (!response.ok) throw new Error(`ESPN scoreboard request failed (${response.status}).`);
+    const payload = record(await response.json());
+    const events = array(payload.events).map(record);
+    dateGames.forEach((game) => {
+      const event = events.find((candidate) => {
+        const competition = record(array(candidate.competitions)[0]);
+        const competitors = array(competition.competitors).map(record);
+        const home = competitors.find((team) => team.homeAway === "home");
+        const away = competitors.find((team) => team.homeAway === "away");
+        return normalizedTeam(record(home?.team).abbreviation) === normalizedTeam(game.homeTeam)
+          && normalizedTeam(record(away?.team).abbreviation) === normalizedTeam(game.awayTeam);
+      });
+      const eventId = String(event?.id || "").trim();
+      if (eventId) eventIds.set(game.id, eventId);
+    });
+  }));
+  return eventIds;
+};
+
 export const isRefreshWindow = (games: StoredGame[], now = new Date()): boolean => {
   const dates = games.map((game) => {
     const kickoff = Date.parse(String(game.kickoffAt || ""));

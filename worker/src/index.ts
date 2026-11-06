@@ -1,5 +1,5 @@
 import { compareStandings, scoreWeekWithoutProbabilities, type PlayerCard, type ScoringGame } from "./scoring";
-import { espnEventId, fetchEspnGame, isRefreshWindow, parseEspnGame, type StoredGame } from "./espn";
+import { espnEventId, fetchEspnGame, isRefreshWindow, parseEspnGame, resolveEspnEventIds, type StoredGame } from "./espn";
 import { buildRaceGameState, validateRaceSnapshotPlayers } from "./race";
 import { leaderPushSummary, maskNotificationDestination, normalizeNotificationDestination, notificationEvents, notificationPreferenceColumns, parseNotificationPreferences, picksDueReminderCheckpoints, picksDueReminderIsEligible, scheduledNotificationEvents, seasonRankMovementSummary, type LeaderPushScoreChange, type NotificationChannel, type NotificationEvent, type SeasonStanding } from "./notifications";
 import { sendWebPush, type PushSubscriptionRecord } from "./web-push";
@@ -259,6 +259,11 @@ const refreshActiveGameStates = async (db: D1Database): Promise<{ refreshed: num
   }));
   if (!games.length) return { refreshed: 0, skipped: "no-games", scoreChanges: [] };
   if (!isRefreshWindow(games)) return { refreshed: 0, skipped: "outside-game-window", scoreChanges: [] };
+  const resolvedEventIds = await resolveEspnEventIds(games);
+  resolvedEventIds.forEach((eventId, gameId) => {
+    const game = games.find((candidate) => candidate.id === gameId);
+    if (game) game.metadata.espnEventId = eventId;
+  });
   const eventIds = games.map(espnEventId);
   if (eventIds.some((eventId) => !eventId)) return { refreshed: 0, skipped: "missing-espn-event-id", scoreChanges: [] };
   const priorStates = await db.prepare("SELECT game_id, favorite_score, underdog_score FROM game_states WHERE game_id IN (SELECT id FROM games WHERE week_id = ?)")
