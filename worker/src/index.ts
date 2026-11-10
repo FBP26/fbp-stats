@@ -1296,12 +1296,75 @@ const formatEasternDateTime = (iso: string): string => new Intl.DateTimeFormat("
   timeZoneName: "short",
 }).format(new Date(iso));
 
+const nflTeams = ["ARI", "ATL", "BAL", "BUF", "CAR", "CHI", "CIN", "CLE", "DAL", "DEN", "DET", "GB", "HOU", "IND", "JAX", "KC", "LAC", "LAR", "LV", "MIA", "MIN", "NE", "NO", "NYG", "NYJ", "PHI", "PIT", "SEA", "SF", "TB", "TEN", "WAS"];
+
+const weekSetupByeTeams = (games: YahooWeekGame[]): string[] => {
+  const playingTeams = new Set(games.flatMap((game) => [
+    normalizeNflAbbreviation(game.away),
+    normalizeNflAbbreviation(game.home),
+  ]));
+  return nflTeams.filter((team) => !playingTeams.has(team));
+};
+
+const regularWeekSetupAvailability = (
+  prior: Record<string, unknown>,
+  now = new Date(),
+): { open: boolean; label: string } => {
+  const finalizedAt = new Date(String(prior.finalized_at || ""));
+  if (Number.isNaN(finalizedAt.getTime())) return { open: false, label: "Tuesday at 2:00 PM ET" };
+  const parts = new Intl.DateTimeFormat("en-US", {
+    timeZone: "America/New_York",
+    year: "numeric",
+    month: "2-digit",
+    day: "2-digit",
+  }).formatToParts(finalizedAt);
+  const part = (type: Intl.DateTimeFormatPartTypes): number => Number(parts.find((item) => item.type === type)?.value || 0);
+  const finalizedDate = Date.UTC(part("year"), part("month") - 1, part("day"));
+  const finalizedWeekday = new Date(finalizedDate).getUTCDay();
+  const daysUntilTuesday = (2 - finalizedWeekday + 7) % 7 || 7;
+  const targetDate = new Date(finalizedDate + daysUntilTuesday * 24 * 60 * 60 * 1000);
+  const targetKey = targetDate.toISOString().slice(0, 10);
+  const nowParts = new Intl.DateTimeFormat("en-US", {
+    timeZone: "America/New_York",
+    year: "numeric",
+    month: "2-digit",
+    day: "2-digit",
+    hour: "2-digit",
+    hourCycle: "h23",
+  }).formatToParts(now);
+  const nowPart = (type: Intl.DateTimeFormatPartTypes): string => nowParts.find((item) => item.type === type)?.value || "";
+  const nowKey = `${nowPart("year")}-${nowPart("month")}-${nowPart("day")}`;
+  const open = nowKey > targetKey || (nowKey === targetKey && Number(nowPart("hour")) >= 14);
+  const label = `${new Intl.DateTimeFormat("en-US", { timeZone: "UTC", weekday: "long", month: "short", day: "numeric" }).format(targetDate)} at 2:00 PM ET`;
+  return { open, label };
+};
+
+const weekSetupSlateEmailRows = (games: YahooWeekGame[]): string => games.map((game, index) => `
+  <tr>
+    <td style="width:34px;padding:12px 8px;border-top:1px solid #334155;color:#94a3b8;text-align:center;font-size:12px;font-weight:700">${index + 1}</td>
+    <td style="padding:12px 4px;border-top:1px solid #334155;color:#f8fafc;text-align:right;font-size:15px;font-weight:700">${escapeHtml(game.favorite.toUpperCase())}</td>
+    <td style="width:58px;padding:12px 4px;border-top:1px solid #334155;color:#facc15;text-align:center;font-size:15px;font-weight:800">${escapeHtml(game.spread)}</td>
+    <td style="padding:12px 8px;border-top:1px solid #334155;color:#f8fafc;text-align:left;font-size:15px;font-weight:700">${escapeHtml(game.underdog.toUpperCase())}</td>
+  </tr>`).join("");
+
+const weekSetupSlateReviewCards = (games: YahooWeekGame[]): string => games.map((game, index) => `
+  <article class="game-card">
+    <span class="game-number">${index + 1}</span>
+    <strong>${escapeHtml(game.favorite.toUpperCase())}</strong>
+    <span class="spread">${escapeHtml(game.spread)}</span>
+    <strong>${escapeHtml(game.underdog.toUpperCase())}</strong>
+  </article>`).join("");
+
 const weekSetupEmail = (week: number, games: YahooWeekGame[], reviewUrl: string, expiresAt: string, intro: string): { body: string; html: string } => {
   const lines = games.map((game, index) => `${index + 1}. ${game.favorite} ${game.spread} ${game.underdog}`).join("\n");
   const expiration = formatEasternDateTime(expiresAt);
+  const byeTeams = weekSetupByeTeams(games);
+  const byeLine = byeTeams.length ? `Bye week: ${byeTeams.join(", ")}` : "Bye week: None";
   return {
-    body: [intro, "", lines, "", "Review and approve the slate:", reviewUrl, "", `This approval link expires ${expiration}.`].join("\n"),
-    html: `<main style="max-width:620px;margin:0 auto;font-family:Arial,sans-serif;color:#17212b"><h2 style="margin:0 0 12px">FBP Week ${week} setup is ready</h2><p>${escapeHtml(intro)}</p><ol>${games.map(game => `<li>${escapeHtml(game.favorite)} ${game.spread} ${escapeHtml(game.underdog)}</li>`).join("")}</ol><p style="margin:24px 0"><a href="${escapeHtml(reviewUrl)}" style="display:inline-block;padding:12px 18px;border-radius:6px;background:#1677ff;color:#fff;text-decoration:none;font-weight:bold">Review and approve Week ${week}</a></p><p style="color:#52606d">This approval link expires ${escapeHtml(expiration)}.</p></main>`,
+    body: [intro, "", lines, "", byeLine, "", "Review and approve the slate:", reviewUrl, "", `This approval link expires ${expiration}.`].join("\n"),
+    html: `<main style="max-width:620px;margin:0 auto;background:#0f172a;color:#e2e8f0;font-family:Arial,sans-serif;border:1px solid #334155;border-radius:12px;overflow:hidden">
+<header style="padding:24px 24px 18px;background:linear-gradient(135deg,#172554,#1e293b)"><p style="margin:0 0 7px;color:#facc15;font-size:11px;font-weight:800;letter-spacing:1.4px;text-transform:uppercase">FBP setup review</p><h1 style="margin:0;color:#f8fafc;font-size:25px">Week ${week} lines are ready</h1></header>
+<section style="padding:20px 24px"><p style="margin:0 0 18px;line-height:1.5">${escapeHtml(intro)}</p><table role="presentation" width="100%" cellspacing="0" cellpadding="0" style="border:1px solid #334155;border-radius:8px;background:#111c31">${weekSetupSlateEmailRows(games)}</table><p style="margin:18px 0 0;padding:12px 14px;border:1px solid #365314;border-radius:8px;background:#1a2e16;color:#d9f99d"><strong>Bye week:</strong> ${escapeHtml(byeTeams.join(", ") || "None")}</p><p style="margin:24px 0 18px;text-align:center"><a href="${escapeHtml(reviewUrl)}" style="display:inline-block;padding:13px 20px;border-radius:7px;background:#facc15;color:#172554;text-decoration:none;font-weight:800">Review Week ${week} slate</a></p><p style="margin:0;color:#94a3b8;font-size:12px;text-align:center">This approval link expires ${escapeHtml(expiration)}.</p></section></main>`,
   };
 };
 
@@ -1576,6 +1639,7 @@ const enrichActiveSlateGames = async (games: JsonObject[], season: number, week:
 const createWeekSetupCandidate = async (env: Env): Promise<void> => {
   const active = await latestFinalizedRegularSeasonWeek(env.DB);
   if (!active || Number(active.week) >= 18) return;
+  if (!regularWeekSetupAvailability(active).open) return;
   const season = Number(active.season), week = Number(active.week) + 1;
   const existingWeek = await findWeek(env.DB, season, week, "REGULAR_SEASON");
   if (existingWeek && String(existingWeek.status) !== "finalized") return;
@@ -1613,8 +1677,16 @@ const reviewWeekSetupCandidate = async (token: string, env: Env): Promise<Respon
   ).bind(await sha256(token)).first<{ week: number; slate_json: string; expires_at: string }>();
   if (!candidate) return html("<h1>Approval link unavailable</h1><p>This link was used, replaced, or expired.</p>", 404);
   const slate = JSON.parse(candidate.slate_json) as { games: YahooWeekGame[] };
-  const games = slate.games.map((game, index) => `<li>${index + 1}. ${escapeHtml(game.favorite)} ${game.spread} ${escapeHtml(game.underdog)}</li>`).join("");
-  return html(`<main><h1>Set up FBP Week ${candidate.week}</h1><p>Review the locked Yahoo slate before staging it in D1.</p><ol>${games}</ol><button id="confirm">Set up Week ${candidate.week}</button><p id="status">Expires ${escapeHtml(candidate.expires_at)}.</p></main><script>document.getElementById('confirm').onclick=async()=>{const button=document.getElementById('confirm');button.disabled=true;document.getElementById('status').textContent='Setting up week...';const response=await fetch(location.origin,{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({action:'approve-week-setup',token:${JSON.stringify(token)}})});const result=await response.json();document.getElementById('status').textContent=result.ok?'Week staged in D1.':(result.error||'Approval failed.');};</script>`, 200);
+  const prior = await latestFinalizedRegularSeasonWeek(env.DB);
+  const availability = prior ? regularWeekSetupAvailability(prior) : { open: false, label: "Tuesday at 2:00 PM ET" };
+  const byeTeams = weekSetupByeTeams(slate.games);
+  const button = availability.open
+    ? `<button id="confirm">Open Week ${candidate.week} picks</button>`
+    : `<button disabled>Week ${candidate.week} opens ${escapeHtml(availability.label)}</button>`;
+  const status = availability.open
+    ? `Review the complete slate before opening picks. This approval link expires ${formatEasternDateTime(candidate.expires_at)}.`
+    : `Week ${Number(prior?.week) || candidate.week - 1} remains live until ${availability.label}.`;
+  return html(`<!doctype html><html lang="en"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1"><title>FBP Week ${candidate.week} setup</title><style>:root{color-scheme:dark}*{box-sizing:border-box}body{margin:0;background:#08111f;color:#e2e8f0;font:16px/1.45 Arial,sans-serif}main{width:min(720px,calc(100% - 24px));margin:24px auto 48px;background:#111c31;border:1px solid #334155;border-radius:14px;overflow:hidden}.hero{padding:26px 24px 20px;background:linear-gradient(135deg,#172554,#1e293b)}.eyebrow{margin:0 0 7px;color:#facc15;font-size:11px;font-weight:800;letter-spacing:1.5px;text-transform:uppercase}.hero h1{margin:0;color:#f8fafc;font-size:clamp(25px,6vw,34px)}.content{padding:22px 24px 28px}.intro{margin:0 0 18px;color:#cbd5e1}.slate{display:grid;gap:8px}.game-card{display:grid;grid-template-columns:32px 1fr 64px 1fr;align-items:center;min-height:54px;border:1px solid #334155;border-radius:8px;background:#0f172a}.game-card strong{padding:10px;color:#f8fafc;text-align:center}.game-number{color:#94a3b8;text-align:center;font-size:12px;font-weight:800}.spread{padding:8px;color:#facc15;text-align:center;font-size:17px;font-weight:800}.bye{margin:18px 0;padding:12px 14px;border:1px solid #365314;border-radius:8px;background:#1a2e16;color:#d9f99d}.actions{margin-top:24px;text-align:center}button{border:0;border-radius:7px;padding:13px 20px;background:#facc15;color:#172554;font:800 16px Arial;cursor:pointer}button:disabled{background:#475569;color:#cbd5e1;cursor:not-allowed}.status{margin:16px 0 0;color:#94a3b8;text-align:center;font-size:13px}@media(max-width:480px){main{width:calc(100% - 16px);margin-top:8px}.hero,.content{padding-left:16px;padding-right:16px}.game-card{grid-template-columns:27px 1fr 52px 1fr}.game-card strong{font-size:14px}.spread{font-size:15px}}</style></head><body><main><header class="hero"><p class="eyebrow">FBP setup review</p><h1>Week ${candidate.week} slate</h1></header><section class="content"><p class="intro">${escapeHtml(status)}</p><div class="slate">${weekSetupSlateReviewCards(slate.games)}</div><p class="bye"><strong>Bye week:</strong> ${escapeHtml(byeTeams.join(", ") || "None")}</p><div class="actions">${button}</div><p id="status" class="status"></p></section></main><script>const button=document.getElementById('confirm');if(button)button.onclick=async()=>{button.disabled=true;document.getElementById('status').textContent='Opening picks...';const response=await fetch(location.origin,{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({action:'approve-week-setup',token:${JSON.stringify(token)}})});const result=await response.json();document.getElementById('status').textContent=result.ok?'Week ${candidate.week} is open.':(result.error||'Week setup could not be completed.');};</script></body></html>`, 200);
 };
 
 const resendWeekSetupReview = async (payload: JsonObject, env: Env): Promise<Response> => {
@@ -1641,6 +1713,10 @@ const approveWeekSetupCandidate = async (payload: JsonObject, env: Env): Promise
   const prior = await latestFinalizedRegularSeasonWeek(env.DB);
   if (!prior || Number(prior.season) !== candidate.season || Number(prior.week) + 1 !== candidate.week) {
     return json({ ok: false, error: "The most recent finalized week no longer matches this approval." }, 409, env.CORS_ORIGIN);
+  }
+  const availability = regularWeekSetupAvailability(prior);
+  if (!availability.open) {
+    return json({ ok: false, error: `Week ${candidate.week} cannot open before ${availability.label}.` }, 423, env.CORS_ORIGIN);
   }
   const slate = JSON.parse(candidate.slate_json) as { games: YahooWeekGame[] };
   const week = await syncApprovedStagedWeek({ season: candidate.season, week: candidate.week, games: slate.games }, env);
