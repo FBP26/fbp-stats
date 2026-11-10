@@ -1357,7 +1357,7 @@ let websiteContenderDetailMode = "simple";
 let websiteSankeyChart = null;
 let websiteForcedOutcomes = {};
 const websiteProbabilityCache = new Map();
-let websiteRaceSnapshots = [], websiteRaceContext = "", websiteRaceAutoplayContext = "", websiteRaceFrame = 0, websiteRaceTimer = null, websiteRaceRows = new Map(), websiteRacePlaybackRequested = false, websiteRaceLineChart = null, websiteRaceSelectedPlayer = "", websiteRacePassesRemaining = 0, websiteRaceLiveNow = false;
+let websiteRaceSnapshots = [], websiteRaceContext = "", websiteRaceAutoplayContext = "", websiteRaceFrame = 0, websiteRaceTimer = null, websiteRaceRows = new Map(), websiteRacePlaybackRequested = false, websiteRaceLineChart = null, websiteRaceSelectedPlayer = "", websiteRacePassesRemaining = 0, websiteRaceLiveNow = false, websiteRaceHistoryLoading = false;
 const RACE_FRAME_DELAY = 1400;
 const WEBSITE_RACE_MAX_PLAYBACK_MS = 60000;
 function websiteRaceActiveGameCount(snapshot) {
@@ -1964,14 +1964,19 @@ function showWebsiteRaceFrame(frame, animate = true) {
   const timestamp = stamp.toLocaleString([], { weekday: "short", hour: "numeric", minute: "2-digit" });
   const showingCurrentStandings = websiteRaceFrame === websiteRaceSnapshots.length - 1 && !websiteRaceTimer && !websiteRacePlaybackRequested;
   const statusLabel = websiteRaceLiveNow ? "Live standings" : "Final standings";
-  const detail = showingCurrentStandings
+  const checkpointCount = `${websiteRaceFrame + 1}/${websiteRaceSnapshots.length}`;
+  const detail = websiteRaceHistoryLoading
+    ? "Loading the complete race history."
+    : showingCurrentStandings
     ? websiteRaceSnapshots.length < 2
       ? "Race history will build as live results change."
       : "Use the arrows or Play race to explore earlier checkpoints."
     : checkpointHeadline || `Replay checkpoint ${websiteRaceFrame + 1} of ${websiteRaceSnapshots.length}`;
   const label = showingCurrentStandings
-    ? `${statusLabel} · Updated ${timestamp}`
-    : `${timestamp} · Replay checkpoint ${websiteRaceFrame + 1} of ${websiteRaceSnapshots.length}`;
+    ? websiteRaceHistoryLoading
+      ? `${statusLabel} · Loading race history…`
+      : `${statusLabel} · ${websiteRaceLiveNow ? "Updated" : "Final checkpoint"} ${timestamp} · ${checkpointCount}`
+    : `${timestamp} · Replay checkpoint ${checkpointCount}`;
   eventPanel.innerHTML = `${websiteEscapeHtml(label)}<small>${websiteEscapeHtml(detail)}</small>`;
   renderWebsiteRaceLineChart(animate);
   renderWebsiteRaceLeadership();
@@ -2006,24 +2011,26 @@ function renderWebsiteRace(data) {
   const calculatedServerSnapshots = distinctServerSnapshots.map(snapshot => calculatedByTimestamp.get(snapshot.timestamp) || websiteRaceProbabilitySnapshot(data, snapshot));
   let snapshots = websiteMergeRaceSnapshots(storedSnapshots, currentSnapshots, calculatedServerSnapshots);
   snapshots = websiteReconcileRaceSnapshots(snapshots, data.players || []);
+  const allGamesFinal = (data.games || []).length > 0 && (data.games || []).every(game => ["POST", "FINAL", "COMPLETED"].includes(websiteGameStatus(game)));
   const current = { timestamp: data.updatedAt || new Date().toISOString(), probabilityModel: "website", gameState: (data.games || []).map(game => ({ gameId: game.gameId || "", away: game.away || "", home: game.home || "", status: websiteGameStatus(game), period: game.period || "", clock: game.clock || "", possession: game.possession || "", awayScore: game.awayScore ?? game.favoriteScore ?? "", homeScore: game.homeScore ?? game.underdogScore ?? "" })), players: (data.players || []).map(player => ({ name: player.name, wins: Number(player.wins || 0), losses: Number(player.losses || 0), tiebreakerDifference: player.tiebreakerDifference ?? player.tiebreakerDiff ?? null, winProbability: parseFloat(player.winProbability || 0) || 0, pathsToVictory: Number(player.pathsToVictory || 0), winPercent: parseFloat(player.winPercent || 0) || 0 })) };
   const latestStored = snapshots[snapshots.length - 1];
   const currentSignature = websiteRaceSnapshotSignature(current);
   const latestSignature = websiteRaceSnapshotSignature(latestStored);
-  if (current.players.length && currentSignature !== latestSignature) snapshots.push(current);
+  if (current.players.length && currentSignature !== latestSignature && !allGamesFinal) snapshots.push(current);
   else if (current.players.length && latestStored) {
     const currentPlayers = new Map(current.players.map(player => [String(player.name).toLowerCase(), player]));
     snapshots[snapshots.length - 1] = { ...latestStored, players: latestStored.players.map(player => ({ ...player, ...currentPlayers.get(String(player.name).toLowerCase()) })) };
   }
   websiteRaceContext = context;
   websiteRaceLiveNow = (data.games || []).some(game => ["IN", "IN_PROGRESS", "LIVE"].includes(websiteGameStatus(game)));
+  websiteRaceHistoryLoading = Boolean(data.raceHistoryLoading);
   websiteRaceSnapshots = snapshots.filter(snapshot => snapshot?.timestamp && Array.isArray(snapshot.players) && snapshot.players.length).slice(-720);
   try { localStorage.setItem(websiteRaceStorageKey(context), JSON.stringify(websiteRaceSnapshots)); }
   catch (error) { console.warn(`Race history could not be saved: ${error.message}`); }
   if (!websiteRaceSnapshots.length) { host.innerHTML = '<div class="live-race-head"><div><h3>Live Weekly Race</h3><p>Win probability and paths will build here every five minutes once the live refresh starts.</p></div></div><div class="live-race-empty">No race snapshots yet. The first production refresh will create the opening frame.</div>'; return; }
   const names = [...new Set(websiteRaceSnapshots.flatMap(snapshot => snapshot.players.map(player => player.name)))];
-  const waitingForUpdate = websiteRaceSnapshots.length < 2;
-  host.innerHTML = `<div class="live-race-head"><div><h3>Live Weekly Race</h3><p>${waitingForUpdate ? "The opening frame is saved. Playback unlocks after the next changed live update." : "Desktop traces every player's rank from the start to the current checkpoint. Mobile follows the compact race ladder."}</p></div><div class="live-race-controls"><label>Race by<select id="website-race-metric"><option value="winProbability">Win probability</option><option value="winPercent">Win %</option><option value="pathsToVictory">Paths to victory</option></select></label><button id="website-race-previous" class="live-race-step" type="button" title="Previous frame" aria-label="Previous frame"${waitingForUpdate ? " disabled" : ""}>‹</button><button id="website-race-play" type="button"${waitingForUpdate ? " disabled" : ""}>${waitingForUpdate ? "Waiting for next update" : "Play race"}</button><button id="website-race-next" class="live-race-step" type="button" title="Next frame" aria-label="Next frame"${waitingForUpdate ? " disabled" : ""}>›</button><button id="website-race-restart" type="button">Restart</button><label>Speed<select id="website-race-speed"><option value="1400">0.75x</option><option value="900" selected>1x</option><option value="500">2x</option></select></label><div class="live-race-status"><output id="website-race-time" class="live-race-time" aria-live="polite"></output><output id="website-race-headline" class="live-race-headline" aria-live="polite"></output></div></div></div><div class="live-race-line-wrap"><canvas id="website-race-line-chart"></canvas></div><div id="website-race-track" class="live-race-track"><div id="website-race-leader" class="live-race-leader" aria-hidden="true"></div></div><section id="website-race-leadership" class="live-race-leadership"></section>`;
+  const waitingForUpdate = websiteRaceHistoryLoading || websiteRaceSnapshots.length < 2;
+  host.innerHTML = `<div class="live-race-head"><div><h3>Live Weekly Race</h3><p>${websiteRaceHistoryLoading ? "Loading the complete race history. Playback unlocks when every checkpoint is ready." : waitingForUpdate ? "The opening frame is saved. Playback unlocks after the next changed live update." : "Desktop traces every player's rank from the start to the current checkpoint. Mobile follows the compact race ladder."}</p></div><div class="live-race-controls"><label>Race by<select id="website-race-metric"><option value="winProbability">Win probability</option><option value="winPercent">Win %</option><option value="pathsToVictory">Paths to victory</option></select></label><button id="website-race-previous" class="live-race-step" type="button" title="Previous frame" aria-label="Previous frame"${waitingForUpdate ? " disabled" : ""}>‹</button><button id="website-race-play" type="button"${waitingForUpdate ? " disabled" : ""}>${waitingForUpdate ? "Loading race history" : "Play race"}</button><button id="website-race-next" class="live-race-step" type="button" title="Next frame" aria-label="Next frame"${waitingForUpdate ? " disabled" : ""}>›</button><button id="website-race-restart" type="button">Restart</button><label>Speed<select id="website-race-speed"><option value="1400">0.75x</option><option value="900" selected>1x</option><option value="500">2x</option></select></label><div class="live-race-status"><output id="website-race-time" class="live-race-time" aria-live="polite"></output><output id="website-race-headline" class="live-race-headline" aria-live="polite"></output></div></div></div><div class="live-race-line-wrap"><canvas id="website-race-line-chart"></canvas></div><div id="website-race-track" class="live-race-track"><div id="website-race-leader" class="live-race-leader" aria-hidden="true"></div></div><section id="website-race-leadership" class="live-race-leadership"></section>`;
   document.querySelector("#week-one-live-race .live-race-status")?.replaceWith(Object.assign(document.createElement("output"), { id: "website-race-event-panel", className: "website-race-event-panel" }));
   document.getElementById("website-race-event-panel")?.setAttribute("aria-live", "polite");
   ["website-race-previous", "website-race-next"].forEach(id => { const button = document.getElementById(id); if (button) button.dataset.nativeTooltip = "true"; });
@@ -4321,6 +4328,7 @@ function renderWebsiteLiveAnalysis(data) {
 function websiteRenderCachedLive() {
   const cached = websiteReadCurrentWeekCache();
   if (!cached) return false;
+  cached.raceHistoryLoading = (cached.games || []).length > 0 && (cached.games || []).every(game => ["POST", "FINAL", "COMPLETED"].includes(websiteGameStatus(game))) && !cached.raceHistoryComplete;
   websiteRegularSelection = { season: Number(cached.season) || 2026, week: Number(cached.week) || 1, phase: "REGULAR_SEASON", staged: Boolean(cached.games.length) };
   updateWebsiteWeekLabels(websiteRegularSelection);
   renderWebsiteLiveAnalysis(cached);
@@ -4340,6 +4348,12 @@ async function fetchWebsiteCurrentWeek() {
     }
   }
   throw new Error(data.error || "Could not load the current week.");
+}
+async function fetchWebsiteCompletedWeekArchive() {
+  const response = await fetch(`data/latest-completed-week.json?v=${Date.now()}`, { cache: "no-store", signal: AbortSignal.timeout(20000) });
+  const archive = await response.json();
+  if (!response.ok || !archive.ok || !Array.isArray(archive.raceSnapshots)) throw new Error("Could not load the completed race archive.");
+  return archive;
 }
 async function fetchWebsiteCurrentWeekRace(season, week) {
   const separator = WEBSITE_SUBMISSIONS_ENDPOINT.includes("?") ? "&" : "?";
@@ -4488,6 +4502,9 @@ async function renderWebsiteWeekOne(currentWeekRequest = null, currentRaceReques
     if (refreshGeneration !== websiteLiveRefreshGeneration) return;
     const cached = websiteReadCurrentWeekCache();
     const liveGameInProgress = (data.games || []).some(game => ["IN", "IN_PROGRESS", "LIVE"].includes(websiteGameStatus(game)));
+    const allGamesFinal = (data.games || []).length > 0 && (data.games || []).every(game => ["POST", "FINAL", "COMPLETED"].includes(websiteGameStatus(game)));
+    const completedRaceRequest = liveView && allGamesFinal && !data.completedWeekArchive ? fetchWebsiteCompletedWeekArchive().catch(error => { console.warn(error.message); return null; }) : null;
+    data.raceHistoryLoading = Boolean(completedRaceRequest);
     if (cached && Number(cached.season) === Number(data.season) && Number(cached.week) === Number(data.week) && Array.isArray(cached.raceSnapshots) && cached.raceSnapshots.length && (data.completedWeekArchive || !liveGameInProgress)) {
       data.raceSnapshots = cached.raceSnapshots;
     }
@@ -4525,6 +4542,15 @@ async function renderWebsiteWeekOne(currentWeekRequest = null, currentRaceReques
       if (websiteRegularSelection.season !== Number(data.season) || websiteRegularSelection.week !== Number(data.week)) return;
       websiteSetPageRefreshStatus("fresh");
       data.raceSnapshots = raceSnapshots;
+      websiteWriteCurrentWeekCache(data);
+      renderWebsiteRace(data);
+    });
+    completedRaceRequest?.then(archive => {
+      if (refreshGeneration !== websiteLiveRefreshGeneration || archive === null) return;
+      if (Number(archive.season) !== Number(data.season) || Number(archive.week) !== Number(data.week)) return;
+      data.raceSnapshots = archive.raceSnapshots;
+      data.raceHistoryLoading = false;
+      data.raceHistoryComplete = true;
       websiteWriteCurrentWeekCache(data);
       renderWebsiteRace(data);
     });
