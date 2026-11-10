@@ -3168,8 +3168,10 @@ function websitePlayerWeekHistory(name) {
 }
 function websiteParticipationSummary(name) {
   const normalized = String(name || "").trim().toLowerCase();
+  const historicalRows = websitePlayerWeekHistory(name);
   const player = websitePlayers.find(row => String(row.name || "").trim().toLowerCase() === normalized);
-  if (!player) return null;
+  const playerId = player?.playerId || historicalRows[0]?.playerId;
+  if (!playerId) return null;
   const periods = [...new Map(websiteWeeks.map(row => [`${row.season}|${row.week}`, { season: String(row.season), week: String(row.week), order: Number(row.weekOrder || 0) }])).values()].sort((left, right) => left.season.localeCompare(right.season) || left.order - right.order);
   const periodIndex = new Map(periods.map((period, index) => [`${period.season}|${period.week}`, index]));
   const rowsByPlayer = websiteWeeks.reduce((map, row) => { const rows = map.get(row.playerId) || []; rows.push(row); map.set(row.playerId, rows); return map; }, new Map());
@@ -3180,10 +3182,10 @@ function websiteParticipationSummary(name) {
     return { weeks: rows.length, streak };
   };
   const allMetrics = [...rowsByPlayer.entries()].map(([playerId, rows]) => ({ playerId, ...metrics(rows) }));
-  const historical = metrics(rowsByPlayer.get(player.playerId) || []);
+  const historical = metrics(rowsByPlayer.get(playerId) || []);
   const current = { weeks: historical.weeks + 1, streak: historical.streak + 1 };
-  const weekRank = 1 + allMetrics.filter(row => row.playerId !== player.playerId && row.weeks > current.weeks).length;
-  const streakRank = 1 + allMetrics.filter(row => row.playerId !== player.playerId && row.streak > current.streak).length;
+  const weekRank = 1 + allMetrics.filter(row => row.playerId !== playerId && row.weeks > current.weeks).length;
+  const streakRank = 1 + allMetrics.filter(row => row.playerId !== playerId && row.streak > current.streak).length;
   return { weeks: current.weeks, streak: current.streak, weekRank, streakRank, playerCount: allMetrics.length };
 }
 function confirmationMetricTable(rows) {
@@ -3268,16 +3270,21 @@ function websiteCanonicalTeam(value) {
 function confirmationMetricTable(rows) {
   return `<table class="confirmation-metric-table"><tbody>${rows.map(row => `<tr><th scope="row">${websiteEscapeHtml(row.label)}</th><td>${row.value}${row.detail ? `<small>${row.detail}</small>` : ""}</td></tr>`).join("")}</tbody></table>`;
 }
-function renderConfirmationIdentity(submission, identity) {
+async function renderConfirmationIdentity(submission, identity) {
   const host = document.getElementById("confirmation-identity");
+  try {
+    await startHistoricalInitialization();
+  } catch (error) {
+    console.error("Failed to load pool history for pick confirmation", error);
+    host.innerHTML = `<h3>Your pool history</h3>${confirmationMetricTable([{ label: "Pool status", value: "History unavailable" }])}`;
+    return;
+  }
   const effective = identity || { status: "new", submittedName: submission.name.trim(), suggestedName: "" };
-  const approvedNewPlayer = websiteApprovedNewPlayerName === String(effective.submittedName || submission.name).trim().toLowerCase();
   const participation = websiteParticipationSummary(effective.submittedName);
-  const isNewPlayer = approvedNewPlayer || !participation;
   const rows = participation ? [
     { label: "Pool weeks", value: websiteEscapeHtml(String(participation.weeks)), detail: `${websiteOrdinal(participation.weekRank)} of ${participation.playerCount} all time` },
     { label: "Current attendance streak", value: websiteEscapeHtml(`${participation.streak} in a row`), detail: `Current-streak rank: ${websiteOrdinal(participation.streakRank)} of ${participation.playerCount}` }
-  ] : [{ label: "Pool status", value: isNewPlayer ? "New player" : "No completed pool history yet" }];
+  ] : [{ label: "Pool status", value: effective.status === "known" ? "No completed pool history yet" : "New player" }];
   host.innerHTML = `<h3>Your pool history</h3>${confirmationMetricTable(rows)}`;
 }
 function renderConfirmationPicks(submission) {
@@ -3631,7 +3638,7 @@ async function renderConfirmationHistory(submission) {
 async function renderWebsiteConfirmation(submission, result) {
   submission.submittedAt = result?.submittedAt || submission.submittedAt || "";
   document.getElementById("confirmation-lead").textContent = result?.unchanged ? `These picks were already saved for ${submission.name.trim()}. The original submission was kept.` : submission.mode === "test" ? "Test picks submitted. Season records were not changed." : `Picks submitted for ${submission.name.trim()}.`;
-  renderConfirmationIdentity(submission, result?.identity);
+  await renderConfirmationIdentity(submission, result?.identity);
   renderConfirmationPicks(submission);
   await Promise.allSettled([renderConfirmationHistory(submission), loadConfirmationProbability(submission)]);
 }
