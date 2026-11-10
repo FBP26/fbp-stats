@@ -1026,7 +1026,7 @@
 <script>
 document.getElementById("profile-best-bet-chart")?.closest(".profile-chart")?.before(document.getElementById("profile-team-chart")?.closest(".profile-chart"));
 const DATA_DIR = "./data";
-const WEBSITE_WEEK_HISTORY_VERSION = "20261028-week7";
+const WEBSITE_WEEK_HISTORY_VERSION = "20261110-week9";
 const WEBSITE_PAYOUT_VERSION = "20261028-week7";
 const websiteRoutes = ["enter-picks", "week-one", "live-analysis", "picks-confirmation", "alltime", "season", "payout", "streaks", "weeks", "weekly-rank", "games", "players", "names", "teams", "map", "faq", "submission-status"];
 const standaloneAppLaunch = matchMedia("(display-mode: standalone)").matches || navigator.standalone === true;
@@ -5664,7 +5664,7 @@ function renderAllTime() {
     const wins = Number(row.displayWins || 0), losses = Number(row.displayLosses || 0);
     if (wins + losses) bestWeeks.push({ name: row.name, season: row.season, week: row.week, wins, losses, pctKey: Number((wins / (wins + losses)).toFixed(4)), pct: wins / (wins + losses) });
   });
-  const topWeeks = bestTies(bestWeeks, item => item.pctKey);
+  const topWeeks = bestTies(bestWeeks, item => item.pctKey * 100 + item.wins);
   if (topWeeks.length) cards.push(["Best week ever", `${topWeeks[0].wins}-${topWeeks[0].losses} (${(topWeeks[0].pct * 100).toFixed(0)}%)`, careerTieDetails(topWeeks, item => `${item.name} (${item.season} W${item.week})`, `${topWeeks[0].wins}-${topWeeks[0].losses}`, 2)]);
   const bestPlusMinus = bestTies(plusMinusRows, row => row.plusMinus);
   if (bestPlusMinus.length) cards.push(["Best plus/minus", `${bestPlusMinus[0].plusMinus > 0 ? "+" : ""}${bestPlusMinus[0].plusMinus}`, careerTieDetails(bestPlusMinus, row => `${row.name} · ${row.wins} wins - ${row.losses} losses`, `${bestPlusMinus[0].plusMinus > 0 ? "+" : ""}${bestPlusMinus[0].plusMinus}`)]);

@@ -30,6 +30,7 @@ const playerSeasons = rows(readJson("player_seasons.json"));
 const seasons = rows(readJson("seasons.json"));
 const streaks = rows(readJson("streaks.json"));
 const overall = rows(readJson("overall.json"));
+const highestWeekScores = rows(readJson("highest_week_score.json"));
 
 for (const [page, entries] of Object.entries({
   Players: dashboard,
@@ -57,5 +58,20 @@ assert.ok(picks.some(entry => String(entry.gameId || "").startsWith(`2026-2027|$
 assert.equal(unique(games.filter(entry => String(entry.season) === "2026-2027" && Number(entry.week) === latestWeek).map(entry => entry.gameId)).length,
   games.filter(entry => String(entry.season) === "2026-2027" && Number(entry.week) === latestWeek).length,
   `Games feed has duplicate Week ${latestWeek} game rows.`);
+
+const bestCompletedWeek = [...playerWeeks]
+  .filter(entry => String(entry.competition) === "regular")
+  .sort((left, right) => {
+    const leftWins = Number(left.displayWins ?? left.wins ?? 0);
+    const leftLosses = Number(left.displayLosses ?? left.losses ?? 0);
+    const rightWins = Number(right.displayWins ?? right.wins ?? 0);
+    const rightLosses = Number(right.displayLosses ?? right.losses ?? 0);
+    return rightWins / Math.max(1, rightWins + rightLosses) - leftWins / Math.max(1, leftWins + leftLosses)
+      || rightWins - leftWins
+      || leftLosses - rightLosses;
+  })[0];
+assert.ok(bestCompletedWeek, "No completed regular-season week is available for the all-time record.");
+assert.equal(highestWeekScores[0]?.Name, bestCompletedWeek.name, "Highest-week record owner is stale.");
+assert.equal(highestWeekScores[0]?.Record, `${bestCompletedWeek.displayWins ?? bestCompletedWeek.wins}-${bestCompletedWeek.displayLosses ?? bestCompletedWeek.losses}`, "Highest-week record is stale.");
 
 console.log(`Historical page feeds are current through 2026 Week ${latestWeek}.`);
