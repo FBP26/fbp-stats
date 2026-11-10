@@ -59,6 +59,12 @@ assert.equal(unique(games.filter(entry => String(entry.season) === "2026-2027" &
   games.filter(entry => String(entry.season) === "2026-2027" && Number(entry.week) === latestWeek).length,
   `Games feed has duplicate Week ${latestWeek} game rows.`);
 
+const latestWeekGames = games.filter(entry => String(entry.season) === "2026-2027" && Number(entry.week) === latestWeek);
+assert.ok(latestWeekGames.length, `Games feed is missing completed Week ${latestWeek} games.`);
+for (const field of ["officialGameDate", "officialGameTime", "stadium", "city", "country", "awayCoach", "homeCoach", "referee", "attendance", "metadataSource"]) {
+  assert.ok(latestWeekGames.every(entry => entry[field] !== null && entry[field] !== undefined && entry[field] !== ""), `Games feed is missing ${field} for completed Week ${latestWeek}.`);
+}
+
 const bestCompletedWeek = [...playerWeeks]
   .filter(entry => String(entry.competition) === "regular")
   .sort((left, right) => {
