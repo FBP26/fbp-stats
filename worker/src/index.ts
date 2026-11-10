@@ -234,8 +234,17 @@ const latestFinalizedRegularSeasonWeek = async (db: D1Database): Promise<Record<
     .prepare("SELECT * FROM weeks WHERE phase = 'REGULAR_SEASON' AND status = 'finalized' ORDER BY season DESC, week DESC LIMIT 1")
     .first();
 
-const currentDisplayWeek = async (db: D1Database): Promise<Record<string, unknown> | null> =>
-  await activeWeek(db) || await latestFinalizedRegularSeasonWeek(db);
+const currentDisplayWeek = async (db: D1Database): Promise<Record<string, unknown> | null> => {
+  const [active, finalized] = await Promise.all([activeWeek(db), latestFinalizedRegularSeasonWeek(db)]);
+  if (!active) return finalized;
+  if (
+    finalized
+    && Number(active.season) === Number(finalized.season)
+    && Number(active.week) === Number(finalized.week) + 1
+    && !regularWeekSetupAvailability(finalized).open
+  ) return finalized;
+  return active;
+};
 
 const refreshActiveGameStates = async (db: D1Database): Promise<{ refreshed: number; skipped: string; scoreChanges: LeaderPushScoreChange[] }> => {
   const week = await activeWeek(db);
@@ -597,8 +606,8 @@ const handleGet = async (request: Request, env: Env): Promise<Response> => {
     vapidPublicKey: env.VAPID_PUBLIC_KEY || "",
   }, 200, env.CORS_ORIGIN);
   if (action === "backend-status") {
-    const week = await activeWeek(env.DB);
-    return json({ ok: true, owner: "D1", epoch: 1, available: true, writesEnabled: true, season: Number(week?.season) || 2026, week: Number(week?.week) || 0, staged: Boolean(week) }, 200, env.CORS_ORIGIN);
+    const week = await currentDisplayWeek(env.DB);
+    return json({ ok: true, owner: "D1", epoch: 1, available: true, writesEnabled: true, season: Number(week?.season) || 2026, week: Number(week?.week) || 0, staged: Boolean(week && week.status !== "finalized") }, 200, env.CORS_ORIGIN);
   }
   if (action === "review-week-setup") return reviewWeekSetupCandidate(url.searchParams.get("token") || "", env);
 
@@ -641,7 +650,7 @@ const handleGet = async (request: Request, env: Env): Promise<Response> => {
   }
 
   if (action === "active-week") {
-    const week = await activeWeek(env.DB);
+    const week = await currentDisplayWeek(env.DB);
     if (!week) {
       const latest = await latestFinalizedRegularSeasonWeek(env.DB);
       return json({
@@ -680,7 +689,7 @@ const handleGet = async (request: Request, env: Env): Promise<Response> => {
     }));
     return json({
       ok: true,
-      staged: true,
+      staged: String(week.status) !== "finalized",
       season: Number(week.season),
       week: Number(week.week),
       phase: String(week.phase),
@@ -900,6 +909,7 @@ const disablePushDevice = async (payload: JsonObject, env: Env): Promise<Respons
 
 const dispatchPicksReadyPush = async (env: Env, week: Record<string, unknown>): Promise<NotificationDispatchResult> => {
   const result = { sent: 0, skipped: 0, failed: 0 };
+  if (!(await isPublicWeekRelease(env.DB, week))) return result;
   if (!pushConfigured(env)) return result;
   const devices = await env.DB.prepare("SELECT * FROM push_devices WHERE status='active' AND picks_ready=1").all<Record<string, unknown>>();
   for (const device of devices.results) {
@@ -1339,6 +1349,17 @@ const regularWeekSetupAvailability = (
   return { open, label };
 };
 
+const isPublicWeekRelease = async (db: D1Database, week: Record<string, unknown>): Promise<boolean> => {
+  if (String(week.status) === "finalized") return true;
+  const prior = await latestFinalizedRegularSeasonWeek(db);
+  if (
+    prior
+    && Number(prior.season) === Number(week.season)
+    && Number(prior.week) + 1 === Number(week.week)
+  ) return regularWeekSetupAvailability(prior).open;
+  return true;
+};
+
 const weekSetupSlateEmailRows = (games: YahooWeekGame[]): string => games.map((game, index) => `
   <tr>
     <td style="width:34px;padding:12px 8px;border-top:1px solid #334155;color:#94a3b8;text-align:center;font-size:12px;font-weight:700">${index + 1}</td>
@@ -1639,7 +1660,6 @@ const enrichActiveSlateGames = async (games: JsonObject[], season: number, week:
 const createWeekSetupCandidate = async (env: Env): Promise<void> => {
   const active = await latestFinalizedRegularSeasonWeek(env.DB);
   if (!active || Number(active.week) >= 18) return;
-  if (!regularWeekSetupAvailability(active).open) return;
   const season = Number(active.season), week = Number(active.week) + 1;
   const existingWeek = await findWeek(env.DB, season, week, "REGULAR_SEASON");
   if (existingWeek && String(existingWeek.status) !== "finalized") return;
@@ -1680,13 +1700,11 @@ const reviewWeekSetupCandidate = async (token: string, env: Env): Promise<Respon
   const prior = await latestFinalizedRegularSeasonWeek(env.DB);
   const availability = prior ? regularWeekSetupAvailability(prior) : { open: false, label: "Tuesday at 2:00 PM ET" };
   const byeTeams = weekSetupByeTeams(slate.games);
-  const button = availability.open
-    ? `<button id="confirm">Open Week ${candidate.week} picks</button>`
-    : `<button disabled>Week ${candidate.week} opens ${escapeHtml(availability.label)}</button>`;
+  const button = `<button id="confirm">${availability.open ? `Open Week ${candidate.week} picks` : `Stage Week ${candidate.week} for Tuesday release`}</button>`;
   const status = availability.open
     ? `Review the complete slate before opening picks. This approval link expires ${formatEasternDateTime(candidate.expires_at)}.`
-    : `Week ${Number(prior?.week) || candidate.week - 1} remains live until ${availability.label}.`;
-  return html(`<!doctype html><html lang="en"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1"><title>FBP Week ${candidate.week} setup</title><style>:root{color-scheme:dark}*{box-sizing:border-box}body{margin:0;background:#08111f;color:#e2e8f0;font:16px/1.45 Arial,sans-serif}main{width:min(720px,calc(100% - 24px));margin:24px auto 48px;background:#111c31;border:1px solid #334155;border-radius:14px;overflow:hidden}.hero{padding:26px 24px 20px;background:linear-gradient(135deg,#172554,#1e293b)}.eyebrow{margin:0 0 7px;color:#facc15;font-size:11px;font-weight:800;letter-spacing:1.5px;text-transform:uppercase}.hero h1{margin:0;color:#f8fafc;font-size:clamp(25px,6vw,34px)}.content{padding:22px 24px 28px}.intro{margin:0 0 18px;color:#cbd5e1}.slate{display:grid;gap:8px}.game-card{display:grid;grid-template-columns:32px 1fr 64px 1fr;align-items:center;min-height:54px;border:1px solid #334155;border-radius:8px;background:#0f172a}.game-card strong{padding:10px;color:#f8fafc;text-align:center}.game-number{color:#94a3b8;text-align:center;font-size:12px;font-weight:800}.spread{padding:8px;color:#facc15;text-align:center;font-size:17px;font-weight:800}.bye{margin:18px 0;padding:12px 14px;border:1px solid #365314;border-radius:8px;background:#1a2e16;color:#d9f99d}.actions{margin-top:24px;text-align:center}button{border:0;border-radius:7px;padding:13px 20px;background:#facc15;color:#172554;font:800 16px Arial;cursor:pointer}button:disabled{background:#475569;color:#cbd5e1;cursor:not-allowed}.status{margin:16px 0 0;color:#94a3b8;text-align:center;font-size:13px}@media(max-width:480px){main{width:calc(100% - 16px);margin-top:8px}.hero,.content{padding-left:16px;padding-right:16px}.game-card{grid-template-columns:27px 1fr 52px 1fr}.game-card strong{font-size:14px}.spread{font-size:15px}}</style></head><body><main><header class="hero"><p class="eyebrow">FBP setup review</p><h1>Week ${candidate.week} slate</h1></header><section class="content"><p class="intro">${escapeHtml(status)}</p><div class="slate">${weekSetupSlateReviewCards(slate.games)}</div><p class="bye"><strong>Bye week:</strong> ${escapeHtml(byeTeams.join(", ") || "None")}</p><div class="actions">${button}</div><p id="status" class="status"></p></section></main><script>const button=document.getElementById('confirm');if(button)button.onclick=async()=>{button.disabled=true;document.getElementById('status').textContent='Opening picks...';const response=await fetch(location.origin,{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({action:'approve-week-setup',token:${JSON.stringify(token)}})});const result=await response.json();document.getElementById('status').textContent=result.ok?'Week ${candidate.week} is open.':(result.error||'Week setup could not be completed.');};</script></body></html>`, 200);
+    : `Approve this slate now to stage it. Week ${Number(prior?.week) || candidate.week - 1} stays on the public picks, Current Week, and Live pages until ${availability.label}.`;
+  return html(`<!doctype html><html lang="en"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1"><title>FBP Week ${candidate.week} setup</title><style>:root{color-scheme:dark}*{box-sizing:border-box}body{margin:0;background:#08111f;color:#e2e8f0;font:16px/1.45 Arial,sans-serif}main{width:min(720px,calc(100% - 24px));margin:24px auto 48px;background:#111c31;border:1px solid #334155;border-radius:14px;overflow:hidden}.hero{padding:26px 24px 20px;background:linear-gradient(135deg,#172554,#1e293b)}.eyebrow{margin:0 0 7px;color:#facc15;font-size:11px;font-weight:800;letter-spacing:1.5px;text-transform:uppercase}.hero h1{margin:0;color:#f8fafc;font-size:clamp(25px,6vw,34px)}.content{padding:22px 24px 28px}.intro{margin:0 0 18px;color:#cbd5e1}.slate{display:grid;gap:8px}.game-card{display:grid;grid-template-columns:32px 1fr 64px 1fr;align-items:center;min-height:54px;border:1px solid #334155;border-radius:8px;background:#0f172a}.game-card strong{padding:10px;color:#f8fafc;text-align:center}.game-number{color:#94a3b8;text-align:center;font-size:12px;font-weight:800}.spread{padding:8px;color:#facc15;text-align:center;font-size:17px;font-weight:800}.bye{margin:18px 0;padding:12px 14px;border:1px solid #365314;border-radius:8px;background:#1a2e16;color:#d9f99d}.actions{margin-top:24px;text-align:center}button{border:0;border-radius:7px;padding:13px 20px;background:#facc15;color:#172554;font:800 16px Arial;cursor:pointer}button:disabled{background:#475569;color:#cbd5e1;cursor:not-allowed}.status{margin:16px 0 0;color:#94a3b8;text-align:center;font-size:13px}@media(max-width:480px){main{width:calc(100% - 16px);margin-top:8px}.hero,.content{padding-left:16px;padding-right:16px}.game-card{grid-template-columns:27px 1fr 52px 1fr}.game-card strong{font-size:14px}.spread{font-size:15px}}</style></head><body><main><header class="hero"><p class="eyebrow">FBP setup review</p><h1>Week ${candidate.week} slate</h1></header><section class="content"><p class="intro">${escapeHtml(status)}</p><div class="slate">${weekSetupSlateReviewCards(slate.games)}</div><p class="bye"><strong>Bye week:</strong> ${escapeHtml(byeTeams.join(", ") || "None")}</p><div class="actions">${button}</div><p id="status" class="status"></p></section></main><script>const button=document.getElementById('confirm');if(button)button.onclick=async()=>{button.disabled=true;document.getElementById('status').textContent='Staging Week ${candidate.week}...';const response=await fetch(location.origin,{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({action:'approve-week-setup',token:${JSON.stringify(token)}})});const result=await response.json();document.getElementById('status').textContent=result.ok?(result.public?'Week ${candidate.week} is open.':'Week ${candidate.week} is staged and will publish '+result.releaseAt+'.'):(result.error||'Week setup could not be completed.');};</script></body></html>`, 200);
 };
 
 const resendWeekSetupReview = async (payload: JsonObject, env: Env): Promise<Response> => {
@@ -1715,20 +1733,21 @@ const approveWeekSetupCandidate = async (payload: JsonObject, env: Env): Promise
     return json({ ok: false, error: "The most recent finalized week no longer matches this approval." }, 409, env.CORS_ORIGIN);
   }
   const availability = regularWeekSetupAvailability(prior);
-  if (!availability.open) {
-    return json({ ok: false, error: `Week ${candidate.week} cannot open before ${availability.label}.` }, 423, env.CORS_ORIGIN);
-  }
   const slate = JSON.parse(candidate.slate_json) as { games: YahooWeekGame[] };
   const week = await syncApprovedStagedWeek({ season: candidate.season, week: candidate.week, games: slate.games }, env);
   const claimed = await env.DB.prepare("UPDATE week_setup_candidates SET status='approved', approved_at=CURRENT_TIMESTAMP WHERE id=? AND status='pending'")
     .bind(candidate.id).run();
   if (!claimed.meta.changes) return json({ ok: false, error: "This approval was already completed." }, 409, env.CORS_ORIGIN);
-  const notifications = await dispatchWeekNotifications(env, week, new Set<NotificationEvent>(["picksReady"]));
-  const push = await dispatchPicksReadyPush(env, week);
+  const notifications = availability.open
+    ? await dispatchWeekNotifications(env, week, new Set<NotificationEvent>(["picksReady"]))
+    : { sent: 0, skipped: 0, failed: 0 };
+  const push = availability.open
+    ? await dispatchPicksReadyPush(env, week)
+    : { sent: 0, skipped: 0, failed: 0 };
   const payoutsSynchronized = await syncPriorWeekPayoutsAfterSetup(env, week);
   if (!payoutsSynchronized) console.warn(`Payout reconciliation could not be completed after Week ${candidate.week} was staged.`);
   const failed = notifications.failed + push.failed;
-  return json({ ok: failed === 0, staged: true, payoutsSynchronized, week: candidate.week, ...notifications, push }, failed ? 502 : 200, env.CORS_ORIGIN);
+  return json({ ok: failed === 0, staged: true, public: availability.open, releaseAt: availability.label, payoutsSynchronized, week: candidate.week, ...notifications, push }, failed ? 502 : 200, env.CORS_ORIGIN);
 };
 
 const subscribeNotifications = async (request: Request, payload: JsonObject, env: Env): Promise<Response> => {
@@ -1937,6 +1956,7 @@ const dispatchWeekNotifications = async (
   const result = { sent: 0, skipped: 0, failed: 0 };
   if (!PLAYER_EMAIL_NOTIFICATIONS_ENABLED) return result;
   if (!directEmailConfigured(env) && !relayEmailConfigured(env)) return result;
+  if (onlyEvents?.has("picksReady") && !(await isPublicWeekRelease(env.DB, week))) return result;
   const games = await getWeekConfig(env.DB, Number(week.id));
   const eventSet = onlyEvents || new Set(scheduledNotificationEvents(new Date(), games, String(week.status)));
   const current = await buildCurrentWeek(env.DB, week);
@@ -2049,10 +2069,13 @@ const releasePicksReady = async (payload: JsonObject, env: Env): Promise<Respons
     return json({ ok: false, error: "Unauthorized." }, 401, env.CORS_ORIGIN);
   }
   const week = await syncApprovedStagedWeek(payload, env);
-  const result = await dispatchWeekNotifications(env, week, new Set<NotificationEvent>(["picksReady"]));
+  const publicRelease = await isPublicWeekRelease(env.DB, week);
+  const result = publicRelease
+    ? await dispatchWeekNotifications(env, week, new Set<NotificationEvent>(["picksReady"]))
+    : { sent: 0, skipped: 0, failed: 0 };
   const payoutsSynchronized = await syncPriorWeekPayoutsAfterSetup(env, week);
   if (!payoutsSynchronized) console.warn(`Payout reconciliation could not be completed after Week ${Number(week.week)} was staged.`);
-  return json({ ok: result.failed === 0, payoutsSynchronized, ...result }, result.failed ? 502 : 200, env.CORS_ORIGIN);
+  return json({ ok: result.failed === 0, public: publicRelease, payoutsSynchronized, ...result }, result.failed ? 502 : 200, env.CORS_ORIGIN);
 };
 
 const listNotificationSubscribers = async (payload: JsonObject, env: Env): Promise<Response> => {
@@ -2134,6 +2157,11 @@ const submitCard = async (payload: JsonObject, env: Env): Promise<Response> => {
   const week = await findWeek(env.DB, season, weekNumber, phase);
   if (!week || week.status === "finalized" || week.status === "finalizing") {
     return json({ ok: false, error: "This week is not open for submissions." }, 409, env.CORS_ORIGIN);
+  }
+  if (phase === "REGULAR_SEASON" && !(await isPublicWeekRelease(env.DB, week))) {
+    const prior = await latestFinalizedRegularSeasonWeek(env.DB);
+    const availability = prior ? regularWeekSetupAvailability(prior) : { label: "Tuesday at 2:00 PM ET" };
+    return json({ ok: false, error: `Picks for this week open ${availability.label}.` }, 409, env.CORS_ORIGIN);
   }
   const gameRows = await env.DB
     .prepare("SELECT id, game_index, favorite, underdog, spread, kickoff_at FROM games WHERE week_id = ? ORDER BY game_index")
@@ -2421,6 +2449,11 @@ export default {
       console.error("Scheduled game refresh failed; continuing with notifications.", error);
     }
     if (!weekBeforeRefresh) {
+      const latestFinalized = await latestFinalizedRegularSeasonWeek(env.DB);
+      if (latestFinalized) {
+        await dispatchWeekNotifications(env, latestFinalized, new Set<NotificationEvent>(["weeklyResult"]));
+        await dispatchWeekPushNotifications(env, latestFinalized);
+      }
       if (!(await syncFinalizedPayouts(env))) {
         console.warn("Finalized payout sync was not acknowledged by the Apps Script relay; it will retry on the next scheduled refresh.");
       }
@@ -2451,7 +2484,7 @@ export default {
       if (String(refreshedWeek.status) === "finalized" && !(await syncFinalizedPayouts(env))) {
         console.warn(`Finalized Week ${Number(refreshedWeek.week)} payout sync was not acknowledged by the Apps Script relay; it will retry on the next scheduled refresh.`);
       }
-      if (String(refreshedWeek.status) === "staged") {
+      if (String(refreshedWeek.status) === "staged" && await isPublicWeekRelease(env.DB, refreshedWeek)) {
         await dispatchWeekNotifications(env, refreshedWeek, new Set<NotificationEvent>(["picksReady"]));
         await dispatchPicksReadyPush(env, refreshedWeek);
       }
