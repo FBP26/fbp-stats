@@ -1962,7 +1962,18 @@ function showWebsiteRaceFrame(frame, animate = true) {
   const stamp = new Date(snapshot.timestamp);
   const checkpointHeadline = websiteRaceCheckpointHeadline(websiteRaceFrame);
   const eventPanel = document.getElementById("website-race-event-panel");
-  eventPanel.innerHTML = `${websiteEscapeHtml(`${stamp.toLocaleString([], { weekday: "short", hour: "numeric", minute: "2-digit" })} · ${websiteRaceFrame + 1}/${websiteRaceSnapshots.length}`)}${checkpointHeadline ? `<small>${websiteEscapeHtml(checkpointHeadline)}</small>` : ""}`;
+  const timestamp = stamp.toLocaleString([], { weekday: "short", hour: "numeric", minute: "2-digit" });
+  const showingCurrentStandings = websiteRaceFrame === websiteRaceSnapshots.length - 1 && !websiteRaceTimer && !websiteRacePlaybackRequested;
+  const statusLabel = websiteRaceLiveNow ? "Live standings" : "Final standings";
+  const detail = showingCurrentStandings
+    ? websiteRaceSnapshots.length < 2
+      ? "Race history will build as live results change."
+      : "Use the arrows or Play race to explore earlier checkpoints."
+    : checkpointHeadline || `Replay checkpoint ${websiteRaceFrame + 1} of ${websiteRaceSnapshots.length}`;
+  const label = showingCurrentStandings
+    ? `${statusLabel} · Updated ${timestamp}`
+    : `${timestamp} · Replay checkpoint ${websiteRaceFrame + 1} of ${websiteRaceSnapshots.length}`;
+  eventPanel.innerHTML = `${websiteEscapeHtml(label)}<small>${websiteEscapeHtml(detail)}</small>`;
   renderWebsiteRaceLineChart(animate);
   renderWebsiteRaceLeadership();
   renderWebsiteRaceStories();
