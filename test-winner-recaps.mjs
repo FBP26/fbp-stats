@@ -3,6 +3,8 @@ import { readdir, readFile } from "node:fs/promises";
 
 const readJson = file => readFile(new URL(file, import.meta.url), "utf8").then(JSON.parse);
 const index = await readJson("./data/winner-recaps/index.json");
+const venueData = await readJson("./data/winner-recaps/venues.json");
+const games = await readJson("./data/games.json");
 const probabilityLeader = frame => [...frame.players].sort((left, right) =>
   Number(right.winProbability || 0) - Number(left.winProbability || 0)
   || Number(right.wins || 0) - Number(left.wins || 0)
@@ -17,6 +19,7 @@ assert.equal(index.weeks.length, completedArchives.length, "Each completed regul
 
 for (const week of index.weeks) {
   const data = await readJson(`./data/winner-recaps/${week.file}`);
+  const venues = venueData.weeks[`${data.seasonLabel}|${week.week}`] || [];
   assert.equal(data.season, week.season);
   assert.equal(data.week, week.week);
   assert.ok(data.winners.length, `Week ${week.week} must have a winner.`);
@@ -43,6 +46,15 @@ for (const week of index.weeks) {
   assert.equal(new Set(helped.map(row => row.rank)).size, data.games.length, `Week ${week.week} Helped ranks must be unique.`);
   assert.ok(helped.filter(row => row.result === "Loss").every(row => row.percent <= 0), `Week ${week.week} losses cannot have positive Helped.`);
   assert.ok(data.raceSnapshots.some(frame => frame.players.some(player => player.name === winner.name)), `Week ${week.week} race must include its winner.`);
+  for (const recapGame of data.games) {
+    const sourceGame = games.find(game => game.season === data.seasonLabel && String(game.week) === String(week.week) && Number(game.gameNum) === Number(recapGame.gameNum));
+    if (!sourceGame?.neutralSite) continue;
+    const venue = venues.find(entry => Number(entry.gameNum) === Number(recapGame.gameNum));
+    assert.ok(venue, `Week ${week.week} Game ${recapGame.gameNum} neutral-site venue must be published.`);
+    assert.equal(venue.neutralSite, true, `Week ${week.week} Game ${recapGame.gameNum} must remain a neutral-site venue.`);
+    assert.equal(venue.country, sourceGame.country, `Week ${week.week} Game ${recapGame.gameNum} venue country must match canonical metadata.`);
+    assert.ok(venue.city.includes(sourceGame.city), `Week ${week.week} Game ${recapGame.gameNum} venue city must match canonical metadata.`);
+  }
 }
 
 const barb = await readJson("./data/winner-recaps/2026-2027_week_05.json");
