@@ -4369,7 +4369,7 @@ async function fetchWebsiteRaceReconstruction(data) {
     const initialState = games.map(game => ({ gameId: game.gameId || "", away: game.away || "", home: game.home || "", status: "PREGAME", period: "", clock: "", possession: "", awayScore: 0, homeScore: 0 }));
     const finalGameId = String(games.at(-1)?.gameId || "");
     const summaries = await Promise.all(games.map(async game => {
-      const eventId = String(game.gameId || "").replace(/^espn\./, "");
+      const eventId = String(game.espnEventId || game.gameId || "").replace(/^espn\./, "");
       if (!/^\d+$/.test(eventId)) throw new Error(`Missing ESPN event ID for ${game.away} at ${game.home}.`);
       const response = await fetch(`https://site.api.espn.com/apis/site/v2/sports/football/nfl/summary?event=${eventId}`, { signal: AbortSignal.timeout(20000) });
       if (!response.ok) throw new Error(`ESPN could not load ${game.away} at ${game.home}.`);
