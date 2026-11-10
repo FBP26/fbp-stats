@@ -906,7 +906,7 @@
     <div class="panel"><div id="week-one-status"></div><div id="week-one-table" style="overflow-x:auto"></div><p class="week-one-landscape-hint">Rotate to landscape for a better view</p></div>
   </section>
   <section id="view-live-analysis" class="view">
-    <section class="intro"><div><h2>Live</h2></div><p>Weekly standings, what-if outcomes, and paths to victory. A full refresh can take up to a minute.</p></section>
+    <section class="intro"><div><h2>Live</h2></div><p>Weekly standings, what-if outcomes, and paths to victory. Live updates run only while games are in progress.</p></section>
     <div id="live-analysis-host" class="panel"><section id="week-one-live-race" class="live-race"><div class="live-race-head"><div><h3>Live</h3></div></div></section><div id="live-what-if" class="live-feature-grid"><section id="live-outcome-switchboard" class="live-feature"></section><section id="live-projected-standings" class="live-feature"></section><section id="live-rooting-matrix" class="live-feature wide"></section></div><section id="live-tiebreak-target" class="live-feature wide"></section><div id="week-one-scenarios" class="weekly-subview"></div><div id="week-one-sankey" class="weekly-subview"></div><div id="live-race-stories" class="live-feature-grid"><section id="live-turning-points" class="live-feature"></section><section id="live-lead-changes" class="live-feature"></section><section id="live-superlatives" class="live-feature wide"></section></div><div id="week-one-recap"></div></div>
   </section>
   <section id="view-alltime" class="view">
@@ -4325,7 +4325,7 @@ function websiteRenderCachedLive() {
   websiteRegularSelection = { season: Number(cached.season) || 2026, week: Number(cached.week) || 1, phase: "REGULAR_SEASON", staged: Boolean(cached.games.length) };
   updateWebsiteWeekLabels(websiteRegularSelection);
   renderWebsiteLiveAnalysis(cached);
-  websiteSetPageRefreshStatus("loading", "Loading live analysis; this can take up to about a minute.");
+  websiteSetPageRefreshStatus("loading", "Loading live standings...");
   return true;
 }
 async function fetchWebsiteCurrentWeek() {
@@ -4488,12 +4488,13 @@ async function renderWebsiteWeekOne(currentWeekRequest = null, currentRaceReques
     const data = await (currentWeekRequest || fetchWebsiteCurrentWeek());
     if (refreshGeneration !== websiteLiveRefreshGeneration) return;
     const cached = websiteReadCurrentWeekCache();
-    if (data.completedWeekArchive && cached?.completedWeekArchive && Number(cached.season) === Number(data.season) && Number(cached.week) === Number(data.week) && Array.isArray(cached.raceSnapshots) && cached.raceSnapshots.length >= 100) {
+    const liveGameInProgress = (data.games || []).some(game => ["IN", "IN_PROGRESS", "LIVE"].includes(websiteGameStatus(game)));
+    if (cached && Number(cached.season) === Number(data.season) && Number(cached.week) === Number(data.week) && Array.isArray(cached.raceSnapshots) && cached.raceSnapshots.length && (data.completedWeekArchive || !liveGameInProgress)) {
       data.raceSnapshots = cached.raceSnapshots;
     }
     websiteRegularSelection = { season: Number(data.season) || 2026, week: Number(data.week) || 1, phase: "REGULAR_SEASON", staged: Boolean((data.games || []).length) };
     updateWebsiteWeekLabels(websiteRegularSelection);
-    const raceRequest = liveView ? (currentRaceRequest || fetchWebsiteCurrentWeekRace(websiteRegularSelection.season, websiteRegularSelection.week)).catch(error => { console.warn(error.message); return null; }) : null;
+    const raceRequest = liveView && liveGameInProgress ? (currentRaceRequest || fetchWebsiteCurrentWeekRace(websiteRegularSelection.season, websiteRegularSelection.week)).catch(error => { console.warn(error.message); return null; }) : null;
     if (!/^\d+(?:\.\d+)?$/.test(String(data.actualTiebreaker || ""))) data.actualTiebreaker = "";
     await new Promise(resolve => requestAnimationFrame(() => requestAnimationFrame(resolve)));
     startWebsiteAnalytics();
@@ -4507,6 +4508,10 @@ async function renderWebsiteWeekOne(currentWeekRequest = null, currentRaceReques
     if (!data.completedWeekArchive) websiteWriteCurrentWeekCache(data);
     if (liveView) {
       renderWebsiteLiveAnalysis(data);
+      if (!liveGameInProgress) {
+        const allGamesFinal = (data.games || []).length > 0 && (data.games || []).every(game => ["POST", "FINAL", "COMPLETED"].includes(websiteGameStatus(game)));
+        websiteSetPageRefreshStatus("fresh", allGamesFinal ? "Final standings are ready." : "Standings are ready; live updates resume when the next game begins.");
+      }
     } else {
       renderWebsiteWeekOneGrid(data, "Week X");
       decorateWebsiteWeekOneHeaders(data);
@@ -4519,28 +4524,12 @@ async function renderWebsiteWeekOne(currentWeekRequest = null, currentRaceReques
         return;
       }
       if (websiteRegularSelection.season !== Number(data.season) || websiteRegularSelection.week !== Number(data.week)) return;
-      const completedWeekWithLongGap = (data.games || []).length > 0
-        && (data.games || []).every(game => ["POST", "FINAL", "COMPLETED"].includes(websiteGameStatus(game)))
-        && websiteRaceHasLongGap(raceSnapshots);
-      if (completedWeekWithLongGap || (Number(data.season) === 2026 && Number(data.week) === 6 && raceSnapshots.length < 100)) {
-        websiteSetPageRefreshStatus("loading", "Rebuilding the live race...");
-        try {
-          data.raceSnapshots = await fetchWebsiteRaceReconstruction(data);
-          websiteWriteCurrentWeekCache(data);
-          websiteSetPageRefreshStatus("fresh");
-        } catch (error) {
-          websiteSetPageRefreshStatus("stale", `Live race replay could not be rebuilt: ${error.message}`);
-          console.warn(error.message);
-          data.raceSnapshots = raceSnapshots;
-        }
-      } else {
-        websiteSetPageRefreshStatus("fresh");
-        data.raceSnapshots = raceSnapshots;
-        websiteWriteCurrentWeekCache(data);
-      }
+      websiteSetPageRefreshStatus("fresh");
+      data.raceSnapshots = raceSnapshots;
+      websiteWriteCurrentWeekCache(data);
       renderWebsiteRace(data);
     });
-    if (document.querySelector("#view-week-one.active, #view-live-analysis.active")) websiteLiveRefreshTimer = setTimeout(() => renderSelectedWebsiteWeek(true), 60000);
+    if (liveGameInProgress && document.querySelector("#view-week-one.active, #view-live-analysis.active")) websiteLiveRefreshTimer = setTimeout(() => renderSelectedWebsiteWeek(true), 60000);
   } catch (error) {
     if (refreshGeneration !== websiteLiveRefreshGeneration) return;
     const table = document.getElementById("week-one-table"), hasCachedContent = table?.dataset.instantWeek === "true";
@@ -4854,7 +4843,7 @@ function websiteSetPageRefreshStatus(state, message = "") {
   if (message) { status.textContent = message; return; }
   status.textContent = `Last refreshed ${new Date().toLocaleString([], { month: "short", day: "numeric", year: "numeric", hour: "numeric", minute: "2-digit", second: "2-digit" })}`;
 }
-function showView(view) { if (view === "alltime" && startupRoutePending) return; if (view !== "season") stopSeasonLiveRace(); if (view !== "weeks") stopWeekLiveRace(); document.querySelectorAll(".view").forEach(section => section.classList.toggle("active", section.id === `view-${view}`)); document.querySelectorAll("#nav button[data-view]").forEach(btn => btn.classList.toggle("active", btn.dataset.view === view)); history.replaceState(null, "", `#${view === "week-one" ? "current-week" : view}`); if (websiteRoutes.includes(view) && view !== "picks-confirmation") localStorage.setItem("fbpLastView", view); websiteSetPageRefreshStatus("loading", view === "live-analysis" ? "Loading live analysis; this can take up to about a minute." : "Loading..."); requestAnimationFrame(() => requestAnimationFrame(() => { if (document.getElementById(`view-${view}`)?.classList.contains("active") && view !== "live-analysis") websiteSetPageRefreshStatus("fresh"); })); websiteRefreshInstallHelp(view); websiteTrackEvent("page_view", view); }
+function showView(view) { if (view === "alltime" && startupRoutePending) return; if (view !== "season") stopSeasonLiveRace(); if (view !== "weeks") stopWeekLiveRace(); document.querySelectorAll(".view").forEach(section => section.classList.toggle("active", section.id === `view-${view}`)); document.querySelectorAll("#nav button[data-view]").forEach(btn => btn.classList.toggle("active", btn.dataset.view === view)); history.replaceState(null, "", `#${view === "week-one" ? "current-week" : view}`); if (websiteRoutes.includes(view) && view !== "picks-confirmation") localStorage.setItem("fbpLastView", view); websiteSetPageRefreshStatus("loading", view === "live-analysis" ? "Loading live standings..." : "Loading..."); requestAnimationFrame(() => requestAnimationFrame(() => { if (document.getElementById(`view-${view}`)?.classList.contains("active") && view !== "live-analysis") websiteSetPageRefreshStatus("fresh"); })); websiteRefreshInstallHelp(view); websiteTrackEvent("page_view", view); }
 function renderProfile(name) { const overall = (tableData.overall || []).find(row => row.Name === name); const money = (tableData.money_won || []).find(row => row.Name === name); const weekly = dashboard.filter(row => row.Name === name); document.getElementById("profile-name").textContent = name || "Choose a player"; if (!overall) { document.getElementById("profile-stats").innerHTML = ""; return; } const stats = [["Wins", overall.Wins], ["Losses", overall.Losses], ["Win percentage", (Number(overall["%"] || 0) * 100).toFixed(2) + "%"], ["Plus/minus", overall["Plus/Minus"]], ["Total money won", "$" + Number(money?.["Total Money Won"] || 0).toLocaleString()], ["Weeks won", money?.["Weeks Won"] || 0]]; document.getElementById("profile-stats").innerHTML = stats.map(([label, value]) => `<div><span>${label}</span><strong>${value}</strong></div>`).join(""); const seasons = [...new Set(weekly.map(row => row.Season))].sort(); if (profileChart) profileChart.destroy(); profileChart = new Chart(document.getElementById("profile-history-chart"), { type: "line", data: { labels: seasons, datasets: [{ label: "Wins", data: seasons.map(season => weekly.filter(row => row.Season === season).reduce((sum, row) => sum + Number(row.Wins || 0), 0)), borderColor: colors[0], backgroundColor: colors[0] + "55", tension: .25 }, { label: "Average rank", data: seasons.map(season => { const rows = weekly.filter(row => row.Season === season); return rows.reduce((sum, row) => sum + Number(row.Rank || 0), 0) / rows.length; }), borderColor: colors[1], backgroundColor: colors[1] + "55", tension: .25, yAxisID: "rank" }] }, options: { responsive: true, maintainAspectRatio: false, scales: { x: { ticks: { color: "#91a0ae" }, grid: { color: "#2a3744" } }, y: { beginAtZero: true, ticks: { color: "#91a0ae" }, grid: { color: "#2a3744" } }, rank: { position: "right", reverse: true, ticks: { color: "#91a0ae" }, grid: { drawOnChartArea: false } } }, plugins: { legend: { labels: { color: "#e8eef5" } } } } }); }
 function renderProfileLegacy(name) {
   const overall = (tableData.overall || []).find(row => row.Name === name);
