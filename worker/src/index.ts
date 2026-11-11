@@ -18,6 +18,7 @@ interface Env {
   VAPID_SUBJECT?: string;
   ADMIN_PUSH_PLAYER?: string;
   ADMIN_PUSH_TEST_SECRET?: string;
+  ADMIN_SUBMISSION_CLEANUP_SECRET?: string;
 }
 
 type JsonObject = Record<string, unknown>;
@@ -2302,6 +2303,49 @@ const correctSubmission = async (payload: JsonObject, env: Env): Promise<Respons
   }, 200, env.CORS_ORIGIN);
 };
 
+const removeSubmission = async (request: Request, payload: JsonObject, env: Env): Promise<Response> => {
+  const expectedSecret = env.ADMIN_SUBMISSION_CLEANUP_SECRET?.trim();
+  if (!expectedSecret || request.headers.get("X-Admin-Submission-Cleanup") !== expectedSecret) {
+    return json({ ok: false, error: "Administrator authorization required." }, 403, env.CORS_ORIGIN);
+  }
+  const name = cleanText(payload.name, 100).replace(/\s+/g, " ");
+  const season = Number(payload.season);
+  const weekNumber = Number(payload.week);
+  if (!name || !Number.isInteger(season) || !Number.isInteger(weekNumber)) {
+    return json({ ok: false, error: "The player name, season, and week are required." }, 400, env.CORS_ORIGIN);
+  }
+  const week = await findWeek(env.DB, season, weekNumber, "REGULAR_SEASON");
+  if (!week || ["finalizing", "finalized"].includes(String(week.status))) {
+    return json({ ok: false, error: "Only an open regular-season submission can be removed." }, 409, env.CORS_ORIGIN);
+  }
+  const submission = await env.DB
+    .prepare(
+      `SELECT s.id, s.player_id, p.canonical_name
+       FROM submissions s JOIN players p ON p.id = s.player_id
+       WHERE s.week_id = ? AND s.superseded_at IS NULL
+         AND p.canonical_name = ? COLLATE NOCASE
+       ORDER BY s.submitted_at DESC LIMIT 1`,
+    )
+    .bind(week.id, name)
+    .first<{ id: number; player_id: number; canonical_name: string }>();
+  if (!submission) {
+    return json({ ok: false, error: `No active Week ${weekNumber} submission was found for ${name}.` }, 404, env.CORS_ORIGIN);
+  }
+  await env.DB.batch([
+    env.DB.prepare("DELETE FROM submission_corrections WHERE submission_id = ?").bind(submission.id),
+    env.DB.prepare("DELETE FROM submissions WHERE id = ?").bind(submission.id),
+  ]);
+  const remaining = await env.DB.prepare("SELECT COUNT(*) AS count FROM submissions WHERE player_id = ?").bind(submission.player_id).first<{ count: number }>();
+  const removedPlayer = Number(remaining?.count || 0) === 0;
+  if (removedPlayer) {
+    await env.DB.batch([
+      env.DB.prepare("DELETE FROM visitor_player_links WHERE player_id = ?").bind(submission.player_id),
+      env.DB.prepare("DELETE FROM players WHERE id = ?").bind(submission.player_id),
+    ]);
+  }
+  return json({ ok: true, removedName: submission.canonical_name, removedPlayer, week: weekNumber }, 200, env.CORS_ORIGIN);
+};
+
 const storeRaceSnapshot = async (payload: JsonObject, env: Env): Promise<Response> => {
   const season = Number(payload.season);
   const weekNumber = Number(payload.week);
@@ -2395,6 +2439,7 @@ const handlePost = async (request: Request, env: Env): Promise<Response> => {
   if (action === "subscribe-notifications") return subscribeNotifications(request, payload, env);
   if (action === "update-notifications") return updateNotificationPreferences(payload, env);
   if (action === "correct-submission-name") return correctSubmission(payload, env);
+  if (action === "remove-submission") return removeSubmission(request, payload, env);
   if (action === "race-snapshot") return storeRaceSnapshot(payload, env);
   if (action === "assess-player-identity") {
     const submittedName = cleanText(payload.name, 100).replace(/\s+/g, " ");
