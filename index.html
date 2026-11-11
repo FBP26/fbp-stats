@@ -215,6 +215,14 @@
   #website-picks-form .website-identity-controls { grid-template-columns: 1fr !important; }
   #view-enter-picks .notification-settings { margin: 14px 0 0; }
   #view-enter-picks .website-notification-row { margin-top: 14px; }
+  #push-notification-settings { display: none; }
+  @media (max-width: 760px) {
+    #view-enter-picks #push-notification-settings { display: block; }
+    #push-notification-settings > summary { color: var(--accent-2); }
+    .push-notification-intro { margin: 1px 0 2px; color: var(--text); font: 12px/1.4 Arial, sans-serif; }
+    .push-install-help { margin: 0; color: var(--muted); font: 11px/1.4 Arial, sans-serif; }
+    .push-notification-controls { display: grid; gap: 9px; min-inline-size: 0; margin: 0; padding: 0; border: 0; }
+  }
   .notification-form button, #website-picks-form > button, #website-view-week-one { min-height: 34px; padding: 7px 10px; border: 1px solid var(--border); border-radius: 5px; background: var(--panel-2); color: var(--text); font: 11px Arial, sans-serif; cursor: pointer; }
   .notification-form button:disabled, #website-picks-form > button:disabled { opacity: .55; cursor: not-allowed; }
   .notification-settings { margin: 14px 0 0; border-block: 1px solid var(--border); }
@@ -430,14 +438,6 @@
   #game-picks-table { border-block: 1px solid var(--border); }
   #game-picks-table .tabulator-header { position: sticky; top: 0; z-index: 2; }
   #game-picks-table .tabulator-footer { display: none; }
-  .install-help { display: none; }
-  @media (max-width: 760px) {
-    .install-help:not([hidden]) { display: grid; grid-template-columns: minmax(0, 1fr) auto auto; align-items: center; gap: 8px; padding: 10px 12px; border-bottom: 1px solid #ffcf4055; background: #20242a; font: 11px/1.35 Arial, sans-serif; }
-    .install-help strong { display: block; margin-bottom: 2px; color: var(--accent); font-size: 12px; }
-    .install-help span { color: var(--muted); }
-    .install-help button { min-height: 34px; border: 1px solid var(--accent); border-radius: 4px; background: transparent; color: var(--accent); padding: 6px 9px; font: 600 11px Arial, sans-serif; cursor: pointer; }
-    .install-help .install-help-close { width: 34px; padding: 0; border-color: var(--border); color: var(--muted); font-size: 18px; }
-  }
   #loading { color: var(--muted); font: 13px Arial, sans-serif; }
   @media (max-width: 850px) { .workspace, .profile-grid, .profile-charts, .week-name-profile, .week-name-columns, .week-name-facts, .behavior-grid, .name-demographic-grid, .name-connection-grid, .name-dossier-grid { grid-template-columns: 1fr; } .week-name-summary { grid-template-columns: 1fr; } .behavior-summary { grid-template-columns: repeat(2, minmax(0, 1fr)); } .week-name-summary > div { border-top: 1px solid var(--border); border-left: 0; } .week-name-summary > div:first-child { border-top: 0; } .name-dossier-grid .week-name-fact, .name-dossier-grid .week-name-fact:nth-child(4), .name-dossier-grid .week-name-fact:nth-child(5) { grid-column: auto; } .name-demographic-grid > div, .name-connection-grid > div, .name-demographic-grid > div:nth-child(2), .name-connection-grid > div:nth-child(2) { border-top: 1px solid #2a374466; } .name-demographic-grid > div:first-child, .name-connection-grid > div:first-child { border-top: 0; } .week-name-thread { grid-template-columns: 1fr; gap: 5px; } .week-name-fact:nth-child(2) { border-top: 1px solid #2a374466; } .record-grid { grid-template-columns: repeat(2, 1fr); } .intro { display: block; } .intro p { margin-top: 14px; } }
   @media (max-width: 560px) { main { padding: 18px 10px 44px; } .summary { grid-template-columns: repeat(2, 1fr); } .record-grid { grid-template-columns: 1fr; } .panel-head { align-items: start; flex-direction: column; } .explorer-controls, .path-controls { grid-template-columns: 1fr; } #view-games .explorer-controls, #view-weeks .explorer-controls { max-width: none; } #view-enter-picks .intro { margin-bottom: 12px; } #view-enter-picks .panel { padding: 8px; } #view-enter-picks .website-instructions { margin-bottom: 10px; font-size: 11px; line-height: 1.35; } #website-picks-form .website-identity-controls { grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 6px; } .website-notification-row { align-items: flex-start; flex-direction: column; gap: 5px; } .website-game-group legend { padding-top: 4px; } .website-game-row { padding: 1px 0 2px; } .website-matchup { grid-template-columns: minmax(0, 1fr) 40px minmax(0, 1fr); gap: 3px; } .website-side { min-height: 46px; padding: 4px 0; font-size: 12px; } .website-team-choice { grid-template-columns: 32px minmax(0, 1fr); grid-template-areas: "logo name" "logo record" "logo venue"; column-gap: 6px; padding: 4px; } .website-side.right .website-team-choice { grid-template-columns: minmax(0, 1fr) 32px; grid-template-areas: "name logo" "record logo" "venue logo"; } .website-team-logo { width: 32px; height: 32px; } .website-team-name { display: none; } .website-team-abbreviation, .website-team-record, .website-mobile-venue { display: block; } .website-team-record { overflow: hidden; font-size: 18px; font-weight: bold; line-height: 1; text-overflow: ellipsis; white-space: nowrap; } .website-side.right .website-team-record, .website-side.right .website-mobile-venue { text-align: right; } .website-context-venue { display: none; } .website-game-context-neutral .website-context-venue { display: inline; } .website-game-context { padding: 0 2px 1px; overflow: hidden; font-size: 8px; line-height: 1.1; text-overflow: ellipsis; white-space: nowrap; } .website-spread { width: 40px; min-height: 26px; font-size: 11px; } }
@@ -894,7 +894,6 @@
 <body>
 <div id="website-pull-refresh" class="pull-refresh" role="status" aria-live="polite"><span class="pull-refresh-icon" aria-hidden="true">v</span><span class="pull-refresh-label">Pull to refresh</span></div>
 <header><label class="theme-switch"><input id="theme-toggle" type="checkbox" role="switch" checked>Dark mode</label><div class="app-zoom-controls" aria-label="App zoom"><button id="app-zoom-out" type="button" title="Zoom out" aria-label="Zoom out">-</button><button id="app-zoom-in" type="button" title="Zoom in" aria-label="Zoom in">+</button><output id="app-zoom-status" class="app-zoom-status" aria-live="polite"></output></div><nav id="nav"><button data-view="enter-picks">Picks</button><button data-view="week-one">Current Week</button><button data-view="live-analysis">Live</button><button data-view="players">Players</button><button data-view="alltime">All Time</button><button data-view="season">Seasons</button><button data-view="weeks">Weeks</button><button data-view="games">Games</button><button data-view="streaks">Streaks</button><button data-view="teams">Teams</button><button data-view="names">Names</button><button data-view="payout">Payout</button><button data-view="faq">FAQ</button></nav><p id="page-refresh-status" class="page-refresh-status" data-state="loading" role="status" aria-live="polite">Loading...</p></header>
-<aside id="website-install-help" class="install-help" hidden><div><strong>Add FBP to your Home Screen</strong><span id="website-install-copy"></span></div><button id="website-install-action" type="button" hidden>Install</button><button id="website-install-close" class="install-help-close" type="button" aria-label="Dismiss home-screen instructions">×</button></aside>
 <main>
   <section id="view-enter-picks" class="view">
     <section class="intro"><div><h2>Picks</h2></div><p>Week 1 · 2026-2027</p></section>
@@ -1041,7 +1040,6 @@ if (websiteLaunchUrl.searchParams.has("app-refresh")) {
 const requestedRouteValue = websitePlayersReloadOpensSubmissionStatus ? "submission-status" : websiteFaqReloadOpensMap ? "map" : standaloneAppLaunch && websiteRoutes.includes(savedStartupRoute) ? savedStartupRoute : location.hash.slice(1);
 const requestedRoute = requestedRouteValue === "current-week" ? "week-one" : requestedRouteValue;
 const requestedStartupRoute = requestedRoute === "weekly-rank" ? "weeks" : websiteRoutes.includes(requestedRoute) ? requestedRoute : "week-one";
-let websiteRefreshInstallHelp = () => {};
 if (location.hash === "#weekly-rank") history.replaceState(null, "", "#weeks");
 let startupRoutePending = true;
 const WEBSITE_SUBMISSIONS_ENDPOINT = "https://fbp-api.fbp-api-worker.workers.dev";
@@ -2868,10 +2866,48 @@ const WEBSITE_PUSH_DEVICE_TOKEN = "fbpPushDeviceToken";
 const websiteBase64UrlBytes = value => Uint8Array.from(atob(value.replace(/-/g, "+").replace(/_/g, "/") + "===".slice((value.length + 3) % 4)), character => character.charCodeAt(0));
 async function initializePushNotifications() {
   const emailSettings = document.querySelector(".notification-settings"), emailForm = document.getElementById("notification-preferences-form");
-  if (!emailSettings || !emailForm || !("serviceWorker" in navigator) || !("PushManager" in window)) return;
-  emailSettings.insertAdjacentHTML("afterend", '<details class="notification-settings" id="push-notification-settings"><summary>Push notifications</summary><form class="notification-form" id="push-notification-form"><label>Player name<input id="push-notification-player" list="notification-player-options" autocomplete="off" autocapitalize="words" spellcheck="false" required></label><div class="notification-events"><label><input type="checkbox" name="picksReady" checked><span>Picks are ready<small>A reviewed weekly slate opens.</small></span></label><label><input type="checkbox" name="picksDue" checked><span>Picks due reminder<small><input type="number" name="picksDueMinutes" min="5" max="300" step="5" value="60" aria-label="Minutes before kickoff"> min before kickoff.</small></span></label><label><input type="checkbox" name="firstPlace"><span>First-place jump<small>When your player moves into first.</small></span></label><label><input type="checkbox" name="topFive"><span>Top-5 jump<small>When your player moves into the top 5.</small></span></label><label><input type="checkbox" name="topTen"><span>Top-10 jump<small>When your player moves into the top 10.</small></span></label><label><input type="checkbox" name="leadChange"><span>Lead change<small>When the pool lead changes.</small></span></label><label><input type="checkbox" name="earlyWindow"><span>After early games<small>After every Sunday 1 PM game is final.</small></span></label><label><input type="checkbox" name="lateWindow"><span>After late games<small>After the Sunday afternoon games are final.</small></span></label><label><input type="checkbox" name="beforeSnf"><span>Before Sunday Night Football<small>Current standings before SNF.</small></span></label><label><input type="checkbox" name="beforeMnf"><span>Before Monday Night Football<small>Current standings before MNF.</small></span></label><label><input type="checkbox" name="weeklyResult" checked><span>Weekly recap<small>Final weekly standings are available.</small></span></label></div><button id="push-notification-save" type="submit">Enable push notifications</button><p class="notification-status" id="push-notification-status"></p></form></details>');
+  if (!emailSettings || !emailForm) return;
+  emailSettings.insertAdjacentHTML("afterend", '<details class="notification-settings" id="push-notification-settings" open><summary>Push notifications</summary><form class="notification-form" id="push-notification-form"><p class="push-notification-intro">Get a heads-up when your picks are ready, when you jump into first place, and when the pool changes.</p><p class="push-install-help" id="push-install-help"></p><fieldset class="push-notification-controls" id="push-notification-controls"><label>Player name<input id="push-notification-player" list="notification-player-options" autocomplete="off" autocapitalize="words" spellcheck="false" required></label><div class="notification-events"><label><input type="checkbox" name="picksReady" checked><span>Picks are ready<small>A reviewed weekly slate opens.</small></span></label><label><input type="checkbox" name="picksDue" checked><span>Picks due reminder<small><input type="number" name="picksDueMinutes" min="5" max="300" step="5" value="60" aria-label="Minutes before kickoff"> min before kickoff.</small></span></label><label><input type="checkbox" name="firstPlace"><span>First-place jump<small>When your player moves into first.</small></span></label><label><input type="checkbox" name="topFive"><span>Top-5 jump<small>When your player moves into the top 5.</small></span></label><label><input type="checkbox" name="topTen"><span>Top-10 jump<small>When your player moves into the top 10.</small></span></label><label><input type="checkbox" name="leadChange"><span>Lead change<small>When the pool lead changes.</small></span></label><label><input type="checkbox" name="earlyWindow"><span>After early games<small>After every Sunday 1 PM game is final.</small></span></label><label><input type="checkbox" name="lateWindow"><span>After late games<small>After the Sunday afternoon games are final.</small></span></label><label><input type="checkbox" name="beforeSnf"><span>Before Sunday Night Football<small>Current standings before SNF.</small></span></label><label><input type="checkbox" name="beforeMnf"><span>Before Monday Night Football<small>Current standings before MNF.</small></span></label><label><input type="checkbox" name="weeklyResult" checked><span>Weekly recap<small>Final weekly standings are available.</small></span></label></div></fieldset><button id="push-notification-save" type="submit">Enable push notifications</button><p class="notification-status" id="push-notification-status"></p></form></details>');
   queueMicrotask(() => document.getElementById("website-picks-form")?.insertAdjacentElement("afterend", document.getElementById("push-notification-settings")));
-  const form = document.getElementById("push-notification-form"), player = document.getElementById("push-notification-player"), button = document.getElementById("push-notification-save"), status = document.getElementById("push-notification-status");
+  const form = document.getElementById("push-notification-form"), player = document.getElementById("push-notification-player"), button = document.getElementById("push-notification-save"), status = document.getElementById("push-notification-status"), controls = document.getElementById("push-notification-controls"), installHelp = document.getElementById("push-install-help");
+  const standalone = matchMedia("(display-mode: standalone)").matches || navigator.standalone === true;
+  const isAppleMobile = /iPhone|iPad|iPod/i.test(navigator.userAgent) || navigator.platform === "MacIntel" && navigator.maxTouchPoints > 1;
+  const isAndroid = /Android/i.test(navigator.userAgent);
+  const pushSupported = "serviceWorker" in navigator && "PushManager" in window;
+  if (matchMedia("(max-width: 760px)").matches && !standalone) {
+    let deferredInstallPrompt = null;
+    controls.disabled = true;
+    button.textContent = "Add FBP to Home Screen";
+    const showInstallHelp = () => {
+      installHelp.textContent = isAppleMobile
+        ? "Add FBP to your Home Screen first: tap Share, choose Add to Home Screen, then open FBP from its new icon to turn on these alerts."
+        : "Add FBP to your Home Screen first, then open it from its new icon to turn on these alerts.";
+      status.textContent = "Push notifications are available after FBP is added to your Home Screen.";
+    };
+    showInstallHelp();
+    window.addEventListener("beforeinstallprompt", event => {
+      event.preventDefault();
+      deferredInstallPrompt = event;
+      if (isAndroid) installHelp.textContent = "Add FBP to your Home Screen to turn on alerts when you jump into first place and more.";
+    });
+    form.addEventListener("submit", async event => {
+      event.preventDefault();
+      if (!deferredInstallPrompt) { showInstallHelp(); return; }
+      await deferredInstallPrompt.prompt();
+      const choice = await deferredInstallPrompt.userChoice;
+      status.textContent = choice.outcome === "accepted" ? "FBP was added. Open it from your Home Screen to turn on alerts." : "Add FBP to your Home Screen when you are ready for push notifications.";
+      deferredInstallPrompt = null;
+    });
+    return;
+  }
+  if (!pushSupported) {
+    controls.disabled = true;
+    button.disabled = true;
+    installHelp.textContent = "Push notifications are not supported by this browser.";
+    status.textContent = "Open FBP from a supported mobile browser to use push notifications.";
+    return;
+  }
+  installHelp.remove();
   const token = () => localStorage.getItem(WEBSITE_PUSH_DEVICE_TOKEN);
   const updateButton = () => { button.textContent = token() ? "Disable push notifications" : "Enable push notifications"; };
   player.value = localStorage.getItem("fbpPushPlayer") || "";
@@ -4868,7 +4904,7 @@ function websiteSetPageRefreshStatus(state, message = "") {
   if (message) { status.textContent = message; return; }
   status.textContent = `Last refreshed ${new Date().toLocaleString([], { month: "short", day: "numeric", year: "numeric", hour: "numeric", minute: "2-digit", second: "2-digit" })}`;
 }
-function showView(view) { if (view === "alltime" && startupRoutePending) return; if (view !== "season") stopSeasonLiveRace(); if (view !== "weeks") stopWeekLiveRace(); document.querySelectorAll(".view").forEach(section => section.classList.toggle("active", section.id === `view-${view}`)); document.querySelectorAll("#nav button[data-view]").forEach(btn => btn.classList.toggle("active", btn.dataset.view === view)); history.replaceState(null, "", `#${view === "week-one" ? "current-week" : view}`); if (websiteRoutes.includes(view) && view !== "picks-confirmation") localStorage.setItem("fbpLastView", view); websiteSetPageRefreshStatus("loading", view === "live-analysis" ? "Loading live standings..." : "Loading..."); requestAnimationFrame(() => requestAnimationFrame(() => { if (document.getElementById(`view-${view}`)?.classList.contains("active") && view !== "live-analysis") websiteSetPageRefreshStatus("fresh"); })); websiteRefreshInstallHelp(view); websiteTrackEvent("page_view", view); }
+function showView(view) { if (view === "alltime" && startupRoutePending) return; if (view !== "season") stopSeasonLiveRace(); if (view !== "weeks") stopWeekLiveRace(); document.querySelectorAll(".view").forEach(section => section.classList.toggle("active", section.id === `view-${view}`)); document.querySelectorAll("#nav button[data-view]").forEach(btn => btn.classList.toggle("active", btn.dataset.view === view)); history.replaceState(null, "", `#${view === "week-one" ? "current-week" : view}`); if (websiteRoutes.includes(view) && view !== "picks-confirmation") localStorage.setItem("fbpLastView", view); websiteSetPageRefreshStatus("loading", view === "live-analysis" ? "Loading live standings..." : "Loading..."); requestAnimationFrame(() => requestAnimationFrame(() => { if (document.getElementById(`view-${view}`)?.classList.contains("active") && view !== "live-analysis") websiteSetPageRefreshStatus("fresh"); })); websiteTrackEvent("page_view", view); }
 function renderProfile(name) { const overall = (tableData.overall || []).find(row => row.Name === name); const money = (tableData.money_won || []).find(row => row.Name === name); const weekly = dashboard.filter(row => row.Name === name); document.getElementById("profile-name").textContent = name || "Choose a player"; if (!overall) { document.getElementById("profile-stats").innerHTML = ""; return; } const stats = [["Wins", overall.Wins], ["Losses", overall.Losses], ["Win percentage", (Number(overall["%"] || 0) * 100).toFixed(2) + "%"], ["Plus/minus", overall["Plus/Minus"]], ["Total money won", "$" + Number(money?.["Total Money Won"] || 0).toLocaleString()], ["Weeks won", money?.["Weeks Won"] || 0]]; document.getElementById("profile-stats").innerHTML = stats.map(([label, value]) => `<div><span>${label}</span><strong>${value}</strong></div>`).join(""); const seasons = [...new Set(weekly.map(row => row.Season))].sort(); if (profileChart) profileChart.destroy(); profileChart = new Chart(document.getElementById("profile-history-chart"), { type: "line", data: { labels: seasons, datasets: [{ label: "Wins", data: seasons.map(season => weekly.filter(row => row.Season === season).reduce((sum, row) => sum + Number(row.Wins || 0), 0)), borderColor: colors[0], backgroundColor: colors[0] + "55", tension: .25 }, { label: "Average rank", data: seasons.map(season => { const rows = weekly.filter(row => row.Season === season); return rows.reduce((sum, row) => sum + Number(row.Rank || 0), 0) / rows.length; }), borderColor: colors[1], backgroundColor: colors[1] + "55", tension: .25, yAxisID: "rank" }] }, options: { responsive: true, maintainAspectRatio: false, scales: { x: { ticks: { color: "#91a0ae" }, grid: { color: "#2a3744" } }, y: { beginAtZero: true, ticks: { color: "#91a0ae" }, grid: { color: "#2a3744" } }, rank: { position: "right", reverse: true, ticks: { color: "#91a0ae" }, grid: { drawOnChartArea: false } } }, plugins: { legend: { labels: { color: "#e8eef5" } } } } }); }
 function renderProfileLegacy(name) {
   const overall = (tableData.overall || []).find(row => row.Name === name);
@@ -8188,40 +8224,6 @@ if (["week-one", "live-analysis"].includes(startupRoute) && !WEBSITE_SUBMISSIONS
   window.addEventListener("focus", refreshVisiblePicks);
   window.addEventListener("online", refreshVisiblePicks);
   document.addEventListener("visibilitychange", () => { if (!document.hidden) refreshVisiblePicks(); });
-  {
-    const installHelp = document.getElementById("website-install-help"), installCopy = document.getElementById("website-install-copy"), installAction = document.getElementById("website-install-action");
-    const standalone = matchMedia("(display-mode: standalone)").matches || navigator.standalone === true;
-    const isAppleMobile = /iPhone|iPad|iPod/i.test(navigator.userAgent) || navigator.platform === "MacIntel" && navigator.maxTouchPoints > 1;
-    const isAndroid = /Android/i.test(navigator.userAgent);
-    const mobileViewport = matchMedia("(max-width: 760px)");
-    let deferredInstallPrompt = null;
-    let installHelpCopy = "";
-    let installHelpDismissed = false;
-    const hideInstallHelp = () => { installHelp.hidden = true; };
-    websiteRefreshInstallHelp = (view = location.hash.slice(1)) => {
-      const shouldShow = view === "enter-picks" && installHelpCopy && !installHelpDismissed && !standalone && mobileViewport.matches;
-      installHelp.hidden = !shouldShow;
-    };
-    const showInstallHelp = copy => { installHelpCopy = copy; installCopy.textContent = copy; websiteRefreshInstallHelp(); };
-    document.getElementById("website-install-close").onclick = () => { installHelpDismissed = true; hideInstallHelp(); };
-    if (isAppleMobile) showInstallHelp("Press and hold the URL, tap Share, scroll to Add to Home Screen, then tap Add.");
-    else if (isAndroid) showInstallHelp("Open Chrome’s menu, tap Add to Home screen, then Install.");
-    window.addEventListener("beforeinstallprompt", event => {
-      event.preventDefault();
-      deferredInstallPrompt = event;
-      installAction.hidden = false;
-      showInstallHelp("Tap Install, then confirm.");
-    });
-    installAction.onclick = async () => {
-      if (!deferredInstallPrompt) return;
-      await deferredInstallPrompt.prompt();
-      const choice = await deferredInstallPrompt.userChoice;
-      if (choice.outcome === "accepted") hideInstallHelp();
-      deferredInstallPrompt = null;
-      installAction.hidden = true;
-    };
-    window.addEventListener("appinstalled", hideInstallHelp);
-  }
 </script>
 </body>
 </html>

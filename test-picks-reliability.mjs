@@ -3,6 +3,12 @@ import { readFileSync } from 'node:fs';
 import vm from 'node:vm';
 
 const html = readFileSync(new URL('./index.html', import.meta.url), 'utf8');
+assert.match(html, /id="push-notification-settings" open/);
+assert.match(html, /Get a heads-up when your picks are ready, when you jump into first place/);
+assert.match(html, /Add FBP to your Home Screen/);
+assert.match(html, /matchMedia\("\(max-width: 760px\)"\)\.matches && !standalone/);
+assert.doesNotMatch(html, /id="website-install-help"/);
+assert.doesNotMatch(html, /websiteRefreshInstallHelp/);
 const historicalGames = JSON.parse(readFileSync(new URL('./data/games.json', import.meta.url), 'utf8'));
 const clevelandWeeks = historicalGames
   .filter(game => String(game.season) === '2026-2027' && Number(game.week) <= 5 && [game.favorite, game.underdog].some(team => String(team).toUpperCase() === 'CLE'))
