@@ -3,7 +3,8 @@ import { readFileSync } from 'node:fs';
 import vm from 'node:vm';
 
 const html = readFileSync(new URL('./index.html', import.meta.url), 'utf8');
-assert.match(html, /id="push-notification-settings" open/);
+assert.match(html, /id="push-notification-settings"><summary>Push notifications<\/summary>/);
+assert.doesNotMatch(html, /id="push-notification-settings" open/);
 assert.match(html, /Get a heads-up when your picks are ready, when you jump into first place/);
 assert.match(html, /Add FBP to your Home Screen/);
 assert.match(html, /matchMedia\("\(max-width: 760px\)"\)\.matches && !standalone/);
