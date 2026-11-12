@@ -10,6 +10,10 @@ assert.match(html, /Add FBP to your Home Screen/);
 assert.match(html, /matchMedia\("\(max-width: 760px\)"\)\.matches && !standalone/);
 assert.doesNotMatch(html, /id="website-install-help"/);
 assert.doesNotMatch(html, /websiteRefreshInstallHelp/);
+assert.match(html, /const WEBSITE_LIVE_CALCULATION_LIMIT = 512;/);
+assert.match(html, /hasLiveGame \? WEBSITE_LIVE_CALCULATION_LIMIT : WEBSITE_EXACT_CALCULATION_LIMIT/);
+assert.match(html, /function websiteCachedExactPathCounts\(data, forced = \{\}\)/);
+assert.match(html, /player\.pathsToVictory = exactPathCounts\[index\];/);
 const historicalGames = JSON.parse(readFileSync(new URL('./data/games.json', import.meta.url), 'utf8'));
 const clevelandWeeks = historicalGames
   .filter(game => String(game.season) === '2026-2027' && Number(game.week) <= 5 && [game.favorite, game.underdog].some(team => String(team).toUpperCase() === 'CLE'))

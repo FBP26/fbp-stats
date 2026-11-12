@@ -1345,6 +1345,7 @@ const WEBSITE_PICKS_WEATHER_CACHE_KEY = "fbpPicksWeatherRefresh";
 const WEBSITE_PATH_DISPLAY_LIMIT = 50;
 const WEBSITE_SIMULATION_LIMIT = 4096;
 const WEBSITE_EXACT_CALCULATION_LIMIT = 250000;
+const WEBSITE_LIVE_CALCULATION_LIMIT = 512;
 const WEBSITE_TIEBREAK_MIN = -100;
 const WEBSITE_TIEBREAK_MAX = 1200;
 const WEBSITE_TIEBREAK_MEAN = 453;
@@ -1355,6 +1356,7 @@ let websiteContenderDetailMode = "simple";
 let websiteSankeyChart = null;
 let websiteForcedOutcomes = {};
 const websiteProbabilityCache = new Map();
+const websiteExactPathCache = new Map();
 let websiteRaceSnapshots = [], websiteRaceContext = "", websiteRaceAutoplayContext = "", websiteRaceFrame = 0, websiteRaceTimer = null, websiteRaceRows = new Map(), websiteRacePlaybackRequested = false, websiteRaceLineChart = null, websiteRaceSelectedPlayer = "", websiteRacePassesRemaining = 0, websiteRaceLiveNow = false, websiteRaceHistoryLoading = false;
 const RACE_FRAME_DELAY = 1400;
 const WEBSITE_RACE_MAX_PLAYBACK_MS = 60000;
@@ -2337,16 +2339,26 @@ function websiteCachedConditionalProbabilities(data, forced = {}) {
   if (!websiteProbabilityCache.has(key)) {
     if (websiteProbabilityCache.size > 40) websiteProbabilityCache.clear();
     const analysisData = websiteAnalysisData(data);
-    websiteProbabilityCache.set(key, websiteConditionalProbabilities(analysisData, forced, WEBSITE_EXACT_CALCULATION_LIMIT));
+    const hasLiveGame = analysisData.games.some(game => ["LIVE", "IN", "IN_PROGRESS"].includes(websiteGameStatus(game)));
+    websiteProbabilityCache.set(key, websiteConditionalProbabilities(analysisData, forced, hasLiveGame ? WEBSITE_LIVE_CALCULATION_LIMIT : WEBSITE_EXACT_CALCULATION_LIMIT));
   }
   return websiteProbabilityCache.get(key);
+}
+function websiteCachedExactPathCounts(data, forced = {}) {
+  const key = websiteProbabilitySignature(data, forced);
+  if (!websiteExactPathCache.has(key)) {
+    if (websiteExactPathCache.size > 40) websiteExactPathCache.clear();
+    websiteExactPathCache.set(key, websiteConditionalProbabilities(websiteAnalysisData(data), forced, WEBSITE_EXACT_CALCULATION_LIMIT).pathCounts);
+  }
+  return websiteExactPathCache.get(key);
 }
 function websitePreparePlayers(data) {
   if (data.testMode) data.players.forEach(player => { player.name = String(player.name).replace(/\s+Test$/i, ""); });
   const probabilities = websiteCachedConditionalProbabilities(data);
+  const exactPathCounts = websiteCachedExactPathCounts(data);
   data.players.forEach((player, index) => {
     player.winProbability = websiteProbabilityText(probabilities[index]);
-    player.pathsToVictory = probabilities.pathCounts[index];
+    player.pathsToVictory = exactPathCounts[index];
     const actualTiebreaker = Number(data.actualTiebreaker);
     const playerTiebreaker = Number(player.tiebreaker);
     player.tiebreakDifference = data.actualTiebreaker !== "" && data.actualTiebreaker != null && Number.isFinite(actualTiebreaker) && Number.isFinite(playerTiebreaker) ? Math.abs(playerTiebreaker - actualTiebreaker) : "";
