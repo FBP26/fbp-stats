@@ -2215,7 +2215,7 @@ const submitCard = async (payload: JsonObject, env: Env): Promise<Response> => {
   const submissionKey = `admin-submission:${week.id}:${player.id}:${submittedAt}`;
   await sendAdministratorPushOnce(env, priorSubmission ? "adminPickReplaced" : "adminPickSubmitted", submissionKey,
     `${player.canonical_name} - ${priorSubmission ? "Picks Replaced" : "Picks Submitted"}`,
-    `${player.canonical_name} ${priorSubmission ? "replaced" : "submitted"} their picks.`, Number(week.id));
+    priorSubmission ? `${player.canonical_name} replaced their picks.` : `${player.canonical_name} picks submitted.`, Number(week.id));
   if (!priorPlayer) await sendAdministratorPushOnce(env, "adminNewPlayer", `admin-new-player:${player.id}`, "New player joined", `${player.canonical_name} submitted their first FBP picks.`, Number(week.id));
   const firstKickoff = Math.min(...gameRows.results.map((game) => Date.parse(String(game.kickoff_at))));
   if (Number.isFinite(firstKickoff) && Date.parse(submittedAt) > firstKickoff) await sendAdministratorPushOnce(env, "adminLateSubmission", `admin-late-submission:${week.id}:${player.id}:${submittedAt}`, `Late picks - Week ${weekNumber}`, `${player.canonical_name} submitted picks after the first kickoff.`, Number(week.id));
