@@ -5,15 +5,18 @@ const browserOrigin = "https://fbp26.github.io";
 const fail = message => { throw new Error(message); };
 const wait = milliseconds => new Promise(resolve => setTimeout(resolve, milliseconds));
 
-async function fetchWithRetry(endpoint, { timeout = 30_000, ...options }, attempts = 2) {
+async function fetchWithRetry(endpoint, { timeout = 45_000, ...options }, attempts = 3) {
+  const endpointLabel = String(endpoint);
   let lastError;
   for (let attempt = 1; attempt <= attempts; attempt += 1) {
     try {
       const response = await fetch(endpoint, { ...options, signal: AbortSignal.timeout(timeout) });
       if (response.status !== 429 && response.status < 500) return response;
-      lastError = new Error(`Public request returned HTTP ${response.status}.`);
+      lastError = new Error(`${endpointLabel} returned HTTP ${response.status} (attempt ${attempt}/${attempts}).`);
     } catch (error) {
-      lastError = error;
+      lastError = error?.name === "TimeoutError"
+        ? new Error(`${endpointLabel} timed out after ${timeout / 1000} seconds (attempt ${attempt}/${attempts}).`)
+        : new Error(`${endpointLabel} request failed on attempt ${attempt}/${attempts}: ${error.message || String(error)}`);
     }
     if (attempt < attempts) await wait(1_000 * attempt);
   }
