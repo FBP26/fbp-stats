@@ -636,6 +636,24 @@ export const winnerBreakdownLine = (item: WinnerBreakdown, shareCents: number, w
   return `${item.name}: +${money(-before)} credit before this prize. Pay ${money(shareCents)} now and keep that credit, or carry the prize for a new +${money(-before + shareCents)} credit.`;
 };
 
+// Owner-requested wording (Nov 2026), e.g. "Pond was paid up for the year and had a surplus of $10 before Week 10."
+// then "This increases Pond's surplus to $270." Negative balances are credits; positive balances are owed.
+export const winnerBreakdownSentences = (item: WinnerBreakdown, week: number): string[] => {
+  const before = item.balanceBeforePrizeCents;
+  const after = item.balanceAfterCents;
+  const word = item.paidForSeason ? "surplus" : "credit";
+  const start = item.paidForSeason ? `${item.name} was paid up for the year` : item.name;
+  let first: string;
+  if (before < 0) first = `${start}${item.paidForSeason ? " and" : ""} had a ${word} of ${money(-before)} before Week ${week}.`;
+  else if (before === 0) first = item.paidForSeason ? `${start} before Week ${week}.` : `${item.name} was even before Week ${week}.`;
+  else first = `${item.name} owed ${money(before)} before Week ${week}.`;
+  let second: string;
+  if (after < 0) second = before < 0 ? `This increases ${item.name}'s ${word} to ${money(-after)}.` : before > 0 ? `The prize covers that and leaves ${item.name} a ${word} of ${money(-after)}.` : `This gives ${item.name} a ${word} of ${money(-after)}.`;
+  else if (after === 0) second = `The prize covers that, so ${item.name} is now even.`;
+  else second = `After the prize, ${item.name} still owes ${money(after)}.`;
+  return [first, second];
+};
+
 export const buildWinnerEmail = (report: SettlementReport, siteUrl: string, actualTiebreaker: number) => {
   const names = report.winners.map((winner) => winner.name);
   const label = names.length > 1 ? names.join(" and ") : names[0];
@@ -649,17 +667,18 @@ export const buildWinnerEmail = (report: SettlementReport, siteUrl: string, actu
     ? `${tiedOnWins.length} players finished at ${leader.wins} wins. Actual tiebreaker total: ${actualTiebreaker}. ${label}'s guess of ${leader.tiebreaker} was ${leader.tiebreakDifference} away${runnerUp ? `, ${runnerUp.tiebreakDifference - leader.tiebreakDifference} closer than ${runnerUp.name}` : ""}.`
     : `Actual tiebreaker total: ${actualTiebreaker}. ${label}'s guess: ${leader.tiebreaker}.`;
   const payout = [
-    "Payout details:",
-    `${report.entries} entries x ${money(report.entryCents / report.entries)} = ${money(report.entryCents)}`,
+    `Payout details: ${report.entries} entries x ${money(report.entryCents / report.entries)} = ${money(report.entryCents)}`,
     `Season champion reserve: -${money(report.reserveCents)}`,
     `Week ${report.week} winnings: ${money(report.prizeCents)}`,
     ...(names.length > 1 ? [`${names.length}-way split: ${money(report.shareCents)} per winner`] : []),
     "",
-    "Breakdown:",
-    ...report.breakdown.map((item) => winnerBreakdownLine(item, report.shareCents, report.week)),
+    ...report.breakdown.flatMap((item, index) => {
+      const [firstLine, ...rest] = winnerBreakdownSentences(item, report.week);
+      return [`${index === 0 ? "Breakdown: " : ""}${firstLine}`, ...rest];
+    }),
   ];
   const greeting = names.length > 1 ? `Congratulations!!!\nYou shared Week ${report.week}.` : `Congratulations!!!\nYou won Week ${report.week}.`;
-  const share = [greeting, ...(weekName ? ["", `Week name: ${weekName}`] : []), "", `Your Week ${report.week} winner page:`, recapUrl, "", ...payout, "", "Congrats again", "Good luck the rest of the way", "Jim"].join("\n");
+  const share = [greeting, ...(weekName ? [`Week name: ${weekName}`] : []), "", `Your Week ${report.week} winner page:`, recapUrl, "", ...payout, "", "Congrats again", "Good luck the rest of the way", "Jim"].join("\n");
   const top = report.ranked.slice(0, 5).map((player, position) => `${position + 1}. ${player.name} ${player.wins}-${player.losses} (tiebreak ${player.tiebreaker}, off by ${player.tiebreakDifference})`);
   const body = [
     `${label} won Week ${report.week} at ${record}.`,
