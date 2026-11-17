@@ -2504,7 +2504,7 @@ const handlePost = async (request: Request, env: Env): Promise<Response> => {
 
 // ---------------------------------------------------------------------------------------------------------------
 // Owner emails sent by the Worker to fbpool07 (via sendOwnerOperationalEmail):
-//  * Saturday 7 PM Eastern: who has and hasn't submitted picks for the open week.
+//  * 60, 30 and 15 minutes before the week's first kickoff: who has and hasn't submitted picks.
 //  * Every morning at 8 AM Eastern, only if something needs attention: the daily health check.
 
 const easternParts = (date = new Date()): { weekday: string; hour: number; day: string } => {
@@ -2524,11 +2524,23 @@ const releaseOpsFlag = async (env: Env, name: string): Promise<void> => {
   await env.DB.prepare("DELETE FROM ops_flags WHERE name = ?").bind(name).run();
 };
 
+const MISSING_PICKS_CHECKPOINTS = [60, 30, 15];
+
 const sendMissingPicksEmail = async (env: Env): Promise<void> => {
   const week = await activeWeek(env.DB);
-  if (!week || String(week.phase || "REGULAR_SEASON") !== "REGULAR_SEASON") return;
-  const flag = `missing-picks:${week.season}:${week.week}`;
+  if (!week) return;
+  const first = await env.DB.prepare("SELECT MIN(kickoff_at) AS kickoff FROM games WHERE week_id = ?").bind(week.id).first<{ kickoff: string | null }>();
+  const kickoff = Date.parse(String(first?.kickoff || "").replace(/Z?$/, "Z").replace(/ZZ$/, "Z"));
+  if (!Number.isFinite(kickoff)) return;
+  const minutes = (kickoff - Date.now()) / 60000;
+  if (minutes <= 0 || minutes > MISSING_PICKS_CHECKPOINTS[0]) return;
+  // The smallest checkpoint already reached; earlier ones are skipped if the cron was late, so it's one email per checkpoint.
+  const checkpoint = [...MISSING_PICKS_CHECKPOINTS].reverse().find((value) => minutes <= value) ?? MISSING_PICKS_CHECKPOINTS[0];
+  const flag = `missing-picks:${week.season}:${week.phase}:${week.week}:${checkpoint}`;
   if (!(await claimOpsFlag(env, flag))) return;
+  for (const larger of MISSING_PICKS_CHECKPOINTS.filter((value) => value > checkpoint)) {
+    await claimOpsFlag(env, `missing-picks:${week.season}:${week.phase}:${week.week}:${larger}`);
+  }
   const [played, submitted] = await Promise.all([
     env.DB.prepare(
       `SELECT DISTINCT p.canonical_name AS name FROM submissions s JOIN players p ON p.id = s.player_id JOIN weeks w ON w.id = s.week_id
@@ -2542,9 +2554,10 @@ const sendMissingPicksEmail = async (env: Env): Promise<void> => {
   const submittedNames = (submitted.results || []).map((row) => row.name);
   const done = new Set(submittedNames.map((name) => name.toLocaleLowerCase()));
   const missing = (played.results || []).map((row) => row.name).filter((name) => !done.has(name.toLocaleLowerCase()));
-  const subject = `FBP Week ${week.week}: ${missing.length} ${missing.length === 1 ? "player hasn't" : "players haven't"} submitted yet`;
+  const label = String(week.phase) === "PLAYOFFS" ? `Playoffs round ${week.week}` : `Week ${week.week}`;
+  const subject = `FBP ${label}: ${missing.length} ${missing.length === 1 ? "player hasn't" : "players haven't"} submitted (first kickoff in ${Math.round(minutes)} min)`;
   const body = [
-    `Week ${week.week} picks as of Saturday evening.`,
+    `${label} picks, ${Math.round(minutes)} minutes before the first kickoff.`,
     "",
     `Not submitted yet (${missing.length}): ${missing.join(", ") || "everyone is in"}`,
     "",
@@ -2554,7 +2567,7 @@ const sendMissingPicksEmail = async (env: Env): Promise<void> => {
   ].join("\n");
   if (!(await sendOwnerOperationalEmail(env, subject, body))) {
     await releaseOpsFlag(env, flag);
-    await recordOpsEvent(env, "error", "missing-picks-email", `Week ${week.week} missing-picks email could not be sent; it will retry.`);
+    await recordOpsEvent(env, "error", "missing-picks-email", `${label} missing-picks email could not be sent; it will retry.`);
   }
 };
 
@@ -2608,7 +2621,7 @@ const sendDailyHealthEmail = async (env: Env, today: string): Promise<void> => {
 const runOwnerEmails = async (env: Env): Promise<void> => {
   const now = easternParts();
   try {
-    if (now.weekday === "Sat" && now.hour >= 19) await sendMissingPicksEmail(env);
+    await sendMissingPicksEmail(env);
     if (now.hour >= 8) await sendDailyHealthEmail(env, now.day);
   } catch (error) {
     console.error("Owner email check failed", error);
