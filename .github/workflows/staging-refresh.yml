@@ -1,4 +1,5 @@
 name: Refresh test copy database
+# Runs on demand, weekly, and when this file changes.
 
 # Copies production D1 into fbp-staging (used by the test Worker), then blanks notification contacts and push
 # subscriptions so the test copy can never message anyone.

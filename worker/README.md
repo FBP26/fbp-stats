@@ -101,3 +101,10 @@ payload without Google Sheets.
 
 Do not switch the production frontend until imported D1 results match the Apps
 Script payloads for a staged week, a live week, and a finalized week.
+
+## FBP Admin and payouts
+
+- Admin page: `https://fbp-api.fbp-api-worker.workers.dev/admin` (username `Jim`, password = the `FBP_ADMIN_PASSWORD` GitHub secret, pushed to the Worker on every deploy).
+- The payout grid and ledger live in D1 (`payout_rows`, `payout_ledger`, `payout_settlements`); the Google Sheet payout tab is a frozen copy as of the cutover. `scripts/import-payout-sheet.sh` only imports when the grid is empty.
+- Deploys: `.github/workflows/deploy-worker.yml` (main -> production, other branches -> `fbp-api-staging`). Do not run `wrangler d1 migrations apply --remote`: production's migration history does not match this folder; apply new migration files with `wrangler d1 execute --file`.
+- Backups: `.github/workflows/d1-backup.yml` -> private R2 bucket `fbp-backups/d1/`.
