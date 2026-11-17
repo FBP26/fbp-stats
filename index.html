@@ -7365,12 +7365,11 @@ let payoutSheetLoadPromise = null;
 function loadPayoutSheet(forceRefresh = false) {
   if (forceRefresh) payoutSheetLoadPromise = null;
   if (!payoutSheetLoadPromise) {
-    const url = `https://docs.google.com/spreadsheets/d/19LkATudJU7W7bsnBBNy7iCI68P3Nhbt10XIJ5Q7HRCA/export?format=csv&gid=2&_=${Date.now()}`;
-    // Payouts now live in the FBP Worker (edited in FBP Admin); the old Google Sheet export is only a fallback.
-    const fromWorker = fetch(`${WEBSITE_SUBMISSIONS_ENDPOINT}?action=payout-sheet`, { cache: "no-store" })
+    // Payouts live in the FBP Worker (edited in FBP Admin). The old Google Sheet tab is a frozen copy and is no longer read.
+    payoutSheetLoadPromise = fetch(`${WEBSITE_SUBMISSIONS_ENDPOINT}?action=payout-sheet`, { cache: "no-store" })
       .then(response => response.ok ? response.json() : Promise.reject(new Error(`Payouts returned ${response.status}`)))
-      .then(result => { const seasons = result?.ok && Array.isArray(result.rows) ? parsePayoutSheetRows(result.rows) : []; if (!seasons.length) throw new Error("Payouts are not in the Worker yet"); return seasons; });
-    payoutSheetLoadPromise = fromWorker.catch(error => { console.warn("Using the Google Sheet payout copy:", error.message); return null; }).then(seasons => seasons || fetch(url).then(response => { if (!response.ok) throw new Error(`Payout sheet returned ${response.status}`); return response.text(); }).then(csv => { if (!globalThis.Papa) throw new Error("Payout sheet parser did not load"); const parsed = Papa.parse(csv, { skipEmptyLines: false }); if (parsed.errors.length) throw new Error(parsed.errors[0].message); const seasons = parsePayoutSheetRows(parsed.data); if (!seasons.length) throw new Error("Payout sheet contained no seasons"); return seasons; }));
+      .then(result => { const seasons = result?.ok && Array.isArray(result.rows) ? parsePayoutSheetRows(result.rows) : []; if (!seasons.length) throw new Error("Payouts contained no seasons"); return seasons; })
+      .catch(error => { payoutSheetLoadPromise = null; throw error; });
   }
   return payoutSheetLoadPromise;
 }
@@ -7926,7 +7925,6 @@ function ensureHistoryLibs() {
   const load = src => new Promise((resolve, reject) => { const tag = document.createElement("script"); tag.src = src; tag.onload = resolve; tag.onerror = () => reject(new Error(`Could not load ${src}`)); document.head.append(tag); });
   if (!websiteHistoryLibsPromise) websiteHistoryLibsPromise = Promise.all([
     window.Tabulator ? null : load("https://unpkg.com/tabulator-tables@5.6.0/dist/js/tabulator.min.js"),
-    window.Papa ? null : load("https://cdn.jsdelivr.net/npm/papaparse@5.4.1/papaparse.min.js"),
     window.L ? null : load("https://unpkg.com/leaflet@1.9.4/dist/leaflet.js"),
   ]).catch(error => { websiteHistoryLibsPromise = null; throw error; });
   return websiteHistoryLibsPromise;

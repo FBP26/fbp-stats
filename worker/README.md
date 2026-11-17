@@ -1,81 +1,19 @@
 # FBP API Worker
 
-Cloudflare Worker + D1 replacement for mutable Google Sheets and Apps Script state.
-The public API intentionally preserves the existing Apps Script `action` routes so
-frontend and archive clients can migrate by changing only their endpoint.
+The FBP backend: picks, live scoring, week setup, notifications, payouts and FBP Admin, on Cloudflare Workers + D1.
+Apps Script is only used as a Gmail relay for owner and notification emails.
 
-## Prerequisites
+## Local checks
 
-Install a current Node.js LTS release, then authenticate Wrangler:
-
-```powershell
-npm install
-npx wrangler login
-npx wrangler d1 create fbp
-```
-
-Copy the returned database ID into `wrangler.toml`, then initialize and validate:
-
-```powershell
-npm run db:migrate:local
+```bash
+npm ci
 npm run check
-npm run dev
+npm test
 ```
 
-Apply the same migration remotely before deployment:
+Deploys go through GitHub Actions (see below); there is no need to run `wrangler deploy` by hand.
 
-```powershell
-npm run db:migrate:remote
-npm run deploy
-```
-
-## Importing the active week
-
-Prepare a reviewable SQL snapshot from the production Apps Script API:
-
-```powershell
-npm run import:prepare
-```
-
-The command refuses to import when no regular-season week is staged or when a
-player card is incomplete. It writes ignored output to
-`.generated/current-week.sql`. Review that file, validate it against local D1,
-then explicitly apply the same file remotely:
-
-```powershell
-npm run db:import:local
-npm run db:import:remote
-```
-
-An explicitly staged preseason week can be prepared for local parity testing:
-
-```powershell
-node scripts/import-current-week.mjs --phase PRESEASON --season 2026 --week 4 --skip-invalid-test-cards
-npm run db:import:local
-```
-
-The skip flag exists only for seeded preseason cards that intentionally test
-invalid tiebreaker values; regular-season imports cannot use it. Do not apply a
-preseason rehearsal remotely unless that test data is intentionally needed in
-the production database.
-
-Compare Apps Script with a local preseason Worker after import:
-
-```powershell
-npm run parity -- --target http://127.0.0.1:8787 --phase PRESEASON --season 2026 --week 4 --skip-invalid-test-cards
-```
-
-For regular season, `npm run parity` compares `active-week` first and safely
-defers `current-week` until a week is staged. After importing that staged week,
-the same command compares the full current payload against the deployed Worker.
-Request-time weather condition, temperature, source, and link fields are ignored;
-game identity, spread, status, score, clock, possession, and player scoring are
-still compared.
-
-Measure the worst-case probability calculation against the current 16-game
-preseason payload with `npm run benchmark:scoring`. Re-run this against the
-regular Week 1 payload before enabling server-side scheduled snapshots on the
-Workers Free 10 ms CPU allowance.
+## How the live week works
 
 Regular `current-week` responses perform only deterministic completed-game
 scoring and return `probabilitySource: "client"`. The website's existing
@@ -99,12 +37,10 @@ stores a checksummed, immutable `week-archive` payload and atomically marks the
 week `finalized`. `finalize_fbp_week.py --endpoint <worker-url>` can consume that
 payload without Google Sheets.
 
-Do not switch the production frontend until imported D1 results match the Apps
-Script payloads for a staged week, a live week, and a finalized week.
-
 ## FBP Admin and payouts
 
 - Admin page: `https://fbp-api.fbp-api-worker.workers.dev/admin` (username `Jim`, password = the `FBP_ADMIN_PASSWORD` GitHub secret, pushed to the Worker on every deploy).
-- The payout grid and ledger live in D1 (`payout_rows`, `payout_ledger`, `payout_settlements`); the Google Sheet payout tab is a frozen copy as of the cutover. `scripts/import-payout-sheet.sh` only imports when the grid is empty.
+- The payout grid and ledger live in D1 (`payout_rows`, `payout_ledger`, `payout_settlements`); the Google Sheet payout tab is a frozen copy as of the cutover.
 - Deploys: `.github/workflows/deploy-worker.yml` (main -> production, other branches -> `fbp-api-staging`). Do not run `wrangler d1 migrations apply --remote`: production's migration history does not match this folder; apply new migration files with `wrangler d1 execute --file`.
-- Backups: `.github/workflows/d1-backup.yml` -> private R2 bucket `fbp-backups/d1/`.
+- Backups: `.github/workflows/d1-backup.yml` -> private R2 bucket `fbp-backups/d1/` (120 days). A permanent copy from before the Nov 17 2026 table cleanup is at `fbp-backups/archive/pre-cleanup-2026-11-17.sql.gz`.
+- Week lines: ESPN scoreboard odds (DraftKings), with Yahoo's scoreboard page as a fallback for any game ESPN has no line for.

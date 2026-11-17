@@ -1249,40 +1249,6 @@ const sendOwnerOperationalEmail = async (env: Env, subject: string, body: string
   return response.ok && result?.ok === true;
 };
 
-const pickSubmissionOwnerEmail = (
-  playerName: string,
-  weekNumber: number,
-  submittedAt: string,
-  games: Array<{ favorite: string; spread: number; underdog: string }>,
-  picks: string[],
-  bestBet: string,
-  tiebreaker: number,
-  replaced: boolean,
-): { subject: string; body: string; html: string } => {
-  const heading = replaced ? "Picks replaced" : "Picks submitted";
-  const rows = games.map((game, index) => {
-    const pick = picks[index] || "";
-    const line = `${index + 1}. ${game.favorite} ${game.spread} ${game.underdog} — ${pick}${pick === bestBet ? " (Best Bet)" : ""}`;
-    return { line, game, pick };
-  });
-  const submitted = formatEasternDateTime(submittedAt);
-  const body = [
-    `${heading}: ${playerName}`,
-    `Week ${weekNumber} · ${submitted}`,
-    "",
-    ...rows.map((row) => row.line),
-    "",
-    `Tiebreaker: ${tiebreaker}`,
-  ].join("\n");
-  const html = `<main style="max-width:620px;margin:0 auto;font-family:Arial,sans-serif;color:#17212b">
-<h2 style="margin:0 0 12px">FBP Week ${weekNumber}: ${escapeHtml(heading)}</h2>
-<p><strong>${escapeHtml(playerName)}</strong> ${replaced ? "updated" : "submitted"} picks on ${escapeHtml(submitted)}.</p>
-<ol>${rows.map(({ game, pick }) => `<li><strong>${escapeHtml(game.favorite)} ${escapeHtml(game.spread)} ${escapeHtml(game.underdog)}</strong> — ${escapeHtml(pick)}${pick === bestBet ? ` <span style="color:#8a6400;font-weight:bold">(Best Bet)</span>` : ""}</li>`).join("")}</ol>
-<p><strong>Tiebreaker:</strong> ${escapeHtml(tiebreaker)}</p>
-</main>`;
-  return { subject: `FBP Week ${weekNumber}: ${heading} — ${playerName}`, body, html };
-};
-
 const formatEasternDateTime = (iso: string): string => new Intl.DateTimeFormat("en-US", {
   timeZone: "America/New_York",
   month: "short",
@@ -1294,7 +1260,7 @@ const formatEasternDateTime = (iso: string): string => new Intl.DateTimeFormat("
 
 const nflTeams = ["ARI", "ATL", "BAL", "BUF", "CAR", "CHI", "CIN", "CLE", "DAL", "DEN", "DET", "GB", "HOU", "IND", "JAX", "KC", "LAC", "LAR", "LV", "MIA", "MIN", "NE", "NO", "NYG", "NYJ", "PHI", "PIT", "SEA", "SF", "TB", "TEN", "WAS"];
 
-const weekSetupByeTeams = (games: YahooWeekGame[]): string[] => {
+const weekSetupByeTeams = (games: WeekLineGame[]): string[] => {
   const playingTeams = new Set(games.flatMap((game) => [
     normalizeNflAbbreviation(game.away),
     normalizeNflAbbreviation(game.home),
@@ -1346,7 +1312,7 @@ const isPublicWeekRelease = async (db: D1Database, week: Record<string, unknown>
   return true;
 };
 
-const weekSetupSlateEmailRows = (games: YahooWeekGame[]): string => games.map((game, index) => `
+const weekSetupSlateEmailRows = (games: WeekLineGame[]): string => games.map((game, index) => `
   <tr>
     <td style="width:34px;padding:12px 8px;border-top:1px solid #334155;color:#94a3b8;text-align:center;font-size:12px;font-weight:700">${index + 1}</td>
     <td style="padding:12px 4px;border-top:1px solid #334155;color:#f8fafc;text-align:right;font-size:15px;font-weight:700">${escapeHtml(game.favorite.toUpperCase())}</td>
@@ -1354,7 +1320,7 @@ const weekSetupSlateEmailRows = (games: YahooWeekGame[]): string => games.map((g
     <td style="padding:12px 8px;border-top:1px solid #334155;color:#f8fafc;text-align:left;font-size:15px;font-weight:700">${escapeHtml(game.underdog.toUpperCase())}</td>
   </tr>`).join("");
 
-const weekSetupSlateReviewCards = (games: YahooWeekGame[]): string => games.map((game, index) => `
+const weekSetupSlateReviewCards = (games: WeekLineGame[]): string => games.map((game, index) => `
   <article class="game-card">
     <span class="game-number">${index + 1}</span>
     <strong>${escapeHtml(game.favorite.toUpperCase())}</strong>
@@ -1362,7 +1328,7 @@ const weekSetupSlateReviewCards = (games: YahooWeekGame[]): string => games.map(
     <strong>${escapeHtml(game.underdog.toUpperCase())}</strong>
   </article>`).join("");
 
-const weekSetupEmail = (week: number, games: YahooWeekGame[], reviewUrl: string, expiresAt: string, intro: string): { body: string; html: string } => {
+const weekSetupEmail = (week: number, games: WeekLineGame[], reviewUrl: string, expiresAt: string, intro: string): { body: string; html: string } => {
   const lines = games.map((game, index) => `${index + 1}. ${game.favorite} ${game.spread} ${game.underdog}`).join("\n");
   const expiration = formatEasternDateTime(expiresAt);
   const byeTeams = weekSetupByeTeams(games);
@@ -1440,7 +1406,7 @@ const syncPriorWeekPayoutsAfterSetup = async (env: Env, stagedWeek: Record<strin
   return true;
 };
 
-type YahooWeekGame = {
+type WeekLineGame = {
   gameId: string;
   kickoff: string;
   away: string;
@@ -1451,59 +1417,85 @@ type YahooWeekGame = {
   url: string;
 };
 
-const fetchYahooWeekGames = async (season: number, week: number): Promise<YahooWeekGame[]> => {
-  const scheduleUrl = `https://site.api.espn.com/apis/site/v2/sports/football/nfl/scoreboard?dates=${season}&seasontype=2&week=${week}&limit=100`;
+type EspnOdds = { details?: string; spread?: number; provider?: { name?: string }; homeTeamOdds?: { favorite?: boolean }; awayTeamOdds?: { favorite?: boolean } };
+type EspnScheduleEvent = { id?: string; date?: string; competitions?: { odds?: EspnOdds[]; competitors?: { homeAway?: string; team?: { abbreviation?: string; displayName?: string } }[] }[] };
+
+// Lines come from ESPN's scoreboard (the same feed as live scores; DraftKings lines). Yahoo's scoreboard page is
+// only read when ESPN has no line for one or more games.
+const espnLine = (odds: EspnOdds | undefined, away: string, home: string): { favorite: string; spread: number } | null => {
+  if (!odds) return null;
+  const spread = Math.abs(Number(odds.spread));
+  const detail = String(odds.details || "").trim();
+  if (/^(even|pk|pick)/i.test(detail) && Number.isFinite(spread)) return { favorite: home, spread: 0 };
+  if (!Number.isFinite(spread) || !detail) return null;
+  const detailTeam = normalizeNflAbbreviation(detail.split(/\s+/)[0]);
+  const favorite = odds.homeTeamOdds?.favorite ? home : odds.awayTeamOdds?.favorite ? away : [home, away].includes(detailTeam) ? detailTeam : "";
+  return favorite ? { favorite, spread } : null;
+};
+
+const fetchYahooLines = async (week: number): Promise<{ matchup: string; favorite: string; spread: number }[]> => {
   const yahooUrl = `https://sports.yahoo.com/nfl/scoreboard/?week=${week}&seasonPhase=REGULAR_SEASON`;
-  const [scheduleResponse, yahooResponse] = await Promise.all([
-    fetch(scheduleUrl, { cf: { cacheTtl: 300 } }),
-    fetch(yahooUrl, { headers: { Accept: "text/html" }, cf: { cacheTtl: 300 } }),
-  ]);
-  if (!scheduleResponse.ok) throw new Error(`ESPN schedule request returned HTTP ${scheduleResponse.status}.`);
-  if (!yahooResponse.ok) throw new Error(`Yahoo scoreboard request returned HTTP ${yahooResponse.status}.`);
-  const scoreboard = await scheduleResponse.json() as { events?: { id?: string; date?: string; competitions?: { competitors?: { homeAway?: string; team?: { abbreviation?: string; displayName?: string } }[] }[] }[] };
-  const yahooHtml = await yahooResponse.text();
-  const yahooOdds: { gameId: string; matchup: string; favorite: string; spread: number }[] = [];
-  const cardPattern = /gameId:nfl\.g\.(\d+);itc:0;slk:([^;]+);/g;
-  for (const card of yahooHtml.matchAll(cardPattern)) {
+  const response = await fetch(yahooUrl, { headers: { Accept: "text/html" }, cf: { cacheTtl: 300 } });
+  if (!response.ok) throw new Error(`Yahoo scoreboard request returned HTTP ${response.status}.`);
+  const yahooHtml = await response.text();
+  const lines: { matchup: string; favorite: string; spread: number }[] = [];
+  for (const card of yahooHtml.matchAll(/gameId:nfl\.g\.(\d+);itc:0;slk:([^;]+);/g)) {
     const odds = yahooHtml.slice(card.index ?? 0, (card.index ?? 0) + 12000).match(/\b([A-Z]{2,3}) ([+-]\d+(?:\.\d+)?)/);
-    if (odds) yahooOdds.push({ gameId: card[1], matchup: card[2], favorite: normalizeNflAbbreviation(odds[1]), spread: Math.abs(Number(odds[2])) });
+    if (odds) lines.push({ matchup: card[2], favorite: normalizeNflAbbreviation(odds[1]), spread: Math.abs(Number(odds[2])) });
   }
-  const scheduledGames = (scoreboard.events || []).map((event) => {
+  return lines;
+};
+
+const yahooCity = (name: string) => ({
+  "Los Angeles Chargers": "LA Chargers",
+  "Los Angeles Rams": "LA Rams",
+  "New York Giants": "NY Giants",
+  "New York Jets": "NY Jets",
+} as Record<string, string>)[name] || name.replace(/ (?:49ers|Bears|Bengals|Bills|Broncos|Browns|Buccaneers|Cardinals|Chargers|Chiefs|Colts|Commanders|Cowboys|Dolphins|Eagles|Falcons|Forty Niners|Giants|Jaguars|Jets|Lions|Packers|Panthers|Patriots|Raiders|Rams|Ravens|Saints|Seahawks|Steelers|Texans|Titans|Vikings)$/i, "").replace("Los Angeles", "LA").replace("New York", "NY");
+
+const fetchWeekGames = async (season: number, week: number): Promise<{ games: WeekLineGame[]; source: string }> => {
+  const scheduleUrl = `https://site.api.espn.com/apis/site/v2/sports/football/nfl/scoreboard?dates=${season}&seasontype=2&week=${week}&limit=100`;
+  const espnPage = `https://www.espn.com/nfl/scoreboard/_/week/${week}/year/${season}/seasontype/2`;
+  const scheduleResponse = await fetch(scheduleUrl, { cf: { cacheTtl: 300 } });
+  if (!scheduleResponse.ok) throw new Error(`ESPN schedule request returned HTTP ${scheduleResponse.status}.`);
+  const events = ((await scheduleResponse.json()) as { events?: EspnScheduleEvent[] }).events || [];
+  const rows = events.map((event) => {
     const competition = event.competitions?.[0] || {};
-    const away = normalizeNflAbbreviation(competition.competitors?.find((team) => team.homeAway === "away")?.team?.abbreviation);
-    const home = normalizeNflAbbreviation(competition.competitors?.find((team) => team.homeAway === "home")?.team?.abbreviation);
-    const awayName = competition.competitors?.find((team) => team.homeAway === "away")?.team?.displayName || "";
-    const homeName = competition.competitors?.find((team) => team.homeAway === "home")?.team?.displayName || "";
-    const yahooCity = (name: string) => ({
-      "Los Angeles Chargers": "LA Chargers",
-      "Los Angeles Rams": "LA Rams",
-      "New York Giants": "NY Giants",
-      "New York Jets": "NY Jets",
-    } as Record<string, string>)[name] || name.replace(/ (?:49ers|Bears|Bengals|Bills|Broncos|Browns|Buccaneers|Cardinals|Chargers|Chiefs|Colts|Commanders|Cowboys|Dolphins|Eagles|Falcons|Forty Niners|Giants|Jaguars|Jets|Lions|Packers|Panthers|Patriots|Raiders|Rams|Ravens|Saints|Seahawks|Steelers|Texans|Titans|Vikings)$/i, "").replace("Los Angeles", "LA").replace("New York", "NY");
-    const yahooGame = yahooOdds.find((game) => game.matchup === `${yahooCity(awayName)} @ ${yahooCity(homeName)}`);
-    const favoriteCode = yahooGame?.favorite || "";
-    const underdogCode = favoriteCode === away ? home : away;
+    const side = (homeAway: string) => competition.competitors?.find((team) => team.homeAway === homeAway)?.team;
+    const away = normalizeNflAbbreviation(side("away")?.abbreviation);
+    const home = normalizeNflAbbreviation(side("home")?.abbreviation);
+    return { event, away, home, awayName: side("away")?.displayName || "", homeName: side("home")?.displayName || "", line: espnLine(competition.odds?.[0], away, home), source: "ESPN" };
+  });
+  const missing = rows.filter((row) => !row.line);
+  if (missing.length) {
+    const yahoo = await fetchYahooLines(week).catch((error) => { console.warn("Yahoo fallback failed", error); return []; });
+    for (const row of missing) {
+      const match = yahoo.find((game) => game.matchup === `${yahooCity(row.awayName)} @ ${yahooCity(row.homeName)}`);
+      if (match && [row.away, row.home].includes(match.favorite)) Object.assign(row, { line: { favorite: match.favorite, spread: match.spread }, source: "Yahoo" });
+    }
+  }
+  const games = rows.map((row) => {
+    const favoriteCode = row.line?.favorite || "";
+    const underdogCode = favoriteCode === row.away ? row.home : row.away;
     return {
-      gameId: `espn.${event.id || ""}`,
-      kickoff: String(event.date || ""),
-      away: away.toLowerCase(),
-      home: home.toUpperCase(),
-      favorite: favoriteCode === home ? home.toUpperCase() : favoriteCode.toLowerCase(),
-      spread: yahooGame?.spread ?? Number.NaN,
-      underdog: underdogCode === home ? home.toUpperCase() : underdogCode.toLowerCase(),
-      url: yahooUrl,
+      gameId: `espn.${row.event.id || ""}`,
+      kickoff: String(row.event.date || ""),
+      away: row.away.toLowerCase(),
+      home: row.home.toUpperCase(),
+      favorite: favoriteCode === row.home ? row.home.toUpperCase() : favoriteCode.toLowerCase(),
+      spread: row.line?.spread ?? Number.NaN,
+      underdog: underdogCode === row.home ? row.home.toUpperCase() : underdogCode.toLowerCase(),
+      url: row.source === "Yahoo" ? `https://sports.yahoo.com/nfl/scoreboard/?week=${week}&seasonPhase=REGULAR_SEASON` : espnPage,
     };
   });
-  const games = scheduledGames.filter((game) => game.gameId !== "espn." && game.kickoff && game.away && game.home && game.favorite && game.underdog && Number.isFinite(game.spread));
-  if (games.length !== (scoreboard.events || []).length) {
-    const unmatchedMatchups = scheduledGames
-      .filter((game) => !Number.isFinite(game.spread))
-      .map((game) => `${game.away.toUpperCase()} at ${game.home}`)
-      .join(", ");
-    throw new Error(`Yahoo lines matched ${games.length} of ${(scoreboard.events || []).length} scheduled games.${unmatchedMatchups ? ` Missing line: ${unmatchedMatchups}.` : ""}`);
+  const complete = games.filter((game) => game.gameId !== "espn." && game.kickoff && game.away && game.home && game.favorite && game.underdog && Number.isFinite(game.spread));
+  if (complete.length !== events.length) {
+    const unmatched = games.filter((game) => !Number.isFinite(game.spread)).map((game) => `${game.away.toUpperCase()} at ${game.home}`).join(", ");
+    throw new Error(`Lines found for ${complete.length} of ${events.length} scheduled games.${unmatched ? ` Missing line: ${unmatched}.` : ""}`);
   }
-  return games
-    .sort((left, right) => Date.parse(left.kickoff) - Date.parse(right.kickoff));
+  const yahooCount = rows.filter((row) => row.source === "Yahoo").length;
+  const source = yahooCount ? `ESPN (DraftKings) for ${complete.length - yahooCount} games and Yahoo for ${yahooCount}` : "ESPN (DraftKings)";
+  return { games: complete.sort((left, right) => Date.parse(left.kickoff) - Date.parse(right.kickoff)), source };
 };
 
 const normalizeNflAbbreviation = (value: unknown): string => ({ WSH: "WAS", JAC: "JAX", LA: "LAR" }[String(value || "").toUpperCase()] || String(value || "").toUpperCase());
@@ -1672,7 +1664,7 @@ const createWeekSetupCandidate = async (env: Env): Promise<void> => {
   const season = Number(active.season), week = Number(active.week) + 1;
   const existingWeek = await findWeek(env.DB, season, week, "REGULAR_SEASON");
   if (existingWeek && String(existingWeek.status) !== "finalized") return;
-  const games = await fetchYahooWeekGames(season, week);
+  const { games, source } = await fetchWeekGames(season, week);
   if (games.length < 10 || games.length > 16) return;
   const slateJson = JSON.stringify({ season, week, games });
   const slateHash = await sha256(slateJson);
@@ -1688,14 +1680,14 @@ const createWeekSetupCandidate = async (env: Env): Promise<void> => {
     "INSERT INTO week_setup_candidates(season,week,phase,slate_hash,slate_json,approval_token_hash,expires_at) VALUES (?,?,'REGULAR_SEASON',?,?,?,?)",
   ).bind(season, week, slateHash, slateJson, await sha256(token), expiresAt).run();
   const reviewUrl = `${env.PUBLIC_API_URL || "https://fbp-api.fbp-api-worker.workers.dev"}/?action=review-week-setup&token=${token}`;
-  const email = weekSetupEmail(week, games, reviewUrl, expiresAt, `Yahoo has a valid favorite, point spread, and underdog for all ${games.length} games.`);
+  const email = weekSetupEmail(week, games, reviewUrl, expiresAt, `${source} has a favorite, point spread, and underdog for all ${games.length} games.`);
   await sendOwnerOperationalEmail(env, `FBP Week ${week} lines are ready for setup approval`, email.body, email.html);
   await sendAdministratorPushOnce(
     env,
     "adminWeekSetupReady",
     `admin-week-setup-ready:${season}:${week}:${slateHash}`,
     `FBP Week ${week} lines are ready`,
-    "Review and approve the complete Yahoo slate to open picks.",
+    "Review and approve the complete slate to open picks.",
   );
 };
 
@@ -1705,7 +1697,7 @@ const reviewWeekSetupCandidate = async (token: string, env: Env): Promise<Respon
     "SELECT * FROM week_setup_candidates WHERE approval_token_hash=? AND status='pending' AND expires_at > CURRENT_TIMESTAMP",
   ).bind(await sha256(token)).first<{ week: number; slate_json: string; expires_at: string }>();
   if (!candidate) return html("<h1>Approval link unavailable</h1><p>This link was used, replaced, or expired.</p>", 404);
-  const slate = JSON.parse(candidate.slate_json) as { games: YahooWeekGame[] };
+  const slate = JSON.parse(candidate.slate_json) as { games: WeekLineGame[] };
   const prior = await latestFinalizedRegularSeasonWeek(env.DB);
   const availability = prior ? regularWeekSetupAvailability(prior) : { open: false, label: "Tuesday at 2:00 PM ET" };
   const byeTeams = weekSetupByeTeams(slate.games);
@@ -1723,7 +1715,7 @@ const resendWeekSetupReview = async (payload: JsonObject, env: Env): Promise<Res
     "SELECT week,slate_json,expires_at FROM week_setup_candidates WHERE approval_token_hash=? AND status='pending' AND expires_at > CURRENT_TIMESTAMP",
   ).bind(await sha256(token)).first<{ week: number; slate_json: string; expires_at: string }>();
   if (!candidate) return json({ ok: false, error: "This review link is unavailable." }, 404, env.CORS_ORIGIN);
-  const games = JSON.parse(candidate.slate_json) as { games: YahooWeekGame[] };
+  const games = JSON.parse(candidate.slate_json) as { games: WeekLineGame[] };
   const reviewUrl = `${env.PUBLIC_API_URL || "https://fbp-api.fbp-api-worker.workers.dev"}/?action=review-week-setup&token=${token}`;
   const email = weekSetupEmail(candidate.week, games.games, reviewUrl, candidate.expires_at, `Review all ${games.games.length} verified Week ${candidate.week} spreads before staging the pool.`);
   const sent = await sendOwnerOperationalEmail(env, `FBP Week ${candidate.week} lines are ready for setup approval`, email.body, email.html);
@@ -1742,7 +1734,7 @@ const approveWeekSetupCandidate = async (payload: JsonObject, env: Env): Promise
     return json({ ok: false, error: "The most recent finalized week no longer matches this approval." }, 409, env.CORS_ORIGIN);
   }
   const availability = regularWeekSetupAvailability(prior);
-  const slate = JSON.parse(candidate.slate_json) as { games: YahooWeekGame[] };
+  const slate = JSON.parse(candidate.slate_json) as { games: WeekLineGame[] };
   const week = await syncApprovedStagedWeek({ season: candidate.season, week: candidate.week, games: slate.games }, env);
   const claimed = await env.DB.prepare("UPDATE week_setup_candidates SET status='approved', approved_at=CURRENT_TIMESTAMP WHERE id=? AND status='pending'")
     .bind(candidate.id).run();

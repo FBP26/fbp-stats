@@ -39,9 +39,6 @@ jobs:
             echo "::error::Add CLOUDFLARE_API_TOKEN and CLOUDFLARE_ACCOUNT_ID under Settings > Secrets and variables > Actions."
             exit 1
           fi
-      - name: Copy the payout Sheet into D1 (first deploy only)
-        if: github.ref == 'refs/heads/main'
-        run: scripts/import-payout-sheet.sh fbp
       - name: Deploy production
         if: github.ref == 'refs/heads/main'
         run: npx wrangler deploy

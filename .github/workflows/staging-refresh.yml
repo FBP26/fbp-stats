@@ -44,8 +44,4 @@ jobs:
       - name: Import and scrub
         run: |
           npx wrangler d1 execute fbp-staging --remote --file "$RUNNER_TEMP/fbp.sql" -y
-          npx wrangler d1 execute fbp-staging --remote -y --command "UPDATE notification_subscriptions SET destination = 'test-copy', normalized_destination = 'test-copy-' || id, status = 'unsubscribed'; DELETE FROM push_device_players; DELETE FROM push_admin_devices; DELETE FROM push_devices;"
-      - name: Payout grid (if production does not have it yet)
-        run: |
-          npx wrangler d1 execute fbp-staging --remote -y --file migrations/0011_admin_payout_sheet.sql
-          scripts/import-payout-sheet.sh fbp-staging
+          npx wrangler d1 execute fbp-staging --remote -y --command "UPDATE notification_subscriptions SET destination = 'test-copy', normalized_destination = 'test-copy-' || id, status = 'unsubscribed'; DELETE FROM push_device_players; DELETE FROM push_devices;"
