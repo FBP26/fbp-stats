@@ -59,9 +59,6 @@
 <link href="map.css?v=20260909-4" rel="stylesheet">
 <script src="https://cdn.jsdelivr.net/npm/chart.js@4.4.3/dist/chart.umd.min.js"></script>
 <script src="https://cdn.jsdelivr.net/npm/chartjs-chart-sankey@0.14.0/dist/chartjs-chart-sankey.min.js"></script>
-<script src="https://unpkg.com/tabulator-tables@5.6.0/dist/js/tabulator.min.js"></script>
-<script src="https://cdn.jsdelivr.net/npm/papaparse@5.4.1/papaparse.min.js"></script>
-<script src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js"></script>
 <script src="historical-ui.js?v=20260903-1"></script>
 <style>
   :root { color-scheme: dark; }
@@ -2790,6 +2787,7 @@ try {
   }
 } catch (error) { console.warn(`Saved active slate unavailable: ${error.message}`); }
 function notificationPlayerValidation(value) {
+  if (!websiteHistoryReady) startHistoricalInitialization().catch(() => {});
   const names = [...document.getElementById("notification-player-options").options].map(option => option.value).filter(Boolean);
   if (names.includes(value)) return { name: value, message: "" };
   const trimmed = value.trim(), exactTrimmed = names.find(name => name === trimmed);
@@ -4627,7 +4625,7 @@ async function renderWebsiteWeekOne(currentWeekRequest = null, currentRaceReques
       renderWebsiteWeekOneGrid(data, "Week X");
       decorateWebsiteWeekOneHeaders(data);
     }
-    startHistoricalInitialization();
+    // Speed: history loads when someone opens a history page (see the #nav click handler), not on every visit.
     raceRequest?.then(async raceSnapshots => {
       if (refreshGeneration !== websiteLiveRefreshGeneration) return;
       if (raceSnapshots === null) {
@@ -4860,7 +4858,7 @@ async function refreshWebsiteApp() {
   }, { passive: true });
   document.addEventListener("touchcancel", () => { tracking = false; resetWebsitePullRefresh(); }, { passive: true });
 }
-document.addEventListener("click",event=>{const button=event.target.closest("#nav button[data-view]");if(!button)return;if(!document.getElementById(`view-${button.dataset.view}`)?.classList.contains("active"))showView(button.dataset.view);if(button.dataset.view==="enter-picks")setTimeout(()=>{renderWebsitePicksForm();resetWebsiteBestBet();},0);if(["week-one","live-analysis"].includes(button.dataset.view))setTimeout(renderSelectedWebsiteWeek,0);});
+document.addEventListener("click",event=>{const button=event.target.closest("#nav button[data-view]");if(!button)return;if(!["enter-picks","week-one","live-analysis","picks-confirmation"].includes(button.dataset.view)&&!websiteHistoryReady){startHistoricalInitialization().then(()=>{if(document.getElementById(`view-${button.dataset.view}`)?.classList.contains("active"))button.onclick?.call(button);}).catch(error=>console.error("History failed to load",error));}if(!document.getElementById(`view-${button.dataset.view}`)?.classList.contains("active"))showView(button.dataset.view);if(button.dataset.view==="enter-picks")setTimeout(()=>{renderWebsitePicksForm();resetWebsiteBestBet();},0);if(["week-one","live-analysis"].includes(button.dataset.view))setTimeout(renderSelectedWebsiteWeek,0);});
 document.getElementById("website-view-week-one")?.addEventListener("click",()=>{showView("week-one");renderSelectedWebsiteWeek();});
 let profileChart = null, profileMoneyChart = null, profilePlusMinusChart = null, profilePlacementChart = null, profileBestWeeksChart = null, profileRecentChart = null, profileBestBetChart = null, profileTeamChart = null, profileClubChart = null, profileBestGamesChart = null, profileSituationalChart = null, gamePicksTable = null, weekChart = null, weekTable = null, weekRaceChart = null, winnerContributionChart = null, weeklyRankChart = null, streakChart = null, streakTable = null, seasonTopChart = null, seasonTable = null, seasonRaceChart = null, seasonPlayerChart = null, seasonMoneyChart = null, seasonConsistencyChart = null, seasonBbChart = null, seasonTeamsChart = null, seasonContrarianChart = null, seasonTbChart = null, allTimeTopChart = null, allTimePlusMinusChart = null, allTimePlusMinusTrendChart = null, allTimeGamesChart = null, allTimeArcsChart = null, allTimeMoneyChart = null, allTimeTurnoutChart = null, allTimeStreakChart = null, allTimeTeamPicksChart = null, allTimeContrarianChart = null, allTimeSeasonWeeksChart = null, manifest = [], dashboard = [], tableData = {}, websiteWeeks = [], websitePlayoffRoundNames = [], websiteAwards = [], websiteSeasons = [], websitePlayers = [], websiteRecords = [], websiteStreaks = [], websiteGames = [], websitePicks = [], websitePayouts = [];
 let allTimeAttendanceChart = null, allTimeRaceChart = null, allTimeRaceFrames = [], allTimeRaceFrame = 0, allTimeRaceTimer = null, allTimeRaceSelectedPlayer = "", allTimeRacePassesRemaining = 0, allTimeRacePlayback = { delay: RACE_FRAME_DELAY, step: 1 };
@@ -7868,6 +7866,7 @@ function initViews() {
     if (btn.dataset.view === "weeks") { renderWeek(); renderWeekLiveRace(); renderWinnerContributions(true); setTimeout(() => { orientWeekChart(); addGamePushMarkers(); }, 0); }
     if (btn.dataset.view === "season") renderSeasonLiveRace();
     if (btn.dataset.view === "payout") renderPayout(true);
+    if (btn.dataset.view === "alltime") renderAllTime();
     if (btn.dataset.view === "weekly-rank") renderWeeklyRankView();
     if (btn.dataset.view === "names") renderSelectedNameProfile();
     if (btn.dataset.view === "map") initFbpMap();
@@ -7893,9 +7892,24 @@ function initViews() {
   const target = websiteRoutes.includes(requested) ? requested : requestedStartupRoute;
   if (!document.getElementById(`view-${target}`)?.classList.contains("active")) showView(target);
 }
+// Speed: history-only libraries load on first use instead of blocking every page view.
+let websiteHistoryLibsPromise = null;
+function ensureHistoryLibs() {
+  const load = src => new Promise((resolve, reject) => { const tag = document.createElement("script"); tag.src = src; tag.onload = resolve; tag.onerror = () => reject(new Error(`Could not load ${src}`)); document.head.append(tag); });
+  if (!websiteHistoryLibsPromise) websiteHistoryLibsPromise = Promise.all([
+    window.Tabulator ? null : load("https://unpkg.com/tabulator-tables@5.6.0/dist/js/tabulator.min.js"),
+    window.Papa ? null : load("https://cdn.jsdelivr.net/npm/papaparse@5.4.1/papaparse.min.js"),
+    window.L ? null : load("https://unpkg.com/leaflet@1.9.4/dist/leaflet.js"),
+  ]).catch(error => { websiteHistoryLibsPromise = null; throw error; });
+  return websiteHistoryLibsPromise;
+}
 async function init() {
+  const libs = ensureHistoryLibs();
   manifest = await (await fetch(`${DATA_DIR}/manifest.json`)).json();
-  for (const entry of manifest) tableData[entry.key] = await (await fetch(`${DATA_DIR}/${entry.key}.json`)).json();
+  // Speed: fetch the small stat tables together instead of one after another.
+  const tables = await Promise.all(manifest.map(async entry => (await fetch(`${DATA_DIR}/${entry.key}.json`)).json()));
+  manifest.forEach((entry, index) => { tableData[entry.key] = tables[index]; });
+  await libs;
   [websitePlayers, websiteSeasons, websiteWeeks, websitePlayoffRoundNames, websiteAwards, websiteRecords, websiteStreaks] = await Promise.all(["players.json", "seasons.json", "player_weeks.json", "playoff_round_names.json", "awards.json", "records.json", "streaks.json"].map(async file => await (await fetch(`${DATA_DIR}/${file}${file === "player_weeks.json" || file === "playoff_round_names.json" ? `?v=${WEBSITE_WEEK_HISTORY_VERSION}` : ""}`)).json()));
   renderNamesArchiveSummary();
   dashboard = await (await fetch(`${DATA_DIR}/dashboard.json`)).json();
@@ -7914,7 +7928,8 @@ async function init() {
   if (location.hash === "#payout") renderPayout(true);
   populateStreakCategories();
   populateWeeklyRankPlayers();
-  renderAllTime();
+  // Speed: All Time needs every pick ever made (the largest file), so only build it when that page is open.
+  if (location.hash === "#alltime") renderAllTime();
   if (location.hash === "#games") await loadDrilldown();
   if (location.hash === "#weekly-rank") renderWeeklyRankView();
 }
@@ -8142,11 +8157,13 @@ document.getElementById("notification-preferences-form")?.addEventListener("subm
 initializeNotificationPreferences();
 initializePushNotifications();
 let historicalInitializationPromise = null;
+var websiteHistoryReady = false;
 function startHistoricalInitialization() {
-  if (!historicalInitializationPromise) historicalInitializationPromise = init().then(async () => { applyHistoricalLabels(); populateWeekSeasons(); populateSeasonChoices(); if (location.hash === "#weeks") { await loadDrilldown(); renderWinnerContributions(true); renderPicksGrid(); setTimeout(() => { orientWeekChart(); addGamePushMarkers(); }, 0); } if (location.hash === "#map") initFbpMap(); if (location.hash === "#submission-status") renderSubmissionStatus(); if (websiteLastWeekData) renderWebsiteWeekRecap(websiteLastWeekData); });
+  if (!historicalInitializationPromise) historicalInitializationPromise = init().then(async () => { websiteHistoryReady = true; applyHistoricalLabels(); populateWeekSeasons(); populateSeasonChoices(); if (location.hash === "#weeks") { await loadDrilldown(); renderWinnerContributions(true); renderPicksGrid(); setTimeout(() => { orientWeekChart(); addGamePushMarkers(); }, 0); } if (location.hash === "#map") initFbpMap(); if (location.hash === "#submission-status") renderSubmissionStatus(); if (websiteLastWeekData) renderWebsiteWeekRecap(websiteLastWeekData); });
   return historicalInitializationPromise;
 }
 if (requestedStartupRoute !== "week-one") startHistoricalInitialization();
+document.addEventListener("focusin", event => { if (!websiteHistoryReady && event.target.closest?.("#notification-preferences-form, #push-notification-settings, [list=\"notification-player-options\"]")) startHistoricalInitialization().catch(() => {}); });
 </script>
 <script src="teams.js?v=20260902-2"></script>
 <script src="map.js?v=20261016-2"></script>

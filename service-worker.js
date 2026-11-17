@@ -9,16 +9,9 @@ self.addEventListener("install", event => {
 self.addEventListener("activate", event => {
   event.waitUntil((async () => {
     const keys = await caches.keys();
-    await Promise.all(keys.filter(key => key !== CACHE_NAME).map(key => caches.delete(key)));
+    await Promise.all(keys.filter(key => key !== CACHE_NAME && key !== DATA_CACHE).map(key => caches.delete(key)));
     await self.clients.claim();
-    const clients = await self.clients.matchAll({ type: "window", includeUncontrolled: true });
-    await Promise.all(clients.map(async client => {
-      try {
-        await client.navigate(client.url);
-      } catch (error) {
-        console.warn("Could not reload client after service-worker update.", error);
-      }
-    }));
+    // Speed: no forced reload of open pages; pages are fetched fresh from the network on the next visit.
   })());
 });
 
@@ -29,6 +22,16 @@ self.addEventListener("fetch", event => {
   }
   const requestUrl = new URL(event.request.url);
   if (requestUrl.origin !== self.location.origin) return;
+  // Speed: history data files show instantly from the phone's copy and refresh in the background for next time.
+  if (event.request.method === "GET" && /\/data\/[^/]+\.json$/.test(requestUrl.pathname)) {
+    event.respondWith(caches.open(DATA_CACHE).then(async cache => {
+      const cached = await cache.match(event.request);
+      const network = fetch(event.request).then(response => { if (response.ok) cache.put(event.request, response.clone()); return response; });
+      if (cached) { event.waitUntil(network.catch(() => {})); return cached; }
+      return network;
+    }));
+    return;
+  }
   const shellPath = `.${requestUrl.pathname.slice(self.registration.scope.length - self.location.origin.length - 1)}`;
   if (!APP_SHELL.includes(shellPath)) return;
   event.respondWith(fetch(event.request).then(response => {
