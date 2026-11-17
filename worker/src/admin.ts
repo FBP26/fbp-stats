@@ -2,7 +2,7 @@
 // Served by the Worker at /admin (separate from the public website). Sign-in is a normal username/password form so
 // phone password managers save it; a signed cookie then keeps the phone signed in for about a year.
 import {
-  addPayoutPlayers, balanceCents, editPayoutCell, ledgerEntries, loadSeasonRows, payoutSeasons, recordPayment, recordPayout,
+  addPayoutPlayers, applyCreditToFutureWeeks, balanceCents, editPayoutCell, ledgerEntries, loadSeasonRows, payoutSeasons, recordPayment, recordPayout,
 } from "./payouts";
 
 export interface AdminEnv {
@@ -267,7 +267,8 @@ export const handleAdmin = async (request: Request, env: AdminEnv): Promise<Resp
       return apiJson({ ok: true, seasons, season: chosen, rows: chosen ? await loadSeasonRows(env.DB, chosen) : [] });
     }
     if (route === "payouts/cell") return apiJson({ ok: true, result: await editPayoutCell(env.DB, { season, player: String(body.player || ""), column: String(body.column || ""), value: String(body.value ?? ""), adjustBalance: body.adjustBalance !== false, note: String(body.note || "") }) });
-    if (route === "payouts/payment") return apiJson({ ok: true, result: await recordPayment(env.DB, { season, player: String(body.player || ""), amountCents: cents(body.amount), note: String(body.note || "") }) });
+    if (route === "payouts/payment") return apiJson({ ok: true, result: await recordPayment(env.DB, { season, player: String(body.player || ""), amountCents: cents(body.amount), note: String(body.note || ""), prepay: body.prepay !== false }) });
+    if (route === "payouts/prepay") return apiJson({ ok: true, result: await applyCreditToFutureWeeks(env.DB, { season, player: String(body.player || ""), note: String(body.note || "") }) });
     if (route === "payouts/payout") return apiJson({ ok: true, result: await recordPayout(env.DB, { season, player: String(body.player || ""), amountCents: cents(body.amount), note: String(body.note || "") }) });
     if (route === "payouts/player") {
       const name = String(body.name || "").trim().replace(/\s+/g, " ");
@@ -352,9 +353,12 @@ function editCell(player,i){const L=labels(),B=balIdx();const row=player==="__ch
 if(i===B&&player!=="__champion__"){openSheet('<h2>'+esc(name)+' · Balance</h2><p class="muted">Now: <b class="'+cls(cur,true)+'">'+esc(cur||"even")+'</b> — "100" = owes $100, "+100" = you owe them $100.</p>'+
 '<div class="row"><input id="amt" inputmode="decimal" placeholder="Amount $" class="grow"><input id="note" placeholder="Note (optional)" class="grow"></div>'+
 '<div class="row"><button class="btn primary grow" id="pay">Payment received</button><button class="btn grow" id="out">Paid out to them</button></div>'+
+'<label class="muted"><input type="checkbox" id="prep" checked> Put anything extra toward their next open weeks (marked "paid")</label>'+
+(String(cur).trim().startsWith("+")?'<div class="row"><button class="btn grow" id="usecr">Use their '+esc(cur)+' credit for future weeks</button></div>':'')+
 '<p class="muted">Payment received turns their owed weeks to "paid" (oldest first). Paid out lowers their + credit.</p>'+
 '<div class="row"><input id="setbal" placeholder="Or type a new balance (even, 40, +120)" class="grow"><button class="btn" id="set">Set</button></div><button class="btn full" data-close>Cancel</button>');
-const amount=()=>$("#amt").value;$("#pay").onclick=()=>act("payouts/payment",{season:state.season,player,amount:amount(),note:$("#note").value},r=>name+': payment recorded. Balance '+r.balanceBefore+' → '+r.balanceAfter);
+const amount=()=>$("#amt").value;$("#pay").onclick=()=>act("payouts/payment",{season:state.season,player,amount:amount(),note:$("#note").value,prepay:$("#prep").checked},r=>name+': payment recorded. Balance '+r.balanceBefore+' → '+r.balanceAfter+(r.prepaid&&r.prepaid.length?'. Prepaid '+r.prepaid.join(", "):''));
+if($("#usecr"))$("#usecr").onclick=()=>act("payouts/prepay",{season:state.season,player,note:$("#note").value},r=>name+': prepaid '+r.prepaid.join(", ")+'. Balance '+r.balanceBefore+' → '+r.balanceAfter);
 $("#out").onclick=()=>act("payouts/payout",{season:state.season,player,amount:amount(),note:$("#note").value},r=>name+': payout recorded. Balance '+r.balanceBefore+' → '+r.balanceAfter);
 $("#set").onclick=()=>act("payouts/cell",{season:state.season,player,column:"Balance",value:$("#setbal").value,note:$("#note").value},r=>name+': balance '+r.balanceBefore+' → '+r.balanceAfter);}
 else{const isPO=col.trim().toLowerCase()==="playoffs";const opts=player==="__champion__"?["20","360",""]:["paid","10",isPO?"20":null,"win",""].filter(v=>v!==null);

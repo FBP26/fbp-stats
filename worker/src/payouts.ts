@@ -240,7 +240,39 @@ export const editPayoutCell = async (
  * Money received from a player. Owed week cells ("10") become "paid", oldest first, as far as the payment covers;
  * the balance goes down by the full amount (anything extra becomes a credit).
  */
-export const recordPayment = async (db: D1Database, input: { season: number; player: string; amountCents: number; note?: string }) => {
+const lastSettledWeek = async (db: D1Database, season: number): Promise<number> => {
+  const row = await db.prepare("SELECT MAX(week) AS week FROM payout_settlements WHERE season = ?").bind(season).first<{ week: number | null }>();
+  return Number(row?.week || 0);
+};
+
+/**
+ * Turn a credit ("+" balance) into prepaid future weeks: blank cells after the last settled week become "paid",
+ * in order, $10 each ($20 for Playoffs), as far as the credit covers. Returns the weeks filled and the credit used.
+ */
+const prepayFutureWeeks = (rows: PayoutRow[], row: PayoutRow, creditCents: number, lastSettled: number): { weeks: string[]; usedCents: number } => {
+  const balanceColumn = balanceIndex(rows);
+  const weeks: string[] = [];
+  let used = 0;
+  periodLabels(rows).forEach((label, index) => {
+    if (index === balanceColumn || !label.trim()) return;
+    const text = label.trim().toLowerCase();
+    const future = text === "playoffs" || (/^\d+$/.test(text) && Number(text) > lastSettled);
+    if (!future || row.cells[index].trim()) return;
+    const fee = feeCents(rows, index);
+    if (creditCents - used < fee) return;
+    row.cells[index] = "paid";
+    used += fee;
+    weeks.push(periodName(label));
+  });
+  return { weeks, usedCents: used };
+};
+
+/**
+ * Money received from a player. Owed week cells ("10") become "paid", oldest first, as far as the payment covers;
+ * the balance goes down by the full amount. Anything left over prepays future weeks (unless prepay is false),
+ * and only a remainder smaller than one entry stays as a "+" credit.
+ */
+export const recordPayment = async (db: D1Database, input: { season: number; player: string; amountCents: number; note?: string; prepay?: boolean }) => {
   if (!Number.isInteger(input.amountCents) || input.amountCents <= 0) throw new Error("Enter a payment amount above $0.");
   const rows = await loadSeasonRows(db, input.season);
   const row = findPlayer(rows, input.player);
@@ -258,8 +290,15 @@ export const recordPayment = async (db: D1Database, input: { season: number; pla
       covered.push(periodName(label));
     }
   });
-  const after = before - input.amountCents;
+  const afterPayment = before - input.amountCents;
+  let after = afterPayment;
+  let prepaid: { weeks: string[]; usedCents: number } = { weeks: [], usedCents: 0 };
+  if (input.prepay !== false && afterPayment < 0) {
+    prepaid = prepayFutureWeeks(rows, row, -afterPayment, await lastSettledWeek(db, input.season));
+    after = afterPayment + prepaid.usedCents;
+  }
   row.cells[balanceColumn] = balanceText(after);
+  const reference = uniqueReference("PAYMENT");
   const statements = [rowUpdate(db, row), ledgerInsert(db, {
     season: input.season,
     player: row.label,
@@ -267,12 +306,54 @@ export const recordPayment = async (db: D1Database, input: { season: number; pla
     period: "Manual",
     moneyInCents: input.amountCents,
     balanceChangeCents: -input.amountCents,
-    balanceAfterCents: after,
-    reference: uniqueReference("PAYMENT"),
+    balanceAfterCents: afterPayment,
+    reference,
     notes: [input.note?.trim(), covered.length ? `Marked paid: ${covered.join(", ")}.` : ""].filter(Boolean).join(" "),
   })];
+  if (prepaid.usedCents) {
+    statements.push(ledgerInsert(db, {
+      season: input.season,
+      player: row.label,
+      type: "PREPAID_ALLOCATION",
+      period: prepaid.weeks.join(", "),
+      balanceChangeCents: prepaid.usedCents,
+      balanceAfterCents: after,
+      reference: `${reference}|PREPAID`,
+      notes: `${money(prepaid.usedCents)} of the payment prepaid ${prepaid.weeks.join(", ")}.`,
+    }));
+  }
+  const totals = recomputeTotals(rows);
+  if (totals) statements.push(rowUpdate(db, totals));
   await db.batch(statements);
-  return { player: row.label, balanceBefore: balanceText(before), balanceAfter: balanceText(after), covered };
+  return { player: row.label, balanceBefore: balanceText(before), balanceAfter: balanceText(after), covered, prepaid: prepaid.weeks };
+};
+
+/** Use an existing "+" credit to prepay future weeks (same rules as a payment's leftover). */
+export const applyCreditToFutureWeeks = async (db: D1Database, input: { season: number; player: string; note?: string }) => {
+  const rows = await loadSeasonRows(db, input.season);
+  const row = findPlayer(rows, input.player);
+  if (!row) throw new Error(`${input.player} is not in the ${input.season} payout grid.`);
+  const balanceColumn = balanceIndex(rows);
+  const before = balanceCents(row.cells[balanceColumn]);
+  if (before >= 0) throw new Error(`${row.label} has no credit to use.`);
+  const prepaid = prepayFutureWeeks(rows, row, -before, await lastSettledWeek(db, input.season));
+  if (!prepaid.usedCents) throw new Error(`${row.label}'s credit doesn't cover another open week.`);
+  const after = before + prepaid.usedCents;
+  row.cells[balanceColumn] = balanceText(after);
+  const statements = [rowUpdate(db, row), ledgerInsert(db, {
+    season: input.season,
+    player: row.label,
+    type: "PREPAID_ALLOCATION",
+    period: prepaid.weeks.join(", "),
+    balanceChangeCents: prepaid.usedCents,
+    balanceAfterCents: after,
+    reference: uniqueReference("PREPAY"),
+    notes: input.note?.trim() || `Credit used to prepay ${prepaid.weeks.join(", ")}.`,
+  })];
+  const totals = recomputeTotals(rows);
+  if (totals) statements.push(rowUpdate(db, totals));
+  await db.batch(statements);
+  return { player: row.label, balanceBefore: balanceText(before), balanceAfter: balanceText(after), prepaid: prepaid.weeks };
 };
 
 /** Cash paid out to a player against their credit (a "+" balance). */
