@@ -2935,10 +2935,18 @@ const runOwnerEmails = async (env: Env): Promise<void> => {
 export default {
   async fetch(request: Request, env: Env): Promise<Response> {
     playoffReplayOffset = env.TEST_COPY === "1" ? Number(env.TEST_REPLAY_SEASON_OFFSET || 0) || 0 : 0;
-    if (env.TEST_COPY === "1" && request.method === "POST" && new URL(request.url).searchParams.get("action") === "test-run-scheduled") {
-      // Test copy only: run one scheduled pass on demand (the test copy has no cron).
-      await runScheduled(env);
-      return json({ ok: true, ranAt: new Date().toISOString() }, 200, env.CORS_ORIGIN);
+    const testAction = new URL(request.url).searchParams.get("action") || "";
+    if (env.TEST_COPY === "1" && request.method === "POST" && testAction.startsWith("test-")) {
+      // Test copy only (it has no cron and cannot send email): drive a playoff replay by hand.
+      if (testAction === "test-run-scheduled") await runScheduled(env);
+      if (testAction === "test-refresh-on") await env.DB.prepare("INSERT INTO ops_flags (name, value) VALUES ('test-allow-refresh', '1') ON CONFLICT (name) DO NOTHING").run();
+      if (testAction === "test-refresh-off") await env.DB.prepare("DELETE FROM ops_flags WHERE name = 'test-allow-refresh'").run();
+      if (testAction === "test-future-candidate") {
+        await env.DB.prepare("UPDATE week_setup_candidates SET slate_json = replace(slate_json, '\"kickoff\":\"' || ? || '-', '\"kickoff\":\"' || ? || '-') WHERE status = 'pending'")
+          .bind(String(new Date().getUTCFullYear()), String(new Date().getUTCFullYear() + 1)).run();
+      }
+      const review = await env.DB.prepare("SELECT value FROM ops_flags WHERE name = 'test-last-review-url'").first<{ value: string }>();
+      return json({ ok: true, ranAt: new Date().toISOString(), reviewUrl: review?.value || "" }, 200, env.CORS_ORIGIN);
     }
     const admin = await handleAdmin(request, env);
     if (admin) return admin;
