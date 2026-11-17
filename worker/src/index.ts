@@ -4,7 +4,7 @@ import { buildRaceGameState, validateRaceSnapshotPlayers } from "./race";
 import { leaderPushSummary, maskNotificationDestination, normalizeNotificationDestination, notificationEvents, notificationPreferenceColumns, parseNotificationPreferences, picksDueReminderCheckpoints, picksDueReminderIsEligible, scheduledNotificationEvents, seasonRankMovementSummary, type LeaderPushScoreChange, type NotificationChannel, type NotificationEvent, type SeasonStanding } from "./notifications";
 import { sendWebPush, type PushSubscriptionRecord } from "./web-push";
 import { handleAdmin } from "./admin";
-import { balanceCents, balanceIndex, buildWinnerEmail, loadSeasonRows, money, publicSheetRows, settleFinalizedWeek, type WeekArchive } from "./payouts";
+import { balanceCents, balanceIndex, buildChampionEmail, buildWinnerEmail, settleSeasonChampion, loadSeasonRows, money, publicSheetRows, settleFinalizedWeek, type WeekArchive } from "./payouts";
 
 interface Env {
   DB: D1Database;
@@ -1381,7 +1381,37 @@ const syncFinalizedPayouts = async (env: Env): Promise<boolean> => {
       await recordOpsEvent(env, "error", "payouts", `Week ${row.week} payout settlement failed: ${message}`);
     }
   }
+  if (ok) ok = await syncSeasonChampion(env);
   return ok;
+};
+
+// After Week 18 is settled: credit the season champion(s) and email the owner once.
+const syncSeasonChampion = async (env: Env): Promise<boolean> => {
+  const season = Number((await env.DB.prepare("SELECT MAX(season) AS season FROM payout_rows").first<{ season: number }>())?.season);
+  if (!season) return true;
+  const settled = await env.DB.prepare("SELECT 1 AS done FROM payout_settlements WHERE season = ? AND week = 18 AND winner_email_sent_at IS NOT NULL").bind(season).first();
+  if (!settled) return true;
+  const flag = `champion-email:${season}`;
+  if (await env.DB.prepare("SELECT 1 FROM ops_flags WHERE name = ?").bind(flag).first()) return true;
+  try {
+    const archives = await env.DB.prepare(
+      `SELECT a.payload_json FROM weeks w JOIN completed_week_archives a ON a.week_id = w.id
+       WHERE w.season = ? AND w.phase = 'REGULAR_SEASON' AND w.status = 'finalized' ORDER BY w.week`,
+    ).bind(season).all<{ payload_json: string }>();
+    const report = await settleSeasonChampion(env.DB, season, (archives.results || []).map((row) => JSON.parse(row.payload_json) as WeekArchive));
+    const email = buildChampionEmail(report);
+    if (!(await claimOpsFlag(env, flag))) return true;
+    if (!(await sendOwnerOperationalEmail(env, email.subject, email.body))) {
+      await releaseOpsFlag(env, flag);
+      await recordOpsEvent(env, "error", "champion", "Season champion email could not be sent; it will retry.");
+      return false;
+    }
+    return true;
+  } catch (error) {
+    const message = error instanceof Error ? error.message : String(error);
+    await recordOpsEvent(env, "error", "champion", `Season champion payout failed: ${message}`);
+    return false;
+  }
 };
 
 const recordOpsEvent = async (env: Env, level: "info" | "warn" | "error", source: string, message: string): Promise<void> => {

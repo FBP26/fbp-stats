@@ -448,20 +448,34 @@ export interface RankedPlayer {
   tiebreakDifference: number;
 }
 
+/** One entry per player (the latest submission wins), so a resubmission is never counted twice. */
+export const uniqueSubmissions = (submissions: ArchiveSubmission[]): ArchiveSubmission[] => {
+  const latest = new Map<string, ArchiveSubmission>();
+  const stamp = (entry: ArchiveSubmission) => Date.parse(String((entry as unknown as { submittedAt?: string }).submittedAt || "")) || 0;
+  for (const entry of submissions) {
+    const key = normalizeName(entry.name);
+    if (!key) continue;
+    const previous = latest.get(key);
+    if (!previous || stamp(entry) >= stamp(previous)) latest.set(key, entry);
+  }
+  return [...latest.values()];
+};
+
 export const rankArchive = (archive: WeekArchive): RankedPlayer[] => {
+  // Older archives (from the Sheet CSVs) write road teams in lower case; compare team codes case-insensitively.
   const games: ScoringGame[] = archive.games.map((game) => ({
-    favorite: String(game.favorite || ""),
-    underdog: String(game.underdog || ""),
+    favorite: String(game.favorite || "").toUpperCase(),
+    underdog: String(game.underdog || "").toUpperCase(),
     spread: Number(game.spread),
     status: (String(game.state || game.status || "FINAL").toUpperCase() as ScoringGame["status"]),
     favoriteScore: game.favoriteScore == null ? null : Number(game.favoriteScore),
     underdogScore: game.underdogScore == null ? null : Number(game.underdogScore),
   }));
-  const cards: PlayerCard[] = archive.submissions.map((submission) => ({
+  const cards: PlayerCard[] = uniqueSubmissions(archive.submissions).map((submission) => ({
     name: String(submission.name || "").trim(),
     weekName: String(submission.weekName || ""),
-    picks: submission.picks.map(String),
-    bestBet: String(submission.bestBet || ""),
+    picks: submission.picks.map((pick) => String(pick).toUpperCase()),
+    bestBet: String(submission.bestBet || "").toUpperCase(),
     tiebreaker: Number(submission.tiebreaker),
   })).filter((card) => card.name);
   return scoreWeekWithoutProbabilities(cards, games, Number(archive.actualTiebreaker)).map((player) => ({
@@ -508,7 +522,7 @@ export interface SettlementReport {
 export const settleFinalizedWeek = async (db: D1Database, archive: WeekArchive): Promise<SettlementReport> => {
   const season = Number(archive.seasonStart);
   const week = Number(archive.week);
-  const participants = archive.submissions.map((submission) => String(submission.name || "").trim()).filter(Boolean);
+  const participants = uniqueSubmissions(archive.submissions).map((submission) => String(submission.name || "").trim()).filter(Boolean);
   if (!participants.length) throw new Error(`Week ${week} has no finalized participants.`);
   const ranked = rankArchive(archive);
   const winners = archiveWinners(ranked);
@@ -674,4 +688,118 @@ ${section("Payout", `<p style="margin:0;line-height:1.5;white-space:pre-wrap">${
 <div style="padding:11px;border-radius:6px;background:#fff;border:1px solid #d9dee5;white-space:pre-wrap;font-family:Consolas,'Courier New',monospace;font-size:12px;line-height:1.5">${escapeHtml(share)}</div>
 </div></div></div>`;
   return { subject: `FBP Week ${report.week} winner: ${label}`, body, htmlBody };
+};
+
+// ---------------------------------------------------------------------------------------------------------------
+// Season champion (after Week 18). Rules (owner-confirmed Nov 2026, same as the history build): best regular-season
+// win % (wins and losses include the Best Bet) among players who missed no more than 3 weeks; a tie on win % goes to
+// more wins, and anyone still tied splits the pot. The pot is the champion row's Playoffs cell (18 x $20 = $360).
+
+export interface ChampionStanding { name: string; wins: number; losses: number; weeks: number; winPct: number; qualified: boolean }
+export interface ChampionReport {
+  season: number;
+  seasonWeeks: number;
+  potCents: number;
+  shareCents: number;
+  champions: ChampionStanding[];
+  standings: ChampionStanding[];
+  breakdown: WinnerBreakdown[];
+  alreadySettled: boolean;
+}
+
+export const seasonChampionStandings = (archives: WeekArchive[]): { seasonWeeks: number; standings: ChampionStanding[] } => {
+  const seasonWeeks = Math.max(0, ...archives.map((archive) => Number(archive.week)));
+  const totals = new Map<string, ChampionStanding>();
+  for (const archive of archives) {
+    for (const player of rankArchive(archive)) {
+      const key = normalizeName(player.name);
+      const row = totals.get(key) || { name: player.name, wins: 0, losses: 0, weeks: 0, winPct: 0, qualified: false };
+      row.wins += player.wins;
+      row.losses += player.losses;
+      row.weeks += 1;
+      totals.set(key, row);
+    }
+  }
+  const standings = [...totals.values()].map((row) => ({
+    ...row,
+    winPct: row.wins + row.losses ? row.wins / (row.wins + row.losses) : 0,
+    qualified: row.weeks >= seasonWeeks - 3,
+  })).sort((a, b) => Number(b.qualified) - Number(a.qualified) || b.winPct - a.winPct || b.wins - a.wins || a.name.localeCompare(b.name));
+  return { seasonWeeks, standings };
+};
+
+export const settleSeasonChampion = async (db: D1Database, season: number, archives: WeekArchive[]): Promise<ChampionReport> => {
+  const { seasonWeeks, standings } = seasonChampionStandings(archives);
+  if (seasonWeeks < 18 || new Set(archives.map((archive) => Number(archive.week))).size < 18) throw new Error("The season champion is paid only after all 18 weeks are final.");
+  const qualified = standings.filter((row) => row.qualified);
+  if (!qualified.length) throw new Error("No player qualified for the season championship.");
+  const best = qualified[0];
+  const champions = qualified.filter((row) => row.winPct === best.winPct && row.wins === best.wins);
+  const rows = await loadSeasonRows(db, season);
+  const balanceColumn = balanceIndex(rows);
+  const playoffColumn = periodIndex(rows, "playoffs");
+  const championRow = rows.find((row) => row.kind === "champion");
+  if (!championRow) throw new Error(`The ${season} payout grid has no champion row.`);
+  const potCents = owedCents(championRow.cells[playoffColumn])
+    || periodLabels(rows).reduce((sum, label, index) => sum + (/^\d+$/.test(label.trim()) ? owedCents(championRow.cells[index]) : 0), 0);
+  const shareCents = Math.round(potCents / champions.length);
+  const existing = await db.prepare("SELECT reference FROM payout_ledger WHERE season = ? AND reference LIKE ?").bind(season, `CHAMPION|${season}|%`).all<{ reference: string }>();
+  const references = new Set((existing.results || []).map((row) => row.reference));
+  const statements: D1PreparedStatement[] = [];
+  const breakdown: WinnerBreakdown[] = [];
+  let alreadySettled = true;
+  for (const champion of champions) {
+    const row = findPlayer(rows, champion.name);
+    if (!row) throw new Error(`Payout row is missing for champion ${champion.name}.`);
+    const reference = `CHAMPION|${season}|${row.label}`;
+    const before = balanceCents(row.cells[balanceColumn]);
+    if (references.has(reference)) {
+      breakdown.push({ name: row.label, balanceBeforePrizeCents: before + shareCents, balanceAfterCents: before, paidForSeason: false, weekStatus: "" });
+      continue;
+    }
+    alreadySettled = false;
+    const after = before - shareCents;
+    row.cells[balanceColumn] = balanceText(after);
+    statements.push(rowUpdate(db, row));
+    statements.push(ledgerInsert(db, {
+      season, player: row.label, type: "CHAMPION_PRIZE", period: "Season", balanceChangeCents: -shareCents, balanceAfterCents: after, reference,
+      notes: `${season} season champion${champions.length > 1 ? ` (${champions.length}-way split of ${money(potCents)})` : ""}: ${champion.wins}-${champion.losses}, ${(champion.winPct * 100).toFixed(1)}%.`,
+      source: "automatic",
+    }));
+    breakdown.push({ name: row.label, balanceBeforePrizeCents: before, balanceAfterCents: after, paidForSeason: false, weekStatus: "" });
+  }
+  const winnerCell = `Winner: ${champions.map((row) => findPlayer(rows, row.name)?.label || row.name).join(" & ")}`;
+  if (championRow.cells[balanceColumn] !== winnerCell) {
+    championRow.cells[balanceColumn] = winnerCell;
+    statements.push(rowUpdate(db, championRow));
+  }
+  if (statements.length) await db.batch(statements);
+  return { season, seasonWeeks, potCents, shareCents, champions, standings, breakdown, alreadySettled };
+};
+
+export const buildChampionEmail = (report: ChampionReport) => {
+  const names = report.champions.map((row) => row.name);
+  const label = names.join(" and ");
+  const champion = report.champions[0];
+  const pct = (row: ChampionStanding) => `${(row.winPct * 100).toFixed(1)}%`;
+  const lines = [
+    `${label} ${names.length > 1 ? "share" : "wins"} the ${report.season}-${report.season + 1} FBP season championship: ${champion.wins}-${champion.losses} (${pct(champion)}).`,
+    "",
+    "Top 5 (qualified: missed 3 weeks or fewer):",
+    ...report.standings.filter((row) => row.qualified).slice(0, 5).map((row, index) => `${index + 1}. ${row.name} ${row.wins}-${row.losses} (${pct(row)}, ${row.weeks} weeks)`),
+    "",
+    "Payout:",
+    `Champion pot: ${money(report.potCents)}${names.length > 1 ? ` split ${names.length} ways = ${money(report.shareCents)} each` : ""}`,
+    ...report.breakdown.map((item) => {
+      const before = item.balanceBeforePrizeCents;
+      if (before > 0) {
+        const applied = Math.min(before, report.shareCents);
+        return `${item.name}: ${money(before)} owed. Apply ${money(applied)} to the balance${report.shareCents > applied ? ` and pay ${money(report.shareCents - applied)}` : ""}.`;
+      }
+      return `${item.name}: ${before < 0 ? `+${money(-before)} credit` : "even"} before the prize. Pay ${money(report.shareCents)} now, or carry it as credit (balance now ${balanceText(item.balanceAfterCents)}).`;
+    }),
+    "",
+    "The champion's balance in FBP Admin already includes this prize.",
+  ];
+  return { subject: `FBP ${report.season} season champion: ${label}`, body: lines.join("\n") };
 };
