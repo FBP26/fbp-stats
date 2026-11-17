@@ -3,6 +3,8 @@ import { espnEventId, fetchEspnGame, isRefreshWindow, parseEspnGame, resolveEspn
 import { buildRaceGameState, validateRaceSnapshotPlayers } from "./race";
 import { leaderPushSummary, maskNotificationDestination, normalizeNotificationDestination, notificationEvents, notificationPreferenceColumns, parseNotificationPreferences, picksDueReminderCheckpoints, picksDueReminderIsEligible, scheduledNotificationEvents, seasonRankMovementSummary, type LeaderPushScoreChange, type NotificationChannel, type NotificationEvent, type SeasonStanding } from "./notifications";
 import { sendWebPush, type PushSubscriptionRecord } from "./web-push";
+import { handleAdmin } from "./admin";
+import { buildWinnerEmail, publicSheetRows, settleFinalizedWeek, type WeekArchive } from "./payouts";
 
 interface Env {
   DB: D1Database;
@@ -19,6 +21,8 @@ interface Env {
   ADMIN_PUSH_PLAYER?: string;
   ADMIN_PUSH_TEST_SECRET?: string;
   ADMIN_SUBMISSION_CLEANUP_SECRET?: string;
+  FBP_ADMIN_PASSWORD?: string;
+  FBP_ADMIN_USERNAME?: string;
 }
 
 type JsonObject = Record<string, unknown>;
@@ -697,6 +701,11 @@ const handleGet = async (request: Request, env: Env): Promise<Response> => {
       games,
       enrichmentError: "",
     }, 200, env.CORS_ORIGIN);
+  }
+
+  if (action === "payout-sheet") {
+    // The payout grid in the Google Sheet's row layout, for the public Payout page.
+    return json({ ok: true, rows: await publicSheetRows(env.DB) }, 200, env.CORS_ORIGIN);
   }
 
   if (action === "season-status") {
@@ -1390,31 +1399,54 @@ const weekSetupEmail = (week: number, games: YahooWeekGame[], reviewUrl: string,
   };
 };
 
+// Payouts live in D1 (payout_rows / payout_ledger) instead of the Google Sheet. For every finalized regular-season
+// week that has not been settled yet: charge entries, roll over unused prepaid weeks, credit the winner(s), then email
+// the owner the winner summary once.
 const syncFinalizedPayouts = async (env: Env): Promise<boolean> => {
-  const relayUrl = env.EMAIL_RELAY_URL?.trim();
-  if (!relayUrl || !env.EMAIL_RELAY_SECRET?.trim()) return false;
-  try {
-    const response = await fetch(relayUrl, {
-      method: "POST",
-      headers: { "Content-Type": "text/plain;charset=UTF-8" },
-      body: JSON.stringify({ action: "sync-finalized-payouts", secret: env.EMAIL_RELAY_SECRET }),
-    });
-    const text = await response.text();
-    let result: { ok?: boolean; error?: string } | null = null;
-    try {
-      result = JSON.parse(text) as { ok?: boolean; error?: string };
-    } catch (error) {
-      console.warn(`Finalized payout sync relay returned invalid JSON (HTTP ${response.status}): ${error instanceof Error ? error.message : "unknown parse error"}`);
-      return false;
-    }
-    if (!response.ok || result?.ok !== true) {
-      console.warn(`Finalized payout sync relay failed (HTTP ${response.status}): ${result?.error || "no error detail returned"}`);
-      return false;
-    }
-    return true;
-  } catch (error) {
-    console.warn("Finalized payout sync relay failed", error);
+  const imported = await env.DB.prepare("SELECT 1 AS ready FROM payout_rows LIMIT 1").first<{ ready: number }>().catch(() => null);
+  if (!imported) {
+    console.warn("Payout grid has not been imported into D1 yet; weekly payout settlement skipped.");
     return false;
+  }
+  const pending = await env.DB.prepare(
+    `SELECT w.season, w.week, a.payload_json, ps.winner_email_sent_at, ps.season AS settled
+     FROM weeks w JOIN completed_week_archives a ON a.week_id = w.id
+     LEFT JOIN payout_settlements ps ON ps.season = w.season AND ps.week = w.week
+     WHERE w.phase = 'REGULAR_SEASON' AND w.status = 'finalized'
+       AND w.season = (SELECT MAX(season) FROM payout_rows)
+       AND (ps.season IS NULL OR ps.winner_email_sent_at IS NULL)
+     ORDER BY w.week`,
+  ).all<{ season: number; week: number; payload_json: string; winner_email_sent_at: string | null; settled: number | null }>();
+  let ok = true;
+  for (const row of pending.results || []) {
+    try {
+      const archive = JSON.parse(row.payload_json) as WeekArchive;
+      const report = await settleFinalizedWeek(env.DB, archive);
+      if (report.addedPlayers.length) await recordOpsEvent(env, "warn", "payouts", `Week ${row.week}: added ${report.addedPlayers.join(", ")} to the payout grid automatically.`);
+      if (!row.winner_email_sent_at) {
+        const email = buildWinnerEmail(report, env.PUBLIC_SITE_URL || "https://fbp26.github.io/fbp-stats/", Number(archive.actualTiebreaker));
+        if (await sendOwnerOperationalEmail(env, email.subject, email.body, email.htmlBody)) {
+          await env.DB.prepare("UPDATE payout_settlements SET winner_email_sent_at = CURRENT_TIMESTAMP WHERE season = ? AND week = ?").bind(row.season, row.week).run();
+        } else {
+          ok = false;
+          await recordOpsEvent(env, "error", "winner-email", `Week ${row.week} winner email could not be sent; it will retry.`);
+        }
+      }
+    } catch (error) {
+      ok = false;
+      const message = error instanceof Error ? error.message : String(error);
+      console.error(`Week ${row.week} payout settlement failed: ${message}`);
+      await recordOpsEvent(env, "error", "payouts", `Week ${row.week} payout settlement failed: ${message}`);
+    }
+  }
+  return ok;
+};
+
+const recordOpsEvent = async (env: Env, level: "info" | "warn" | "error", source: string, message: string): Promise<void> => {
+  try {
+    await env.DB.prepare("INSERT INTO ops_events (level, source, message) VALUES (?, ?, ?)").bind(level, source, message.slice(0, 1000)).run();
+  } catch (error) {
+    console.warn("Could not record an ops event", error);
   }
 };
 
@@ -2469,8 +2501,124 @@ const handlePost = async (request: Request, env: Env): Promise<Response> => {
   return json({ ok: false, error: "Unknown action." }, 400, env.CORS_ORIGIN);
 };
 
+
+// ---------------------------------------------------------------------------------------------------------------
+// Owner emails sent by the Worker to fbpool07 (via sendOwnerOperationalEmail):
+//  * Saturday 7 PM Eastern: who has and hasn't submitted picks for the open week.
+//  * Every morning at 8 AM Eastern, only if something needs attention: the daily health check.
+
+const easternParts = (date = new Date()): { weekday: string; hour: number; day: string } => {
+  const parts = Object.fromEntries(new Intl.DateTimeFormat("en-US", {
+    timeZone: "America/New_York", weekday: "short", hour: "numeric", hourCycle: "h23", year: "numeric", month: "2-digit", day: "2-digit",
+  }).formatToParts(date).map((part) => [part.type, part.value]));
+  return { weekday: String(parts.weekday), hour: Number(parts.hour), day: `${parts.year}-${parts.month}-${parts.day}` };
+};
+
+const claimOpsFlag = async (env: Env, name: string): Promise<boolean> => {
+  const result = await env.DB.prepare("INSERT INTO ops_flags (name, value) VALUES (?, ?) ON CONFLICT (name) DO NOTHING")
+    .bind(name, new Date().toISOString()).run();
+  return Number(result.meta?.changes || 0) > 0;
+};
+
+const releaseOpsFlag = async (env: Env, name: string): Promise<void> => {
+  await env.DB.prepare("DELETE FROM ops_flags WHERE name = ?").bind(name).run();
+};
+
+const sendMissingPicksEmail = async (env: Env): Promise<void> => {
+  const week = await activeWeek(env.DB);
+  if (!week || String(week.phase || "REGULAR_SEASON") !== "REGULAR_SEASON") return;
+  const flag = `missing-picks:${week.season}:${week.week}`;
+  if (!(await claimOpsFlag(env, flag))) return;
+  const [played, submitted] = await Promise.all([
+    env.DB.prepare(
+      `SELECT DISTINCT p.canonical_name AS name FROM submissions s JOIN players p ON p.id = s.player_id JOIN weeks w ON w.id = s.week_id
+       WHERE w.season = ? AND w.phase = 'REGULAR_SEASON' AND s.superseded_at IS NULL ORDER BY p.canonical_name COLLATE NOCASE`,
+    ).bind(week.season).all<{ name: string }>(),
+    env.DB.prepare(
+      `SELECT DISTINCT p.canonical_name AS name FROM submissions s JOIN players p ON p.id = s.player_id
+       WHERE s.week_id = ? AND s.superseded_at IS NULL ORDER BY p.canonical_name COLLATE NOCASE`,
+    ).bind(week.id).all<{ name: string }>(),
+  ]);
+  const submittedNames = (submitted.results || []).map((row) => row.name);
+  const done = new Set(submittedNames.map((name) => name.toLocaleLowerCase()));
+  const missing = (played.results || []).map((row) => row.name).filter((name) => !done.has(name.toLocaleLowerCase()));
+  const subject = `FBP Week ${week.week}: ${missing.length} ${missing.length === 1 ? "player hasn't" : "players haven't"} submitted yet`;
+  const body = [
+    `Week ${week.week} picks as of Saturday evening.`,
+    "",
+    `Not submitted yet (${missing.length}): ${missing.join(", ") || "everyone is in"}`,
+    "",
+    `Submitted (${submittedNames.length}): ${submittedNames.join(", ") || "none yet"}`,
+    "",
+    `Admin page: ${env.PUBLIC_API_URL || "https://fbp-api.fbp-api-worker.workers.dev"}/admin`,
+  ].join("\n");
+  if (!(await sendOwnerOperationalEmail(env, subject, body))) {
+    await releaseOpsFlag(env, flag);
+    await recordOpsEvent(env, "error", "missing-picks-email", `Week ${week.week} missing-picks email could not be sent; it will retry.`);
+  }
+};
+
+const sendDailyHealthEmail = async (env: Env, today: string): Promise<void> => {
+  const flag = `health:${today}`;
+  if (!(await claimOpsFlag(env, flag))) return;
+  const problems: string[] = [];
+  const events = (await env.DB.prepare(
+    "SELECT id, occurred_at, level, source, message FROM ops_events WHERE reported_at IS NULL AND level IN ('warn', 'error') ORDER BY id LIMIT 500",
+  ).all<{ id: number; occurred_at: string; level: string; source: string; message: string }>()).results || [];
+  const grouped = new Map<string, { first: string; last: string; count: number }>();
+  events.forEach((event) => {
+    const key = `[${event.level}] ${event.source}: ${event.message}`;
+    const item = grouped.get(key) || { first: event.occurred_at, last: event.occurred_at, count: 0 };
+    item.count += 1;
+    item.last = event.occurred_at;
+    grouped.set(key, item);
+  });
+  grouped.forEach((item, key) => problems.push(`${key} (${item.count === 1 ? item.first : `${item.count} times, ${item.first} to ${item.last}`} UTC)`));
+  const stuck = await env.DB.prepare(
+    `SELECT week, status, staged_at FROM weeks WHERE phase = 'REGULAR_SEASON' AND status = 'finalizing'
+     AND COALESCE(finalized_at, staged_at) < datetime('now', '-12 hours') ORDER BY season DESC, week DESC LIMIT 1`,
+  ).first<{ week: number; status: string }>();
+  if (stuck) problems.push(`Week ${stuck.week} has been "finalizing" for over 12 hours.`);
+  const unsettled = (await env.DB.prepare(
+    `SELECT w.week FROM weeks w JOIN completed_week_archives a ON a.week_id = w.id
+     LEFT JOIN payout_settlements ps ON ps.season = w.season AND ps.week = w.week
+     WHERE w.phase = 'REGULAR_SEASON' AND w.status = 'finalized' AND w.season = (SELECT MAX(season) FROM payout_rows)
+       AND (ps.season IS NULL OR ps.winner_email_sent_at IS NULL)
+       AND COALESCE(w.finalized_at, '') < strftime('%Y-%m-%dT%H:%M:%fZ', 'now', '-6 hours')`,
+  ).all<{ week: number }>()).results || [];
+  if (unsettled.length) problems.push(`Payouts or the winner email are still pending for week ${unsettled.map((row) => row.week).join(", ")}.`);
+  if (!problems.length) return;
+  const sent = await sendOwnerOperationalEmail(env, `FBP daily check: ${problems.length} item${problems.length === 1 ? "" : "s"} need attention`, [
+    "The FBP Worker found these since the last check:",
+    "",
+    ...problems.map((problem) => `- ${problem}`),
+    "",
+    "Forward this to Claude, or ask Claude to look at the FBP health email.",
+  ].join("\n"));
+  if (!sent) {
+    await releaseOpsFlag(env, flag);
+    return;
+  }
+  if (events.length) {
+    await env.DB.prepare("UPDATE ops_events SET reported_at = CURRENT_TIMESTAMP WHERE reported_at IS NULL AND id <= ?")
+      .bind(Math.max(...events.map((event) => event.id))).run();
+  }
+};
+
+const runOwnerEmails = async (env: Env): Promise<void> => {
+  const now = easternParts();
+  try {
+    if (now.weekday === "Sat" && now.hour >= 19) await sendMissingPicksEmail(env);
+    if (now.hour >= 8) await sendDailyHealthEmail(env, now.day);
+  } catch (error) {
+    console.error("Owner email check failed", error);
+  }
+};
+
 export default {
   async fetch(request: Request, env: Env): Promise<Response> {
+    const admin = await handleAdmin(request, env);
+    if (admin) return admin;
     if (request.method === "OPTIONS") return json({ ok: true }, 200, env.CORS_ORIGIN);
     try {
       if (request.method === "GET") return await handleGet(request, env);
@@ -2482,6 +2630,7 @@ export default {
     }
   },
   async scheduled(_controller: ScheduledController, env: Env): Promise<void> {
+    await runOwnerEmails(env);
     const weekBeforeRefresh = await activeWeek(env.DB);
     let refresh: { refreshed: number; skipped: string; scoreChanges: LeaderPushScoreChange[] } = {
       refreshed: 0,
@@ -2492,6 +2641,7 @@ export default {
       refresh = await refreshActiveGameStates(env.DB);
     } catch (error) {
       console.error("Scheduled game refresh failed; continuing with notifications.", error);
+      await recordOpsEvent(env, "warn", "score-refresh", `Score refresh failed: ${error instanceof Error ? error.message : String(error)}`);
     }
     if (!weekBeforeRefresh) {
       const latestFinalized = await latestFinalizedRegularSeasonWeek(env.DB);
@@ -2510,6 +2660,7 @@ export default {
         const week = (Number(latest?.week) || 0) + 1;
         const detail = error instanceof Error ? error.message : "The automatic setup encountered an unexpected error.";
         console.error(`Week ${week} setup candidate failed: ${detail}`);
+        await recordOpsEvent(env, "error", "week-setup", `Week ${week} setup failed: ${detail}`);
         await sendAdministratorPushOnce(
           env,
           "adminWeekSetupFailed",

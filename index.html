@@ -7366,7 +7366,11 @@ function loadPayoutSheet(forceRefresh = false) {
   if (forceRefresh) payoutSheetLoadPromise = null;
   if (!payoutSheetLoadPromise) {
     const url = `https://docs.google.com/spreadsheets/d/19LkATudJU7W7bsnBBNy7iCI68P3Nhbt10XIJ5Q7HRCA/export?format=csv&gid=2&_=${Date.now()}`;
-    payoutSheetLoadPromise = fetch(url).then(response => { if (!response.ok) throw new Error(`Payout sheet returned ${response.status}`); return response.text(); }).then(csv => { if (!globalThis.Papa) throw new Error("Payout sheet parser did not load"); const parsed = Papa.parse(csv, { skipEmptyLines: false }); if (parsed.errors.length) throw new Error(parsed.errors[0].message); const seasons = parsePayoutSheetRows(parsed.data); if (!seasons.length) throw new Error("Payout sheet contained no seasons"); return seasons; });
+    // Payouts now live in the FBP Worker (edited in FBP Admin); the old Google Sheet export is only a fallback.
+    const fromWorker = fetch(`${WEBSITE_SUBMISSIONS_ENDPOINT}?action=payout-sheet`, { cache: "no-store" })
+      .then(response => response.ok ? response.json() : Promise.reject(new Error(`Payouts returned ${response.status}`)))
+      .then(result => { const seasons = result?.ok && Array.isArray(result.rows) ? parsePayoutSheetRows(result.rows) : []; if (!seasons.length) throw new Error("Payouts are not in the Worker yet"); return seasons; });
+    payoutSheetLoadPromise = fromWorker.catch(error => { console.warn("Using the Google Sheet payout copy:", error.message); return null; }).then(seasons => seasons || fetch(url).then(response => { if (!response.ok) throw new Error(`Payout sheet returned ${response.status}`); return response.text(); }).then(csv => { if (!globalThis.Papa) throw new Error("Payout sheet parser did not load"); const parsed = Papa.parse(csv, { skipEmptyLines: false }); if (parsed.errors.length) throw new Error(parsed.errors[0].message); const seasons = parsePayoutSheetRows(parsed.data); if (!seasons.length) throw new Error("Payout sheet contained no seasons"); return seasons; }));
   }
   return payoutSheetLoadPromise;
 }

@@ -1,0 +1,57 @@
+name: Deploy FBP Worker
+
+# main -> production Worker (fbp-api). Any other branch -> the test copy (fbp-api-staging).
+on:
+  push:
+    paths:
+      - "worker/**"
+      - ".github/workflows/deploy-worker.yml"
+  workflow_dispatch:
+
+concurrency:
+  group: deploy-worker-${{ github.ref }}
+  cancel-in-progress: false
+
+jobs:
+  deploy:
+    runs-on: ubuntu-latest
+    defaults:
+      run:
+        working-directory: worker
+    env:
+      CLOUDFLARE_API_TOKEN: ${{ secrets.CLOUDFLARE_API_TOKEN }}
+      CLOUDFLARE_ACCOUNT_ID: ${{ secrets.CLOUDFLARE_ACCOUNT_ID }}
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 22
+          cache: npm
+          cache-dependency-path: worker/package-lock.json
+      - run: npm ci
+      - name: Type check
+        run: npx tsc --noEmit -p .
+      - name: Tests
+        run: npm test
+      - name: Check deploy secrets
+        run: |
+          if [ -z "$CLOUDFLARE_API_TOKEN" ] || [ -z "$CLOUDFLARE_ACCOUNT_ID" ]; then
+            echo "::error::Add CLOUDFLARE_API_TOKEN and CLOUDFLARE_ACCOUNT_ID under Settings > Secrets and variables > Actions."
+            exit 1
+          fi
+      - name: Copy the payout Sheet into D1 (first deploy only)
+        if: github.ref == 'refs/heads/main'
+        run: scripts/import-payout-sheet.sh fbp
+      - name: Deploy production
+        if: github.ref == 'refs/heads/main'
+        run: npx wrangler deploy
+      - name: Deploy test copy
+        if: github.ref != 'refs/heads/main'
+        run: npx wrangler deploy --env staging
+      - name: Admin password
+        env:
+          FBP_ADMIN_PASSWORD: ${{ secrets.FBP_ADMIN_PASSWORD }}
+        run: |
+          if [ -z "$FBP_ADMIN_PASSWORD" ]; then echo "FBP_ADMIN_PASSWORD secret not set; admin sign-in stays disabled."; exit 0; fi
+          ENVFLAG=""; if [ "$GITHUB_REF" != "refs/heads/main" ]; then ENVFLAG="--env staging"; fi
+          printf '%s' "$FBP_ADMIN_PASSWORD" | npx wrangler secret put FBP_ADMIN_PASSWORD $ENVFLAG

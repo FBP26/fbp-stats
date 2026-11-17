@@ -17,3 +17,23 @@ binding = "DB"
 database_name = "fbp"
 database_id = "30774d69-00cb-48de-af6b-d847202859d7"
 migrations_dir = "migrations"
+
+# Test copy: https://fbp-api-staging.fbp-api-worker.workers.dev — deployed from any branch other than main.
+# No scheduled jobs and no email relay, so it never sends emails or pushes. Its database is a weekly copy of
+# production with notification contacts blanked (see .github/workflows/staging-refresh.yml).
+[env.staging]
+name = "fbp-api-staging"
+
+[env.staging.triggers]
+crons = []
+
+[env.staging.vars]
+CORS_ORIGIN = "*"
+PUBLIC_API_URL = "https://fbp-api-staging.fbp-api-worker.workers.dev"
+PUBLIC_SITE_URL = "https://fbp26.github.io/fbp-stats/"
+ADMIN_PUSH_PLAYER = ""
+
+[[env.staging.d1_databases]]
+binding = "DB"
+database_name = "fbp-staging"
+database_id = "98030782-5aff-4211-b2c3-facc117ae3c4"
