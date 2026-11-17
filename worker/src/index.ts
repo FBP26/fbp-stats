@@ -4,7 +4,8 @@ import { buildRaceGameState, validateRaceSnapshotPlayers } from "./race";
 import { leaderPushSummary, maskNotificationDestination, normalizeNotificationDestination, notificationEvents, notificationPreferenceColumns, parseNotificationPreferences, picksDueReminderCheckpoints, picksDueReminderIsEligible, scheduledNotificationEvents, seasonRankMovementSummary, type LeaderPushScoreChange, type NotificationChannel, type NotificationEvent, type SeasonStanding } from "./notifications";
 import { sendWebPush, type PushSubscriptionRecord } from "./web-push";
 import { handleAdmin } from "./admin";
-import { balanceCents, balanceIndex, buildChampionEmail, buildWinnerEmail, settleSeasonChampion, loadSeasonRows, money, publicSheetRows, settleFinalizedWeek, type WeekArchive } from "./payouts";
+import { PLAYOFF_ROUNDS, periodLabel, playoffRound, playoffStandings, playoffWinners, type PlayoffRoundInput } from "./playoffs";
+import { balanceCents, balanceIndex, buildChampionEmail, buildPlayoffWinnerEmail, buildWinnerEmail, chargePlayoffEntries, settlePlayoffPrize, settleSeasonChampion, loadSeasonRows, money, publicSheetRows, settleFinalizedWeek, type WeekArchive } from "./payouts";
 
 interface Env {
   DB: D1Database;
@@ -23,7 +24,15 @@ interface Env {
   ADMIN_SUBMISSION_CLEANUP_SECRET?: string;
   FBP_ADMIN_PASSWORD?: string;
   FBP_ADMIN_USERNAME?: string;
+  /** Test copy only: "1" enables the run-scheduled action. */
+  TEST_COPY?: string;
+  /** Test copy only: replay an earlier postseason from ESPN (e.g. "-1" plays the 2025 playoffs as season 2026). */
+  TEST_REPLAY_SEASON_OFFSET?: string;
 }
+
+// Set from env at the start of every request / cron run (only ever non-zero on the test copy).
+let playoffReplayOffset = 0;
+const espnSeason = (season: number, phase = "REGULAR_SEASON"): number => (phase === "PLAYOFFS" ? season + playoffReplayOffset : season);
 
 type JsonObject = Record<string, unknown>;
 
@@ -206,7 +215,7 @@ const findWeek = async (
 const activeWeek = async (db: D1Database): Promise<Record<string, unknown> | null> =>
   db
     .prepare(
-      "SELECT * FROM weeks WHERE phase = 'REGULAR_SEASON' AND status != 'finalized' ORDER BY season DESC, week DESC LIMIT 1",
+      "SELECT * FROM weeks WHERE phase IN ('REGULAR_SEASON', 'PLAYOFFS') AND status != 'finalized' ORDER BY season DESC, CASE phase WHEN 'PLAYOFFS' THEN 1 ELSE 0 END DESC, week DESC LIMIT 1",
     )
     .first();
 
@@ -215,9 +224,16 @@ const latestFinalizedRegularSeasonWeek = async (db: D1Database): Promise<Record<
     .prepare("SELECT * FROM weeks WHERE phase = 'REGULAR_SEASON' AND status = 'finalized' ORDER BY season DESC, week DESC LIMIT 1")
     .first();
 
+// The latest finalized regular-season week or playoff round (playoff rounds come after Week 18).
+const latestFinalizedWeek = async (db: D1Database): Promise<Record<string, unknown> | null> =>
+  db
+    .prepare("SELECT * FROM weeks WHERE phase IN ('REGULAR_SEASON', 'PLAYOFFS') AND status = 'finalized' ORDER BY season DESC, CASE phase WHEN 'PLAYOFFS' THEN 1 ELSE 0 END DESC, week DESC LIMIT 1")
+    .first();
+
 const currentDisplayWeek = async (db: D1Database): Promise<Record<string, unknown> | null> => {
   const [active, finalized] = await Promise.all([activeWeek(db), latestFinalizedRegularSeasonWeek(db)]);
-  if (!active) return finalized;
+  if (!active) return latestFinalizedWeek(db);
+  if (String(active.phase) === "PLAYOFFS") return active;
   if (
     finalized
     && Number(active.season) === Number(finalized.season)
@@ -248,7 +264,8 @@ const refreshActiveGameStates = async (db: D1Database): Promise<{ refreshed: num
     metadata: JSON.parse(String(row.metadata_json || "{}")) as Record<string, unknown>,
   }));
   if (!games.length) return { refreshed: 0, skipped: "no-games", scoreChanges: [] };
-  if (!isRefreshWindow(games)) return { refreshed: 0, skipped: "outside-game-window", scoreChanges: [] };
+  const replaying = playoffReplayOffset !== 0 && String(week.phase) === "PLAYOFFS";
+  if (!isRefreshWindow(games) && !replaying) return { refreshed: 0, skipped: "outside-game-window", scoreChanges: [] };
   const resolvedEventIds = await resolveEspnEventIds(games);
   resolvedEventIds.forEach((eventId, gameId) => {
     const game = games.find((candidate) => candidate.id === gameId);
@@ -468,6 +485,7 @@ const finalizeWeek = async (env: Env, week: Record<string, unknown>): Promise<bo
     season: `${season}-${season + 1}`,
     seasonStart: season,
     week: weekNumber,
+    phase: String(week.phase || "REGULAR_SEASON"),
     actualTiebreaker: Number(week.tiebreak_actual),
     games: games.map((game) => ({
       ...game,
@@ -501,14 +519,66 @@ const finalizeWeek = async (env: Env, week: Record<string, unknown>): Promise<bo
   const winnerSummary = winner
     ? `Winner: ${winner.name} (${winner.wins}-${winner.losses})\nTiebreaker: ${winner.tiebreaker} (actual: ${week.tiebreak_actual}; difference: ${winner.tiebreakDifference})`
     : "Winner could not be calculated from the finalized cards.";
-  await sendOwnerOperationalEmail(env, `FBP Week ${weekNumber} finalized`, [
-    `${season}-${season + 1} Week ${weekNumber} is finalized in D1.`, "", winnerSummary, "",
+  const finalizedLabel = periodLabel(week.phase, weekNumber);
+  if (String(week.phase) === "PLAYOFFS") {
+    // The playoff winner is decided across all four rounds; the Super Bowl's settlement email covers it.
+    return true;
+  }
+  await sendOwnerOperationalEmail(env, `FBP ${finalizedLabel} finalized`, [
+    `${season}-${season + 1} ${finalizedLabel} is finalized in D1.`, "", winnerSummary, "",
     `${submissions.length} active submission${submissions.length === 1 ? "" : "s"} were archived.`, "",
     `Winner recap: ${(env.PUBLIC_SITE_URL || "https://fbp26.github.io/fbp-stats/").replace(/\/$/, "")}/winner.html?season=${season}&week=${weekNumber}`, "",
     "Payout reconciliation remains manual; this deployment did not change financial balances.", "",
     `Open FBP: ${env.PUBLIC_SITE_URL || "https://fbp26.github.io/fbp-stats/"}`,
   ].join("\n"));
   return true;
+};
+
+const scoringGamesFrom = (games: JsonObject[]): ScoringGame[] => games.map((game) => ({
+  favorite: String(game.favorite),
+  underdog: String(game.underdog),
+  spread: Number(game.spread),
+  status: String(game.state || "PREGAME") as ScoringGame["status"],
+  favoriteScore: game.favoriteScore === null || game.favoriteScore === undefined ? null : Number(game.favoriteScore),
+  underdogScore: game.underdogScore === null || game.underdogScore === undefined ? null : Number(game.underdogScore),
+}));
+
+// Playoffs: Round 1 picks are public like a regular week. From Round 2 on, a round's picks stay hidden until every
+// player who is still alive (could still win) has submitted, or the round's first kickoff arrives.
+interface PlayoffRevealState { revealed: boolean; waitingOn: string[]; submitted: string[]; firstKickoff: string }
+
+const loadPlayoffRounds = async (db: D1Database, season: number): Promise<{ inputs: PlayoffRoundInput[]; weeks: Record<string, unknown>[] }> => {
+  const weeks = (await db.prepare("SELECT * FROM weeks WHERE season = ? AND phase = 'PLAYOFFS' ORDER BY week").bind(season).all()).results || [];
+  const inputs: PlayoffRoundInput[] = [];
+  for (const week of weeks) {
+    const games = await getWeekConfig(db, Number(week.id));
+    const cards = await loadPlayerCards(db, Number(week.id));
+    inputs.push({ round: Number(week.week), games: scoringGamesFrom(games), cards, revealed: true, actualTiebreaker: week.tiebreak_actual === null ? null : Number(week.tiebreak_actual) });
+  }
+  // Work out which rounds are hidden, earliest first (a round's alive list depends only on earlier rounds).
+  for (const input of inputs) {
+    const week = weeks.find((item) => Number(item.week) === input.round);
+    if (week) input.revealed = (await playoffRevealState(db, week, inputs)).revealed;
+  }
+  return { inputs, weeks };
+};
+
+const playoffRevealState = async (db: D1Database, week: Record<string, unknown>, known?: PlayoffRoundInput[]): Promise<PlayoffRevealState> => {
+  const round = Number(week.week);
+  const games = await getWeekConfig(db, Number(week.id));
+  const kickoffs = games.map((game) => Date.parse(String(game.kickoff || ""))).filter(Number.isFinite);
+  const firstKickoff = kickoffs.length ? new Date(Math.min(...kickoffs)).toISOString() : "";
+  const cards = known?.find((item) => item.round === round)?.cards || await loadPlayerCards(db, Number(week.id));
+  const submitted = cards.map((card) => card.name);
+  if (round <= 1 || String(week.status) === "finalized") return { revealed: true, waitingOn: [], submitted, firstKickoff };
+  const prior = known
+    ? known.filter((item) => item.round < round)
+    : (await loadPlayoffRounds(db, Number(week.season))).inputs.filter((item) => item.round < round);
+  const alive = playoffStandings(prior).filter((player) => player.alive && Object.values(player.rounds).some((item) => item.played));
+  const done = new Set(submitted.map((name) => name.toLowerCase()));
+  const waitingOn = alive.map((player) => player.name).filter((name) => !done.has(name.toLowerCase()));
+  const kickedOff = Boolean(firstKickoff) && Date.now() >= Date.parse(firstKickoff);
+  return { revealed: kickedOff || (alive.length > 0 && waitingOn.length === 0), waitingOn, submitted, firstKickoff };
 };
 
 const buildCurrentWeek = async (
@@ -526,7 +596,32 @@ const buildCurrentWeek = async (
     underdogScore: game.underdogScore === null ? null : Number(game.underdogScore),
   }));
   const actualTiebreaker = week.tiebreak_actual === null ? null : Number(week.tiebreak_actual);
-  const players = scoreWeekWithoutProbabilities(cards, scoringGames, actualTiebreaker);
+  let players = scoreWeekWithoutProbabilities(cards, scoringGames, actualTiebreaker);
+  const playoffs = String(week.phase) === "PLAYOFFS";
+  let playoff: JsonObject | null = null;
+  if (playoffs) {
+    const { inputs } = await loadPlayoffRounds(db, Number(week.season));
+    const round = Number(week.week);
+    const reveal = await playoffRevealState(db, week, inputs);
+    const standings = playoffStandings(inputs);
+    if (!reveal.revealed) {
+      // Hidden round: names only; no picks, Best Bets or tiebreakers leave the Worker.
+      players = players.map((player) => ({ ...player, picks: [], bestBet: "", tiebreaker: 0, wins: 0, losses: 0, total: 0, tiebreakDifference: null }));
+    }
+    playoff = {
+      round,
+      roundLabel: playoffRound(round).shortLabel,
+      picksHidden: !reveal.revealed,
+      waitingOn: reveal.waitingOn,
+      submittedCount: reveal.submitted.length,
+      firstKickoff: reveal.firstKickoff,
+      rounds: PLAYOFF_ROUNDS.map((info) => {
+        const input = inputs.find((item) => item.round === info.round);
+        return { ...info, staged: Boolean(input), revealed: Boolean(input?.revealed), final: Boolean(input && input.games.length && input.games.every((game) => game.status === "FINAL")) };
+      }),
+      standings,
+    };
+  }
   const liveTiebreaker = actualTiebreaker ?? (
     games.length && games.at(-1)?.netPassingYards !== null && games.at(-1)?.netPassingYards !== undefined
       ? Number(games.at(-1)?.netPassingYards)
@@ -537,6 +632,9 @@ const buildCurrentWeek = async (
     season: Number(week.season),
     seasonLabel: `${week.season}-${Number(week.season) + 1}`,
     week: Number(week.week),
+    phase: String(week.phase),
+    periodLabel: periodLabel(week.phase, week.week),
+    ...(playoff ? { playoff } : {}),
     updatedAt: new Date().toISOString(),
     favorites: games.map((game) => game.favorite),
     favoriteScores: games.map((game) => game.favoriteScore),
@@ -663,7 +761,9 @@ const handleGet = async (request: Request, env: Env): Promise<Response> => {
       pickCountsByGame.set(Number(row.game_index), counts);
     }
     const pickCountTotal = Number(currentField?.count);
-    const games = (await enrichActiveSlateGames(configuredGames, Number(week.season), Number(week.week))).map((game) => ({
+    const reveal = String(week.phase) === "PLAYOFFS" ? await playoffRevealState(env.DB, week) : null;
+    if (reveal && !reveal.revealed) pickCountsByGame.clear();
+    const games = (await enrichActiveSlateGames(configuredGames, Number(week.season), Number(week.week), String(week.phase))).map((game) => ({
       ...game,
       pickCountTotal,
       pickCounts: pickCountsByGame.get(Number(game.gameIndex)) || {},
@@ -674,6 +774,8 @@ const handleGet = async (request: Request, env: Env): Promise<Response> => {
       season: Number(week.season),
       week: Number(week.week),
       phase: String(week.phase),
+      periodLabel: periodLabel(week.phase, week.week),
+      ...(reveal ? { picksHidden: !reveal.revealed, waitingOn: reveal.waitingOn, submittedCount: reveal.submitted.length } : {}),
       games,
       enrichmentError: "",
     }, 200, env.CORS_ORIGIN);
@@ -727,6 +829,7 @@ const handleGet = async (request: Request, env: Env): Promise<Response> => {
       Array.isArray(body.games) ? body.games as JsonObject[] : [],
       Number(week.season),
       Number(week.week),
+      String(week.phase),
     );
     return json(body, 200, env.CORS_ORIGIN);
   }
@@ -748,6 +851,16 @@ const handleGet = async (request: Request, env: Env): Promise<Response> => {
        ORDER BY s.submitted_at DESC LIMIT 1`,
     ).bind(weekId, name).first<{ id: number; submitted_at: string; week_name: string; best_bet_game_index: number; tiebreaker: number; canonical_name: string }>();
     if (!submission) return json({ ok: true, owner: "D1", epoch: 1, writesEnabled: true, submissionId: null, exists: false, player: null }, 200, env.CORS_ORIGIN);
+    if (String(week.phase) === "PLAYOFFS" && !(await playoffRevealState(env.DB, week)).revealed) {
+      // Hidden playoff round: picks only for the phone/browser holding this entry's edit key.
+      const key = cleanText(url.searchParams.get("key"), 80);
+      const keyRow = key ? await env.DB.prepare(
+        "SELECT 1 FROM submission_edit_keys k JOIN submissions s ON s.player_id = k.player_id AND s.week_id = k.week_id WHERE s.id = ? AND k.key_hash = ?",
+      ).bind(submission.id, await sha256(key)).first() : null;
+      if (!keyRow) {
+        return json({ ok: true, owner: "D1", epoch: 1, writesEnabled: true, submissionId: submission.id, exists: true, hidden: true, name: submission.canonical_name, submittedAt: submission.submitted_at, player: { submittedAt: submission.submitted_at, name: submission.canonical_name, hidden: true } }, 200, env.CORS_ORIGIN);
+      }
+    }
     const picks = await env.DB.prepare(
       `SELECT sp.picked_team FROM submission_picks sp
        JOIN games g ON g.id = sp.game_id
@@ -767,7 +880,7 @@ const handleGet = async (request: Request, env: Env): Promise<Response> => {
   if (action === "week-config") {
     const games = await getWeekConfig(env.DB, weekId);
     const enrichedGames = url.searchParams.get("enrich") === "1"
-      ? await enrichActiveSlateGames(games, season, weekNumber)
+      ? await enrichActiveSlateGames(games, season, weekNumber, phase)
       : games;
     return json({ ok: true, season, week: weekNumber, phase, games: enrichedGames, enrichmentError: "" }, 200, env.CORS_ORIGIN);
   }
@@ -1302,7 +1415,7 @@ const regularWeekSetupAvailability = (
 };
 
 const isPublicWeekRelease = async (db: D1Database, week: Record<string, unknown>): Promise<boolean> => {
-  if (String(week.status) === "finalized") return true;
+  if (String(week.status) === "finalized" || String(week.phase) === "PLAYOFFS") return true;
   const prior = await latestFinalizedRegularSeasonWeek(db);
   if (
     prior
@@ -1328,16 +1441,17 @@ const weekSetupSlateReviewCards = (games: WeekLineGame[]): string => games.map((
     <strong>${escapeHtml(game.underdog.toUpperCase())}</strong>
   </article>`).join("");
 
-const weekSetupEmail = (week: number, games: WeekLineGame[], reviewUrl: string, expiresAt: string, intro: string): { body: string; html: string } => {
+const weekSetupEmail = (week: number, games: WeekLineGame[], reviewUrl: string, expiresAt: string, intro: string, label = `Week ${week}`): { body: string; html: string } => {
   const lines = games.map((game, index) => `${index + 1}. ${game.favorite} ${game.spread} ${game.underdog}`).join("\n");
   const expiration = formatEasternDateTime(expiresAt);
-  const byeTeams = weekSetupByeTeams(games);
-  const byeLine = byeTeams.length ? `Bye week: ${byeTeams.join(", ")}` : "Bye week: None";
+  const playoffs = !label.startsWith("Week");
+  const byeTeams = playoffs ? [] : weekSetupByeTeams(games);
+  const byeLine = playoffs ? "" : byeTeams.length ? `Bye week: ${byeTeams.join(", ")}` : "Bye week: None";
   return {
     body: [intro, "", lines, "", byeLine, "", "Review and approve the slate:", reviewUrl, "", `This approval link expires ${expiration}.`].join("\n"),
     html: `<main style="max-width:620px;margin:0 auto;background:#0f172a;color:#e2e8f0;font-family:Arial,sans-serif;border:1px solid #334155;border-radius:12px;overflow:hidden">
-<header style="padding:24px 24px 18px;background:linear-gradient(135deg,#172554,#1e293b)"><p style="margin:0 0 7px;color:#facc15;font-size:11px;font-weight:800;letter-spacing:1.4px;text-transform:uppercase">FBP setup review</p><h1 style="margin:0;color:#f8fafc;font-size:25px">Week ${week} lines are ready</h1></header>
-<section style="padding:20px 24px"><p style="margin:0 0 18px;line-height:1.5">${escapeHtml(intro)}</p><table role="presentation" width="100%" cellspacing="0" cellpadding="0" style="border:1px solid #334155;border-radius:8px;background:#111c31">${weekSetupSlateEmailRows(games)}</table><p style="margin:18px 0 0;padding:12px 14px;border:1px solid #365314;border-radius:8px;background:#1a2e16;color:#d9f99d"><strong>Bye week:</strong> ${escapeHtml(byeTeams.join(", ") || "None")}</p><p style="margin:24px 0 18px;text-align:center"><a href="${escapeHtml(reviewUrl)}" style="display:inline-block;padding:13px 20px;border-radius:7px;background:#facc15;color:#172554;text-decoration:none;font-weight:800">Review Week ${week} slate</a></p><p style="margin:0;color:#94a3b8;font-size:12px;text-align:center">This approval link expires ${escapeHtml(expiration)}.</p></section></main>`,
+<header style="padding:24px 24px 18px;background:linear-gradient(135deg,#172554,#1e293b)"><p style="margin:0 0 7px;color:#facc15;font-size:11px;font-weight:800;letter-spacing:1.4px;text-transform:uppercase">FBP setup review</p><h1 style="margin:0;color:#f8fafc;font-size:25px">${escapeHtml(label)} lines are ready</h1></header>
+<section style="padding:20px 24px"><p style="margin:0 0 18px;line-height:1.5">${escapeHtml(intro)}</p><table role="presentation" width="100%" cellspacing="0" cellpadding="0" style="border:1px solid #334155;border-radius:8px;background:#111c31">${weekSetupSlateEmailRows(games)}</table>${playoffs ? "" : `<p style="margin:18px 0 0;padding:12px 14px;border:1px solid #365314;border-radius:8px;background:#1a2e16;color:#d9f99d"><strong>Bye week:</strong> ${escapeHtml(byeTeams.join(", ") || "None")}</p>`}<p style="margin:24px 0 18px;text-align:center"><a href="${escapeHtml(reviewUrl)}" style="display:inline-block;padding:13px 20px;border-radius:7px;background:#facc15;color:#172554;text-decoration:none;font-weight:800">Review ${escapeHtml(label)} slate</a></p><p style="margin:0;color:#94a3b8;font-size:12px;text-align:center">This approval link expires ${escapeHtml(expiration)}.</p></section></main>`,
   };
 };
 
@@ -1383,6 +1497,41 @@ const syncFinalizedPayouts = async (env: Env): Promise<boolean> => {
   }
   if (ok) ok = await syncSeasonChampion(env);
   return ok;
+};
+
+// Playoffs: charge the $20 entry as each round is final; after the Super Bowl, pay the pot and email the owner once.
+const syncPlayoffPayouts = async (env: Env, season: number): Promise<boolean> => {
+  const payoutSeason = Number((await env.DB.prepare("SELECT MAX(season) AS season FROM payout_rows").first<{ season: number }>())?.season);
+  if (!payoutSeason || payoutSeason !== season) return true;
+  try {
+    const { inputs, weeks } = await loadPlayoffRounds(env.DB, season);
+    const finalRounds = weeks.filter((week) => String(week.status) === "finalized").map((week) => Number(week.week));
+    const participants = inputs.filter((input) => finalRounds.includes(input.round)).flatMap((input) => input.cards.map((card) => card.name));
+    if (!participants.length) return true;
+    const superBowlFinal = finalRounds.includes(PLAYOFF_ROUNDS.length);
+    if (!superBowlFinal) {
+      await chargePlayoffEntries(env.DB, season, participants);
+      return true;
+    }
+    const flag = `playoff-winner-email:${season}`;
+    if (await env.DB.prepare("SELECT 1 FROM ops_flags WHERE name = ?").bind(flag).first()) return true;
+    const standings = playoffStandings(inputs);
+    const winners = playoffWinners(standings);
+    const report = await settlePlayoffPrize(env.DB, season, participants, winners);
+    const superBowl = inputs.find((input) => input.round === PLAYOFF_ROUNDS.length);
+    const email = buildPlayoffWinnerEmail(report, standings, superBowl?.actualTiebreaker ?? null);
+    if (!(await claimOpsFlag(env, flag))) return true;
+    if (!(await sendOwnerOperationalEmail(env, email.subject, email.body))) {
+      await releaseOpsFlag(env, flag);
+      await recordOpsEvent(env, "error", "playoffs", "Playoff winner email could not be sent; it will retry.");
+      return false;
+    }
+    return true;
+  } catch (error) {
+    const message = error instanceof Error ? error.message : String(error);
+    await recordOpsEvent(env, "error", "playoffs", `Playoff payout failed: ${message}`);
+    return false;
+  }
 };
 
 // After Week 18 is settled: credit the season champion(s) and email the owner once.
@@ -1483,9 +1632,19 @@ const yahooCity = (name: string) => ({
   "New York Jets": "NY Jets",
 } as Record<string, string>)[name] || name.replace(/ (?:49ers|Bears|Bengals|Bills|Broncos|Browns|Buccaneers|Cardinals|Chargers|Chiefs|Colts|Commanders|Cowboys|Dolphins|Eagles|Falcons|Forty Niners|Giants|Jaguars|Jets|Lions|Packers|Panthers|Patriots|Raiders|Rams|Ravens|Saints|Seahawks|Steelers|Texans|Titans|Vikings)$/i, "").replace("Los Angeles", "LA").replace("New York", "NY");
 
-const fetchWeekGames = async (season: number, week: number): Promise<{ games: WeekLineGame[]; source: string }> => {
-  const scheduleUrl = `https://site.api.espn.com/apis/site/v2/sports/football/nfl/scoreboard?dates=${season}&seasontype=2&week=${week}&limit=100`;
-  const espnPage = `https://www.espn.com/nfl/scoreboard/_/week/${week}/year/${season}/seasontype/2`;
+const espnSchedule = (season: number, week: number, phase = "REGULAR_SEASON") => {
+  const playoffs = phase === "PLAYOFFS";
+  const espnWeek = playoffs ? playoffRound(week).espnWeek : week;
+  const seasonType = playoffs ? 3 : 2;
+  return {
+    api: `https://site.api.espn.com/apis/site/v2/sports/football/nfl/scoreboard?dates=${season}&seasontype=${seasonType}&week=${espnWeek}&limit=100`,
+    page: `https://www.espn.com/nfl/scoreboard/_/week/${espnWeek}/year/${season}/seasontype/${seasonType}`,
+  };
+};
+
+const fetchWeekGames = async (season: number, week: number, phase = "REGULAR_SEASON"): Promise<{ games: WeekLineGame[]; source: string }> => {
+  const allowPlaceholderLines = phase === "PLAYOFFS" && playoffReplayOffset !== 0;
+  const { api: scheduleUrl, page: espnPage } = espnSchedule(espnSeason(season, phase), week, phase);
   const scheduleResponse = await fetch(scheduleUrl, { cf: { cacheTtl: 300 } });
   if (!scheduleResponse.ok) throw new Error(`ESPN schedule request returned HTTP ${scheduleResponse.status}.`);
   const events = ((await scheduleResponse.json()) as { events?: EspnScheduleEvent[] }).events || [];
@@ -1497,7 +1656,10 @@ const fetchWeekGames = async (season: number, week: number): Promise<{ games: We
     return { event, away, home, awayName: side("away")?.displayName || "", homeName: side("home")?.displayName || "", line: espnLine(competition.odds?.[0], away, home), source: "ESPN" };
   });
   const missing = rows.filter((row) => !row.line);
-  if (missing.length) {
+  if (missing.length && allowPlaceholderLines) {
+    // Test copy only (replaying an old postseason whose lines ESPN no longer lists): home team -3.
+    missing.forEach((row) => Object.assign(row, { line: { favorite: row.home, spread: 3 }, source: "placeholder" }));
+  } else if (missing.length && phase !== "PLAYOFFS") {
     const yahoo = await fetchYahooLines(week).catch((error) => { console.warn("Yahoo fallback failed", error); return []; });
     for (const row of missing) {
       const match = yahoo.find((game) => game.matchup === `${yahooCity(row.awayName)} @ ${yahooCity(row.homeName)}`);
@@ -1604,8 +1766,8 @@ const fetchOpenMeteoWeather = async (
   };
 };
 
-const enrichActiveSlateGames = async (games: JsonObject[], season: number, week: number): Promise<JsonObject[]> => {
-  const response = await fetch(`https://site.api.espn.com/apis/site/v2/sports/football/nfl/scoreboard?dates=${season}&seasontype=2&week=${week}&limit=100`, { cf: { cacheTtl: 300 } });
+const enrichActiveSlateGames = async (games: JsonObject[], season: number, week: number, phase = "REGULAR_SEASON"): Promise<JsonObject[]> => {
+  const response = await fetch(espnSchedule(espnSeason(season, phase), week, phase).api, { cf: { cacheTtl: 300 } });
   if (!response.ok) return games;
   const scoreboard = await response.json() as { events?: { id?: string; competitions?: { competitors?: { homeAway?: string; records?: { summary?: string }[]; team?: { abbreviation?: string; displayName?: string } }[]; venue?: { fullName?: string; indoor?: boolean; address?: { city?: string; state?: string } }; broadcasts?: { names?: string[] }[] }[] }[] };
   const events = new Map((scoreboard.events || []).map((event) => [String(event.id || ""), event]));
@@ -1688,9 +1850,53 @@ const enrichActiveSlateGames = async (games: JsonObject[], season: number, week:
   });
 };
 
+// Playoff rounds are set up one at a time, after Week 18 (Round 1) or the previous round is final, as soon as ESPN
+// has every matchup and a line for each game. The owner gets the same approval email as a regular week.
+const createPlayoffSetupCandidate = async (env: Env, season: number): Promise<void> => {
+  const rounds = (await env.DB.prepare("SELECT week, status FROM weeks WHERE season = ? AND phase = 'PLAYOFFS' ORDER BY week").bind(season).all<{ week: number; status: string }>()).results || [];
+  if (rounds.some((round) => round.status !== "finalized")) return;
+  const next = rounds.length ? Math.max(...rounds.map((round) => Number(round.week))) + 1 : 1;
+  if (next > PLAYOFF_ROUNDS.length) return;
+  const info = playoffRound(next);
+  const pending = await env.DB.prepare(
+    "SELECT id FROM week_setup_candidates WHERE season=? AND week=? AND phase='PLAYOFFS' AND status='pending' AND expires_at > CURRENT_TIMESTAMP",
+  ).bind(season, next).first();
+  if (pending) return;
+  let slate: { games: WeekLineGame[]; source: string };
+  try {
+    slate = await fetchWeekGames(season, next, "PLAYOFFS");
+  } catch (error) {
+    // Matchups or lines not posted yet (normal for a day or two after the previous round); try again next run.
+    console.log(`${info.label} not ready: ${error instanceof Error ? error.message : String(error)}`);
+    return;
+  }
+  const { games, source } = slate;
+  const known = (team: string) => /^[a-z]{2,3}$/i.test(team) && !["AFC", "NFC", "TBD"].includes(team.toUpperCase());
+  if (games.length !== info.games || games.some((game) => !known(game.home) || !known(game.away))) return;
+  const slateJson = JSON.stringify({ season, week: next, phase: "PLAYOFFS", games });
+  const slateHash = await sha256(slateJson);
+  const token = randomToken();
+  const expiresAt = new Date(Date.now() + 72 * 60 * 60 * 1000).toISOString();
+  await env.DB.prepare(
+    "INSERT INTO week_setup_candidates(season,week,phase,slate_hash,slate_json,approval_token_hash,expires_at) VALUES (?,?,'PLAYOFFS',?,?,?,?)",
+  ).bind(season, next, slateHash, slateJson, await sha256(token), expiresAt).run();
+  const reviewUrl = `${env.PUBLIC_API_URL || "https://fbp-api.fbp-api-worker.workers.dev"}/?action=review-week-setup&token=${token}`;
+  if (env.TEST_COPY === "1") {
+    // The test copy cannot send email; keep the review link where a tester can read it.
+    await env.DB.prepare("INSERT INTO ops_flags (name, value) VALUES ('test-last-review-url', ?) ON CONFLICT (name) DO UPDATE SET value = excluded.value, updated_at = CURRENT_TIMESTAMP").bind(reviewUrl).run();
+  }
+  const email = weekSetupEmail(next, games, reviewUrl, expiresAt, `${source} has a favorite, point spread, and underdog for all ${games.length} ${info.shortLabel} game${games.length === 1 ? "" : "s"}. Picks open as soon as you approve.`, info.label);
+  await sendOwnerOperationalEmail(env, `FBP ${info.label} lines are ready for setup approval`, email.body, email.html);
+  await sendAdministratorPushOnce(env, "adminWeekSetupReady", `admin-playoff-setup-ready:${season}:${next}:${slateHash}`, `FBP ${info.label} lines are ready`, "Review and approve the slate to open picks.");
+};
+
 const createWeekSetupCandidate = async (env: Env): Promise<void> => {
   const active = await latestFinalizedRegularSeasonWeek(env.DB);
-  if (!active || Number(active.week) >= 18) return;
+  if (!active) return;
+  if (Number(active.week) >= 18) {
+    if (!(await activeWeek(env.DB))) await createPlayoffSetupCandidate(env, Number(active.season));
+    return;
+  }
   const season = Number(active.season), week = Number(active.week) + 1;
   const existingWeek = await findWeek(env.DB, season, week, "REGULAR_SEASON");
   if (existingWeek && String(existingWeek.status) !== "finalized") return;
@@ -1725,30 +1931,33 @@ const reviewWeekSetupCandidate = async (token: string, env: Env): Promise<Respon
   if (!/^[a-f0-9]{64}$/i.test(token)) return html("<h1>Invalid approval link</h1>", 400);
   const candidate = await env.DB.prepare(
     "SELECT * FROM week_setup_candidates WHERE approval_token_hash=? AND status='pending' AND expires_at > CURRENT_TIMESTAMP",
-  ).bind(await sha256(token)).first<{ week: number; slate_json: string; expires_at: string }>();
+  ).bind(await sha256(token)).first<{ week: number; phase: string; slate_json: string; expires_at: string }>();
   if (!candidate) return html("<h1>Approval link unavailable</h1><p>This link was used, replaced, or expired.</p>", 404);
   const slate = JSON.parse(candidate.slate_json) as { games: WeekLineGame[] };
+  const playoffs = candidate.phase === "PLAYOFFS";
+  const label = periodLabel(candidate.phase, candidate.week);
   const prior = await latestFinalizedRegularSeasonWeek(env.DB);
-  const availability = prior ? regularWeekSetupAvailability(prior) : { open: false, label: "Tuesday at 2:00 PM ET" };
-  const byeTeams = weekSetupByeTeams(slate.games);
-  const button = `<button id="confirm">${availability.open ? `Open Week ${candidate.week} picks` : `Stage Week ${candidate.week} for Tuesday release`}</button>`;
+  const availability = playoffs ? { open: true, label: "now" } : prior ? regularWeekSetupAvailability(prior) : { open: false, label: "Tuesday at 2:00 PM ET" };
+  const byeTeams = playoffs ? [] : weekSetupByeTeams(slate.games);
+  const button = `<button id="confirm">${availability.open ? `Open ${label} picks` : `Stage ${label} for Tuesday release`}</button>`;
   const status = availability.open
     ? `Review the complete slate before opening picks. This approval link expires ${formatEasternDateTime(candidate.expires_at)}.`
     : `Approve this slate now to stage it. Week ${Number(prior?.week) || candidate.week - 1} stays on the public picks, Current Week, and Live pages until ${availability.label}.`;
-  return html(`<!doctype html><html lang="en"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1"><title>FBP Week ${candidate.week} setup</title><style>:root{color-scheme:dark}*{box-sizing:border-box}body{margin:0;background:#08111f;color:#e2e8f0;font:16px/1.45 Arial,sans-serif}main{width:min(720px,calc(100% - 24px));margin:24px auto 48px;background:#111c31;border:1px solid #334155;border-radius:14px;overflow:hidden}.hero{padding:26px 24px 20px;background:linear-gradient(135deg,#172554,#1e293b)}.eyebrow{margin:0 0 7px;color:#facc15;font-size:11px;font-weight:800;letter-spacing:1.5px;text-transform:uppercase}.hero h1{margin:0;color:#f8fafc;font-size:clamp(25px,6vw,34px)}.content{padding:22px 24px 28px}.intro{margin:0 0 18px;color:#cbd5e1}.slate{display:grid;gap:8px}.game-card{display:grid;grid-template-columns:32px 1fr 64px 1fr;align-items:center;min-height:54px;border:1px solid #334155;border-radius:8px;background:#0f172a}.game-card strong{padding:10px;color:#f8fafc;text-align:center}.game-number{color:#94a3b8;text-align:center;font-size:12px;font-weight:800}.spread{padding:8px;color:#facc15;text-align:center;font-size:17px;font-weight:800}.bye{margin:18px 0;padding:12px 14px;border:1px solid #365314;border-radius:8px;background:#1a2e16;color:#d9f99d}.actions{margin-top:24px;text-align:center}button{border:0;border-radius:7px;padding:13px 20px;background:#facc15;color:#172554;font:800 16px Arial;cursor:pointer}button:disabled{background:#475569;color:#cbd5e1;cursor:not-allowed}.status{margin:16px 0 0;color:#94a3b8;text-align:center;font-size:13px}@media(max-width:480px){main{width:calc(100% - 16px);margin-top:8px}.hero,.content{padding-left:16px;padding-right:16px}.game-card{grid-template-columns:27px 1fr 52px 1fr}.game-card strong{font-size:14px}.spread{font-size:15px}}</style></head><body><main><header class="hero"><p class="eyebrow">FBP setup review</p><h1>Week ${candidate.week} slate</h1></header><section class="content"><p class="intro">${escapeHtml(status)}</p><div class="slate">${weekSetupSlateReviewCards(slate.games)}</div><p class="bye"><strong>Bye week:</strong> ${escapeHtml(byeTeams.join(", ") || "None")}</p><div class="actions">${button}</div><p id="status" class="status"></p></section></main><script>const button=document.getElementById('confirm');if(button)button.onclick=async()=>{button.disabled=true;document.getElementById('status').textContent='Staging Week ${candidate.week}...';const response=await fetch(location.origin,{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({action:'approve-week-setup',token:${JSON.stringify(token)}})});const result=await response.json();document.getElementById('status').textContent=result.ok?(result.public?'Week ${candidate.week} is open.':'Week ${candidate.week} is staged and will publish '+result.releaseAt+'.'):(result.error||'Week setup could not be completed.');};</script></body></html>`, 200);
+  return html(`<!doctype html><html lang="en"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1"><title>FBP ${label} setup</title><style>:root{color-scheme:dark}*{box-sizing:border-box}body{margin:0;background:#08111f;color:#e2e8f0;font:16px/1.45 Arial,sans-serif}main{width:min(720px,calc(100% - 24px));margin:24px auto 48px;background:#111c31;border:1px solid #334155;border-radius:14px;overflow:hidden}.hero{padding:26px 24px 20px;background:linear-gradient(135deg,#172554,#1e293b)}.eyebrow{margin:0 0 7px;color:#facc15;font-size:11px;font-weight:800;letter-spacing:1.5px;text-transform:uppercase}.hero h1{margin:0;color:#f8fafc;font-size:clamp(25px,6vw,34px)}.content{padding:22px 24px 28px}.intro{margin:0 0 18px;color:#cbd5e1}.slate{display:grid;gap:8px}.game-card{display:grid;grid-template-columns:32px 1fr 64px 1fr;align-items:center;min-height:54px;border:1px solid #334155;border-radius:8px;background:#0f172a}.game-card strong{padding:10px;color:#f8fafc;text-align:center}.game-number{color:#94a3b8;text-align:center;font-size:12px;font-weight:800}.spread{padding:8px;color:#facc15;text-align:center;font-size:17px;font-weight:800}.bye{margin:18px 0;padding:12px 14px;border:1px solid #365314;border-radius:8px;background:#1a2e16;color:#d9f99d}.actions{margin-top:24px;text-align:center}button{border:0;border-radius:7px;padding:13px 20px;background:#facc15;color:#172554;font:800 16px Arial;cursor:pointer}button:disabled{background:#475569;color:#cbd5e1;cursor:not-allowed}.status{margin:16px 0 0;color:#94a3b8;text-align:center;font-size:13px}@media(max-width:480px){main{width:calc(100% - 16px);margin-top:8px}.hero,.content{padding-left:16px;padding-right:16px}.game-card{grid-template-columns:27px 1fr 52px 1fr}.game-card strong{font-size:14px}.spread{font-size:15px}}</style></head><body><main><header class="hero"><p class="eyebrow">FBP setup review</p><h1>${escapeHtml(label)} slate</h1></header><section class="content"><p class="intro">${escapeHtml(status)}</p><div class="slate">${weekSetupSlateReviewCards(slate.games)}</div>${playoffs ? "" : `<p class="bye"><strong>Bye week:</strong> ${escapeHtml(byeTeams.join(", ") || "None")}</p>`}<div class="actions">${button}</div><p id="status" class="status"></p></section></main><script>const button=document.getElementById('confirm');if(button)button.onclick=async()=>{button.disabled=true;document.getElementById('status').textContent='Staging ${label}...';const response=await fetch(location.origin,{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({action:'approve-week-setup',token:${JSON.stringify(token)}})});const result=await response.json();document.getElementById('status').textContent=result.ok?(result.public?'${label} is open.':'${label} is staged and will publish '+result.releaseAt+'.'):(result.error||'Week setup could not be completed.');};</script></body></html>`, 200);
 };
 
 const resendWeekSetupReview = async (payload: JsonObject, env: Env): Promise<Response> => {
   const token = cleanText(payload.token, 64);
   if (!/^[a-f0-9]{64}$/i.test(token)) return json({ ok: false, error: "This review token is invalid." }, 400, env.CORS_ORIGIN);
   const candidate = await env.DB.prepare(
-    "SELECT week,slate_json,expires_at FROM week_setup_candidates WHERE approval_token_hash=? AND status='pending' AND expires_at > CURRENT_TIMESTAMP",
-  ).bind(await sha256(token)).first<{ week: number; slate_json: string; expires_at: string }>();
+    "SELECT week,phase,slate_json,expires_at FROM week_setup_candidates WHERE approval_token_hash=? AND status='pending' AND expires_at > CURRENT_TIMESTAMP",
+  ).bind(await sha256(token)).first<{ week: number; phase: string; slate_json: string; expires_at: string }>();
   if (!candidate) return json({ ok: false, error: "This review link is unavailable." }, 404, env.CORS_ORIGIN);
   const games = JSON.parse(candidate.slate_json) as { games: WeekLineGame[] };
+  const label = candidate.phase === "PLAYOFFS" ? playoffRound(candidate.week).label : `Week ${candidate.week}`;
   const reviewUrl = `${env.PUBLIC_API_URL || "https://fbp-api.fbp-api-worker.workers.dev"}/?action=review-week-setup&token=${token}`;
-  const email = weekSetupEmail(candidate.week, games.games, reviewUrl, candidate.expires_at, `Review all ${games.games.length} verified Week ${candidate.week} spreads before staging the pool.`);
-  const sent = await sendOwnerOperationalEmail(env, `FBP Week ${candidate.week} lines are ready for setup approval`, email.body, email.html);
+  const email = weekSetupEmail(candidate.week, games.games, reviewUrl, candidate.expires_at, `Review all ${games.games.length} verified ${label} spreads before staging the pool.`, label);
+  const sent = await sendOwnerOperationalEmail(env, `FBP ${label} lines are ready for setup approval`, email.body, email.html);
   return json({ ok: sent, week: candidate.week, expiresAt: candidate.expires_at }, sent ? 200 : 502, env.CORS_ORIGIN);
 };
 
@@ -1757,15 +1966,21 @@ const approveWeekSetupCandidate = async (payload: JsonObject, env: Env): Promise
   if (!/^[a-f0-9]{64}$/i.test(token)) return json({ ok: false, error: "This approval link is invalid." }, 400, env.CORS_ORIGIN);
   const candidate = await env.DB.prepare(
     "SELECT * FROM week_setup_candidates WHERE approval_token_hash=? AND status='pending' AND expires_at > CURRENT_TIMESTAMP",
-  ).bind(await sha256(token)).first<{ id: number; season: number; week: number; slate_json: string }>();
+  ).bind(await sha256(token)).first<{ id: number; season: number; week: number; phase: string; slate_json: string }>();
   if (!candidate) return json({ ok: false, error: "This approval link was used, replaced, or expired." }, 404, env.CORS_ORIGIN);
   const prior = await latestFinalizedRegularSeasonWeek(env.DB);
-  if (!prior || Number(prior.season) !== candidate.season || Number(prior.week) + 1 !== candidate.week) {
+  const playoffs = candidate.phase === "PLAYOFFS";
+  if (playoffs) {
+    const previous = candidate.week === 1
+      ? (prior && Number(prior.season) === candidate.season && Number(prior.week) === 18 ? prior : null)
+      : await env.DB.prepare("SELECT * FROM weeks WHERE season = ? AND phase = 'PLAYOFFS' AND week = ? AND status = 'finalized'").bind(candidate.season, candidate.week - 1).first();
+    if (!previous || await activeWeek(env.DB)) return json({ ok: false, error: "The previous round is not final yet, or another round is already open." }, 409, env.CORS_ORIGIN);
+  } else if (!prior || Number(prior.season) !== candidate.season || Number(prior.week) + 1 !== candidate.week) {
     return json({ ok: false, error: "The most recent finalized week no longer matches this approval." }, 409, env.CORS_ORIGIN);
   }
-  const availability = regularWeekSetupAvailability(prior);
+  const availability = playoffs ? { open: true, label: "now" } : regularWeekSetupAvailability(prior as Record<string, unknown>);
   const slate = JSON.parse(candidate.slate_json) as { games: WeekLineGame[] };
-  const week = await syncApprovedStagedWeek({ season: candidate.season, week: candidate.week, games: slate.games }, env);
+  const week = await syncApprovedStagedWeek({ season: candidate.season, week: candidate.week, phase: candidate.phase || "REGULAR_SEASON", games: slate.games }, env);
   const claimed = await env.DB.prepare("UPDATE week_setup_candidates SET status='approved', approved_at=CURRENT_TIMESTAMP WHERE id=? AND status='pending'")
     .bind(candidate.id).run();
   if (!claimed.meta.changes) return json({ ok: false, error: "This approval was already completed." }, 409, env.CORS_ORIGIN);
@@ -2052,8 +2267,10 @@ const dispatchWeekNotifications = async (
 
 const syncApprovedStagedWeek = async (payload: JsonObject, env: Env): Promise<Record<string, unknown>> => {
   const season = Number(payload.season), weekNumber = Number(payload.week);
-  if (!Number.isInteger(season) || !Number.isInteger(weekNumber) || weekNumber < 1 || weekNumber > 18) {
-    throw new Error("A valid regular-season season and week are required.");
+  const phase = String(payload.phase || "REGULAR_SEASON") === "PLAYOFFS" ? "PLAYOFFS" : "REGULAR_SEASON";
+  const lastWeek = phase === "PLAYOFFS" ? PLAYOFF_ROUNDS.length : 18;
+  if (!Number.isInteger(season) || !Number.isInteger(weekNumber) || weekNumber < 1 || weekNumber > lastWeek) {
+    throw new Error("A valid season and week (or playoff round) are required.");
   }
   const games = Array.isArray(payload.games) ? payload.games as JsonObject[] : [];
   if (!games.length || games.length > 16) throw new Error("The staged slate must contain between 1 and 16 games.");
@@ -2070,19 +2287,19 @@ const syncApprovedStagedWeek = async (payload: JsonObject, env: Env): Promise<Re
     }
     return { externalId, kickoff, favorite, underdog, home, away, spread, metadata: JSON.stringify({ ...game, favorite, underdog, home, away }) };
   });
-  const existing = await findWeek(env.DB, season, weekNumber, "REGULAR_SEASON");
+  const existing = await findWeek(env.DB, season, weekNumber, phase);
   if (existing) {
     const submissions = await env.DB.prepare("SELECT COUNT(*) AS count FROM submissions WHERE week_id = ? AND superseded_at IS NULL")
       .bind(existing.id).first<{ count: number }>();
     if (Number(submissions?.count)) throw new Error("The staged week already has picks and cannot be replaced by an approval link.");
   }
   await env.DB.prepare(
-    "UPDATE weeks SET status = 'finalized', finalized_at = COALESCE(finalized_at, CURRENT_TIMESTAMP) WHERE phase = 'REGULAR_SEASON' AND status IN ('staged', 'open', 'live', 'finalizing') AND NOT (season = ? AND week = ?)",
-  ).bind(season, weekNumber).run();
+    "UPDATE weeks SET status = 'finalized', finalized_at = COALESCE(finalized_at, CURRENT_TIMESTAMP) WHERE phase = ? AND status IN ('staged', 'open', 'live', 'finalizing') AND NOT (season = ? AND week = ?)",
+  ).bind(phase, season, weekNumber).run();
   await env.DB.prepare(
-    "INSERT INTO weeks (season, week, phase, status) VALUES (?, ?, 'REGULAR_SEASON', 'staged') ON CONFLICT (season, week, phase) DO UPDATE SET status = 'staged', finalized_at = NULL",
-  ).bind(season, weekNumber).run();
-  const staged = await findWeek(env.DB, season, weekNumber, "REGULAR_SEASON");
+    "INSERT INTO weeks (season, week, phase, status) VALUES (?, ?, ?, 'staged') ON CONFLICT (season, week, phase) DO UPDATE SET status = 'staged', finalized_at = NULL",
+  ).bind(season, weekNumber, phase).run();
+  const staged = await findWeek(env.DB, season, weekNumber, phase);
   if (!staged) throw new Error("The staged week could not be synchronized.");
   await env.DB.prepare("DELETE FROM games WHERE week_id = ?").bind(staged.id).run();
   const statements: D1PreparedStatement[] = [];
@@ -2575,8 +2792,11 @@ const sendMissingPicksEmail = async (env: Env): Promise<void> => {
   ]);
   const submittedNames = (submitted.results || []).map((row) => row.name);
   const done = new Set(submittedNames.map((name) => name.toLocaleLowerCase()));
-  const missing = (played.results || []).map((row) => row.name).filter((name) => !done.has(name.toLocaleLowerCase()));
-  const label = String(week.phase) === "PLAYOFFS" ? `Playoffs round ${week.week}` : `Week ${week.week}`;
+  // Playoff Rounds 2+: who still matters is the players still alive; Round 1 uses everyone from the regular season.
+  const missing = String(week.phase) === "PLAYOFFS" && Number(week.week) > 1
+    ? (await playoffRevealState(env.DB, week)).waitingOn
+    : (played.results || []).map((row) => row.name).filter((name) => !done.has(name.toLocaleLowerCase()));
+  const label = periodLabel(week.phase, week.week);
   const subject = `FBP ${label}: ${missing.length} ${missing.length === 1 ? "player hasn't" : "players haven't"} submitted (first kickoff in ${Math.round(minutes)} min)`;
   const body = [
     `${label} picks, ${Math.round(minutes)} minutes before the first kickoff.`,
@@ -2712,6 +2932,12 @@ const runOwnerEmails = async (env: Env): Promise<void> => {
 
 export default {
   async fetch(request: Request, env: Env): Promise<Response> {
+    playoffReplayOffset = env.TEST_COPY === "1" ? Number(env.TEST_REPLAY_SEASON_OFFSET || 0) || 0 : 0;
+    if (env.TEST_COPY === "1" && request.method === "POST" && new URL(request.url).searchParams.get("action") === "test-run-scheduled") {
+      // Test copy only: run one scheduled pass on demand (the test copy has no cron).
+      await runScheduled(env);
+      return json({ ok: true, ranAt: new Date().toISOString() }, 200, env.CORS_ORIGIN);
+    }
     const admin = await handleAdmin(request, env);
     if (admin) return admin;
     if (request.method === "OPTIONS") return json({ ok: true }, 200, env.CORS_ORIGIN);
@@ -2725,6 +2951,13 @@ export default {
     }
   },
   async scheduled(_controller: ScheduledController, env: Env): Promise<void> {
+    playoffReplayOffset = env.TEST_COPY === "1" ? Number(env.TEST_REPLAY_SEASON_OFFSET || 0) || 0 : 0;
+    await runScheduled(env);
+  },
+} satisfies ExportedHandler<Env>;
+
+async function runScheduled(env: Env): Promise<void> {
+  {
     await runOwnerEmails(env);
     const weekBeforeRefresh = await activeWeek(env.DB);
     let refresh: { refreshed: number; skipped: string; scoreChanges: LeaderPushScoreChange[] } = {
@@ -2747,6 +2980,10 @@ export default {
       if (!(await syncFinalizedPayouts(env))) {
         console.warn("Finalized payout sync was not acknowledged by the Apps Script relay; it will retry on the next scheduled refresh.");
       }
+      const latestAny = await latestFinalizedWeek(env.DB);
+      if (latestAny && String(latestAny.phase) === "PLAYOFFS" && !(await syncPlayoffPayouts(env, Number(latestAny.season)))) {
+        console.warn("Playoff payout settlement will retry on the next run.");
+      }
       try {
         await createWeekSetupCandidate(env);
       } catch (error) {
@@ -2766,12 +3003,22 @@ export default {
       }
       return;
     }
-    let refreshedWeek = await findWeek(env.DB, Number(weekBeforeRefresh.season), Number(weekBeforeRefresh.week), "REGULAR_SEASON");
+    const activePhase = String(weekBeforeRefresh.phase || "REGULAR_SEASON");
+    let refreshedWeek = await findWeek(env.DB, Number(weekBeforeRefresh.season), Number(weekBeforeRefresh.week), activePhase);
     if (refreshedWeek?.status === "finalizing") {
       await finalizeWeek(env, refreshedWeek);
     }
-    refreshedWeek = await findWeek(env.DB, Number(weekBeforeRefresh.season), Number(weekBeforeRefresh.week), "REGULAR_SEASON");
-    if (refreshedWeek) {
+    refreshedWeek = await findWeek(env.DB, Number(weekBeforeRefresh.season), Number(weekBeforeRefresh.week), activePhase);
+    if (refreshedWeek && activePhase === "PLAYOFFS") {
+      // Playoff rounds: settle the playoff entries/prize once a round is final; only the "picks are ready" alerts apply.
+      if (String(refreshedWeek.status) === "finalized" && !(await syncPlayoffPayouts(env, Number(refreshedWeek.season)))) {
+        console.warn("Playoff payout settlement will retry on the next run.");
+      }
+      if (String(refreshedWeek.status) === "staged") {
+        await dispatchWeekNotifications(env, refreshedWeek, new Set<NotificationEvent>(["picksReady"]));
+        await dispatchPicksReadyPush(env, refreshedWeek);
+      }
+    } else if (refreshedWeek) {
       if (String(refreshedWeek.status) === "finalized" && !(await syncFinalizedPayouts(env))) {
         console.warn(`Finalized Week ${Number(refreshedWeek.week)} payout sync was not acknowledged by the Apps Script relay; it will retry on the next scheduled refresh.`);
       }
@@ -2786,5 +3033,5 @@ export default {
       }
     }
     await createWeekSetupCandidate(env);
-  },
-} satisfies ExportedHandler<Env>;
+  }
+}

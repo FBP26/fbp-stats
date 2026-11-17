@@ -203,6 +203,14 @@
   .website-instructions { margin: 0 0 18px; color: var(--muted); font: 13px/1.55 Arial, sans-serif; }
   .website-entry-context { margin: 0 0 14px; color: var(--accent); font: 12px/1.5 Arial, sans-serif; }
   #view-enter-picks .intro { display: none; }
+  .playoff-panel { margin: 0 0 18px; }
+  .playoff-panel h3 { margin: 0 0 8px; color: var(--accent); font: 11px Arial, sans-serif; letter-spacing: 1px; text-transform: uppercase; }
+  .playoff-table-wrap { overflow-x: auto; }
+  .playoff-table td, .playoff-table th { text-align: center; white-space: nowrap; }
+  .playoff-table tr.playoff-out td { opacity: .55; }
+  .playoff-alive { color: #4ade80; font-weight: bold; }
+  .playoff-hidden { margin: 0 0 10px; padding: 10px 12px; border: 1px solid #334155; border-radius: 8px; background: #111c31; color: #cbd5e1; font: 13px Arial, sans-serif; }
+  .playoff-path { text-align: left !important; font-size: 12px; }
   .season-live-note { grid-column: 1 / -1; margin: 0; color: #facc15; font-size: 12px; font-weight: bold; }
   .website-fix-picks { font-family: Arial, sans-serif; margin: 0 0 14px; padding: 10px 12px; border: 1px solid #3b5b2a; border-radius: 8px; background: #14231a; color: #d9f99d; font-size: 13px; }
   .website-fix-picks p { margin: 0 0 8px; }
@@ -2785,9 +2793,9 @@ try {
   const cachedSlate = JSON.parse(localStorage.getItem(WEBSITE_ACTIVE_SLATE_CACHE_KEY) || "null");
   const cachedSelection = cachedSlate?.selection;
   if (requestedRoute === "enter-picks" && cachedSelection?.staged && Array.isArray(cachedSlate.games) && cachedSlate.games.length) {
-    websiteRegularSelection = { season: Number(cachedSelection.season), week: Number(cachedSelection.week), phase: "REGULAR_SEASON", staged: true };
+    websiteRegularSelection = { season: Number(cachedSelection.season), week: Number(cachedSelection.week), phase: cachedSelection.phase || "REGULAR_SEASON", staged: true };
     websiteEntrySelection = { testMode: false, ...websiteRegularSelection };
-    websiteStagedGamesCache.set(`REGULAR_SEASON-${websiteRegularSelection.season}-${websiteRegularSelection.week}`, { games: cachedSlate.games, storedAt: Date.now() });
+    websiteStagedGamesCache.set(`${websiteRegularSelection.phase}-${websiteRegularSelection.season}-${websiteRegularSelection.week}`, { games: cachedSlate.games, storedAt: Date.now() });
     websiteActiveRegularWeekLoadedAt = 0;
     updateWebsiteWeekLabels(websiteEntrySelection);
     updateWebsiteTiebreakLabel(cachedSlate.games);
@@ -2968,15 +2976,35 @@ async function initializePushNotifications() {
   });
 }
 function websitePickSelection() { return websiteEntrySelection; }
+const WEBSITE_PLAYOFF_ROUNDS = [
+  { round: 1, label: "Round 1", games: 6, possibleWins: 7 },
+  { round: 2, label: "Round 2", games: 4, possibleWins: 5 },
+  { round: 3, label: "Round 3", games: 2, possibleWins: 3 },
+  { round: 4, label: "Super Bowl", games: 1, possibleWins: 2 },
+];
+function websitePeriodLabel(selection) {
+  if (selection?.phase === "PLAYOFFS") return WEBSITE_PLAYOFF_ROUNDS.find(round => round.round === Number(selection.week))?.label || `Round ${selection.week}`;
+  return `${selection?.testMode ? "Preseason Week" : "Week"} ${selection?.week}`;
+}
 function updateWebsiteWeekLabels(selection) {
   const seasonLabel = `${selection.season}-${selection.season + 1}`;
-  const weekLabel = `${selection.testMode ? "Preseason Week" : "Week"} ${selection.week}`;
+  const weekLabel = websitePeriodLabel(selection);
   const navButton = document.querySelector('#nav button[data-view="week-one"]');
   if (navButton) navButton.textContent = weekLabel;
   document.querySelector("#view-enter-picks .intro p").textContent = selection.testMode ? `${weekLabel} test` : `${weekLabel} · ${seasonLabel}`;
   document.querySelector("#view-picks-confirmation .intro p").textContent = selection.testMode ? `${weekLabel} test` : `${weekLabel} · ${seasonLabel}`;
   document.getElementById("website-view-week-one").textContent = `View ${weekLabel}`;
   document.getElementById("website-entry-context").textContent = selection.testMode ? `${weekLabel} rehearsal · results stay out of season records` : `${weekLabel} · ${seasonLabel}`;
+}
+// Playoffs: only the Super Bowl asks for a tiebreaker (its combined net passing yards); Rounds 1-3 send 0.
+function websiteApplyPlayoffTiebreaker(selection) {
+  const input = document.getElementById("website-tiebreaker"), label = input?.parentElement;
+  if (!input || !label) return;
+  const hide = selection.phase === "PLAYOFFS" && Number(selection.week) < 4;
+  label.hidden = hide;
+  input.required = !hide;
+  if (hide) input.value = "0"; else if (input.value === "0" && label.dataset.playoffHidden === "true") input.value = "";
+  label.dataset.playoffHidden = String(hide);
 }
 function updateWebsiteTiebreakLabel(games) {
   const finalGame = games?.at(-1);
@@ -2994,11 +3022,11 @@ async function loadActiveRegularWeek(forceRefresh = false) {
     const response = await fetch(`${WEBSITE_SUBMISSIONS_ENDPOINT}${separator}action=active-week&enrich=0`, { signal: AbortSignal.timeout(30000) });
     const data = await response.json();
     if (!response.ok || !data.ok) throw new Error(data.error || "Could not load the active regular-season week.");
-    websiteRegularSelection = { season: Number(data.season) || 2026, week: Number(data.week) || 1, phase: "REGULAR_SEASON", staged: Boolean(data.staged), completed: !data.staged && Boolean(data.games?.length) };
+    websiteRegularSelection = { season: Number(data.season) || 2026, week: Number(data.week) || 1, phase: data.phase === "PLAYOFFS" ? "PLAYOFFS" : "REGULAR_SEASON", staged: Boolean(data.staged), completed: !data.staged && Boolean(data.games?.length) };
     websiteEntrySelection = { testMode: false, ...websiteRegularSelection };
     if (websiteRegularSelection.staged || websiteRegularSelection.completed) {
       if (data.games?.length) {
-        const storedAt = Date.now(), cacheKey = `REGULAR_SEASON-${websiteRegularSelection.season}-${websiteRegularSelection.week}`, previousGames = websiteStagedGamesCache.get(cacheKey)?.games || [], games = data.games.map(game => websiteMergeGameContext(previousGames.find(previous => websiteGamesMatch(previous, game)), game));
+        const storedAt = Date.now(), cacheKey = `${websiteRegularSelection.phase}-${websiteRegularSelection.season}-${websiteRegularSelection.week}`, previousGames = websiteStagedGamesCache.get(cacheKey)?.games || [], games = data.games.map(game => websiteMergeGameContext(previousGames.find(previous => websiteGamesMatch(previous, game)), game));
         websiteStagedGamesCache.set(cacheKey, { games, storedAt });
         try { localStorage.setItem(WEBSITE_ACTIVE_SLATE_CACHE_KEY, JSON.stringify({ selection: websiteRegularSelection, games, storedAt })); } catch (error) { console.warn(`Active slate could not be saved: ${error.message}`); }
       }
@@ -3225,7 +3253,8 @@ async function renderWebsitePicksForm(forceRefresh = false) {
   host.innerHTML = '<p class="website-instructions">Loading games...</p>';
   document.getElementById("website-test-notice").classList.toggle("active", selection.testMode);
   const weekNameLabel = document.getElementById("website-week-name-label");
-  weekNameLabel.textContent = `${selection.testMode ? "Preseason" : "Week"} ${selection.week} name`;
+  weekNameLabel.textContent = selection.phase === "PLAYOFFS" ? `${websitePeriodLabel(selection)} name` : `${selection.testMode ? "Preseason" : "Week"} ${selection.week} name`;
+  websiteApplyPlayoffTiebreaker(selection);
   weekNameLabel.style.visibility = "visible";
   try {
     const stagedGames = await loadWebsiteStagedGames(selection, forceRefresh && !useCachedSlate);
@@ -3948,7 +3977,7 @@ async function findExistingWebsiteSubmission(submission) {
   const selection = websitePickSelection(), separator = WEBSITE_SUBMISSIONS_ENDPOINT.includes("?") ? "&" : "?";
   const action = selection.testMode
     ? `preseason-test&season=${selection.season}&week=${selection.week}`
-    : `existing-submission&season=${selection.season}&week=${selection.week}&name=${encodeURIComponent(submission.name)}`;
+    : `existing-submission&season=${selection.season}&week=${selection.week}&phase=${selection.phase || "REGULAR_SEASON"}&name=${encodeURIComponent(submission.name)}&key=${encodeURIComponent(websiteEditKeyFor(submission.name, selection))}`;
   const response = await fetch(`${WEBSITE_SUBMISSIONS_ENDPOINT}${separator}action=${action}`, { signal: AbortSignal.timeout(20000) });
   const data = await response.json();
   if (!response.ok || !data.ok) throw new Error(data.error || "Could not check your existing picks.");
@@ -3958,6 +3987,7 @@ async function findExistingWebsiteSubmission(submission) {
 }
 function compareWebsiteSubmission(existing, submission) {
   if (!existing) return { same: false, changes: [] };
+  if (existing.hidden) return { same: false, changes: ["the hidden picks already saved"] };
   const normalized = value => String(value ?? "").trim().toUpperCase();
   const existingPicks = existing.picks || [], changedPicks = submission.picks.filter((pick, index) => normalized(pick) !== normalized(existingPicks[index])).length;
   const changes = [];
@@ -4181,7 +4211,7 @@ function websiteReadCurrentWeekCache() {
 function websiteRenderCachedCurrentWeek() {
   const cached = websiteReadCurrentWeekCache();
   if (!cached) return false;
-  websiteRegularSelection = { season: Number(cached.season) || 2026, week: Number(cached.week) || 1, phase: "REGULAR_SEASON", staged: Boolean(cached.games.length) };
+  websiteRegularSelection = { season: Number(cached.season) || 2026, week: Number(cached.week) || 1, phase: cached.phase === "PLAYOFFS" ? "PLAYOFFS" : "REGULAR_SEASON", staged: Boolean(cached.games.length) };
   updateWebsiteWeekLabels(websiteRegularSelection);
   renderWebsiteWeekOneGrid(cached, "Cached while refreshing");
   document.getElementById("week-one-table").dataset.instantWeek = "true";
@@ -4477,6 +4507,10 @@ function renderWebsiteTiebreakSnapshot(data, analysis) {
   tiebreak.innerHTML = `<p>${liveContext}${markerCopy}</p>${currentMarker || guessMarker ? `<div class="tiebreak-strip">${currentMarker}${guessMarker}</div>` : ""}${clinched}${rangesHtml}`;
 }
 function renderWebsiteLiveAnalysis(data) {
+  const liveHost = document.getElementById("live-analysis-host");
+  liveHost?.querySelector(":scope > .playoff-panel")?.remove();
+  if (data.playoff) renderWebsitePlayoffPanel(data, liveHost);
+  if (data.playoff?.picksHidden) return;
   renderWebsiteRace(data);
   const analysis = websiteScenarioOutcomes(websiteAnalysisData(data)).variable.length ? websiteContenderPaths(data) : null;
   renderWebsiteLiveScenarioTools(data, analysis);
@@ -4489,7 +4523,7 @@ function websiteRenderCachedLive() {
   const cached = websiteReadCurrentWeekCache();
   if (!cached) return false;
   cached.raceHistoryLoading = (cached.games || []).length > 0 && (cached.games || []).every(game => ["POST", "FINAL", "COMPLETED"].includes(websiteGameStatus(game))) && !cached.raceHistoryComplete;
-  websiteRegularSelection = { season: Number(cached.season) || 2026, week: Number(cached.week) || 1, phase: "REGULAR_SEASON", staged: Boolean(cached.games.length) };
+  websiteRegularSelection = { season: Number(cached.season) || 2026, week: Number(cached.week) || 1, phase: cached.phase === "PLAYOFFS" ? "PLAYOFFS" : "REGULAR_SEASON", staged: Boolean(cached.games.length) };
   updateWebsiteWeekLabels(websiteRegularSelection);
   renderWebsiteLiveAnalysis(cached);
   websiteSetPageRefreshStatus("loading", "Loading live standings...");
@@ -4668,7 +4702,7 @@ async function renderWebsiteWeekOne(currentWeekRequest = null, currentRaceReques
     if (cached && Number(cached.season) === Number(data.season) && Number(cached.week) === Number(data.week) && Array.isArray(cached.raceSnapshots) && cached.raceSnapshots.length && (data.completedWeekArchive || !liveGameInProgress)) {
       data.raceSnapshots = cached.raceSnapshots;
     }
-    websiteRegularSelection = { season: Number(data.season) || 2026, week: Number(data.week) || 1, phase: "REGULAR_SEASON", staged: Boolean((data.games || []).length) };
+    websiteRegularSelection = { season: Number(data.season) || 2026, week: Number(data.week) || 1, phase: data.phase === "PLAYOFFS" ? "PLAYOFFS" : "REGULAR_SEASON", staged: Boolean((data.games || []).length) };
     updateWebsiteWeekLabels(websiteRegularSelection);
     const raceRequest = liveView && liveGameInProgress ? (currentRaceRequest || fetchWebsiteCurrentWeekRace(websiteRegularSelection.season, websiteRegularSelection.week)).catch(error => { console.warn(error.message); return null; }) : null;
     if (!/^\d+(?:\.\d+)?$/.test(String(data.actualTiebreaker || ""))) data.actualTiebreaker = "";
@@ -4679,8 +4713,8 @@ async function renderWebsiteWeekOne(currentWeekRequest = null, currentRaceReques
       decorateWebsiteWeekOneHeaders(data);
       await new Promise(resolve => setTimeout(resolve, 0));
     }
-    websitePreparePlayers(data);
-    if (!data.completedWeekArchive) storeWebsiteRaceSnapshot(data);
+    if (!data.playoff?.picksHidden) websitePreparePlayers(data);
+    if (!data.completedWeekArchive && !data.playoff) storeWebsiteRaceSnapshot(data);
     if (!data.completedWeekArchive) websiteWriteCurrentWeekCache(data);
     if (liveView) {
       renderWebsiteLiveAnalysis(data);
@@ -4728,6 +4762,85 @@ async function renderWebsiteWeekOne(currentWeekRequest = null, currentRaceReques
 }
 const renderWebsiteWeekOneGridBase = renderWebsiteWeekOneGrid;
 renderWebsiteWeekOneGrid = function(data, source) { websiteSortPlayers(data.players || []); return renderWebsiteWeekOneGridBase(data, source); };
+// ---- Playoffs: Title odds, Max wins, Still alive -------------------------------------------------------------
+// Title odds use only picks already revealed. Any round a player has not picked yet (or that is still hidden) is
+// treated as coin flips against the spread: each game is a win half the time and the Best Bet counts double.
+function websitePlayoffRandomWins(games) {
+  if (games <= 0) return [1];
+  let dist = [1];
+  for (let index = 0; index < games - 1; index += 1) dist = websiteConvolve(dist, [0.5, 0.5]);
+  return websiteConvolve(dist, [0.5, 0, 0.5]);
+}
+function websiteConvolve(left, right) {
+  const out = Array(left.length + right.length - 1).fill(0);
+  left.forEach((a, i) => { if (a) right.forEach((b, j) => { out[i + j] += a * b; }); });
+  return out;
+}
+function websitePlayoffTitleOdds(data) {
+  const playoff = data.playoff, odds = new Map();
+  if (!playoff?.standings?.length) return { odds, paths: new Map() };
+  const round = Number(playoff.round), currentRevealed = !playoff.picksHidden;
+  const games = data.games || [];
+  const undecided = currentRevealed ? games.map((game, index) => index).filter(index => !websiteGameWinner(data, index)) : [];
+  const cards = new Map((currentRevealed ? data.players || [] : []).map(player => [String(player.name).toLowerCase(), player]));
+  const players = playoff.standings.map(standing => {
+    const card = cards.get(String(standing.name).toLowerCase());
+    let random = [1];
+    for (const info of playoff.rounds || []) {
+      if (info.final) continue;
+      const deterministic = info.round === round && currentRevealed && card;
+      if (deterministic) continue;
+      if (info.round < round && info.revealed) continue;
+      random = websiteConvolve(random, websitePlayoffRandomWins(info.games));
+    }
+    return { name: standing.name, base: Number(standing.wins) || 0, random, card };
+  });
+  const outcomes = undecided.length ? 2 ** Math.min(undecided.length, 10) : 1;
+  const share = new Map(players.map(player => [player.name, 0]));
+  const pathWins = new Map(players.map(player => [player.name, []]));
+  for (let mask = 0; mask < outcomes; mask += 1) {
+    const winners = undecided.map((gameIndex, bit) => (mask >> bit) & 1 ? data.underdogs[gameIndex] : data.favorites[gameIndex]);
+    const totals = players.map(player => {
+      let extra = 0;
+      if (player.card) undecided.forEach((gameIndex, bit) => { if (player.card.picks?.[gameIndex] === winners[bit]) extra += player.card.bestBet === winners[bit] ? 2 : 1; });
+      return player.random.map((probability, wins) => ({ total: player.base + extra + wins, probability })).filter(item => item.probability > 0);
+    });
+    const cdf = totals.map(dist => { const map = new Map(); dist.forEach(item => map.set(item.total, (map.get(item.total) || 0) + item.probability)); return map; });
+    const below = (index, value) => { let sum = 0; cdf[index].forEach((probability, total) => { if (total < value) sum += probability; }); return sum; };
+    players.forEach((player, index) => {
+      let won = 0;
+      cdf[index].forEach((probability, value) => {
+        // Probability the others are all at or below `value`, sharing a tie evenly (the Super Bowl tiebreaker decides it for real).
+        let ties = [1];
+        players.forEach((other, otherIndex) => {
+          if (otherIndex === index) return;
+          const lower = below(otherIndex, value), equal = cdf[otherIndex].get(value) || 0;
+          ties = websiteConvolve(ties, [lower, equal]);
+        });
+        won += probability * ties.reduce((sum, chance, count) => sum + chance / (count + 1), 0);
+      });
+      share.set(player.name, share.get(player.name) + won / outcomes);
+      if (won > 0.999 && undecided.length) pathWins.get(player.name).push(winners.join(" + "));
+    });
+  }
+  players.forEach(player => odds.set(player.name, share.get(player.name)));
+  return { odds, paths: pathWins, undecidedCount: undecided.length };
+}
+function renderWebsitePlayoffPanel(data, host) {
+  if (!host || !data.playoff) return;
+  const playoff = data.playoff;
+  let panel = host.querySelector(":scope > .playoff-panel");
+  if (!panel) { panel = document.createElement("section"); panel.className = "playoff-panel"; host.prepend(panel); }
+  const { odds, paths, undecidedCount } = websitePlayoffTitleOdds(data);
+  const superBowlStage = Number(playoff.round) === 4 && !playoff.picksHidden;
+  const percent = value => value >= 0.995 ? "99%+" : value > 0 && value < 0.005 ? "<1%" : `${Math.round(value * 100)}%`;
+  const roundCell = (standing, info) => { const item = standing.rounds?.[info.round]; return item?.played && (item.wins || item.losses) ? `${item.wins}-${item.losses}` : item?.played ? "✓" : "—"; };
+  const hidden = playoff.picksHidden
+    ? `<p class="playoff-hidden"><strong>${websiteEscapeHtml(playoff.roundLabel)} picks are hidden</strong> until every player who is still alive has submitted, or the first kickoff. ${playoff.submittedCount} submitted.${playoff.waitingOn?.length ? ` Waiting on: ${playoff.waitingOn.map(websiteEscapeHtml).join(", ")}.` : ""}</p>`
+    : "";
+  const rows = playoff.standings.map(standing => `<tr class="${standing.alive ? "" : "playoff-out"}"><td class="pg-player">${websiteEscapeHtml(standing.name)}</td><td>${standing.wins}-${standing.losses}</td><td>${standing.maxWins}</td><td><strong>${standing.alive ? percent(odds.get(standing.name) || 0) : "0%"}</strong></td><td>${standing.alive ? '<span class="playoff-alive">Still alive</span>' : "Out"}</td>${(playoff.rounds || []).map(info => `<td>${roundCell(standing, info)}</td>`).join("")}${superBowlStage && undecidedCount ? `<td class="playoff-path">${websiteEscapeHtml((paths.get(standing.name) || []).map(path => `${path} cover`).join(" or ") || (standing.alive ? "Needs help (tiebreaker)" : ""))}</td>` : ""}</tr>`).join("");
+  panel.innerHTML = `<h3>Playoffs · after ${websiteEscapeHtml(playoff.roundLabel)}</h3>${hidden}<div class="playoff-table-wrap"><table class="picks-grid playoff-table"><thead><tr><th class="pg-player">Player</th><th>W-L</th><th title="Most wins a player can still finish with">Max wins</th><th title="Chance to win the playoffs">Title odds</th><th>Status</th>${(playoff.rounds || []).map(info => `<th>${websiteEscapeHtml(info.shortLabel === "Super Bowl" ? "SB" : info.shortLabel.replace("Round ", "R"))}</th>`).join("")}${superBowlStage && undecidedCount ? "<th>Paths</th>" : ""}</tr></thead><tbody>${rows}</tbody></table></div><p class="analysis-note">Title odds use only picks that are already public; rounds not picked yet count as coin flips against the spread. Max wins: the most a player can still finish with. Still alive: can still win. Ties are decided by the Super Bowl's combined net passing yards.</p>`;
+}
 function renderWebsiteWeekOneGridClean(data) {
   const rows = data.players || [];
   const status = document.getElementById("week-one-status");
@@ -4736,7 +4849,7 @@ function renderWebsiteWeekOneGridClean(data) {
   if (data.loading) { table.innerHTML = '<p class="website-instructions">Loading this week\'s submissions...</p>'; return; }
   if (!rows.length) { table.innerHTML = '<p style="color:var(--muted)">No submissions yet.</p>'; return; }
   const tiebreakDetail = data.actualTiebreaker !== "" && data.actualTiebreaker != null ? `<br><span class="pg-tiebreak-actual">${data.actualTiebreaker}</span>` : "";
-  let html = `<table class="picks-grid"><thead><tr><th class="pg-player">Player</th><th class="pg-game pg-week-name">Week ${data.week ?? websiteRegularSelection.week} name</th><th class="pg-sum-hdr pg-w">W</th><th class="pg-sum-hdr pg-l">L</th><th class="pg-sum-hdr">Win%</th><th class="pg-sum-hdr">Prob</th><th class="pg-sum-hdr">Paths</th>`;
+  let html = `<table class="picks-grid"><thead><tr><th class="pg-player">Player</th><th class="pg-game pg-week-name">${data.periodLabel || `Week ${data.week ?? websiteRegularSelection.week}`} name</th><th class="pg-sum-hdr pg-w">W</th><th class="pg-sum-hdr pg-l">L</th><th class="pg-sum-hdr">Win%</th><th class="pg-sum-hdr">Prob</th><th class="pg-sum-hdr">Paths</th>`;
   const displayTeam = (team, index) => {
     const game = data.games?.[index];
     return String(team || "").toUpperCase() === String(game?.home || "").toUpperCase() ? String(team).toUpperCase() : String(team).toLowerCase();
@@ -4803,6 +4916,19 @@ function decorateWebsiteWeekOneHeadersLive(data) {
   });
 }
 renderWebsiteWeekOneGrid = function(data) { websiteSortPlayers(data.players || []); return renderWebsiteWeekOneGridClean(data); };
+const renderWebsiteWeekOneGridPlayoffBase = renderWebsiteWeekOneGrid;
+renderWebsiteWeekOneGrid = function(data, source) {
+  const table = document.getElementById("week-one-table");
+  document.querySelector("#view-week-one > .panel > .playoff-panel")?.remove();
+  if (data.playoff) renderWebsitePlayoffPanel(data, table?.parentElement);
+  if (data.playoff?.picksHidden) {
+    const status = document.getElementById("week-one-status");
+    if (status) status.innerHTML = "";
+    if (table) table.innerHTML = `<p class="website-instructions">${websiteEscapeHtml(data.playoff.roundLabel)} picks appear here once they are revealed.</p>`;
+    return;
+  }
+  return renderWebsiteWeekOneGridPlayoffBase(data, source);
+};
 decorateWebsiteWeekOneHeaders = decorateWebsiteWeekOneHeadersLive;
 async function renderSelectedWebsiteWeek(activeWeekKnown = false, currentWeekRequest = null) {
   clearTimeout(websiteLiveRefreshTimer);
@@ -8393,7 +8519,7 @@ if (["week-one", "live-analysis"].includes(startupRoute) && !WEBSITE_SUBMISSIONS
     startupRoutePending = false;
     try {
       const preseasonActive = await selectStagedPreseasonWeek();
-      const refreshedGames = preseasonActive ? websiteDiscoveredPreseasonData?.games || [] : websiteStagedGamesCache.get(`REGULAR_SEASON-${websiteRegularSelection.season}-${websiteRegularSelection.week}`)?.games || [];
+      const refreshedGames = preseasonActive ? websiteDiscoveredPreseasonData?.games || [] : websiteStagedGamesCache.get(`${websiteRegularSelection.phase}-${websiteRegularSelection.season}-${websiteRegularSelection.week}`)?.games || [];
       if (preseasonActive || websiteSlateSignature(refreshedGames) !== renderedSlate) {
         document.getElementById("website-game-picks").dataset.ready = "";
         await renderWebsitePicksForm();

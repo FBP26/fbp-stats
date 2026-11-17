@@ -803,3 +803,133 @@ export const buildChampionEmail = (report: ChampionReport) => {
   ];
   return { subject: `FBP ${report.season} season champion: ${label}`, body: lines.join("\n") };
 };
+
+// ---------------------------------------------------------------------------------------------------------------
+// Playoffs: one $20 entry (the grid's Playoffs column) covers all four rounds. A player is charged the first time a
+// round they played is final. After the Super Bowl the whole pot (entries x $20, no reserve) goes to the most wins,
+// closest Super Bowl tiebreaker; still tied = split. Prepaid playoff entries that were never used become credit.
+
+export interface PlayoffPrizeReport {
+  season: number;
+  entries: number;
+  potCents: number;
+  shareCents: number;
+  winners: { name: string; wins: number; losses: number; tiebreaker: number | null; tiebreakDifference: number | null }[];
+  breakdown: WinnerBreakdown[];
+  changes: string[];
+  alreadySettled: boolean;
+}
+
+export const chargePlayoffEntries = async (db: D1Database, season: number, participants: string[]): Promise<string[]> => {
+  const names = [...new Map(participants.map((name) => [normalizeName(name), name.trim()])).values()].filter(Boolean);
+  if (!names.length) return [];
+  await addPayoutPlayers(db, season, names, "Played the playoffs; added automatically.");
+  const rows = await loadSeasonRows(db, season);
+  const index = periodIndex(rows, "playoffs");
+  if (index < 0) throw new Error(`The ${season} payout grid has no Playoffs column.`);
+  const balanceColumn = balanceIndex(rows);
+  const fee = feeCents(rows, index);
+  const existing = await db.prepare("SELECT reference FROM payout_ledger WHERE season = ? AND reference LIKE ?").bind(season, `AUTO|${season}|playoffs|%`).all<{ reference: string }>();
+  const references = new Set((existing.results || []).map((row) => row.reference));
+  const played = new Set(names.map(normalizeName));
+  const statements: D1PreparedStatement[] = [];
+  const changes: string[] = [];
+  for (const row of rows.filter((item) => item.kind === "player" && played.has(normalizeName(item.label)))) {
+    const key = normalizeName(row.label);
+    const reference = `AUTO|${season}|playoffs|${key}|CHARGE`;
+    if (row.cells[index].trim() || references.has(reference)) continue; // already paid, prepaid, owed or charged
+    const after = balanceCents(row.cells[balanceColumn]) + fee;
+    row.cells[index] = dollarsText(fee);
+    row.cells[balanceColumn] = balanceText(after);
+    statements.push(rowUpdate(db, row));
+    statements.push(ledgerInsert(db, { season, player: row.label, type: "PLAYOFF_CHARGE", period: "Playoffs", balanceChangeCents: fee, balanceAfterCents: after, reference, notes: "Played the playoffs on credit.", source: "automatic" }));
+    changes.push(`${row.label}: playoff entry (+${money(fee)}).`);
+  }
+  const totals = recomputeTotals(rows);
+  if (totals && statements.length) statements.push(rowUpdate(db, totals));
+  if (statements.length) await db.batch(statements);
+  return changes;
+};
+
+export const settlePlayoffPrize = async (
+  db: D1Database,
+  season: number,
+  participants: string[],
+  winners: { name: string; wins: number; losses: number; tiebreaker: number | null; tiebreakDifference: number | null }[],
+): Promise<PlayoffPrizeReport> => {
+  if (!winners.length) throw new Error("The playoffs have no winner.");
+  await chargePlayoffEntries(db, season, participants);
+  const rows = await loadSeasonRows(db, season);
+  const index = periodIndex(rows, "playoffs");
+  const balanceColumn = balanceIndex(rows);
+  const fee = feeCents(rows, index);
+  const played = new Set(participants.map(normalizeName));
+  const entries = played.size;
+  const potCents = entries * fee;
+  const shareCents = Math.round(potCents / winners.length);
+  const existing = await db.prepare("SELECT reference FROM payout_ledger WHERE season = ? AND reference LIKE ?").bind(season, `%|${season}|playoffs|%`).all<{ reference: string }>();
+  const references = new Set((existing.results || []).map((row) => row.reference));
+  const statements: D1PreparedStatement[] = [];
+  const breakdown: WinnerBreakdown[] = [];
+  const changes: string[] = [];
+  let alreadySettled = true;
+  // Prepaid playoff entries for players who never played become credit.
+  for (const row of rows.filter((item) => item.kind === "player" && !played.has(normalizeName(item.label)) && isPrepaid(item.cells[index]))) {
+    const reference = `AUTO|${season}|playoffs|${normalizeName(row.label)}|UNUSED_CREDIT`;
+    if (references.has(reference)) continue;
+    const after = balanceCents(row.cells[balanceColumn]) - fee;
+    row.cells[index] = "";
+    row.cells[balanceColumn] = balanceText(after);
+    statements.push(rowUpdate(db, row));
+    statements.push(ledgerInsert(db, { season, player: row.label, type: "UNUSED_PREPAID_CREDIT", period: "Playoffs", balanceChangeCents: -fee, balanceAfterCents: after, reference, notes: "Unused prepaid playoff entry added to player credit.", source: "automatic" }));
+    changes.push(`${row.label}: unused prepaid playoff entry returned as credit (${money(fee)}).`);
+  }
+  for (const winner of winners) {
+    const row = findPlayer(rows, winner.name);
+    if (!row) throw new Error(`Payout row is missing for playoff winner ${winner.name}.`);
+    const reference = `PRIZE|${season}|playoffs|${row.label}`;
+    const before = balanceCents(row.cells[balanceColumn]);
+    if (references.has(reference)) {
+      breakdown.push({ name: row.label, balanceBeforePrizeCents: before + shareCents, balanceAfterCents: before, paidForSeason: false, weekStatus: row.cells[index] });
+      continue;
+    }
+    alreadySettled = false;
+    const after = before - shareCents;
+    breakdown.push({ name: row.label, balanceBeforePrizeCents: before, balanceAfterCents: after, paidForSeason: false, weekStatus: row.cells[index] });
+    row.cells[index] = "win";
+    row.cells[balanceColumn] = balanceText(after);
+    statements.push(rowUpdate(db, row));
+    statements.push(ledgerInsert(db, { season, player: row.label, type: "PRIZE_CREDIT", period: "Playoffs", balanceChangeCents: -shareCents, balanceAfterCents: after, reference, notes: `Playoff winner credit: ${money(shareCents)} of the ${money(potCents)} pot.`, source: "automatic" }));
+    changes.push(`${row.label}: won the playoffs (${money(shareCents)} credit).`);
+  }
+  const totals = recomputeTotals(rows);
+  if (totals && statements.length) statements.push(rowUpdate(db, totals));
+  if (statements.length) await db.batch(statements);
+  return { season, entries, potCents, shareCents, winners, breakdown, changes, alreadySettled };
+};
+
+export const buildPlayoffWinnerEmail = (report: PlayoffPrizeReport, standings: { name: string; wins: number; losses: number; tiebreakDifference: number | null }[], actualTiebreaker: number | null) => {
+  const names = report.winners.map((winner) => winner.name);
+  const label = names.join(" and ");
+  const top = report.winners[0];
+  const lines = [
+    `${label} ${names.length > 1 ? "share" : "wins"} the ${report.season}-${report.season + 1} FBP playoffs at ${top.wins}-${top.losses}.`,
+    actualTiebreaker === null ? "" : `Super Bowl net passing yards: ${actualTiebreaker}.${top.tiebreaker === null ? "" : ` ${label}'s guess: ${top.tiebreaker} (off by ${top.tiebreakDifference}).`}`,
+    "",
+    "Top 5:",
+    ...standings.slice(0, 5).map((player, position) => `${position + 1}. ${player.name} ${player.wins}-${player.losses}${player.tiebreakDifference === null ? "" : ` (tiebreak off by ${player.tiebreakDifference})`}`),
+    "",
+    "Payout:",
+    `${report.entries} entries x ${money(report.entries ? report.potCents / report.entries : 0)} = ${money(report.potCents)}${names.length > 1 ? `, split ${names.length} ways = ${money(report.shareCents)} each` : ""}`,
+    ...report.breakdown.map((item) => {
+      const before = item.balanceBeforePrizeCents;
+      if (before > 0) {
+        const applied = Math.min(before, report.shareCents);
+        return `${item.name}: ${money(before)} owed. Apply ${money(applied)} of the prize${report.shareCents > applied ? ` and pay ${money(report.shareCents - applied)}` : ""}.`;
+      }
+      return `${item.name}: ${before < 0 ? `+${money(-before)} credit` : "even"} before the prize. Pay ${money(report.shareCents)} now, or carry it as credit.`;
+    }),
+    ...(report.changes.length ? ["", "Payout grid changes:", ...report.changes] : []),
+  ].filter((line, index, all) => line !== "" || all[index - 1] !== "");
+  return { subject: `FBP ${report.season} playoff winner: ${label}`, body: lines.join("\n") };
+};

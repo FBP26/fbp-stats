@@ -32,6 +32,9 @@ CORS_ORIGIN = "*"
 PUBLIC_API_URL = "https://fbp-api-staging.fbp-api-worker.workers.dev"
 PUBLIC_SITE_URL = "https://fbp26.github.io/fbp-stats/"
 ADMIN_PUSH_PLAYER = ""
+# Test copy only: enables POST ?action=test-run-scheduled, and replays the previous season's playoffs from ESPN.
+TEST_COPY = "1"
+TEST_REPLAY_SEASON_OFFSET = "-1"
 
 [[env.staging.d1_databases]]
 binding = "DB"
