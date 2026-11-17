@@ -33,10 +33,11 @@ jobs:
         run: npx wrangler d1 export fbp --remote --output "$RUNNER_TEMP/fbp.sql"
       - name: Empty the test database
         run: |
-          npx wrangler d1 execute fbp-staging --remote --json --command "SELECT name FROM sqlite_master WHERE type='table' AND name NOT LIKE 'sqlite_%' AND name NOT LIKE '_cf_%'" > "$RUNNER_TEMP/tables.json"
+          npx wrangler d1 execute fbp-staging --remote --json --command "SELECT name FROM sqlite_master WHERE type='table' AND name NOT LIKE 'sqlite_%' AND name NOT LIKE '_cf_%' ORDER BY rowid" > "$RUNNER_TEMP/tables.json"
           node -e '
             const rows = JSON.parse(require("fs").readFileSync(process.argv[1], "utf8"))[0].results;
-            const sql = ["PRAGMA defer_foreign_keys = true;", ...rows.map(r => `DROP TABLE IF EXISTS "${r.name}";`)].join("\n");
+            // Children before parents (tables are listed in creation order), so no drop leaves dangling foreign keys.
+            const sql = ["PRAGMA defer_foreign_keys = true;", ...rows.reverse().map(r => `DROP TABLE IF EXISTS "${r.name}";`)].join("\n");
             require("fs").writeFileSync(process.argv[2], sql);
           ' "$RUNNER_TEMP/tables.json" "$RUNNER_TEMP/drop.sql"
           cat "$RUNNER_TEMP/drop.sql"
