@@ -264,7 +264,9 @@ const refreshActiveGameStates = async (db: D1Database): Promise<{ refreshed: num
     metadata: JSON.parse(String(row.metadata_json || "{}")) as Record<string, unknown>,
   }));
   if (!games.length) return { refreshed: 0, skipped: "no-games", scoreChanges: [] };
-  const replaying = playoffReplayOffset !== 0 && String(week.phase) === "PLAYOFFS";
+  // Test copy replaying an old postseason: scores update only while a tester has set the test-allow-refresh flag.
+  const replaying = playoffReplayOffset !== 0 && String(week.phase) === "PLAYOFFS"
+    && Boolean(await db.prepare("SELECT 1 FROM ops_flags WHERE name = 'test-allow-refresh'").first());
   if (!isRefreshWindow(games) && !replaying) return { refreshed: 0, skipped: "outside-game-window", scoreChanges: [] };
   const resolvedEventIds = await resolveEspnEventIds(games);
   resolvedEventIds.forEach((eventId, gameId) => {

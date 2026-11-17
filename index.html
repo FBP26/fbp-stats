@@ -204,6 +204,7 @@
   .website-entry-context { margin: 0 0 14px; color: var(--accent); font: 12px/1.5 Arial, sans-serif; }
   #view-enter-picks .intro { display: none; }
   .playoff-panel { margin: 0 0 18px; }
+  #live-analysis-host.playoff-picks-hidden > :not(.playoff-panel) { display: none; }
   .playoff-panel h3 { margin: 0 0 8px; color: var(--accent); font: 11px Arial, sans-serif; letter-spacing: 1px; text-transform: uppercase; }
   .playoff-table-wrap { overflow-x: auto; }
   .playoff-table td, .playoff-table th { text-align: center; white-space: nowrap; }
@@ -4510,6 +4511,7 @@ function renderWebsiteLiveAnalysis(data) {
   const liveHost = document.getElementById("live-analysis-host");
   liveHost?.querySelector(":scope > .playoff-panel")?.remove();
   if (data.playoff) renderWebsitePlayoffPanel(data, liveHost);
+  liveHost?.classList.toggle("playoff-picks-hidden", Boolean(data.playoff?.picksHidden));
   if (data.playoff?.picksHidden) return;
   renderWebsiteRace(data);
   const analysis = websiteScenarioOutcomes(websiteAnalysisData(data)).variable.length ? websiteContenderPaths(data) : null;
@@ -4838,8 +4840,8 @@ function renderWebsitePlayoffPanel(data, host) {
   const hidden = playoff.picksHidden
     ? `<p class="playoff-hidden"><strong>${websiteEscapeHtml(playoff.roundLabel)} picks are hidden</strong> until every player who is still alive has submitted, or the first kickoff. ${playoff.submittedCount} submitted.${playoff.waitingOn?.length ? ` Waiting on: ${playoff.waitingOn.map(websiteEscapeHtml).join(", ")}.` : ""}</p>`
     : "";
-  const rows = playoff.standings.map(standing => `<tr class="${standing.alive ? "" : "playoff-out"}"><td class="pg-player">${websiteEscapeHtml(standing.name)}</td><td>${standing.wins}-${standing.losses}</td><td>${standing.maxWins}</td><td><strong>${standing.alive ? percent(odds.get(standing.name) || 0) : "0%"}</strong></td><td>${standing.alive ? '<span class="playoff-alive">Still alive</span>' : "Out"}</td>${(playoff.rounds || []).map(info => `<td>${roundCell(standing, info)}</td>`).join("")}${superBowlStage && undecidedCount ? `<td class="playoff-path">${websiteEscapeHtml((paths.get(standing.name) || []).map(path => `${path} cover`).join(" or ") || (standing.alive ? "Needs help (tiebreaker)" : ""))}</td>` : ""}</tr>`).join("");
-  panel.innerHTML = `<h3>Playoffs · after ${websiteEscapeHtml(playoff.roundLabel)}</h3>${hidden}<div class="playoff-table-wrap"><table class="picks-grid playoff-table"><thead><tr><th class="pg-player">Player</th><th>W-L</th><th title="Most wins a player can still finish with">Max wins</th><th title="Chance to win the playoffs">Title odds</th><th>Status</th>${(playoff.rounds || []).map(info => `<th>${websiteEscapeHtml(info.shortLabel === "Super Bowl" ? "SB" : info.shortLabel.replace("Round ", "R"))}</th>`).join("")}${superBowlStage && undecidedCount ? "<th>Paths</th>" : ""}</tr></thead><tbody>${rows}</tbody></table></div><p class="analysis-note">Title odds use only picks that are already public; rounds not picked yet count as coin flips against the spread. Max wins: the most a player can still finish with. Still alive: can still win. Ties are decided by the Super Bowl's combined net passing yards.</p>`;
+  const rows = playoff.standings.map(standing => `<tr class="${standing.alive ? "" : "playoff-out"}"><td class="pg-player">${websiteEscapeHtml(standing.name)}</td><td>${standing.wins}-${standing.losses}</td><td>${standing.maxWins}</td><td><strong>${standing.alive ? percent(odds.get(standing.name) || 0) : "0%"}</strong></td><td>${standing.alive ? '<span class="playoff-alive">Still alive</span>' : "Out"}</td>${(playoff.rounds || []).map(info => `<td>${roundCell(standing, info)}</td>`).join("")}${superBowlStage && undecidedCount ? `<td class="playoff-path">${websiteEscapeHtml((paths.get(standing.name) || []).map(path => `${path} covers`).join(" or ") || (standing.alive ? "Needs help (tiebreaker)" : ""))}</td>` : ""}</tr>`).join("");
+  panel.innerHTML = `<h3>Playoffs · ${websiteEscapeHtml(playoff.roundLabel)}</h3>${hidden}<div class="playoff-table-wrap"><table class="picks-grid playoff-table"><thead><tr><th class="pg-player">Player</th><th>W-L</th><th title="Most wins a player can still finish with">Max wins</th><th title="Chance to win the playoffs">Title odds</th><th>Status</th>${(playoff.rounds || []).map(info => `<th>${websiteEscapeHtml(info.shortLabel === "Super Bowl" ? "SB" : info.shortLabel.replace("Round ", "R"))}</th>`).join("")}${superBowlStage && undecidedCount ? "<th>Paths</th>" : ""}</tr></thead><tbody>${rows}</tbody></table></div><p class="analysis-note">Title odds use only picks that are already public; rounds not picked yet count as coin flips against the spread. Max wins: the most a player can still finish with. Still alive: can still win. Ties are decided by the Super Bowl's combined net passing yards.</p>`;
 }
 function renderWebsiteWeekOneGridClean(data) {
   const rows = data.players || [];
