@@ -785,14 +785,12 @@ function createImpactMap(data, winner) {
   setTimeout(() => inset.invalidateSize(), 120);
 }
 
-function shareHtml(data, winner) {
-  return `<section class="section share-section">
-    <div class="section-heading"><div><h2>Share this winner page</h2><p>This link is permanent, so ${escapeHtml(winner.name)} can come back to Week ${data.week} any time.</p></div></div>
-    <div class="hero-actions"><button id="share-winner" class="button primary" type="button">Share this winner page</button><button id="copy-winner" class="button" type="button">Copy link</button></div>
-  </section>`;
+function shareHtml() {
+  return "";
 }
 
 function bindSharing(data, winner) {
+  if (!document.getElementById("copy-winner")) return;
   const text = `${winner.name} won FBP Week ${data.week} at ${winner.wins}-${winner.losses}. Watch the preserved race: ${location.href}`;
   document.getElementById("copy-winner").onclick = async event => {
     await navigator.clipboard.writeText(location.href);
