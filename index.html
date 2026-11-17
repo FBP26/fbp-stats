@@ -217,6 +217,7 @@
   .website-fix-picks p { margin: 0 0 8px; }
   .website-fix-picks .website-fix-buttons { display: flex; flex-wrap: wrap; gap: 8px; }
   .website-fix-picks button { padding: 8px 12px; border: 0; border-radius: 6px; background: #facc15; color: #172554; font-weight: bold; cursor: pointer; }
+  .website-fix-picks button.secondary { background: transparent; border: 1px solid #facc15; color: #facc15; }
   .website-fix-picks small { display: block; margin-top: 8px; color: #a3b8a0; }
   .website-fix-picks.locked { border-color: #334155; background: #111c31; color: #cbd5e1; }
   #view-week-one .intro { display: none; }
@@ -3949,10 +3950,35 @@ function renderWebsiteFixPicks() {
   host.hidden = false;
   host.classList.toggle("locked", locked);
   host.innerHTML = locked
-    ? `<p>✓ Week ${selection.week} picks are in for ${names.join(", ")}.</p><small>Picks locked at the first kickoff. Text Jim if something is wrong.</small>`
-    : `<p>✓ Already submitted from this ${/Mobi|Android|iPhone/i.test(navigator.userAgent) ? "phone" : "browser"} for Week ${selection.week}:</p><div class="website-fix-buttons">${entries.map(entry => `<button type="button" data-fix-name="${websiteEscapeHtml(entry.name)}">Fix ${websiteEscapeHtml(entry.name)}'s picks</button>`).join("")}</div><small>Changes allowed until ${websiteEscapeHtml(lockLabel)} (first kickoff). Someone else on this ${/Mobi|Android|iPhone/i.test(navigator.userAgent) ? "phone" : "browser"}? Just fill in the form below with their name.</small>`;
+    ? `<p>✓ ${websiteEscapeHtml(websitePeriodLabel(selection))} picks are in for ${names.join(", ")}.</p><div class="website-fix-buttons">${entries.map(entry => `<button type="button" class="secondary" data-view-name="${websiteEscapeHtml(entry.name)}">View ${websiteEscapeHtml(entry.name)}'s confirmation</button>`).join("")}</div><small>Picks locked at the first kickoff. Text Jim if something is wrong.</small>`
+    : `<p>✓ Already submitted from this ${/Mobi|Android|iPhone/i.test(navigator.userAgent) ? "phone" : "browser"} for ${websiteEscapeHtml(websitePeriodLabel(selection))}:</p><div class="website-fix-buttons">${entries.map(entry => `<button type="button" class="secondary" data-view-name="${websiteEscapeHtml(entry.name)}">View ${websiteEscapeHtml(entry.name)}'s confirmation</button><button type="button" data-fix-name="${websiteEscapeHtml(entry.name)}">Fix ${websiteEscapeHtml(entry.name)}'s picks</button>`).join("")}</div><small>Changes allowed until ${websiteEscapeHtml(lockLabel)} (first kickoff). Someone else on this ${/Mobi|Android|iPhone/i.test(navigator.userAgent) ? "phone" : "browser"}? Just fill in the form below with their name.</small>`;
   host.querySelectorAll("[data-fix-name]").forEach(button => { button.onclick = () => loadWebsitePicksForFix(button.dataset.fixName); });
+  host.querySelectorAll("[data-view-name]").forEach(button => { button.onclick = () => viewWebsiteConfirmationAgain(button.dataset.viewName, button); });
   if (!locked && Number.isFinite(lockAt) && lockAt - Date.now() < 2 ** 31) { clearTimeout(renderWebsiteFixPicks.timer); renderWebsiteFixPicks.timer = setTimeout(renderWebsiteFixPicks, lockAt - Date.now() + 1000); }
+}
+// Re-open the confirmation page for an entry this phone/browser submitted. The chances section is recalculated from
+// the live field each time it opens (and every 2 minutes while it stays open), so it changes as more picks come in.
+let websiteConfirmationRefreshTimer = null;
+async function viewWebsiteConfirmationAgain(name, button) {
+  const status = document.getElementById("website-picks-status");
+  if (button) button.disabled = true;
+  try {
+    const existing = await findExistingWebsiteSubmission({ name });
+    if (!existing || !existing.picks?.length) { status.textContent = `No saved picks were found for ${name}.`; return; }
+    const selection = websitePickSelection();
+    const submission = { mode: selection.testMode ? "test" : "production", season: selection.season, week: selection.week, phase: selection.phase, name: existing.name || name, weekName: existing.weekName || "", picks: [...existing.picks], bestBet: existing.bestBet, tiebreaker: existing.tiebreaker, submittedAt: existing.submittedAt || "" };
+    document.querySelector("#view-picks-confirmation .intro p").textContent = `${websitePeriodLabel(selection)} · ${selection.season}-${selection.season + 1}`;
+    showWebsiteConfirmation();
+    await renderWebsiteConfirmation(submission, { unchanged: false, submittedAt: submission.submittedAt, identity: { status: "known", submittedName: submission.name, suggestedName: "" } });
+    const when = Number.isFinite(Date.parse(submission.submittedAt)) ? new Date(submission.submittedAt).toLocaleString("en-US", { weekday: "short", month: "short", day: "numeric", hour: "numeric", minute: "2-digit" }) : "";
+    document.getElementById("confirmation-lead").textContent = `${submission.name}'s saved picks${when ? `, submitted ${when}` : ""}. Chances update as more players submit.`;
+    clearInterval(websiteConfirmationRefreshTimer);
+    websiteConfirmationRefreshTimer = setInterval(() => {
+      if (!document.getElementById("view-picks-confirmation")?.classList.contains("active")) { clearInterval(websiteConfirmationRefreshTimer); return; }
+      loadConfirmationProbability(submission).catch(() => {});
+    }, 120000);
+  } catch (error) { status.textContent = `Could not load ${name}'s confirmation: ${error.message}`; }
+  finally { if (button) button.disabled = false; }
 }
 async function loadWebsitePicksForFix(name) {
   const status = document.getElementById("website-picks-status"), form = document.getElementById("website-picks-form");
