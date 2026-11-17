@@ -61,8 +61,14 @@ assert.equal(unique(games.filter(entry => String(entry.season) === "2026-2027" &
 
 const latestWeekGames = games.filter(entry => String(entry.season) === "2026-2027" && Number(entry.week) === latestWeek);
 assert.ok(latestWeekGames.length, `Games feed is missing completed Week ${latestWeek} games.`);
-for (const field of ["officialGameDate", "officialGameTime", "stadium", "city", "country", "awayCoach", "homeCoach", "referee", "attendance", "metadataSource"]) {
-  assert.ok(latestWeekGames.every(entry => entry[field] !== null && entry[field] !== undefined && entry[field] !== ""), `Games feed is missing ${field} for completed Week ${latestWeek}.`);
+// Official metadata (nflverse/ESPN) can lag a newly finished week by a few hours, so results
+// publish immediately and only earlier completed weeks must already be fully enriched.
+for (const week of archiveWeeks.slice(0, -1)) {
+  const weekGames = games.filter(entry => String(entry.season) === "2026-2027" && Number(entry.week) === week);
+  assert.ok(weekGames.length, `Games feed is missing completed Week ${week} games.`);
+  for (const field of ["officialGameDate", "officialGameTime", "stadium", "city", "country", "awayCoach", "homeCoach", "referee", "attendance", "metadataSource"]) {
+    assert.ok(weekGames.every(entry => entry[field] !== null && entry[field] !== undefined && entry[field] !== ""), `Games feed is missing ${field} for completed Week ${week}.`);
+  }
 }
 
 const bestCompletedWeek = [...playerWeeks]

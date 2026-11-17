@@ -61,6 +61,7 @@ const FBP_MAP_VENUES = {
   LON01: { city: "London, England", country: "England", lat: 51.4559, lng: -0.3415 },
   LON02: { city: "London, England", country: "England", lat: 51.6043, lng: -0.0664 },
   MAD01: { city: "Madrid, Spain", country: "Spain", lat: 40.4531, lng: -3.6883 },
+  PAR00: { city: "Saint-Denis, France", country: "France", lat: 48.9245, lng: 2.3601 },
   MEX00: { city: "Mexico City, Mexico", country: "Mexico", lat: 19.3029, lng: -99.1505 },
   MIA00: { city: "Miami Gardens, FL", country: "USA", lat: 25.9580, lng: -80.2389 },
   MIN00: { city: "Minneapolis, MN", country: "USA", lat: 44.9738, lng: -93.2581 },

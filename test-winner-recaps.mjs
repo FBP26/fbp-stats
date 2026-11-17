@@ -53,7 +53,7 @@ for (const week of index.weeks) {
     assert.ok(venue, `Week ${week.week} Game ${recapGame.gameNum} neutral-site venue must be published.`);
     assert.equal(venue.neutralSite, true, `Week ${week.week} Game ${recapGame.gameNum} must remain a neutral-site venue.`);
     assert.equal(venue.country, sourceGame.country, `Week ${week.week} Game ${recapGame.gameNum} venue country must match canonical metadata.`);
-    assert.ok(venue.city.includes(sourceGame.city), `Week ${week.week} Game ${recapGame.gameNum} venue city must match canonical metadata.`);
+    assert.ok(venue.city.toLowerCase().includes(String(sourceGame.city).toLowerCase()), `Week ${week.week} Game ${recapGame.gameNum} venue city must match canonical metadata.`);
   }
 }
 
