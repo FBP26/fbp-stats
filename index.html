@@ -4835,7 +4835,7 @@ function renderWebsitePlayoffPanel(data, host) {
   if (!panel) { panel = document.createElement("section"); panel.className = "playoff-panel"; host.prepend(panel); }
   const { odds, paths, undecidedCount } = websitePlayoffTitleOdds(data);
   const superBowlStage = Number(playoff.round) === 4 && !playoff.picksHidden;
-  const percent = value => value >= 0.995 ? "99%+" : value > 0 && value < 0.005 ? "<1%" : `${Math.round(value * 100)}%`;
+  const percent = value => value >= 0.9995 ? "100%" : value >= 0.995 ? "99%+" : value > 0 && value < 0.005 ? "<1%" : `${Math.round(value * 100)}%`;
   const roundCell = (standing, info) => { const item = standing.rounds?.[info.round]; return item?.played && (item.wins || item.losses) ? `${item.wins}-${item.losses}` : item?.played ? "✓" : "—"; };
   const hidden = playoff.picksHidden
     ? `<p class="playoff-hidden"><strong>${websiteEscapeHtml(playoff.roundLabel)} picks are hidden</strong> until every player who is still alive has submitted, or the first kickoff. ${playoff.submittedCount} submitted.${playoff.waitingOn?.length ? ` Waiting on: ${playoff.waitingOn.map(websiteEscapeHtml).join(", ")}.` : ""}</p>`
