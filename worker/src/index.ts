@@ -4,7 +4,7 @@ import { buildRaceGameState, validateRaceSnapshotPlayers } from "./race";
 import { leaderPushSummary, maskNotificationDestination, normalizeNotificationDestination, notificationEvents, notificationPreferenceColumns, parseNotificationPreferences, picksDueReminderCheckpoints, picksDueReminderIsEligible, scheduledNotificationEvents, seasonRankMovementSummary, type LeaderPushScoreChange, type NotificationChannel, type NotificationEvent, type SeasonStanding } from "./notifications";
 import { sendWebPush, type PushSubscriptionRecord } from "./web-push";
 import { handleAdmin } from "./admin";
-import { buildWinnerEmail, publicSheetRows, settleFinalizedWeek, type WeekArchive } from "./payouts";
+import { balanceCents, balanceIndex, buildWinnerEmail, loadSeasonRows, money, publicSheetRows, settleFinalizedWeek, type WeekArchive } from "./payouts";
 
 interface Env {
   DB: D1Database;
@@ -2610,11 +2610,71 @@ const sendDailyHealthEmail = async (env: Env, today: string): Promise<void> => {
   }
 };
 
+// Tuesday commissioner summary (10 AM Eastern): last week's result, who sat out, who owes, and what's next.
+const sendTuesdaySummaryEmail = async (env: Env, today: string): Promise<void> => {
+  const last = await latestFinalizedRegularSeasonWeek(env.DB);
+  if (!last) return;
+  const season = Number(last.season), weekNumber = Number(last.week);
+  const flag = `tuesday-summary:${season}:${weekNumber}`;
+  if (!(await claimOpsFlag(env, flag))) return;
+  const entries = async (week: number) => ((await env.DB.prepare(
+    `SELECT p.canonical_name AS name FROM submissions s JOIN players p ON p.id = s.player_id JOIN weeks w ON w.id = s.week_id
+     WHERE w.season = ? AND w.week = ? AND w.phase = 'REGULAR_SEASON' AND s.superseded_at IS NULL ORDER BY p.canonical_name COLLATE NOCASE`,
+  ).bind(season, week).all<{ name: string }>()).results || []).map((row) => row.name);
+  const [thisWeek, priorWeek, seasonPlayers, prizes, nextWeek, errors] = await Promise.all([
+    entries(weekNumber),
+    weekNumber > 1 ? entries(weekNumber - 1) : Promise.resolve([] as string[]),
+    env.DB.prepare(
+      `SELECT p.canonical_name AS name, COUNT(DISTINCT w.week) AS weeks FROM submissions s JOIN players p ON p.id = s.player_id JOIN weeks w ON w.id = s.week_id
+       WHERE w.season = ? AND w.phase = 'REGULAR_SEASON' AND w.status = 'finalized' AND s.superseded_at IS NULL GROUP BY p.id`,
+    ).bind(season).all<{ name: string; weeks: number }>(),
+    env.DB.prepare("SELECT player, money_out_cents, balance_change_cents FROM payout_ledger WHERE reference LIKE ? ORDER BY id")
+      .bind(`PRIZE|${season}|${weekNumber}|%`).all<{ player: string; money_out_cents: number; balance_change_cents: number }>(),
+    findWeek(env.DB, season, weekNumber + 1, "REGULAR_SEASON"),
+    env.DB.prepare("SELECT COUNT(*) AS count FROM ops_events WHERE level = 'error' AND occurred_at > datetime('now', '-7 days')").first<{ count: number }>(),
+  ]);
+  const playedThis = new Set(thisWeek.map((name) => name.toLowerCase()));
+  const playedPrior = new Set(priorWeek.map((name) => name.toLowerCase()));
+  const satOut = (seasonPlayers.results || []).filter((row) => Number(row.weeks) >= 3 && !playedThis.has(row.name.toLowerCase())).map((row) => row.name).sort();
+  const newOrBack = thisWeek.filter((name) => !playedPrior.has(name.toLowerCase()));
+  const rows = await loadSeasonRows(env.DB, season);
+  const balanceAt = balanceIndex(rows);
+  const balances = rows.filter((row) => row.kind === "player").map((row) => ({ name: row.label, cents: (() => { try { return balanceCents(row.cells[balanceAt]); } catch { return 0; } })() }));
+  const owing = balances.filter((row) => row.cents > 0).sort((a, b) => b.cents - a.cents);
+  const credits = balances.filter((row) => row.cents < 0);
+  const prizeLines = (prizes.results || []).map((row) => `${row.player} ${money(Math.abs(Number(row.balance_change_cents || 0)) || Number(row.money_out_cents || 0))}`);
+  const nextLine = !nextWeek
+    ? `Week ${weekNumber + 1} is not set up yet (lines email usually comes Monday/Tuesday).`
+    : `Week ${weekNumber + 1} is ${String(nextWeek.status) === "staged" ? "approved; picks open Tuesday at 2:00 PM ET" : String(nextWeek.status)}.`;
+  const lines = [
+    `FBP ${season}-${season + 1}: Week ${weekNumber} wrap-up`,
+    "",
+    `Winner: ${prizeLines.join(", ") || "see the winner email"}`,
+    `Entries: ${thisWeek.length}${priorWeek.length ? ` (Week ${weekNumber - 1}: ${priorWeek.length})` : ""}`,
+    `New or back this week: ${newOrBack.join(", ") || "none"}`,
+    `Regulars who sat out: ${satOut.join(", ") || "none"}`,
+    "",
+    `Owed to the pool: ${money(owing.reduce((sum, row) => sum + row.cents, 0))} from ${owing.length} player${owing.length === 1 ? "" : "s"}`,
+    ...owing.map((row) => `  ${row.name}: ${money(row.cents)}`),
+    `Credits (pool owes players): ${money(Math.abs(credits.reduce((sum, row) => sum + row.cents, 0)))} across ${credits.length}`,
+    "",
+    nextLine,
+    `Problems logged in the last 7 days: ${Number(errors?.count || 0)}${Number(errors?.count || 0) ? " (see the daily check email)" : ""}`,
+    "",
+    `Admin page: ${env.PUBLIC_API_URL || "https://fbp-api.fbp-api-worker.workers.dev"}/admin`,
+  ];
+  if (!(await sendOwnerOperationalEmail(env, `FBP Week ${weekNumber} wrap-up: ${owing.length} owe ${money(owing.reduce((sum, row) => sum + row.cents, 0))}`, lines.join("\n")))) {
+    await releaseOpsFlag(env, flag);
+    await recordOpsEvent(env, "error", "tuesday-summary", `Week ${weekNumber} Tuesday summary could not be sent (${today}); it will retry.`);
+  }
+};
+
 const runOwnerEmails = async (env: Env): Promise<void> => {
   const now = easternParts();
   try {
     await sendMissingPicksEmail(env);
     if (now.hour >= 8) await sendDailyHealthEmail(env, now.day);
+    if (now.weekday === "Tue" && now.hour >= 10) await sendTuesdaySummaryEmail(env, now.day);
   } catch (error) {
     console.error("Owner email check failed", error);
   }

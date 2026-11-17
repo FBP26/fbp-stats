@@ -1,0 +1,20 @@
+name: Weekly test pick (test copy)
+
+# Runs after the test copy is refreshed from production (Tuesdays after picks open, and on demand), then submits,
+# fixes and reads back a test entry on fbp-api-staging. A failure here means picks may be broken in production too.
+on:
+  workflow_run:
+    workflows: ["Refresh test copy database"]
+    types: [completed]
+  workflow_dispatch:
+
+jobs:
+  test-pick:
+    if: github.event_name == 'workflow_dispatch' || github.event.workflow_run.conclusion == 'success'
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 22
+      - run: node scripts/staging-pick-test.mjs

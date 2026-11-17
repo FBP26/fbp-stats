@@ -1,11 +1,11 @@
 name: Refresh test copy database
-# Runs on demand, weekly (Mondays), and when this file changes.
+# Runs on demand, weekly (Tuesdays after picks open), and when this file changes. The weekly test pick runs after it.
 
 # Copies production D1 into fbp-staging (used by the test Worker), then blanks notification contacts and push
 # subscriptions so the test copy can never message anyone.
 on:
   schedule:
-    - cron: "41 10 * * 1" # Mondays ~5:41 AM Eastern
+    - cron: "41 19 * * 2" # Tuesdays ~2:41 PM Eastern, after the new week's picks open
   workflow_dispatch:
   push:
     branches: [main]

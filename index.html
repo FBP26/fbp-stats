@@ -203,7 +203,8 @@
   .website-instructions { margin: 0 0 18px; color: var(--muted); font: 13px/1.55 Arial, sans-serif; }
   .website-entry-context { margin: 0 0 14px; color: var(--accent); font: 12px/1.5 Arial, sans-serif; }
   #view-enter-picks .intro { display: none; }
-  .website-fix-picks { margin: 0 0 14px; padding: 10px 12px; border: 1px solid #3b5b2a; border-radius: 8px; background: #14231a; color: #d9f99d; font-size: 13px; }
+  .season-live-note { grid-column: 1 / -1; margin: 0; color: #facc15; font-size: 12px; font-weight: bold; }
+  .website-fix-picks { font-family: Arial, sans-serif; margin: 0 0 14px; padding: 10px 12px; border: 1px solid #3b5b2a; border-radius: 8px; background: #14231a; color: #d9f99d; font-size: 13px; }
   .website-fix-picks p { margin: 0 0 8px; }
   .website-fix-picks .website-fix-buttons { display: flex; flex-wrap: wrap; gap: 8px; }
   .website-fix-picks button { padding: 8px 12px; border: 0; border-radius: 6px; background: #facc15; color: #172554; font-weight: bold; cursor: pointer; }
@@ -3258,7 +3259,7 @@ async function renderWebsitePicksForm(forceRefresh = false) {
     document.querySelector('#website-picks-form button[type="submit"]').disabled = !linesReady || weekLocked;
     document.getElementById("website-picks-status").textContent = weekLocked ? `Week ${selection.week} is final. Week ${selection.week + 1} picks open Tuesday at 2:00 PM ET.` : linesReady ? "" : "Not every point spread is posted yet. Matchups are available for review; picks open after the Tuesday refresh fills the lines.";
     queueWebsitePicksWeatherRefresh(selection);
-    renderWebsiteFixPicks();
+    try { renderWebsiteFixPicks(); } catch (fixError) { console.warn("Fix my picks panel", fixError); }
   } catch (error) {
     websiteActiveGames = [];
     renderWebsiteGamesLoadError(host, error);
@@ -4030,7 +4031,7 @@ document.getElementById("website-picks-form").onsubmit = async event => {
     await confirmationReady;
     if (!await sendWebsitePickConfirmationEmail(result.confirmationEmailToken)) console.warn("Picks were saved, but the combined admin confirmation email could not be verified.");
     websiteBestBetMismatchAttempts = 0; websiteBestBetMismatchSignature = ""; websiteApprovedNewPlayerName = "";
-    renderWebsiteFixPicks();
+    try { renderWebsiteFixPicks(); } catch (fixError) { console.warn("Fix my picks panel", fixError); }
   } catch (error) { status.textContent = `Could not submit picks: ${error.message}`; }
   finally {
     websitePicksSubmissionPending = false;
@@ -5082,8 +5083,46 @@ function renderStreakChart(rows) {
   if (profilePlacementChart) profilePlacementChart.destroy();
   profilePlacementChart = new Chart(document.getElementById("profile-placement-chart"), { type: "bar", data: { labels, datasets: [{ label: "Top 5 streak", data: labels.map(label => top5.some(row => `${row.Season} ${row.Week === "playoffs" ? "Playoffs" : `W${row.Week}`}` === label) ? 5 : null), backgroundColor: "#ff4f5e", borderColor: "#ff4f5e", borderWidth: 1 }, { label: "Top 10 streak", data: labels.map(label => top10.some(row => `${row.Season} ${row.Week === "playoffs" ? "Playoffs" : `W${row.Week}`}` === label) ? 10 : null), backgroundColor: "#ffb454", borderColor: "#ffb454", borderWidth: 1 }] }, options: { responsive: true, maintainAspectRatio: false, scales: { x: { ticks: { color: "#91a0ae", maxRotation: 65, minRotation: 45 }, grid: { color: "#2a3744" } }, y: { beginAtZero: true, max: 10, ticks: { color: "#91a0ae", stepSize: 1, callback: value => value === 5 ? "Top 5" : value === 10 ? "Top 10" : "" }, grid: { color: "#2a3744" } } }, plugins: { legend: { labels: { color: "#e8eef5" } }, tooltip: { callbacks: { label: context => `${context.dataset.label}: ${context.label}` } } } } });
 }
-function seasonStandings(season) {
+// Live season standings: the hourly history build only knows finished weeks, so while a week is being played (or
+// before the next hourly build), the Seasons page adds that week's live wins from the Worker's current-week feed.
+let websiteLiveSeasonRows = [], websiteLiveSeasonLabel = "", websiteLiveSeasonTimer = null;
+function websiteSeasonRows(season) {
   const rows = websiteWeeks.filter(row => row.season === season && row.competition === "regular");
+  const live = websiteLiveSeasonRows.filter(row => row.season === season && !rows.some(existing => existing.week === row.week));
+  return live.length ? [...rows, ...live] : rows;
+}
+async function refreshLiveSeasonStandings() {
+  if (!WEBSITE_SUBMISSIONS_ENDPOINT || !websiteWeeks.length) return;
+  try {
+    const separator = WEBSITE_SUBMISSIONS_ENDPOINT.includes("?") ? "&" : "?";
+    const response = await fetch(`${WEBSITE_SUBMISSIONS_ENDPOINT}${separator}action=current-week&fast=1&_=${Date.now()}`, { cache: "no-store", signal: AbortSignal.timeout(30000) });
+    const data = await response.json();
+    if (!response.ok || !data.ok || !Array.isArray(data.players) || !Array.isArray(data.games)) return;
+    const season = String(data.seasonLabel || `${data.season}-${Number(data.season) + 1}`), week = String(data.week);
+    const statuses = data.games.map(game => websiteGameStatus(game));
+    const started = statuses.filter(status => !["", "PRE", "PREGAME", "SCHEDULED", "STATUS_SCHEDULED"].includes(status)).length;
+    const final = statuses.length > 0 && statuses.every(status => ["POST", "FINAL", "COMPLETED", "STATUS_FINAL"].includes(status));
+    const alreadyBuilt = websiteWeeks.some(row => row.season === season && row.week === week && row.competition === "regular");
+    if (!started || alreadyBuilt || !data.players.length) { websiteLiveSeasonRows = []; websiteLiveSeasonLabel = ""; }
+    else {
+      const known = new Map(websiteWeeks.filter(row => row.season === season).map(row => [String(row.name).trim().toLowerCase(), row.playerId]));
+      const actual = Number(data.actualTiebreaker);
+      const ordered = [...data.players].sort((a, b) => Number(b.wins || 0) - Number(a.wins || 0) || Number(a.tiebreakDifference ?? 9999) - Number(b.tiebreakDifference ?? 9999));
+      websiteLiveSeasonRows = ordered.map((player, index) => {
+        const wins = Number(player.wins || 0), losses = Number(player.losses || 0), name = String(player.name || "").trim();
+        const rank = 1 + ordered.findIndex(other => Number(other.wins || 0) === wins);
+        const seasonRow = websiteWeeks.find(row => row.season === season && row.playerId === known.get(name.toLowerCase()));
+        return { playerId: known.get(name.toLowerCase()) || name.toLowerCase().replace(/[^a-z0-9]+/g, "-"), name, season, week, weekOrder: Number(week), competition: "regular", weekName: player.weekName || "", wins, losses, pushes: 0, displayWins: wins, displayLosses: losses, displayPushes: 0, winPct: wins + losses ? wins / (wins + losses) : 0, displayWinPct: wins + losses ? wins / (wins + losses) : 0, rank, displayRank: rank, WinShare: 0, seasonRank: seasonRow?.seasonRank ?? null, moneyAward: 0, tiebreaker: player.tiebreaker, actualTiebreak: Number.isFinite(actual) ? actual : null, live: true, liveIndex: index };
+      });
+      websiteLiveSeasonLabel = final ? `Includes Week ${week} (final, official results post within the hour)` : `Live: includes Week ${week} in progress (${started} of ${statuses.length} games started)`;
+    }
+    if (document.getElementById("season-choice")?.value === season && document.getElementById("view-season")?.classList.contains("active")) renderSeason();
+    clearTimeout(websiteLiveSeasonTimer);
+    if (websiteLiveSeasonRows.length && !final) websiteLiveSeasonTimer = setTimeout(refreshLiveSeasonStandings, 120000);
+  } catch (error) { console.warn("Live season standings unavailable", error); }
+}
+function seasonStandings(season) {
+  const rows = websiteSeasonRows(season);
   const byPlayer = {};
   rows.forEach(row => {
     const player = byPlayer[row.playerId] = byPlayer[row.playerId] || { playerId: row.playerId, name: row.name, wins: 0, losses: 0, weeks: 0, weeksWon: 0, money: 0, seasonRank: row.seasonRank, seasonComplete: Boolean(row.seasonComplete), weekMap: {} };
@@ -5096,10 +5135,10 @@ function seasonStandings(season) {
   });
   return Object.values(byPlayer)
     .map(player => ({ ...player, winPct: player.wins + player.losses ? player.wins / (player.wins + player.losses) : 0, qualified: player.seasonRank != null }))
-    .sort((a, b) => (a.qualified === b.qualified ? 0 : a.qualified ? -1 : 1) || Number(a.seasonRank ?? 999) - Number(b.seasonRank ?? 999) || b.winPct - a.winPct);
+    .sort((a, b) => (a.qualified === b.qualified ? 0 : a.qualified ? -1 : 1) || (rows.some(row => row.live) ? b.winPct - a.winPct : Number(a.seasonRank ?? 999) - Number(b.seasonRank ?? 999) || b.winPct - a.winPct));
 }
 function seasonWeekList(season) {
-  return [...new Set(websiteWeeks.filter(row => row.season === season && row.competition === "regular").map(row => row.week))].sort((a, b) => Number(a) - Number(b));
+  return [...new Set(websiteSeasonRows(season).map(row => row.week))].sort((a, b) => Number(a) - Number(b));
 }
 function populateSeasonChoices() {
   const select = document.getElementById("season-choice");
@@ -5120,7 +5159,7 @@ function renderSeason(resetPlayer = false) {
     ["Record", `${champion.wins}-${champion.losses}`],
     ["Win %", `${(champion.winPct * 100).toFixed(1)}%`],
     ["Weeks won", champion.weeksWon]
-  ].map(([label, value]) => `<div class="metric"><span>${label}</span><strong>${value}</strong></div>`).join("");
+  ].map(([label, value]) => `<div class="metric"><span>${label}</span><strong>${value}</strong></div>`).join("") + (websiteLiveSeasonLabel && websiteLiveSeasonRows.some(row => row.season === season) ? `<p class="season-live-note">${websiteEscapeHtml(websiteLiveSeasonLabel)}</p>` : "");
   const progress = seasonProgress(standings, weeks);
   const playoffRows = {};
   websiteWeeks.filter(row => row.season === season && row.competition === "playoffs").forEach(row => { playoffRows[row.playerId] = row; });
@@ -8251,7 +8290,7 @@ initializePushNotifications();
 let historicalInitializationPromise = null;
 var websiteHistoryReady = false;
 function startHistoricalInitialization() {
-  if (!historicalInitializationPromise) historicalInitializationPromise = init().then(async () => { websiteHistoryReady = true; applyHistoricalLabels(); populateWeekSeasons(); populateSeasonChoices(); if (location.hash === "#weeks") { await loadDrilldown(); renderWinnerContributions(true); renderPicksGrid(); setTimeout(() => { orientWeekChart(); addGamePushMarkers(); }, 0); } if (location.hash === "#map") initFbpMap(); if (location.hash === "#submission-status") renderSubmissionStatus(); if (websiteLastWeekData) renderWebsiteWeekRecap(websiteLastWeekData); });
+  if (!historicalInitializationPromise) historicalInitializationPromise = init().then(async () => { websiteHistoryReady = true; applyHistoricalLabels(); populateWeekSeasons(); populateSeasonChoices(); refreshLiveSeasonStandings(); if (location.hash === "#weeks") { await loadDrilldown(); renderWinnerContributions(true); renderPicksGrid(); setTimeout(() => { orientWeekChart(); addGamePushMarkers(); }, 0); } if (location.hash === "#map") initFbpMap(); if (location.hash === "#submission-status") renderSubmissionStatus(); if (websiteLastWeekData) renderWebsiteWeekRecap(websiteLastWeekData); });
   return historicalInitializationPromise;
 }
 if (requestedStartupRoute !== "week-one") startHistoricalInitialization();
