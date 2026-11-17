@@ -15,6 +15,12 @@ assert.match(html, /const WEBSITE_LIVE_CALCULATION_LIMIT = 512;/);
 assert.match(html, /hasLiveGame \? WEBSITE_LIVE_CALCULATION_LIMIT : WEBSITE_EXACT_CALCULATION_LIMIT/);
 assert.match(html, /function websiteCachedExactPathCounts\(data, forced = \{\}\)/);
 assert.match(html, /player\.pathsToVictory = exactPathCounts\[index\];/);
+assert.match(html, /function websitePicksGameResult\(game\)/);
+assert.match(html, /website-side-covered|website-side-missed|website-side-push/);
+assert.match(html, /completed: !data\.staged && Boolean\(data\.games\?\.length\)/);
+assert.match(html, /!selection\.testMode && !selection\.staged && !selection\.completed/);
+assert.match(html, /is final\. Week \$\{selection\.week \+ 1\} picks open Tuesday at 2:00 PM ET\./);
+assert.match(html, /function websiteActiveSlateRefreshDelay\(\)/);
 const historicalGames = JSON.parse(readFileSync(new URL('./data/games.json', import.meta.url), 'utf8'));
 const clevelandWeeks = historicalGames
   .filter(game => String(game.season) === '2026-2027' && Number(game.week) <= 5 && [game.favorite, game.underdog].some(team => String(team).toUpperCase() === 'CLE'))
