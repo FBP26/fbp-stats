@@ -14,6 +14,12 @@ const NEUTRAL_SITE_GAMES = {
   "2026-2027|4|IND@WAS": "LON02",
   "2026-2027|5|PHI@JAX": "LON02",
   "2026-2027|6|HOU@JAX": "LON00",
+  // Week 10 was played at Allianz Arena in Munich, not Ford Field.
+  "2026-2027|10|NE@DET": "GER00",
+  "2026-2027|10|DET@NE": "GER00",
+  // Week 11 is in Mexico City; listed both ways until the official home side is in games.json.
+  "2026-2027|11|MIN@SF": "MEX00",
+  "2026-2027|11|SF@MIN": "MEX00",
 };
 
 // Venues absent from FBP_MAP_VENUES in map.js.
@@ -27,6 +33,8 @@ const STADIUM_NAMES = {
   RIO00: "Maracanã Stadium",
   LON00: "Wembley Stadium",
   LON02: "Tottenham Hotspur Stadium",
+  GER00: "Allianz Arena",
+  MEX00: "Estadio Azteca",
 };
 
 function extractObject(source, name) {
