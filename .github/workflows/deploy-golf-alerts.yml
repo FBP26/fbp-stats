@@ -1,0 +1,38 @@
+# Deploys the Golf With Jim alert Worker (golfwithjim-alerts) from FBP26/golfwithjim using this repo's
+# Cloudflare deploy secrets, so the golf repo does not need its own copy of the token. Run manually.
+name: Deploy Golf alert Worker
+
+on:
+  workflow_dispatch:
+    inputs:
+      ref:
+        description: "golfwithjim branch or commit to deploy"
+        required: false
+        default: main
+
+concurrency:
+  group: deploy-golf-alerts
+  cancel-in-progress: false
+
+jobs:
+  deploy:
+    runs-on: ubuntu-latest
+    env:
+      CLOUDFLARE_API_TOKEN: ${{ secrets.CLOUDFLARE_API_TOKEN }}
+      CLOUDFLARE_ACCOUNT_ID: ${{ secrets.CLOUDFLARE_ACCOUNT_ID }}
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          repository: FBP26/golfwithjim
+          ref: ${{ github.event.inputs.ref || 'main' }}
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 24
+      - name: Install alert Worker packages
+        working-directory: alert-worker
+        run: npm ci
+      - name: Tests
+        run: npm test
+      - name: Deploy
+        working-directory: alert-worker
+        run: npx wrangler deploy
