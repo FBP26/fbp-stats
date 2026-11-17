@@ -203,6 +203,12 @@
   .website-instructions { margin: 0 0 18px; color: var(--muted); font: 13px/1.55 Arial, sans-serif; }
   .website-entry-context { margin: 0 0 14px; color: var(--accent); font: 12px/1.5 Arial, sans-serif; }
   #view-enter-picks .intro { display: none; }
+  .website-fix-picks { margin: 0 0 14px; padding: 10px 12px; border: 1px solid #3b5b2a; border-radius: 8px; background: #14231a; color: #d9f99d; font-size: 13px; }
+  .website-fix-picks p { margin: 0 0 8px; }
+  .website-fix-picks .website-fix-buttons { display: flex; flex-wrap: wrap; gap: 8px; }
+  .website-fix-picks button { padding: 8px 12px; border: 0; border-radius: 6px; background: #facc15; color: #172554; font-weight: bold; cursor: pointer; }
+  .website-fix-picks small { display: block; margin-top: 8px; color: #a3b8a0; }
+  .website-fix-picks.locked { border-color: #334155; background: #111c31; color: #cbd5e1; }
   #view-week-one .intro { display: none; }
   #view-enter-picks .website-entry-context { font-size: 14px; font-weight: bold; }
   #website-week-name-label { visibility: hidden; }
@@ -902,7 +908,7 @@
 <main>
   <section id="view-enter-picks" class="view">
     <section class="intro"><div><h2>Picks</h2></div><p>Week 1 · 2026-2027</p></section>
-    <div class="panel"><p id="website-entry-context" class="website-entry-context">Loading the active slate...</p><div class="website-notification-row"><button id="website-week-notifications" type="button">Notify me when a new week opens</button><span id="website-week-notification-status">Browser alerts work while FBP is open.</span></div><details class="notification-settings"><summary>Email and text alert preferences</summary><form id="notification-preferences-form" class="notification-form"><div><span class="notification-note">Delivery</span><div class="notification-choice"><label><input type="radio" name="notification-channel" value="email" checked> Email</label><label title="Text alerts need an SMS provider before they can be enabled"><input id="notification-sms-channel" type="radio" name="notification-channel" value="sms" disabled> Text · setup required</label></div></div><div><span class="notification-note">Coverage</span><div class="notification-choice"><label><input type="radio" name="notification-scope" value="player" checked> Follow one player</label><label><input type="radio" name="notification-scope" value="pool"> General pool alerts</label></div></div><div class="notification-contact-grid"><label id="notification-player-label">Player<input id="notification-player" list="notification-player-options" autocomplete="off" required><datalist id="notification-player-options"></datalist></label><label>Email<input id="notification-destination" type="email" autocomplete="email" required></label></div><div><span class="notification-note">Send me</span><div class="notification-events"><label><input type="checkbox" name="picksReady" checked><span>Picks are ready<small>A new weekly slate opens.</small></span></label><label><input type="checkbox" name="firstPlace"><span>First-place jump<small>Your player moves into first.</small></span></label><label><input type="checkbox" name="earlyWindow"><span>After early games<small>Personal standing after the 1 PM window.</small></span></label><label><input type="checkbox" name="lateWindow"><span>After late games<small>Personal standing after the late window.</small></span></label><label><input type="checkbox" name="beforeSnf"><span>Before Sunday night<small>Paths and pivotal SNF scenarios.</small></span></label><label><input type="checkbox" name="beforeMnf"><span>Before Monday night<small>Paths and pivotal MNF scenarios.</small></span></label><label><input type="checkbox" name="weeklyResult" checked><span>Weekly result<small>Winner and your final result.</small></span></label></div></div><button id="notification-save" type="submit">Email verification link</button><p id="notification-status" class="notification-status" role="status">Nothing is active until you verify the email. Every message includes a stop link.</p></form></details><p id="website-test-notice" class="website-test-notice">TEST MODE · Entries and scores are isolated from regular-season standings, logs, awards, and archives.</p><div class="website-instructions">Favorites left; underdogs right.<br>Spreads post Tuesday and lock when posted.</div><form id="website-picks-form"><div class="explorer-controls website-identity-controls"><label>Name<input id="website-picks-name" required autocomplete="name"></label><label><span id="website-week-name-label">Week 1 name</span><input id="website-week-name" required autocomplete="off" autocapitalize="words" spellcheck="false"></label></div><div id="website-game-picks" class="website-game-list"></div><div class="explorer-controls website-final-controls" style="margin-top:18px"><label>Best Bet · counts as an additional win or loss<select id="website-best-bet" required></select></label><label>Tiebreaker · total net passing yards (KC vs DEN)<input id="website-tiebreaker" type="number" inputmode="decimal" min="-100" max="1200" step="any" title="Enter a number from -100 through 1200" required><small style="color:var(--muted);font:11px Arial,sans-serif;text-transform:none;letter-spacing:0">Net passing yards subtract yards lost to sacks.</small></label></div><button type="submit" style="margin-top:18px">Submit picks</button><p id="website-picks-status" style="color:var(--muted);font:13px Arial,sans-serif" tabindex="-1"></p></form></div>
+    <div class="panel"><p id="website-entry-context" class="website-entry-context">Loading the active slate...</p><div class="website-notification-row"><button id="website-week-notifications" type="button">Notify me when a new week opens</button><span id="website-week-notification-status">Browser alerts work while FBP is open.</span></div><details class="notification-settings"><summary>Email and text alert preferences</summary><form id="notification-preferences-form" class="notification-form"><div><span class="notification-note">Delivery</span><div class="notification-choice"><label><input type="radio" name="notification-channel" value="email" checked> Email</label><label title="Text alerts need an SMS provider before they can be enabled"><input id="notification-sms-channel" type="radio" name="notification-channel" value="sms" disabled> Text · setup required</label></div></div><div><span class="notification-note">Coverage</span><div class="notification-choice"><label><input type="radio" name="notification-scope" value="player" checked> Follow one player</label><label><input type="radio" name="notification-scope" value="pool"> General pool alerts</label></div></div><div class="notification-contact-grid"><label id="notification-player-label">Player<input id="notification-player" list="notification-player-options" autocomplete="off" required><datalist id="notification-player-options"></datalist></label><label>Email<input id="notification-destination" type="email" autocomplete="email" required></label></div><div><span class="notification-note">Send me</span><div class="notification-events"><label><input type="checkbox" name="picksReady" checked><span>Picks are ready<small>A new weekly slate opens.</small></span></label><label><input type="checkbox" name="firstPlace"><span>First-place jump<small>Your player moves into first.</small></span></label><label><input type="checkbox" name="earlyWindow"><span>After early games<small>Personal standing after the 1 PM window.</small></span></label><label><input type="checkbox" name="lateWindow"><span>After late games<small>Personal standing after the late window.</small></span></label><label><input type="checkbox" name="beforeSnf"><span>Before Sunday night<small>Paths and pivotal SNF scenarios.</small></span></label><label><input type="checkbox" name="beforeMnf"><span>Before Monday night<small>Paths and pivotal MNF scenarios.</small></span></label><label><input type="checkbox" name="weeklyResult" checked><span>Weekly result<small>Winner and your final result.</small></span></label></div></div><button id="notification-save" type="submit">Email verification link</button><p id="notification-status" class="notification-status" role="status">Nothing is active until you verify the email. Every message includes a stop link.</p></form></details><p id="website-test-notice" class="website-test-notice">TEST MODE · Entries and scores are isolated from regular-season standings, logs, awards, and archives.</p><div class="website-instructions">Favorites left; underdogs right.<br>Spreads post Tuesday and lock when posted.</div><div id="website-fix-picks" class="website-fix-picks" hidden></div><form id="website-picks-form"><div class="explorer-controls website-identity-controls"><label>Name<input id="website-picks-name" required autocomplete="name"></label><label><span id="website-week-name-label">Week 1 name</span><input id="website-week-name" required autocomplete="off" autocapitalize="words" spellcheck="false"></label></div><div id="website-game-picks" class="website-game-list"></div><div class="explorer-controls website-final-controls" style="margin-top:18px"><label>Best Bet · counts as an additional win or loss<select id="website-best-bet" required></select></label><label>Tiebreaker · total net passing yards (KC vs DEN)<input id="website-tiebreaker" type="number" inputmode="decimal" min="-100" max="1200" step="any" title="Enter a number from -100 through 1200" required><small style="color:var(--muted);font:11px Arial,sans-serif;text-transform:none;letter-spacing:0">Net passing yards subtract yards lost to sacks.</small></label></div><button type="submit" style="margin-top:18px">Submit picks</button><p id="website-picks-status" style="color:var(--muted);font:13px Arial,sans-serif" tabindex="-1"></p></form></div>
   </section>
   <section id="view-picks-confirmation" class="view"><section class="intro"><div><h2>Picks submitted</h2></div><p>Week 1 · 2026-2027</p></section><div class="panel website-confirmation"><p id="confirmation-lead" class="confirmation-lead">Your picks were submitted successfully.</p><div class="confirmation-grid"><section id="confirmation-identity" class="confirmation-block"><h3>Your pool history</h3><p>Finding your place in the archive...</p></section><section id="confirmation-picks" class="confirmation-block"><h3>Live outlook</h3><p>Comparing your card with the field...</p></section><section id="confirmation-history" class="confirmation-block"><h3>This card in your history</h3><p>Loading your historical picks...</p></section></div><button id="website-view-week-one" type="button">View Week 1</button></div></section>
   <section id="view-week-one" class="view active">
@@ -3213,7 +3219,7 @@ async function renderWebsitePicksForm(forceRefresh = false) {
   const selection = websitePickSelection();
   const configKey = `${selection.phase}-${selection.season}-${selection.week}`;
   const cachedGames = websiteStagedGamesCache.get(configKey)?.games || [];
-  if (!forceRefresh && host.dataset.ready === configKey && websiteSlateSignature(websiteActiveGames) === websiteSlateSignature(cachedGames)) { queueWebsitePicksWeatherRefresh(selection); return; }
+  if (!forceRefresh && host.dataset.ready === configKey && websiteSlateSignature(websiteActiveGames) === websiteSlateSignature(cachedGames)) { queueWebsitePicksWeatherRefresh(selection); renderWebsiteFixPicks(); return; }
   host.dataset.ready = configKey;
   host.innerHTML = '<p class="website-instructions">Loading games...</p>';
   document.getElementById("website-test-notice").classList.toggle("active", selection.testMode);
@@ -3250,8 +3256,9 @@ async function renderWebsitePicksForm(forceRefresh = false) {
     host.addEventListener("change", host.bestBetPickHandler);
     refreshBestBetTeams();
     document.querySelector('#website-picks-form button[type="submit"]').disabled = !linesReady || weekLocked;
-    document.getElementById("website-picks-status").textContent = weekLocked ? `Week ${selection.week} is final. Week ${selection.week + 1} picks open Tuesday at 2:00 PM ET.` : linesReady ? "" : "Yahoo has not posted every spread yet. Matchups are available for review; picks open after the Tuesday refresh fills the lines.";
+    document.getElementById("website-picks-status").textContent = weekLocked ? `Week ${selection.week} is final. Week ${selection.week + 1} picks open Tuesday at 2:00 PM ET.` : linesReady ? "" : "Not every point spread is posted yet. Matchups are available for review; picks open after the Tuesday refresh fills the lines.";
     queueWebsitePicksWeatherRefresh(selection);
+    renderWebsiteFixPicks();
   } catch (error) {
     websiteActiveGames = [];
     renderWebsiteGamesLoadError(host, error);
@@ -3747,7 +3754,7 @@ async function renderConfirmationHistory(submission) {
 }
 async function renderWebsiteConfirmation(submission, result) {
   submission.submittedAt = result?.submittedAt || submission.submittedAt || "";
-  document.getElementById("confirmation-lead").textContent = result?.unchanged ? `These picks were already saved for ${submission.name.trim()}. The original submission was kept.` : submission.mode === "test" ? "Test picks submitted. Season records were not changed." : `Picks submitted for ${submission.name.trim()}.`;
+  document.getElementById("confirmation-lead").textContent = result?.unchanged ? `These picks were already saved for ${submission.name.trim()}. The original submission was kept.` : submission.mode === "test" ? "Test picks submitted. Season records were not changed." : `Picks submitted for ${submission.name.trim()}. Need a change? Use "Fix my picks" on the Picks page until the first kickoff.`;
   await renderConfirmationIdentity(submission, result?.identity);
   renderConfirmationPicks(submission);
   await Promise.allSettled([renderConfirmationHistory(submission), loadConfirmationProbability(submission)]);
@@ -3880,6 +3887,61 @@ function confirmWebsiteBestBetMismatch(submission, status) {
   status.focus();
   return false;
 }
+// Fix my picks: this phone/browser remembers an edit key for every name it submitted this week (several people can share
+// one phone; each name gets its own key and its own button). The Worker only lets the key holder replace an entry,
+// and nobody can change an entry after the week's first kickoff.
+function websiteEditKeyStore() { try { return JSON.parse(localStorage.getItem("fbpEditKeys") || "{}") || {}; } catch { return {}; } }
+function websiteEditKeyWeek(selection = websitePickSelection()) { return `${selection.phase}-${selection.season}-${selection.week}`; }
+function websiteEditKeysForWeek(selection) { const entries = websiteEditKeyStore()[websiteEditKeyWeek(selection)] || {}; return Object.entries(entries).map(([name, entry]) => ({ name, ...entry })); }
+function websiteEditKeyFor(name, selection) { const wanted = String(name || "").trim().replace(/\s+/g, " ").toLowerCase(); return websiteEditKeysForWeek(selection).find(entry => entry.name.toLowerCase() === wanted)?.key || ""; }
+function websiteSaveEditKey(name, key, editableUntil, selection) {
+  if (!key || !name) return;
+  try {
+    const store = websiteEditKeyStore(), weekKey = websiteEditKeyWeek(selection), week = store[weekKey] || {};
+    for (const existing of Object.keys(week)) if (existing.toLowerCase() === name.toLowerCase()) delete week[existing];
+    week[name] = { key, editableUntil: editableUntil || "", savedAt: new Date().toISOString() };
+    store[weekKey] = week;
+    for (const stale of Object.keys(store)) if (stale !== weekKey && Object.keys(store).length > 6) delete store[stale];
+    localStorage.setItem("fbpEditKeys", JSON.stringify(store));
+  } catch (error) { console.warn("Could not remember the edit key", error); }
+}
+function websiteFirstKickoff() { const times = websiteActiveGames.map(game => Date.parse(game.kickoff || game.kickoffAt || "")).filter(Number.isFinite); return times.length ? Math.min(...times) : NaN; }
+function renderWebsiteFixPicks() {
+  const host = document.getElementById("website-fix-picks");
+  if (!host) return;
+  const selection = websitePickSelection();
+  const entries = selection.testMode || selection.completed ? [] : websiteEditKeysForWeek(selection);
+  if (!entries.length) { host.hidden = true; host.innerHTML = ""; return; }
+  const lockAt = websiteFirstKickoff(), locked = Number.isFinite(lockAt) && Date.now() >= lockAt;
+  const lockLabel = Number.isFinite(lockAt) ? new Date(lockAt).toLocaleString("en-US", { weekday: "short", hour: "numeric", minute: "2-digit" }) : "the first kickoff";
+  const names = entries.map(entry => websiteEscapeHtml(entry.name));
+  host.hidden = false;
+  host.classList.toggle("locked", locked);
+  host.innerHTML = locked
+    ? `<p>✓ Week ${selection.week} picks are in for ${names.join(", ")}.</p><small>Picks locked at the first kickoff. Text Jim if something is wrong.</small>`
+    : `<p>✓ Already submitted from this ${/Mobi|Android|iPhone/i.test(navigator.userAgent) ? "phone" : "browser"} for Week ${selection.week}:</p><div class="website-fix-buttons">${entries.map(entry => `<button type="button" data-fix-name="${websiteEscapeHtml(entry.name)}">Fix ${websiteEscapeHtml(entry.name)}'s picks</button>`).join("")}</div><small>Changes allowed until ${websiteEscapeHtml(lockLabel)} (first kickoff). Someone else on this ${/Mobi|Android|iPhone/i.test(navigator.userAgent) ? "phone" : "browser"}? Just fill in the form below with their name.</small>`;
+  host.querySelectorAll("[data-fix-name]").forEach(button => { button.onclick = () => loadWebsitePicksForFix(button.dataset.fixName); });
+  if (!locked && Number.isFinite(lockAt) && lockAt - Date.now() < 2 ** 31) { clearTimeout(renderWebsiteFixPicks.timer); renderWebsiteFixPicks.timer = setTimeout(renderWebsiteFixPicks, lockAt - Date.now() + 1000); }
+}
+async function loadWebsitePicksForFix(name) {
+  const status = document.getElementById("website-picks-status"), form = document.getElementById("website-picks-form");
+  status.textContent = `Loading ${name}'s picks...`;
+  try {
+    const existing = await findExistingWebsiteSubmission({ name });
+    if (!existing) { status.textContent = `No saved picks were found for ${name} this week.`; return; }
+    document.getElementById("website-picks-name").value = existing.name || name;
+    document.getElementById("website-week-name").value = existing.weekName || "";
+    (existing.picks || []).forEach((pick, index) => { const input = [...form.querySelectorAll(`input[name="game-${index + 1}"]`)].find(item => item.value === pick); if (input) input.checked = true; });
+    form.querySelector('input[type="radio"][name^="game-"]')?.dispatchEvent(new Event("change", { bubbles: true }));
+    const bestBet = document.getElementById("website-best-bet");
+    bestBet.value = existing.bestBet || "";
+    bestBet.dispatchEvent(new Event("change", { bubbles: true }));
+    if (typeof updateWebsiteBestBetPicker === "function") updateWebsiteBestBetPicker();
+    document.getElementById("website-tiebreaker").value = existing.tiebreaker ?? "";
+    status.textContent = `Editing ${existing.name || name}'s Week ${websitePickSelection().week} picks. Change anything, then tap Submit.`;
+    form.scrollIntoView({ behavior: "smooth", block: "start" });
+  } catch (error) { status.textContent = `Could not load ${name}'s picks: ${error.message}`; }
+}
 async function findExistingWebsiteSubmission(submission) {
   if (!WEBSITE_SUBMISSIONS_ENDPOINT) return null;
   const selection = websitePickSelection(), separator = WEBSITE_SUBMISSIONS_ENDPOINT.includes("?") ? "&" : "?";
@@ -3929,6 +3991,7 @@ document.getElementById("website-picks-form").onsubmit = async event => {
   if (!websiteActiveGames.length) { status.textContent = "Stage this week before submitting test picks."; return; }
   const selection = websitePickSelection();
   const submission = { mode: selection.testMode ? "test" : "production", season: selection.season, week: selection.week, phase: selection.phase, name: document.getElementById("website-picks-name").value, weekName: document.getElementById("website-week-name").value.trim(), picks: websiteActiveGames.map((game, index) => form.elements[`game-${index + 1}`].value), bestBet: document.getElementById("website-best-bet").value, tiebreaker: document.getElementById("website-tiebreaker").value, includeConfirmationInEmail: !selection.testMode, browserId: websiteAnonymousId(localStorage, "fbpAnonymousBrowserId") };
+  if (!selection.testMode) submission.editKey = websiteEditKeyFor(submission.name, selection);
   websitePicksSubmissionPending = true;
   submitButton.disabled = true;
   const submitButtonLabel = submitButton.textContent;
@@ -3955,8 +4018,10 @@ document.getElementById("website-picks-form").onsubmit = async event => {
     status.textContent = selection.testMode ? "Saving test picks and building your confirmation..." : "Your picks are complete. Saving them and building your confirmation...";
     let result = { ok: true, identity: { status: "new", submittedName: submission.name.trim(), suggestedName: "" } };
     if (WEBSITE_SUBMISSIONS_ENDPOINT) { const response = await fetch(WEBSITE_SUBMISSIONS_ENDPOINT, { method: "POST", headers: { "Content-Type": "text/plain;charset=utf-8" }, body: JSON.stringify(submission) }); result = await response.json(); if (!response.ok || !result.ok) throw new Error(result.error || "Submission failed."); }
+    if (!selection.testMode && result.editKey) websiteSaveEditKey(result.identity?.submittedName || submission.name.trim(), result.editKey, result.editableUntil, selection);
+    const storedSubmission = { ...submission }; delete storedSubmission.editKey;
     const storageKey = selection.testMode ? `fbpPreseasonTest-${selection.week}` : "fbpWebsiteSubmissions";
-    const stored = JSON.parse(localStorage.getItem(storageKey) || "[]"); stored.push(submission); localStorage.setItem(storageKey, JSON.stringify(stored));
+    const stored = JSON.parse(localStorage.getItem(storageKey) || "[]"); stored.push(storedSubmission); localStorage.setItem(storageKey, JSON.stringify(stored));
     status.textContent = selection.testMode ? "Test picks submitted. Season records were not changed." : "Picks submitted successfully.";
     websiteTrackEvent("submission", "enter-picks", { playerName: result.identity?.submittedName || submission.name });
     document.querySelector("#view-picks-confirmation .intro p").textContent = selection.testMode ? `Preseason Week ${selection.week} test` : `Week ${selection.week} · ${selection.season}-${selection.season + 1}`;
@@ -3965,6 +4030,7 @@ document.getElementById("website-picks-form").onsubmit = async event => {
     await confirmationReady;
     if (!await sendWebsitePickConfirmationEmail(result.confirmationEmailToken)) console.warn("Picks were saved, but the combined admin confirmation email could not be verified.");
     websiteBestBetMismatchAttempts = 0; websiteBestBetMismatchSignature = ""; websiteApprovedNewPlayerName = "";
+    renderWebsiteFixPicks();
   } catch (error) { status.textContent = `Could not submit picks: ${error.message}`; }
   finally {
     websitePicksSubmissionPending = false;

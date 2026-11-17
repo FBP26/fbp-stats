@@ -2180,9 +2180,27 @@ const submitCard = async (payload: JsonObject, env: Env): Promise<Response> => {
     return json({ ok: false, error: "A pick or best bet does not match the staged games." }, 400, env.CORS_ORIGIN);
   }
 
-  const priorSubmission = await env.DB.prepare("SELECT s.id FROM submissions s JOIN players p ON p.id=s.player_id WHERE s.week_id=? AND p.canonical_name=? COLLATE NOCASE AND s.superseded_at IS NULL")
-    .bind(week.id, name).first<{ id: number }>();
+  const priorSubmission = await env.DB.prepare("SELECT s.id, s.player_id FROM submissions s JOIN players p ON p.id=s.player_id WHERE s.week_id=? AND p.canonical_name=? COLLATE NOCASE AND s.superseded_at IS NULL")
+    .bind(week.id, name).first<{ id: number; player_id: number }>();
   const priorPlayer = await env.DB.prepare("SELECT id FROM players WHERE canonical_name=? COLLATE NOCASE").bind(name).first<{ id: number }>();
+  const firstKickoff = Math.min(...gameRows.results.map((game) => Date.parse(String(game.kickoff_at))));
+  const isTest = payload.mode === "test";
+  // Fix my picks: no changes to an existing entry after the week's first kickoff (new entries are still accepted),
+  // and once an entry has an edit key, only the phone/browser holding that key can replace it.
+  const editKey = cleanText(payload.editKey, 80);
+  let editKeyValid = false;
+  if (priorSubmission && !isTest) {
+    if (Number.isFinite(firstKickoff) && Date.now() >= firstKickoff) {
+      return json({ ok: false, locked: true, error: `Week ${weekNumber} picks locked at the first kickoff (${formatEasternDateTime(new Date(firstKickoff).toISOString())}). Your saved picks stand. Text Jim if something is wrong.` }, 409, env.CORS_ORIGIN);
+    }
+    const keys = await env.DB.prepare("SELECT key_hash FROM submission_edit_keys WHERE week_id=? AND player_id=?")
+      .bind(week.id, priorSubmission.player_id).all<{ key_hash: string }>();
+    const hashed = editKey ? await sha256(editKey) : "";
+    editKeyValid = Boolean(hashed) && keys.results.some((row) => row.key_hash === hashed);
+    if (keys.results.length && !editKeyValid) {
+      return json({ ok: false, otherDevice: true, error: `${name}'s Week ${weekNumber} picks were submitted from a different phone or browser. Use "Fix my picks" on that device, or text Jim to change them.` }, 409, env.CORS_ORIGIN);
+    }
+  }
   await env.DB.prepare("INSERT INTO players (canonical_name) VALUES (?) ON CONFLICT (canonical_name) DO NOTHING").bind(name).run();
   const player = await env.DB
     .prepare("SELECT id, canonical_name FROM players WHERE canonical_name = ? COLLATE NOCASE")
@@ -2211,13 +2229,17 @@ const submitCard = async (payload: JsonObject, env: Env): Promise<Response> => {
        WHERE week_id = ? AND player_id = ? AND submitted_at = ?`,
     ).bind(game.id, picks[index], week.id, player.id, submittedAt)),
   ];
+  const issuedEditKey = isTest ? "" : editKeyValid ? editKey : randomToken();
+  if (issuedEditKey && !editKeyValid) {
+    statements.push(env.DB.prepare("INSERT INTO submission_edit_keys (week_id, player_id, key_hash) VALUES (?, ?, ?) ON CONFLICT DO NOTHING")
+      .bind(week.id, player.id, await sha256(issuedEditKey)));
+  }
   await env.DB.batch(statements);
   const submissionKey = `admin-submission:${week.id}:${player.id}:${submittedAt}`;
   await sendAdministratorPushOnce(env, priorSubmission ? "adminPickReplaced" : "adminPickSubmitted", submissionKey,
     `${player.canonical_name} - ${priorSubmission ? "Picks Replaced" : "Picks Submitted"}`,
     priorSubmission ? `${player.canonical_name} replaced their picks.` : `${player.canonical_name} picks submitted.`, Number(week.id));
   if (!priorPlayer) await sendAdministratorPushOnce(env, "adminNewPlayer", `admin-new-player:${player.id}`, "New player joined", `${player.canonical_name} submitted their first FBP picks.`, Number(week.id));
-  const firstKickoff = Math.min(...gameRows.results.map((game) => Date.parse(String(game.kickoff_at))));
   if (Number.isFinite(firstKickoff) && Date.parse(submittedAt) > firstKickoff) await sendAdministratorPushOnce(env, "adminLateSubmission", `admin-late-submission:${week.id}:${player.id}:${submittedAt}`, `Late picks - Week ${weekNumber}`, `${player.canonical_name} submitted picks after the first kickoff.`, Number(week.id));
   const savedSubmission = await env.DB.prepare(
     "SELECT id FROM submissions WHERE week_id=? AND player_id=? AND submitted_at=?",
@@ -2229,6 +2251,8 @@ const submitCard = async (payload: JsonObject, env: Env): Promise<Response> => {
     testMode: payload.mode === "test",
     submittedAt,
     confirmationEmailToken,
+    editKey: issuedEditKey,
+    editableUntil: Number.isFinite(firstKickoff) ? new Date(firstKickoff).toISOString() : "",
     identity: {
       status: rawName === player.canonical_name ? "known" : "suggestion",
       submittedName: player.canonical_name,
