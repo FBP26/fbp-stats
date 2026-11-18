@@ -120,6 +120,9 @@
   .metric span { display: block; color: var(--muted); font: 10px Arial, sans-serif; text-transform: uppercase; letter-spacing: .7px; }
   .metric strong { display: block; margin-top: 6px; font-size: 22px; font-weight: 400; }
   .chart-wrap { height: 335px; position: relative; }
+  /* Page zoom (the - / + buttons) can make Safari size a chart's canvas larger than its box; keep every chart inside it. */
+  .chart-wrap { overflow: hidden; }
+  .chart-wrap > canvas { display: block; width: 100% !important; height: 100% !important; max-width: 100%; }
   .table-section { margin-top: 28px; }
   .view { display: none; }
   .view.active { display: block; }
