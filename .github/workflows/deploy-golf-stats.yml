@@ -38,6 +38,15 @@ jobs:
       - name: Create or update tables
         working-directory: stats-worker
         run: npx wrangler d1 execute golf-stats --remote --file schema.sql
+      - name: Load the scorebook into an empty database (first deploy only)
+        working-directory: stats-worker
+        run: |
+          rounds=$(npx wrangler d1 execute golf-stats --remote --json --command "SELECT COUNT(*) AS n FROM rounds" | jq '.[0].results[0].n')
+          echo "Rounds already online: $rounds"
+          if [ "$rounds" = "0" ] && [ -f seed/golf-seed.sql.gz ]; then
+            gunzip -c seed/golf-seed.sql.gz > /tmp/golf-seed.sql
+            npx wrangler d1 execute golf-stats --remote --yes --file /tmp/golf-seed.sql
+          fi
       - name: Deploy
         working-directory: stats-worker
         run: npx wrangler deploy
