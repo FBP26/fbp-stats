@@ -4246,8 +4246,22 @@ function websiteReadCurrentWeekCache() {
     return null;
   }
 }
+// Before the week's first kickoff people are still submitting, so a saved copy can be missing
+// entries. Only show it instantly when it is a couple of minutes old; otherwise wait for live data.
+function websiteCachedCurrentWeekUsable(cached) {
+  if (!cached) return false;
+  const started = (cached.games || []).some(game => !["", "PRE", "PREGAME", "SCHEDULED", "STATUS_SCHEDULED"].includes(websiteGameStatus(game)));
+  if (started) return true;
+  try {
+    const storedAt = Number(JSON.parse(localStorage.getItem(WEBSITE_CURRENT_WEEK_CACHE_KEY) || "null")?.storedAt) || 0;
+    return Date.now() - storedAt < 2 * 60 * 1000;
+  } catch (error) {
+    return false;
+  }
+}
 function websiteRenderCachedCurrentWeek() {
   const cached = websiteReadCurrentWeekCache();
+  if (!websiteCachedCurrentWeekUsable(cached)) return false;
   if (!cached) return false;
   websiteRegularSelection = { season: Number(cached.season) || 2026, week: Number(cached.week) || 1, phase: cached.phase === "PLAYOFFS" ? "PLAYOFFS" : "REGULAR_SEASON", staged: Boolean(cached.games.length) };
   updateWebsiteWeekLabels(websiteRegularSelection);
@@ -4560,7 +4574,7 @@ function renderWebsiteLiveAnalysis(data) {
 }
 function websiteRenderCachedLive() {
   const cached = websiteReadCurrentWeekCache();
-  if (!cached) return false;
+  if (!websiteCachedCurrentWeekUsable(cached)) return false;
   cached.raceHistoryLoading = (cached.games || []).length > 0 && (cached.games || []).every(game => ["POST", "FINAL", "COMPLETED"].includes(websiteGameStatus(game))) && !cached.raceHistoryComplete;
   websiteRegularSelection = { season: Number(cached.season) || 2026, week: Number(cached.week) || 1, phase: cached.phase === "PLAYOFFS" ? "PLAYOFFS" : "REGULAR_SEASON", staged: Boolean(cached.games.length) };
   updateWebsiteWeekLabels(websiteRegularSelection);
