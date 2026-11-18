@@ -1719,7 +1719,7 @@ const fetchOpenMeteoWeather = async (
   } as Record<string, string>)[country] || (/^[A-Z]{2}$/.test(country) ? country : "");
   const geocode = await fetch(
     `https://geocoding-api.open-meteo.com/v1/search?name=${encodeURIComponent(city)}&count=1&language=en&format=json${countryCode ? `&countryCode=${encodeURIComponent(countryCode)}` : ""}`,
-    { cf: { cacheTtl: 86_400 } },
+    { cf: { cacheTtl: 86_400 }, signal: AbortSignal.timeout(4_000) },
   );
   if (!geocode.ok) return null;
   const locations = await geocode.json() as { results?: { latitude?: number; longitude?: number }[] };
@@ -1736,7 +1736,7 @@ const fetchOpenMeteoWeather = async (
     : `https://api.open-meteo.com/v1/forecast?latitude=${latitude}&longitude=${longitude}&hourly=temperature_2m,precipitation_probability,wind_gusts_10m,weather_code&timezone=UTC&forecast_days=7`;
   const forecast = await fetch(
     weatherApi,
-    { cf: { cacheTtl: 900 } },
+    { cf: { cacheTtl: 900 }, signal: AbortSignal.timeout(4_000) },
   );
   if (!forecast.ok) return null;
   const hourly = (await forecast.json()) as {
@@ -1769,7 +1769,15 @@ const fetchOpenMeteoWeather = async (
 };
 
 const enrichActiveSlateGames = async (games: JsonObject[], season: number, week: number, phase = "REGULAR_SEASON"): Promise<JsonObject[]> => {
-  const response = await fetch(espnSchedule(espnSeason(season, phase), week, phase).api, { cf: { cacheTtl: 300 } });
+  // Enrichment is optional decoration (weather, records, TV). Bound every outside call so a slow
+  // ESPN or Open-Meteo response can never hold Enter Picks or the health check past its timeout.
+  let response: Response;
+  try {
+    response = await fetch(espnSchedule(espnSeason(season, phase), week, phase).api, { cf: { cacheTtl: 300 }, signal: AbortSignal.timeout(6_000) });
+  } catch (error) {
+    console.warn("ESPN scoreboard enrichment skipped", error);
+    return games;
+  }
   if (!response.ok) return games;
   const scoreboard = await response.json() as { events?: { id?: string; competitions?: { competitors?: { homeAway?: string; records?: { summary?: string }[]; team?: { abbreviation?: string; displayName?: string } }[]; venue?: { fullName?: string; indoor?: boolean; address?: { city?: string; state?: string } }; broadcasts?: { names?: string[] }[] }[] }[] };
   const events = new Map((scoreboard.events || []).map((event) => [String(event.id || ""), event]));
@@ -1795,7 +1803,7 @@ const enrichActiveSlateGames = async (games: JsonObject[], season: number, week:
     const resolved = resolvedGames.get(gameId);
     if (!resolved?.competition || resolved.competition.venue?.indoor) return [gameId, null] as const;
     try {
-      const summaryResponse = await fetch(`https://site.api.espn.com/apis/site/v2/sports/football/nfl/summary?event=${encodeURIComponent(resolved.eventId)}`, { cf: { cacheTtl: 900 } });
+      const summaryResponse = await fetch(`https://site.api.espn.com/apis/site/v2/sports/football/nfl/summary?event=${encodeURIComponent(resolved.eventId)}`, { cf: { cacheTtl: 900 }, signal: AbortSignal.timeout(5_000) });
       if (!summaryResponse.ok) return [gameId, null] as const;
       const summary = await summaryResponse.json() as {
         gameInfo?: {
