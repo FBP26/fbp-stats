@@ -3882,7 +3882,10 @@ async function preflightWebsiteIdentity(submission, status) {
   const result = await response.json();
   if (!response.ok || !result.ok) throw new Error(result.error || "Name check failed.");
   let identity = result.identity || {};
-  const canonicalSuggestion = websiteCanonicalPlayerSuggestion(submission.name);
+  // The server answers { knownPlayer, submittedName } for names already in the pool. Accept that
+  // even when this phone hasn't finished loading the history lists (e.g. opened straight to Enter Picks).
+  if (identity.knownPlayer === true) identity = { ...identity, status: "known" };
+  const canonicalSuggestion = identity.status === "known" ? "" : websiteCanonicalPlayerSuggestion(submission.name);
   if (canonicalSuggestion && identity.status === "known") identity = { status: "suggestion", submittedName: submission.name.trim(), suggestedName: canonicalSuggestion, reason: "similar-to-canonical-player" };
   if (identity.status === "known") { websiteApprovedNewPlayerName = ""; return true; }
   const enteredName = submission.name.trim();
