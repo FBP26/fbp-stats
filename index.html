@@ -2008,8 +2008,13 @@ function showWebsiteRaceFrame(frame, animate = true) {
   const label = showingCurrentStandings
     ? websiteRaceHistoryLoading
       ? `${statusLabel} · Loading race history…`
-      : `${statusLabel} · ${websiteRaceLiveNow ? "Updated" : websiteRaceWeekFinal ? "Final checkpoint" : "Latest checkpoint"} ${timestamp} · ${checkpointCount}`
+      : `${statusLabel} · ${checkpointCount}`
     : `${timestamp} · Replay checkpoint ${checkpointCount}`;
+  // Jim Nov 23: the checkpoint time lives in the status line at the top of the page, not in this box
+  if (showingCurrentStandings) {
+    websiteRaceCheckpointStatus = `${websiteRaceLiveNow ? "Updated" : websiteRaceWeekFinal ? "Final checkpoint" : "Latest checkpoint"} ${timestamp}`;
+    if (document.getElementById("view-live-analysis")?.classList.contains("active") && !websiteRaceHistoryLoading) websiteSetPageRefreshStatus("fresh", websiteRaceCheckpointStatus);
+  }
   eventPanel.innerHTML = `${websiteEscapeHtml(label)}<small>${websiteEscapeHtml(detail)}</small>`;
   renderWebsiteRaceLineChart(animate);
   renderWebsiteRaceLeadership();
@@ -4780,7 +4785,7 @@ async function renderWebsiteWeekOne(currentWeekRequest = null, currentRaceReques
       renderWebsiteLiveAnalysis(data);
       if (!liveGameInProgress) {
         const allGamesFinal = (data.games || []).length > 0 && (data.games || []).every(game => ["POST", "FINAL", "COMPLETED"].includes(websiteGameStatus(game)));
-        websiteSetPageRefreshStatus("fresh", allGamesFinal ? "Final standings are ready." : "Standings are ready; live updates resume when the next game begins.");
+        websiteSetPageRefreshStatus("fresh", websiteRaceCheckpointStatus || (allGamesFinal ? "Final standings are ready." : "Standings are ready; live updates resume when the next game begins."));
       }
     } else {
       renderWebsiteWeekOneGrid(data, "Week X");
@@ -5217,6 +5222,7 @@ function percentFormatter(cell) { const v = cell.getValue(); if (v === "" || v =
 function isMoneyColumn(name) { return /money|won\s*\$|streak.*money/i.test(name) && !/won during|weeks during/i.test(name); }
 function isPercentColumn(name) { return /^%$|win\s*%|%\s*won/i.test(name); }
 function buildColumns(columns, rows) { return columns.map(col => { const sample = rows.find(r => r[col] !== "" && r[col] != null); const value = sample && sample[col]; const numeric = value !== undefined && value !== "" && !isNaN(parseFloat(String(value).replace(/[$,%]/g, ""))); const def = { title: col, field: col, headerFilter: true, headerFilterPlaceholder: "filter...", sorter: numeric ? "number" : "string" }; if (isMoneyColumn(col)) def.formatter = moneyFormatter; else if (isPercentColumn(col)) def.formatter = percentFormatter; return def; }); }
+var websiteRaceCheckpointStatus = "";
 function websiteSetPageRefreshStatus(state, message = "") {
   const status = document.getElementById("page-refresh-status");
   if (!status) return;
