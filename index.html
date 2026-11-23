@@ -1390,7 +1390,7 @@ let websiteSankeyChart = null;
 let websiteForcedOutcomes = {};
 const websiteProbabilityCache = new Map();
 const websiteExactPathCache = new Map();
-let websiteRaceSnapshots = [], websiteRaceContext = "", websiteRaceAutoplayContext = "", websiteRaceFrame = 0, websiteRaceTimer = null, websiteRaceRows = new Map(), websiteRacePlaybackRequested = false, websiteRaceLineChart = null, websiteRaceSelectedPlayer = "", websiteRacePassesRemaining = 0, websiteRaceLiveNow = false, websiteRaceHistoryLoading = false;
+let websiteRaceWeekFinal = false, websiteRaceSnapshots = [], websiteRaceContext = "", websiteRaceAutoplayContext = "", websiteRaceFrame = 0, websiteRaceTimer = null, websiteRaceRows = new Map(), websiteRacePlaybackRequested = false, websiteRaceLineChart = null, websiteRaceSelectedPlayer = "", websiteRacePassesRemaining = 0, websiteRaceLiveNow = false, websiteRaceHistoryLoading = false;
 const RACE_FRAME_DELAY = 1400;
 const WEBSITE_RACE_MAX_PLAYBACK_MS = 60000;
 function websiteRaceActiveGameCount(snapshot) {
@@ -1996,7 +1996,7 @@ function showWebsiteRaceFrame(frame, animate = true) {
   const eventPanel = document.getElementById("website-race-event-panel");
   const timestamp = stamp.toLocaleString([], { weekday: "short", hour: "numeric", minute: "2-digit" });
   const showingCurrentStandings = websiteRaceFrame === websiteRaceSnapshots.length - 1 && !websiteRaceTimer && !websiteRacePlaybackRequested;
-  const statusLabel = websiteRaceLiveNow ? "Live standings" : "Final standings";
+  const statusLabel = websiteRaceLiveNow ? "Live standings" : websiteRaceWeekFinal ? "Final standings" : "Current standings";
   const checkpointCount = `${websiteRaceFrame + 1}/${websiteRaceSnapshots.length}`;
   const detail = websiteRaceHistoryLoading
     ? "Loading the complete race history."
@@ -2008,7 +2008,7 @@ function showWebsiteRaceFrame(frame, animate = true) {
   const label = showingCurrentStandings
     ? websiteRaceHistoryLoading
       ? `${statusLabel} · Loading race history…`
-      : `${statusLabel} · ${websiteRaceLiveNow ? "Updated" : "Final checkpoint"} ${timestamp} · ${checkpointCount}`
+      : `${statusLabel} · ${websiteRaceLiveNow ? "Updated" : websiteRaceWeekFinal ? "Final checkpoint" : "Latest checkpoint"} ${timestamp} · ${checkpointCount}`
     : `${timestamp} · Replay checkpoint ${checkpointCount}`;
   eventPanel.innerHTML = `${websiteEscapeHtml(label)}<small>${websiteEscapeHtml(detail)}</small>`;
   renderWebsiteRaceLineChart(animate);
@@ -2057,6 +2057,7 @@ function renderWebsiteRace(data) {
   websiteRaceContext = context;
   websiteRaceLiveNow = (data.games || []).some(game => ["IN", "IN_PROGRESS", "LIVE"].includes(websiteGameStatus(game)));
   websiteRaceHistoryLoading = Boolean(data.raceHistoryLoading);
+  websiteRaceWeekFinal = allGamesFinal || Boolean(data.completedWeekArchive);
   websiteRaceSnapshots = snapshots.filter(snapshot => snapshot?.timestamp && Array.isArray(snapshot.players) && snapshot.players.length).slice(-720);
   try { localStorage.setItem(websiteRaceStorageKey(context), JSON.stringify(websiteRaceSnapshots)); }
   catch (error) { console.warn(`Race history could not be saved: ${error.message}`); }
@@ -4754,13 +4755,16 @@ async function renderWebsiteWeekOne(currentWeekRequest = null, currentRaceReques
     const liveGameInProgress = (data.games || []).some(game => ["IN", "IN_PROGRESS", "LIVE"].includes(websiteGameStatus(game)));
     const allGamesFinal = (data.games || []).length > 0 && (data.games || []).every(game => ["POST", "FINAL", "COMPLETED"].includes(websiteGameStatus(game)));
     const completedRaceRequest = liveView && allGamesFinal && !data.completedWeekArchive ? fetchWebsiteCompletedWeekArchive().catch(error => { console.warn(error.message); return null; }) : null;
-    data.raceHistoryLoading = Boolean(completedRaceRequest);
+    const weekStarted = (data.games || []).some(game => ["IN", "IN_PROGRESS", "LIVE", "POST", "FINAL", "COMPLETED"].includes(websiteGameStatus(game)));
+    // Between game windows (some games final, none live) the race history still comes from the server, with a loading note.
+    const betweenGames = weekStarted && !liveGameInProgress && !allGamesFinal && !data.completedWeekArchive;
+    data.raceHistoryLoading = Boolean(completedRaceRequest) || (liveView && betweenGames);
     if (cached && Number(cached.season) === Number(data.season) && Number(cached.week) === Number(data.week) && Array.isArray(cached.raceSnapshots) && cached.raceSnapshots.length && (data.completedWeekArchive || !liveGameInProgress)) {
       data.raceSnapshots = cached.raceSnapshots;
     }
     websiteRegularSelection = { season: Number(data.season) || 2026, week: Number(data.week) || 1, phase: data.phase === "PLAYOFFS" ? "PLAYOFFS" : "REGULAR_SEASON", staged: Boolean((data.games || []).length) };
     updateWebsiteWeekLabels(websiteRegularSelection);
-    const raceRequest = liveView && liveGameInProgress ? (currentRaceRequest || fetchWebsiteCurrentWeekRace(websiteRegularSelection.season, websiteRegularSelection.week)).catch(error => { console.warn(error.message); return null; }) : null;
+    const raceRequest = liveView && (liveGameInProgress || betweenGames) ? (currentRaceRequest || fetchWebsiteCurrentWeekRace(websiteRegularSelection.season, websiteRegularSelection.week)).catch(error => { console.warn(error.message); return null; }) : null;
     if (!/^\d+(?:\.\d+)?$/.test(String(data.actualTiebreaker || ""))) data.actualTiebreaker = "";
     await new Promise(resolve => requestAnimationFrame(() => requestAnimationFrame(resolve)));
     startWebsiteAnalytics();
@@ -4787,17 +4791,28 @@ async function renderWebsiteWeekOne(currentWeekRequest = null, currentRaceReques
       if (refreshGeneration !== websiteLiveRefreshGeneration) return;
       if (raceSnapshots === null) {
         websiteSetPageRefreshStatus("stale", "Live standings loaded; race history is showing the last available checkpoints.");
+        if (data.raceHistoryLoading) { data.raceHistoryLoading = false; renderWebsiteRace(data); }
         return;
       }
       if (websiteRegularSelection.season !== Number(data.season) || websiteRegularSelection.week !== Number(data.week)) return;
-      websiteSetPageRefreshStatus("fresh");
+      if (liveGameInProgress) websiteSetPageRefreshStatus("fresh");
       data.raceSnapshots = raceSnapshots;
+      data.raceHistoryLoading = false;
       websiteWriteCurrentWeekCache(data);
       renderWebsiteRace(data);
     });
-    completedRaceRequest?.then(archive => {
-      if (refreshGeneration !== websiteLiveRefreshGeneration || archive === null) return;
-      if (Number(archive.season) !== Number(data.season) || Number(archive.week) !== Number(data.week)) return;
+    completedRaceRequest?.then(async archive => {
+      if (refreshGeneration !== websiteLiveRefreshGeneration) return;
+      if (archive === null || Number(archive.season) !== Number(data.season) || Number(archive.week) !== Number(data.week)) {
+        // The finished week's archive is not published yet, so use the server's race history for now.
+        const raceSnapshots = await fetchWebsiteCurrentWeekRace(Number(data.season), Number(data.week)).catch(error => { console.warn(error.message); return null; });
+        if (refreshGeneration !== websiteLiveRefreshGeneration) return;
+        if (raceSnapshots?.length) data.raceSnapshots = raceSnapshots;
+        data.raceHistoryLoading = false;
+        websiteWriteCurrentWeekCache(data);
+        renderWebsiteRace(data);
+        return;
+      }
       data.raceSnapshots = archive.raceSnapshots;
       data.raceHistoryLoading = false;
       data.raceHistoryComplete = true;
