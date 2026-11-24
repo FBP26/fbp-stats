@@ -3304,6 +3304,7 @@ async function renderWebsitePicksForm(forceRefresh = false) {
     };
     host.addEventListener("change", host.bestBetPickHandler);
     refreshBestBetTeams();
+    websiteRestorePicksDraft();
     document.querySelector('#website-picks-form button[type="submit"]').disabled = !linesReady || weekLocked;
     websiteSetWeekStatus(weekLocked ? `Week ${selection.week} is final. Week ${selection.week + 1} picks open Tuesday at 2:00 PM ET.` : linesReady ? "" : "Not every point spread is posted yet. Matchups are available for review; picks open after the Tuesday refresh fills the lines.");
     queueWebsitePicksWeatherRefresh(selection);
@@ -4015,6 +4016,7 @@ async function loadWebsitePicksForFix(name) {
     bestBet.dispatchEvent(new Event("change", { bubbles: true }));
     if (typeof updateWebsiteBestBetPicker === "function") updateWebsiteBestBetPicker();
     document.getElementById("website-tiebreaker").value = existing.tiebreaker ?? "";
+    websiteSavePicksDraft();
     status.textContent = `Editing ${existing.name || name}'s Week ${websitePickSelection().week} picks. Change anything, then tap Submit.`;
     form.scrollIntoView({ behavior: "smooth", block: "start" });
   } catch (error) { status.textContent = `Could not load ${name}'s picks: ${error.message}`; }
@@ -4044,6 +4046,62 @@ function compareWebsiteSubmission(existing, submission) {
   if (String(submission.weekName || "").trim() !== String(existing.weekName || "").trim()) changes.push("week name");
   return { same: changes.length === 0 && existingPicks.length === submission.picks.length, changes };
 }
+// Picks draft: keeps a player's name, week name, picks, Best Bet and tiebreaker on this device until the picks are submitted.
+function websitePicksDraftKey() { return "fbpPicksDraft"; }
+function websitePicksDraftSlate() { const selection = websitePickSelection(); return `${selection.testMode ? "test" : "live"}-${selection.phase}-${selection.season}-${selection.week}`; }
+function websiteReadPicksDraft() {
+  try {
+    const draft = JSON.parse(localStorage.getItem(websitePicksDraftKey()) || "null");
+    return draft && draft.slate === websitePicksDraftSlate() ? draft : null;
+  } catch (error) { return null; }
+}
+function websiteClearPicksDraft() { try { localStorage.removeItem(websitePicksDraftKey()); } catch (error) {} }
+function websiteSavePicksDraft() {
+  const form = document.getElementById("website-picks-form");
+  if (!form) return;
+  const radios = [...form.querySelectorAll('input[type="radio"][name^="game-"]')];
+  const previous = websiteReadPicksDraft();
+  const draft = {
+    slate: websitePicksDraftSlate(),
+    name: document.getElementById("website-picks-name").value,
+    weekName: document.getElementById("website-week-name").value,
+    tiebreaker: document.getElementById("website-tiebreaker").value,
+    // While the games are reloading there are no pick buttons on the page, so keep the picks already saved.
+    picks: radios.length ? radios.filter(input => input.checked).map(input => input.value) : previous?.picks || [],
+    bestBet: radios.length ? document.getElementById("website-best-bet").value : previous?.bestBet || "",
+    savedAt: Date.now()
+  };
+  try {
+    if (!draft.name.trim() && !draft.weekName.trim() && !draft.tiebreaker && !draft.picks.length && !draft.bestBet) localStorage.removeItem(websitePicksDraftKey());
+    else localStorage.setItem(websitePicksDraftKey(), JSON.stringify(draft));
+  } catch (error) { console.warn(`Picks draft could not be saved: ${error.message}`); }
+}
+function websiteRestorePicksDraft() {
+  try { websiteApplyPicksDraft(); } catch (error) { console.warn(`Picks draft could not be restored: ${error.message}`); }
+}
+function websiteApplyPicksDraft() {
+  const form = document.getElementById("website-picks-form"), host = document.getElementById("website-game-picks");
+  const draft = websiteReadPicksDraft();
+  if (!form || !host || !draft) return;
+  [["website-picks-name", draft.name], ["website-week-name", draft.weekName], ["website-tiebreaker", draft.tiebreaker]].forEach(([id, value]) => {
+    const field = document.getElementById(id);
+    if (field && !field.value && value) { field.value = value; if (id === "website-tiebreaker") field.dispatchEvent(new Event("input")); }
+  });
+  const saved = new Set(draft.picks || []);
+  let restored = null;
+  host.querySelectorAll('input[type="radio"][name^="game-"]').forEach(input => {
+    if (input.disabled || !saved.has(input.value) || form.querySelector(`input[name="${input.name}"]:checked`)) return;
+    input.checked = true;
+    restored = input;
+  });
+  if (restored && host.bestBetPickHandler) host.bestBetPickHandler({ target: restored });
+  const bestBet = document.getElementById("website-best-bet");
+  if (bestBet && !bestBet.value && draft.bestBet && [...bestBet.options].some(option => option.value === draft.bestBet)) bestBet.value = draft.bestBet;
+  updateWebsiteBestBetPicker();
+}
+document.getElementById("website-picks-form").addEventListener("input", websiteSavePicksDraft);
+document.getElementById("website-picks-form").addEventListener("change", websiteSavePicksDraft);
+window.addEventListener("pagehide", websiteSavePicksDraft);
 document.getElementById("website-picks-form").addEventListener("change", event => {
   if (event.target.matches("#website-picks-name")) {
     websiteApprovedNewPlayerName = "";
@@ -4085,7 +4143,7 @@ document.getElementById("website-picks-form").onsubmit = async event => {
       status.textContent = "Those exact picks are already saved. The original submission was kept.";
       document.querySelector("#view-picks-confirmation .intro p").textContent = selection.testMode ? `Preseason Week ${selection.week} test` : `Week ${selection.week} · ${selection.season}-${selection.season + 1}`;
       await renderWebsiteConfirmation(original, { unchanged: true, submittedAt: original.submittedAt, identity: { status: "known", submittedName: original.name.trim(), suggestedName: "" } });
-      form.reset(); resetWebsiteBestBet(); showWebsiteConfirmation();
+      websiteClearPicksDraft(); form.reset(); resetWebsiteBestBet(); showWebsiteConfirmation();
       return;
     }
     if (existing && !globalThis.confirm(`You already submitted for this week. Replace the original entry with changes to: ${comparison.changes.join(", ")}?`)) {
@@ -4104,7 +4162,7 @@ document.getElementById("website-picks-form").onsubmit = async event => {
     websiteTrackEvent("submission", "enter-picks", { playerName: result.identity?.submittedName || submission.name });
     document.querySelector("#view-picks-confirmation .intro p").textContent = selection.testMode ? `Preseason Week ${selection.week} test` : `Week ${selection.week} · ${selection.season}-${selection.season + 1}`;
     const confirmationReady = renderWebsiteConfirmation(submission, result);
-    form.reset(); resetWebsiteBestBet(); showWebsiteConfirmation();
+    websiteClearPicksDraft(); form.reset(); resetWebsiteBestBet(); showWebsiteConfirmation();
     await confirmationReady;
     if (!await sendWebsitePickConfirmationEmail(result.confirmationEmailToken)) console.warn("Picks were saved, but the combined admin confirmation email could not be verified.");
     websiteBestBetMismatchAttempts = 0; websiteBestBetMismatchSignature = ""; websiteApprovedNewPlayerName = "";
@@ -8592,6 +8650,7 @@ if (["week-one", "live-analysis"].includes(startupRoute) && !WEBSITE_SUBMISSIONS
   if (startupRoute === "enter-picks") {
     await renderWebsitePicksForm();
     resetWebsiteBestBet();
+    websiteRestorePicksDraft();
     const renderedSlate = websiteSlateSignature(websiteActiveGames);
     startupRoutePending = false;
     try {
