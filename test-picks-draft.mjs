@@ -28,7 +28,7 @@ const run = (page, selection) => {
   const context = vm.createContext({
     console, Date, JSON, Set, Event: class {},
     localStorage: { getItem: key => store.get(key) ?? null, setItem: (key, value) => store.set(key, value), removeItem: key => store.delete(key) },
-    websitePickSelection: () => selection, updateWebsiteBestBetPicker() {},
+    websitePickSelection: () => selection, updateWebsiteBestBetPicker() {}, websiteStore: (key, value) => { store.set(key, value); return true; },
     document: { getElementById: id => id === 'website-picks-form' ? page.form : id === 'website-game-picks' ? page.host : id === 'website-best-bet' ? page.bestBet : page.fields[id] }
   });
   vm.runInContext(html.slice(start, end) + '\nthis.api = { save: websiteSavePicksDraft, restore: websiteRestorePicksDraft, clear: websiteClearPicksDraft };', context);
@@ -77,3 +77,21 @@ assert.equal(page.fields['website-picks-name'].value, '');
 run(makePage(), week12).clear();
 assert.equal(store.has('fbpPicksDraft'), false);
 console.log('Picks draft survives leaving the page and clears on submit.');
+
+// A full phone ("The quota has been exceeded") must never turn a saved submission into an error.
+const helperStart = html.indexOf('function websiteFreeStorage(keepKey = "") {');
+const helperEnd = html.indexOf('function websiteRaceStorageKey(context) {');
+assert.ok(helperStart > 0 && helperEnd > helperStart, 'Storage helpers are present');
+assert.doesNotMatch(html, /stored\.push\(storedSubmission\); localStorage\.setItem/, 'Post-submit device copy cannot throw');
+const full = { 'fbpRaceSnapshots-v3-2026-10': 'x'.repeat(60), 'fbpRaceReconstruction-v7-2026-9': 'x'.repeat(60), fbpEditKeys: '{}' };
+const fullStorage = new Proxy(full, { get: (target, key) => key === 'getItem' ? name => target[name] ?? null
+  : key === 'removeItem' ? name => { delete target[name]; }
+  : key === 'setItem' ? (name, value) => { const used = Object.entries(target).filter(([existing]) => existing !== name).reduce((sum, [, text]) => sum + text.length, 0); if (used + value.length > 100) throw new Error('The quota has been exceeded.'); target[name] = value; }
+  : target[key] });
+const storageContext = vm.createContext({ console: { warn() {} }, Object, localStorage: fullStorage });
+vm.runInContext(html.slice(helperStart, helperEnd) + '\nthis.store = websiteStore;', storageContext);
+assert.equal(storageContext.store('fbpWebsiteSubmissions', 'y'.repeat(50)), true, 'Old race history is dropped to make room');
+assert.equal(full.fbpEditKeys, '{}', 'Edit keys are never dropped');
+assert.equal(Object.keys(full).some(key => key.startsWith('fbpRace')), false);
+assert.equal(storageContext.store('fbpWebsiteSubmissions', 'y'.repeat(500)), false, 'A write that still cannot fit fails quietly');
+console.log('A full phone no longer blocks the confirmation after picks are saved.');

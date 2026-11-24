@@ -1633,6 +1633,18 @@ function renderWebsiteRaceEndpointTargets(chart, selectRunner) {
   context.restore();
   wrap.appendChild(targets);
 }
+// Phone storage is small (about 5 MB). Cached race history from earlier weeks is rebuilt from the server, so it is safe to drop when space runs out.
+function websiteFreeStorage(keepKey = "") {
+  try { Object.keys(localStorage).filter(key => /^fbpRace/.test(key) && key !== keepKey).forEach(key => localStorage.removeItem(key)); } catch (error) {}
+}
+function websiteStore(key, value) {
+  try { localStorage.setItem(key, value); return true; }
+  catch (error) {
+    websiteFreeStorage();
+    try { localStorage.setItem(key, value); return true; }
+    catch (retryError) { console.warn(`${key} could not be saved on this device: ${retryError.message}`); return false; }
+  }
+}
 function websiteRaceStorageKey(context) { return `fbpRaceSnapshots-v3-${context}`; }
 function websiteStoredRaceSnapshots(context) {
   try { return JSON.parse(localStorage.getItem(websiteRaceStorageKey(context)) || "[]"); }
@@ -2064,8 +2076,8 @@ function renderWebsiteRace(data) {
   websiteRaceHistoryLoading = Boolean(data.raceHistoryLoading);
   websiteRaceWeekFinal = allGamesFinal || Boolean(data.completedWeekArchive);
   websiteRaceSnapshots = snapshots.filter(snapshot => snapshot?.timestamp && Array.isArray(snapshot.players) && snapshot.players.length).slice(-720);
-  try { localStorage.setItem(websiteRaceStorageKey(context), JSON.stringify(websiteRaceSnapshots)); }
-  catch (error) { console.warn(`Race history could not be saved: ${error.message}`); }
+  websiteFreeStorage(websiteRaceStorageKey(context));
+  websiteStore(websiteRaceStorageKey(context), JSON.stringify(websiteRaceSnapshots));
   if (!websiteRaceSnapshots.length) { host.innerHTML = '<div class="live-race-head"><div><h3>Live Weekly Race</h3><p>Win probability and paths will build here every five minutes once the live refresh starts.</p></div></div><div class="live-race-empty">No race snapshots yet. The first production refresh will create the opening frame.</div>'; return; }
   const names = [...new Set(websiteRaceSnapshots.flatMap(snapshot => snapshot.players.map(player => player.name)))];
   const waitingForUpdate = websiteRaceHistoryLoading || websiteRaceSnapshots.length < 2;
@@ -2986,10 +2998,10 @@ async function initializePushNotifications() {
       const preferences = Object.fromEntries(["picksReady", "picksDue", "firstPlace", "topFive", "topTen", "leadChange", "earlyWindow", "lateWindow", "beforeSnf", "beforeMnf", "weeklyResult"].map(name => [name, Boolean(form.elements[name]?.checked)]));
       const saved = await fetch(WEBSITE_NOTIFICATION_ENDPOINT, { method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify({ action: "subscribe-push", subscription: subscription.toJSON(), preferences, picksDueMinutes: Number(form.elements.picksDueMinutes.value) || 60 }) });
       const data = await saved.json(); if (!saved.ok || !data.ok) throw new Error(data.error || "Push notifications could not be enabled.");
-      localStorage.setItem(WEBSITE_PUSH_DEVICE_TOKEN, data.deviceToken);
+      websiteStore(WEBSITE_PUSH_DEVICE_TOKEN, data.deviceToken);
       const linked = await fetch(WEBSITE_NOTIFICATION_ENDPOINT, { method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify({ action: "link-push-player", deviceToken: data.deviceToken, playerName: selected.name }) });
       const linkData = await linked.json(); if (!linked.ok || !linkData.ok) throw new Error(linkData.error || "Push was enabled but could not be linked to your player.");
-      localStorage.setItem("fbpPushPlayer", linkData.playerName); status.textContent = `Push notifications are enabled for ${linkData.playerName}.`; updateButton();
+      websiteStore("fbpPushPlayer", linkData.playerName); status.textContent = `Push notifications are enabled for ${linkData.playerName}.`; updateButton();
     } catch (error) { status.textContent = error.message || "Push notifications could not be updated."; }
     finally { button.disabled = false; }
   });
@@ -3955,7 +3967,7 @@ function websiteSaveEditKey(name, key, editableUntil, selection) {
     week[name] = { key, editableUntil: editableUntil || "", savedAt: new Date().toISOString() };
     store[weekKey] = week;
     for (const stale of Object.keys(store)) if (stale !== weekKey && Object.keys(store).length > 6) delete store[stale];
-    localStorage.setItem("fbpEditKeys", JSON.stringify(store));
+    websiteStore("fbpEditKeys", JSON.stringify(store));
   } catch (error) { console.warn("Could not remember the edit key", error); }
 }
 function websiteFirstKickoff() { const times = websiteActiveGames.map(game => Date.parse(game.kickoff || game.kickoffAt || "")).filter(Number.isFinite); return times.length ? Math.min(...times) : NaN; }
@@ -4073,7 +4085,7 @@ function websiteSavePicksDraft() {
   };
   try {
     if (!draft.name.trim() && !draft.weekName.trim() && !draft.tiebreaker && !draft.picks.length && !draft.bestBet) localStorage.removeItem(websitePicksDraftKey());
-    else localStorage.setItem(websitePicksDraftKey(), JSON.stringify(draft));
+    else websiteStore(websitePicksDraftKey(), JSON.stringify(draft));
   } catch (error) { console.warn(`Picks draft could not be saved: ${error.message}`); }
 }
 function websiteRestorePicksDraft() {
@@ -4157,7 +4169,7 @@ document.getElementById("website-picks-form").onsubmit = async event => {
     if (!selection.testMode && result.editKey) websiteSaveEditKey(result.identity?.submittedName || submission.name.trim(), result.editKey, result.editableUntil, selection);
     const storedSubmission = { ...submission }; delete storedSubmission.editKey;
     const storageKey = selection.testMode ? `fbpPreseasonTest-${selection.week}` : "fbpWebsiteSubmissions";
-    const stored = JSON.parse(localStorage.getItem(storageKey) || "[]"); stored.push(storedSubmission); localStorage.setItem(storageKey, JSON.stringify(stored));
+    try { const stored = JSON.parse(localStorage.getItem(storageKey) || "[]"); stored.push(storedSubmission); websiteStore(storageKey, JSON.stringify(stored.slice(-40))); } catch (storageError) { console.warn(`Submission copy could not be kept on this device: ${storageError.message}`); }
     status.textContent = selection.testMode ? "Test picks submitted. Season records were not changed." : "Picks submitted successfully.";
     websiteTrackEvent("submission", "enter-picks", { playerName: result.identity?.submittedName || submission.name });
     document.querySelector("#view-picks-confirmation .intro p").textContent = selection.testMode ? `Preseason Week ${selection.week} test` : `Week ${selection.week} · ${selection.season}-${selection.season + 1}`;
@@ -5289,7 +5301,7 @@ function websiteSetPageRefreshStatus(state, message = "") {
   if (message) { status.textContent = message; return; }
   status.textContent = `Last refreshed ${new Date().toLocaleString([], { month: "short", day: "numeric", year: "numeric", hour: "numeric", minute: "2-digit", second: "2-digit" })}`;
 }
-function showView(view) { if (view === "alltime" && startupRoutePending) return; if (view !== "season") stopSeasonLiveRace(); if (view !== "weeks") stopWeekLiveRace(); document.querySelectorAll(".view").forEach(section => section.classList.toggle("active", section.id === `view-${view}`)); document.querySelectorAll("#nav button[data-view]").forEach(btn => btn.classList.toggle("active", btn.dataset.view === view)); history.replaceState(null, "", `#${view === "week-one" ? "current-week" : view}`); if (websiteRoutes.includes(view) && view !== "picks-confirmation") localStorage.setItem("fbpLastView", view); websiteSetPageRefreshStatus("loading", view === "live-analysis" ? "Loading live standings..." : "Loading..."); requestAnimationFrame(() => requestAnimationFrame(() => { if (document.getElementById(`view-${view}`)?.classList.contains("active") && view !== "live-analysis") websiteSetPageRefreshStatus("fresh"); })); websiteTrackEvent("page_view", view); }
+function showView(view) { if (view === "alltime" && startupRoutePending) return; if (view !== "season") stopSeasonLiveRace(); if (view !== "weeks") stopWeekLiveRace(); document.querySelectorAll(".view").forEach(section => section.classList.toggle("active", section.id === `view-${view}`)); document.querySelectorAll("#nav button[data-view]").forEach(btn => btn.classList.toggle("active", btn.dataset.view === view)); history.replaceState(null, "", `#${view === "week-one" ? "current-week" : view}`); if (websiteRoutes.includes(view) && view !== "picks-confirmation") websiteStore("fbpLastView", view); websiteSetPageRefreshStatus("loading", view === "live-analysis" ? "Loading live standings..." : "Loading..."); requestAnimationFrame(() => requestAnimationFrame(() => { if (document.getElementById(`view-${view}`)?.classList.contains("active") && view !== "live-analysis") websiteSetPageRefreshStatus("fresh"); })); websiteTrackEvent("page_view", view); }
 function renderProfile(name) { const overall = (tableData.overall || []).find(row => row.Name === name); const money = (tableData.money_won || []).find(row => row.Name === name); const weekly = dashboard.filter(row => row.Name === name); document.getElementById("profile-name").textContent = name || "Choose a player"; if (!overall) { document.getElementById("profile-stats").innerHTML = ""; return; } const stats = [["Wins", overall.Wins], ["Losses", overall.Losses], ["Win percentage", (Number(overall["%"] || 0) * 100).toFixed(2) + "%"], ["Plus/minus", overall["Plus/Minus"]], ["Total money won", "$" + Number(money?.["Total Money Won"] || 0).toLocaleString()], ["Weeks won", money?.["Weeks Won"] || 0]]; document.getElementById("profile-stats").innerHTML = stats.map(([label, value]) => `<div><span>${label}</span><strong>${value}</strong></div>`).join(""); const seasons = [...new Set(weekly.map(row => row.Season))].sort(); if (profileChart) profileChart.destroy(); profileChart = new Chart(document.getElementById("profile-history-chart"), { type: "line", data: { labels: seasons, datasets: [{ label: "Wins", data: seasons.map(season => weekly.filter(row => row.Season === season).reduce((sum, row) => sum + Number(row.Wins || 0), 0)), borderColor: colors[0], backgroundColor: colors[0] + "55", tension: .25 }, { label: "Average rank", data: seasons.map(season => { const rows = weekly.filter(row => row.Season === season); return rows.reduce((sum, row) => sum + Number(row.Rank || 0), 0) / rows.length; }), borderColor: colors[1], backgroundColor: colors[1] + "55", tension: .25, yAxisID: "rank" }] }, options: { responsive: true, maintainAspectRatio: false, scales: { x: { ticks: { color: "#91a0ae" }, grid: { color: "#2a3744" } }, y: { beginAtZero: true, ticks: { color: "#91a0ae" }, grid: { color: "#2a3744" } }, rank: { position: "right", reverse: true, ticks: { color: "#91a0ae" }, grid: { drawOnChartArea: false } } }, plugins: { legend: { labels: { color: "#e8eef5" } } } } }); }
 function renderProfileLegacy(name) {
   const overall = (tableData.overall || []).find(row => row.Name === name);
